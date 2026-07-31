@@ -1,0 +1,82 @@
+{
+  "version": "1.1",
+  "fecha_version": "2026-07-13",
+  "version_anterior": "1.0 (2026-07-09) — conservada en criterios_fiscales_v1_0_historico.json; el pasado no se sobreescribe (regla 2)",
+  "firma": {
+    "revisor": "Diego",
+    "declaracion": "Leído y firmado tras lectura de fuentes primarias (Manual Renta 2025 AEAT, apartado monedas virtuales, actualizado 17/03/2026; y consulta vinculante V0612-26 a texto completo).",
+    "fecha_firma": "2026-07-13",
+    "corroboracion_datos": "Claude — verificación §3bis con lectura íntegra de fuentes, 2026-07-13"
+  },
+  "nota_alcance": "Las consultas vinculantes obligan a la Administración ex art. 89.1 LGT respecto del consultante y hechos idénticos; frente a terceros operan como doctrina administrativa consolidada. Así debe formularse en los anexos técnicos.",
+  "criterios": {
+    "CRIT-001": {
+      "tema": "Método de imputación de lotes",
+      "decision": "FIFO por tipo de criptomoneda sobre el CONJUNTO de unidades del contribuyente, sin segmentar por plataforma o exchange. Alcance: criptomonedas (bienes homogéneos/fungibles); otros criptoactivos (p.ej. NFT) requieren análisis específico.",
+      "refs_normativa": ["Art. 37.2 LIRPF (analogía valores homogéneos)"],
+      "refs_dgt": ["V1604-18", "V0975-22", "V2520-22", "V0525-25", "V1550-25 (03/09/2025 — FIFO global sin distinguir plataforma)"],
+      "refs_aeat": ["Manual Renta 2025, cap. 11, monedas virtuales: criterio FIFO explícito"],
+      "revision_humana": "Diego",
+      "fecha_revision": "2026-07-13",
+      "estado": "vigente"
+    },
+    "CRIT-002": {
+      "tema": "Permuta cripto-cripto (incluye pares contra stablecoins: USDT es criptomoneda, no moneda de curso legal)",
+      "decision": "Hecho imponible (art. 33.1). Ganancia/pérdida = EL MAYOR entre valor de mercado de lo entregado y de lo recibido, menos valor de adquisición de lo entregado (art. 37.1.h). Ese valor de transmisión pasa a ser el coste de adquisición del criptoactivo recibido. En ventas contra fiat, si el importe real es inferior al valor normal de mercado, prevalece el de mercado (art. 35.2). Imputación temporal: momento del intercambio/entrega (art. 14). Renta del ahorro (arts. 46.b y 49). IMPLEMENTACIÓN: la regla del MAYOR y el floor de mercado viven en la capa de normalización (cálculo de contravalor_eur), no en el motor.",
+      "refs_normativa": ["Arts. 33.1, 34.1.a, 35, 37.1.h, 14, 46.b, 49 LIRPF", "Art. 1.538 Código Civil (permuta)"],
+      "refs_dgt": ["V0999-18", "V1543-25", "V0612-26 (literal 37.1.h reproducido)"],
+      "refs_aeat": ["Manual Renta 2025, cap. 11: regla del mayor y encadenamiento del coste, texto íntegro verificado"],
+      "revision_humana": "Diego",
+      "fecha_revision": "2026-07-13",
+      "estado": "vigente"
+    },
+    "CRIT-003": {
+      "tema": "Comisiones de compraventa (satisfechas en fiat o divisa)",
+      "decision": "Compra: suman al valor de adquisición (gastos y tributos inherentes, excluidos intereses, satisfechos por el adquirente — art. 35.1.b). Venta: se deducen del valor de transmisión (art. 35.2). Condición AEAT: relación directa con la operación y satisfechas por el contribuyente.",
+      "refs_normativa": ["Art. 35 LIRPF (literal verificado en V0612-26)"],
+      "refs_dgt": ["V0491-26 (03/03/2026 — comisiones de exchanges computables)"],
+      "refs_aeat": ["Manual Renta 2025, cap. 11"],
+      "revision_humana": "Diego",
+      "fecha_revision": "2026-07-13",
+      "estado": "vigente"
+    },
+    "CRIT-004": {
+      "tema": "Staking (tres modalidades) y airdrops",
+      "decision": "TRES tratamientos distintos según modalidad — nunca aplicar 'staking' como categoría única: (a) Staking centralizado (vía exchange) y nativo: rendimiento del capital mobiliario por cesión a terceros de capitales propios, satisfecho EN ESPECIE (art. 25.2), valorado a mercado en EUR el día de percepción (art. 43.1), BASE DEL AHORRO (arts. 46, 49). No constituye actividad económica. Devengo (art. 14.1.a): cuando la recompensa se acredita en monedero/cuenta de los que el contribuyente puede DISPONER (típicamente al reclamar), no mientras solo se acumula en el contrato inteligente. (b) Staking LÍQUIDO (p.ej. ETH-rETH): el token líquido es criptoactivo DISTINTO — entrada y salida son PERMUTAS (ganancia/pérdida patrimonial, arts. 33.1, 34.1.a, 35, 37.1.h), base del ahorro; las recompensas afloran como mayor valor del token al deshacer. (c) Airdrops: ganancia patrimonial SIN transmisión, valorada a mercado en la recepción, BASE GENERAL.",
+      "refs_normativa": ["Arts. 25.2, 43.1, 14.1.a, 27.1, 33.1, 34.1.a, 35, 37.1.h, 46, 49 LIRPF"],
+      "refs_dgt": ["V1766-22 (26/07/2022)", "V0648-24 (11/04/2024)", "V0612-26 (17/03/2026 — texto íntegro leído; encadena y confirma las anteriores; cubre centralizado, nativo y líquido)", "Airdrops: V1948-21, V0648-24"],
+      "refs_aeat": [],
+      "revision_humana": "Diego",
+      "fecha_revision": "2026-07-13",
+      "estado": "vigente"
+    },
+    "CRIT-005": {
+      "tema": "Comisiones satisfechas EN cripto (en especie)",
+      "decision": "Se valoran en EUR al momento de la operación y se computan conforme al art. 35 (que no distingue el medio de pago del gasto): en compras con fee cobrada en el activo RECIBIDO, tratamiento de recepción neta con coste íntegro (equivalente económico a una mini-permuta instantánea con resultado cero, más simple y trazable); en ventas con fee en el activo de contrapartida, deducción del valor de transmisión. NO deducibles: comisiones e intereses por tomar prestados criptoactivos (art. 26.1, per V0648-24). Comisiones de retirada: computables SI están asociadas a una compraventa/permuta (V0648-24).",
+      "notas": "La DGT no se ha pronunciado expresamente sobre el pago EN ESPECIE de la comisión; el fundamento es el art. 35 LIRPF (rango 1, no distingue medio de pago) + analogía V0648-24. Nota documentada por transparencia.",
+      "sub_estados": {
+        "fees_de_bridge_entre_blockchains": {
+          "estado": "sin_respaldo_firme",
+          "motivo": "La DGT declinó pronunciarse por falta de información (V0648-24). Si aparece en un expediente: advertencia expresa al cliente y criterio conservador documentado caso a caso (regla 9)."
+        }
+      },
+      "refs_normativa": ["Arts. 35 y 26.1 LIRPF"],
+      "refs_dgt": ["V0648-24", "V0491-26 (computabilidad general de comisiones de exchange)"],
+      "refs_aeat": ["Manual Renta 2025: gastos con relación directa satisfechos por el contribuyente"],
+      "revision_humana": "Diego",
+      "fecha_revision": "2026-07-13",
+      "estado": "vigente"
+    },
+    "CRIT-006": {
+      "tema": "Pérdidas por quiebra de plataforma / no devolución de criptoactivos depositados",
+      "decision": "El crédito no devuelto NO constituye pérdida patrimonial automática. Regla especial de imputación temporal del art. 14.2.k LIRPF: quita eficaz en acuerdo de refinanciación, convenio concursal con quita (o conclusión del concurso sin satisfacción, con excepciones), o transcurso de UN AÑO desde inicio de procedimiento judicial de ejecución sin cobro. Al no derivar de transmisión: BASE GENERAL (arts. 45 y 48). Si se cobra después de computada la pérdida: ganancia por lo cobrado en el ejercicio del cobro.",
+      "refs_normativa": ["Arts. 14.2.k, 45 y 48 LIRPF"],
+      "refs_dgt": [],
+      "refs_aeat": ["Manual Renta 2025, cap. 11, apartado c) — texto íntegro verificado"],
+      "notas": "Sin caso aplicado aún. Material relevante para expedientes tipo FTX/Celsius/plataformas caídas.",
+      "revision_humana": "Diego",
+      "fecha_revision": "2026-07-13",
+      "estado": "vigente"
+    }
+  }
+}

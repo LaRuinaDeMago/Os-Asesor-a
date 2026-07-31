@@ -1,0 +1,40 @@
+name: Escaner de privacidad
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  privacy-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Bloquear cualquier .zip en el repositorio
+        run: |
+          if git ls-files | grep -qi '\.zip$'; then
+            echo "BLOQUEADO: hay un .zip en el repositorio. Ningun .zip sube nunca (regla fija)."
+            git ls-files | grep -i '\.zip$'
+            exit 1
+          fi
+
+      - name: Determinar archivos a escanear
+        id: archivos
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git diff --name-only --diff-filter=ACM origin/${{ github.base_ref }} HEAD > archivos.txt
+          else
+            git diff --name-only --diff-filter=ACM ${{ github.event.before }} ${{ github.sha }} > archivos.txt || git ls-files > archivos.txt
+          fi
+          cat archivos.txt
+
+      - name: Escaner de privacidad (scripts/privacy_scan.py)
+        run: |
+          if [ -s archivos.txt ]; then
+            python3 scripts/privacy_scan.py $(cat archivos.txt)
+          else
+            echo "Sin archivos que escanear."
+          fi

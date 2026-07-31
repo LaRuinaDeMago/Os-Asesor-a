@@ -1,0 +1,3 @@
+dbfread>=2.0.7
+anthropic>=0.40.0  # para captura_orquestador.py --proveedor claude
+google-genai>=0.3.0  # para captura_orquestador.py --proveedor gemini

@@ -1,0 +1,41 @@
+{
+  "version": "1.0",
+  "fecha_version": "2026-07-09",
+  "criterios": {
+    "CRIT-001": {
+      "tema": "Método de imputación de lotes",
+      "decision": "FIFO por activo",
+      "fundamento": "Art. 37.2 LIRPF (valores homogéneos) + DGT V0975-22 aplicación a criptoactivos",
+      "revision_humana": "Diego",
+      "estado": "vigente"
+    },
+    "CRIT-002": {
+      "tema": "Permuta cripto-cripto",
+      "decision": "Hecho imponible: PERMUTA_OUT tributa como transmisión, PERMUTA_IN crea lote a valor de mercado EUR",
+      "fundamento": "Art. 37.1.h LIRPF + DGT V0999-18 y posteriores",
+      "revision_humana": "Diego",
+      "estado": "vigente"
+    },
+    "CRIT-003": {
+      "tema": "Comisiones",
+      "decision": "Compra: suma al coste de adquisicion. Venta: resta del valor de transmision",
+      "fundamento": "Art. 35 LIRPF (gastos inherentes a adquisicion/transmision)",
+      "revision_humana": "Diego",
+      "estado": "vigente"
+    },
+    "CRIT-004": {
+      "tema": "Staking / airdrops",
+      "decision": "PENDIENTE — decidir en Día 2 (rendimiento capital mobiliario vs ganancia sin transmisión)",
+      "fundamento": "Por documentar (consultas DGT staking)",
+      "revision_humana": null,
+      "estado": "pendiente"
+    },
+    "CRIT-005": {
+      "tema": "Comisiones pagadas en cripto",
+      "decision": "PENDIENTE — decidir en Día 2 (¿mini-permuta?)",
+      "fundamento": "Por documentar",
+      "revision_humana": null,
+      "estado": "pendiente"
+    }
+  }
+}

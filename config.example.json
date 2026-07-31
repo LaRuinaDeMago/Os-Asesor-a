@@ -1,0 +1,17 @@
+{
+  "_comentario": "Rutas de persistencia del motor. Todas relativas a la carpeta donde vive este config.json, salvo que se den absolutas. Resuelve el Bloqueador 3 (revision externa 28-07-2026): sin esto, las cachés de aprendizaje solo vivian en memoria durante la ejecucion y se perdian al reiniciar.",
+
+  "cache_cuenta_gasto": "./cachés/mapeo_cuenta_gasto.json",
+  "cache_maestro_proveedores": "./cachés/maestro_proveedores.json",
+  "cache_formato_documentos": "./cachés/formato_documentos.json",
+  "cache_secuencia_documental": "./cachés/secuencia_documental.json",
+  "cache_iva_por_concepto": "./cachés/iva_por_concepto.json",
+
+  "salida_csv_veredicto": "./salidas/veredicto_{fecha}.csv",
+
+  "alta_cliente_anio": null,
+  "_nota_alta_cliente": "Año de alta del cliente en el despacho (para guard_fecha_posterior_alta). Obligatorio por cliente - se recomienda un config.json distinto por cliente, no uno global para todos.",
+
+  "ejercicio_tanda": null,
+  "_nota_ejercicio": "Año del ejercicio que se esta procesando (para guard_ejercicio_coherente). Null = no se comprueba (NO_APLICA)."
+}

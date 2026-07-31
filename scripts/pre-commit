@@ -1,0 +1,25 @@
+#!/bin/sh
+# Barrera 1 (local) — Fase 2.5. Instalado por scripts/install_hooks.sh.
+# Escanea solo los archivos que van a entrar en el commit (staged).
+
+ARCHIVOS=$(git diff --cached --name-only --diff-filter=ACM)
+
+if [ -z "$ARCHIVOS" ]; then
+    exit 0
+fi
+
+PYTHON=python3
+command -v python3 >/dev/null 2>&1 || PYTHON=python
+
+$PYTHON "$(git rev-parse --show-toplevel)/scripts/privacy_scan.py" $ARCHIVOS
+RESULTADO=$?
+
+if [ $RESULTADO -ne 0 ]; then
+    echo ""
+    echo "Commit BLOQUEADO por el escaner de privacidad (scripts/privacy_scan.py)."
+    echo "Revisa lo de arriba antes de continuar. No uses --no-verify salvo que"
+    echo "hayas confirmado a mano que es un falso positivo."
+    exit 1
+fi
+
+exit 0

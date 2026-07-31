@@ -1,0 +1,42 @@
+# Barrera técnica adicional (defensa en profundidad junto al escáner de
+# privacidad y NUNCA_SUBE.md) — aunque alguien haga `git add -A` por error,
+# esto nunca debería llegar a un commit.
+
+# Los dos .zip originales — regla fija, nunca suben (sección 1.4 del plan).
+*.zip
+
+# Denylist local de apellidos reales (si Diego decide crear una) — nunca sube.
+.privacy_local_denylist.txt
+
+# Archivos concretos ya identificados como fuga real en la auditoría.
+vero_maestro_proveedores_REAL.json
+vero_mapeo_cuenta_gasto.json
+romo_TANDA2_CORREGIDO.csv
+vero_FINAL_COMPLETO.csv
+DIRECTORIO_NACIONAL_PROVEEDORES.json
+ENCARGO_CLAUDE_CODE.md
+INVENTARIO.md
+PENDIENTE_DE_FABRICACION.md
+SEMAFORO_DEFINITIVO_v1_ADENDA.md
+IVA_TIPOS_2026.json
+README (1).md
+OS_ASESORIA_DOCUMENTO_MAESTRO_CONSOLIDADO.md
+suite_regresion.json
+GUIA_OPERATIVA.md
+PLAN_OPERATIVO_v1_2_FINAL.md
+SSOT_ASESORIA_v1_2.md
+
+# Duplicado exacto de requirements.txt, no hace falta subir los dos.
+requirements (1).txt
+
+# Bytecode de Python, nunca código fuente.
+__pycache__/
+*.pyc
+
+# Configuración local de la sesión de Claude Code (permisos de este equipo,
+# no es código ni configuración del proyecto).
+.claude/settings.local.json
+
+# Carpetas de expedientes/datos reales si algún día vuelven a aparecer sueltas.
+02_EXPEDIENTES/
+04_CLIENTE/
