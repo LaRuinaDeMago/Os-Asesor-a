@@ -15,6 +15,10 @@ Qué comprueba, sobre el conjunto de archivos dado (staged o del diff del PR):
     contenido nuevo.
   - Patrón de IBAN español (ES + 22 dígitos).
   - Patrón de teléfono español (6/7/8/9 + 8 dígitos, con o sin espacios).
+  - Patrón de email (persona@dominio).
+  - Patrón de secretos/API keys (cadenas largas tipo token: prefijos conocidos
+    de proveedores comunes, o bloques alfanuméricos largos y de alta entropía
+    que no parecen texto normal).
   - Si existe `.privacy_local_denylist.txt` en la raíz del proyecto (NUNCA se
     commitea, ver .gitignore) con una palabra por línea, también avisa si
     alguna de esas palabras aparece en el contenido nuevo. Ese archivo lo
@@ -38,6 +42,19 @@ RAIZ = Path(__file__).resolve().parent.parent
 PATRON_NIF = re.compile(r'\b\d{8}[A-Za-z]\b|\b[A-HJNPQSUVW]\d{7}[0-9A-J]\b')
 PATRON_IBAN = re.compile(r'\bES\d{2}\s?\d{4}\s?\d{4}\s?\d{2}\s?\d{10}\b')
 PATRON_TELEFONO = re.compile(r'\b[6789]\d{2}[\s.-]?\d{3}[\s.-]?\d{3}\b')
+PATRON_EMAIL = re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b')
+
+# Prefijos conocidos de claves de API de proveedores comunes (Anthropic,
+# OpenAI, Google, AWS, Slack...). Deliberadamente NO se usa un patrón
+# genérico de "bloque alfanumérico largo" — se probó y daba ~20 falsos
+# positivos en el propio repo (nombres de variable largos, hashes de commit,
+# referencias normativas tipo V1550-25), lo cual es peor que no tenerlo: un
+# escáner que grita demasiado deja de mirarse. Mejor pocos avisos fiables que
+# muchos que se acaban ignorando.
+PATRON_SECRETO = re.compile(
+    r'\b(sk-ant-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9]{20,}|AIza[A-Za-z0-9_-]{20,}'
+    r'|ghp_[A-Za-z0-9]{20,}|AKIA[A-Z0-9]{12,}|xox[baprs]-[A-Za-z0-9-]{10,})\b'
+)
 
 # NIF/DNI/CIF inventados a propósito (algunos con checksum matemáticamente
 # válido, fabricados en esta sesión; otros ya existían en el test file como
@@ -85,6 +102,10 @@ def escanear_archivo(path: Path, denylist_local):
             hallazgos.append((i, 'posible IBAN'))
         if PATRON_TELEFONO.search(linea):
             hallazgos.append((i, 'posible teléfono'))
+        if PATRON_EMAIL.search(linea):
+            hallazgos.append((i, 'posible email'))
+        if PATRON_SECRETO.search(linea):
+            hallazgos.append((i, 'posible secreto/API key'))
         for palabra in denylist_local:
             if palabra.lower() in linea.lower():
                 hallazgos.append((i, 'coincidencia con denylist local'))
