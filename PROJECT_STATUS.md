@@ -7,8 +7,16 @@ lo que demuestran los tests o el código, mandan los tests, no este texto.
 Jerarquía de verdad: Código → Tests → Git → este archivo.
 
 ## FASE ACTUAL
-FASE 0 — Auditoría de privacidad y puesta en marcha de GitHub (en curso).
-FASE 1 — PoC Gemini: sin empezar todavía, es la siguiente tras cerrar la Fase 0.
+FASE 0 — Auditoría de privacidad: CERRADA (31-07-2026).
+FASE 1 — GitHub como columna vertebral del código: CERRADA (31-07-2026, ver
+más abajo). Repo privado: `https://github.com/LaRuinaDeMago/Os-Asesor-a`.
+FASE 2 — PoC Gemini: siguiente, sin empezar todavía.
+
+Nota: se está siguiendo `PLAN_FLUJO_CONTINUO_v2.md` (fuera de este repo, en
+local del usuario) a partir de aquí — sustituye la numeración de fases del
+`FLUJO_CONTINUO_PLAN_DEFINITIVO.md` original. v2 añade el canal de datos
+reales (Fase 5 de v2, Google Workspace + DPA) como pieza separada del canal
+código — todavía sin empezar, ver "Pendiente" abajo.
 
 ## OBJETIVO DE LA FASE 1 (siguiente)
 Una factura real → Gemini API → JSON estructurado → motor → veredicto.
@@ -33,10 +41,13 @@ Ninguno todavía — no se ha ejecutado la Fase 1/2 con datos reales de Gemini.
 número real aquí, es la señal de que el proyecto ha empezado de verdad.**
 
 ## SIGUIENTE ACCIÓN CONCRETA
-Cerrar la Fase 0 (ver checklist de auditoría abajo: crear repo, subir solo
-`SUBE_A_GITHUB.md`, verificar en limpio). Después: activar facturación en Google
-AI Studio, configurar `GEMINI_API_KEY`, ejecutar
+GitHub ya está montado y verificado (ver más abajo). Lo siguiente: activar
+facturación en Google AI Studio, configurar `GEMINI_API_KEY`, ejecutar
 `captura_orquestador.py --imagen [una factura] --proveedor gemini` una sola vez.
+En paralelo, sin bloquear lo anterior: confirmar con Diego el mecanismo técnico
+concreto de consulta de la Fase 5 de v2 (RAG / conector MCP de Drive / adjunto
+manual) antes de contratar Google Workspace — ver nota en la sección de
+auditoría de privacidad.
 
 ## NO HACER TODAVÍA (declarado explícitamente, no por omisión)
 - No añadir Vertex AI — solo si la Fase 1/2 sale bien Y se necesita residencia UE garantizada.
@@ -97,27 +108,54 @@ incidente de subida accidental documentado en su sección 1.4.
 7. Creados: `CLAUDE.md`, `.claude/rules/{datos,contabilidad,testing,seguridad}.md`,
    `SUBE_A_GITHUB.md`, `NUNCA_SUBE.md`, y este `PROJECT_STATUS.md`.
 
+### Sesión 31-07-2026 — Fase 2.5 (barrera técnica) + Fase 1 (GitHub) cerradas
+
+1. Construida la barrera técnica de dos capas (Fase 2.5 de ambos planes):
+   `scripts/privacy_scan.py` (genérico, sin apellidos reales — regex de
+   NIF/CIF/DNI, IBAN, teléfono + lista de nombres de archivo prohibidos),
+   hook de pre-commit local (`scripts/pre-commit` + `scripts/install_hooks.sh`
+   para reinstalarlo tras cada clon nuevo, git no versiona `.git/hooks/`), y
+   GitHub Action (`.github/workflows/privacidad.yml`) como segunda barrera
+   independiente. Probado con casos reales: commit con archivo prohibido →
+   bloqueado; commit limpio → pasa. Los NIF sintéticos ya creados en la
+   auditoría anterior (`12345678Z`, `B12345674`, `B12345678`, `B99999999`,
+   `12345678Y`) están en un allowlist explícito dentro del propio script —
+   son ficticios, es seguro que el script (público) los mencione.
+2. `.gitignore` añadido como capa extra (bloquea `*.zip`, los archivos de
+   `NUNCA_SUBE.md` por nombre, `.claude/settings.local.json`, caché de Python).
+3. Repositorio GitHub creado por Diego (privado): `LaRuinaDeMago/Os-Asesor-a`.
+   `git init` local, commit único con exactamente los 33 archivos de
+   `SUBE_A_GITHUB.md` (verificado con `git status` antes de commitear, nunca
+   `git add -A`), `git push` hecho por Diego desde Git Bash (autenticado vía
+   Git Credential Manager, OAuth oficial de la org `git-ecosystem` — yo no
+   toqué ninguna credencial).
+4. **Verificación en limpio ejecutada de verdad** (no asumida): clon nuevo en
+   carpeta separada, grep de apellidos reales + patrón NIF/CIF sobre el clon.
+   Resultado: 0 coincidencias reales — solo nombres de archivo ya conocidos y
+   los NIF sintéticos documentados. Fase 1 cerrada con criterio de éxito
+   cumplido, no supuesto.
+
 ### Pendiente (primer mensaje al retomar)
 
-1. **Crear el repositorio en GitHub** (Fase 1 del plan, sección 2.1): privado,
-   vacío, sin README ni .gitignore automáticos.
-2. Subir SOLO lo que lista `SUBE_A_GITHUB.md` — no la carpeta entera, no arrastre
-   masivo.
-3. Clonar en limpio y repetir el grep de verificación (sección 2.3 del plan) —
-   cero resultados es el único criterio de éxito válido.
-4. Repasar a mano los archivos marcados como "verificación parcial" en
-   `SUBE_A_GITHUB.md` (`criterios_fiscales_v1_0_historico.json`,
-   `suite_regresion.json`, y 5 `.md` de gobierno sin coincidencias de grep pero
-   no leídos línea a línea) antes de subirlos, o dejarlos fuera si hay duda.
-5. Decidir si se quiere intentar extraer/filtrar la ficha real que contamina
-   `DIRECTORIO_NACIONAL_PROVEEDORES.json` (ver `NUNCA_SUBE.md`) para poder subir
-   el resto del directorio, o dejarlo entero fuera.
-6. Instalar Desktop app y probar Local + Cloud (Fase 3, prueba de fuego 5.1).
+1. Repasar a mano `DIRECTORIO_NACIONAL_PROVEEDORES.json` (ver `NUNCA_SUBE.md`)
+   si se quiere filtrar la única ficha real que lo contamina y poder subir el
+   resto del directorio — sigue completo fuera de GitHub por ahora.
+2. Instalar Desktop app (si no está ya) y probar Local + Cloud (Fase 3 de v2,
+   prueba de fuego 3.1) — con el repo ya funcionando, esto ya se puede hacer.
+3. **Antes de tocar la Fase 5 de v2 (Google Workspace + datos reales):**
+   decidir con Diego el mecanismo técnico concreto de consulta (¿RAG? ¿conector
+   MCP de Drive? ¿adjunto manual por consulta?) — sin esto especificado, no
+   contratar Workspace todavía, es la recomendación explícita dada en la
+   revisión crítica del plan v2 (ver conversación de la sesión 31-07-2026).
+4. Seguir con Fase 2/PoC Gemini (activar facturación, `GEMINI_API_KEY`,
+   primera factura real por `captura_orquestador.py`).
 
 ### Nota técnica de entorno
 
 Este equipo no tenía Python instalado. Se instaló una distribución portátil
 ("embeddable") de Python 3.12 en el directorio temporal de la sesión para poder
-ejecutar `test_motor_veredicto.py` durante la auditoría — no queda instalada de
-forma persistente en este equipo. En el PC real de la asesoría, verificar qué
-versión de Python hay disponible antes de asumir que los tests corren igual.
+ejecutar `test_motor_veredicto.py` y el escáner de privacidad durante la
+auditoría — no queda instalada de forma persistente en este equipo. En el PC
+real de la asesoría, verificar qué versión de Python hay disponible, y ejecutar
+`scripts/install_hooks.sh` tras clonar el repo ahí (el hook no viaja solo con
+`git clone`).
