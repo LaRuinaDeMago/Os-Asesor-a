@@ -173,6 +173,19 @@ incidente de subida accidental documentado en su sección 1.4.
      También confirmado por la fuente oficial (no solo por el plan): mientras
      Remote Control está conectado, el transcript se guarda en servidores de
      Anthropic — coincide con la regla ya escrita en `.claude/rules/datos.md`.
+   - **Enganchada la propia conversación de esta sesión al modo remoto**
+     (`/remote-control`, la opción "From an existing session" de la
+     documentación oficial — carga el historial completo, no crea una sesión
+     vacía). Confirmado accediendo desde el móvil y escribiendo en él: mismo
+     hilo, mismo contexto, acceso real al PC. Con esto, las 3 formas de
+     trabajar fuera de la asesoría (esta conversación por Remote Control,
+     sesión nueva por Remote Control, sesión Cloud/Web) quedan probadas de
+     verdad, no solo documentadas.
+   - Además, entra Dispatch como cuarta pieza conocida (pestaña "Cowork" del
+     Desktop, tarea mandada desde el móvil que se convierte en sesión de
+     código en el PC) — revisado en la documentación oficial, decidido NO
+     usarla por ahora: no resuelve nada que Remote Control/Cloud no resuelvan
+     ya, sería sobreingeniería añadida sin necesidad concreta.
 
 ### Pendiente (primer mensaje al retomar)
 
@@ -180,8 +193,9 @@ incidente de subida accidental documentado en su sección 1.4.
    si se quiere filtrar la única ficha real que lo contamina y poder subir el
    resto del directorio — sigue completo fuera de GitHub por ahora.
 2. Terminar de probar Fase 3: repetir la prueba Cloud/Web con el PC
-   físicamente apagado a propósito (prueba de fuego 3.3 real), y probar
-   Teleport (traer de vuelta al PC algo hecho en Cloud/Remote Control).
+   físicamente apagado a propósito (prueba de fuego 3.3 real — la de hoy fue
+   sin querer, con el PC encendido), y probar Teleport (traer de vuelta al PC
+   algo hecho en Cloud/Remote Control).
 3. **Antes de tocar la Fase 5 de v2/v3 (Google Workspace + datos reales):**
    decidir con Diego el mecanismo técnico concreto de consulta (¿RAG? ¿conector
    MCP de Drive? ¿adjunto manual por consulta?) — sin esto especificado, no
