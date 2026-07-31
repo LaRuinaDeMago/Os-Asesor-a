@@ -4,7 +4,21 @@ Cloud (GitHub, Claude Code Web): SOLO código, tests, datos sintéticos/anonimiz
 documentación, arquitectura.
 
 Local (PC de la asesoría): facturas reales, ContaPlus, contabilidades reales,
-NIF reales, históricos identificables.
+NIF reales, históricos identificables — pero SOLO para lo que nunca pasa por
+Claude (ContaPlus/ContaSol en sí, archivos que Claude no llega a leer). En
+cuanto Claude lee o procesa un archivo real, da igual que sea en modo Local:
+ese contenido se envía a la API de Anthropic para poder procesarlo — "Local"
+solo describe dónde se ejecutan las herramientas (archivos, git, bash), no
+dónde vive el modelo, que siempre corre en la nube de Anthropic.
+
+CORRECCIÓN 31-07-2026: por eso, antes de pedirle a Claude que procese CUALQUIER
+dato real de cliente (factura, NIF, contabilidad), aunque sea en Local, hace
+falta tener un DPA (Adenda de Procesamiento de Datos) con Anthropic — y eso
+solo existe en cuentas COMERCIALES (Team/Enterprise/API), no en Pro/Max/Free
+(regidas por "Consumer Terms", sin marco de DPA). Confirmado en
+`privacy.claude.com` y `code.claude.com/docs/en/data-usage`. Hasta que la
+cuenta pase a Team y se firme el DPA, NINGÚN dato real de cliente se le pasa a
+Claude en ninguna superficie — ni Local, ni Remote Control, ni Cloud.
 
 Esta frontera es ARQUITECTÓNICA, no una revisión puntual. Nunca se cruza.
 

@@ -187,6 +187,33 @@ incidente de subida accidental documentado en su sección 1.4.
      usarla por ahora: no resuelve nada que Remote Control/Cloud no resuelvan
      ya, sería sobreingeniería añadida sin necesidad concreta.
 
+4. **Hallazgo importante sobre "Local" y datos reales — corrige una asunción
+   de `.claude/rules/datos.md`:** "Local" en Claude Code significa que las
+   HERRAMIENTAS (archivos, git, bash) se ejecutan en el PC — no significa que
+   el contenido nunca llegue a los servidores de Anthropic. El modelo en sí
+   siempre corre en la nube de Anthropic, así que cualquier archivo que Claude
+   lea (real o no) se envía a la API para poder procesarlo, sea Local, Remote
+   Control o Cloud. Confirmado con la documentación oficial
+   (`code.claude.com/docs/en/data-usage` y `privacy.claude.com`, sesión de
+   Diego 31-07-2026):
+   - Cuenta actual de Diego: **Pro (consumidor)** — regida por "Consumer
+     Terms", pensada para uso individual, **sin marco de DPA**.
+   - El DPA (Adenda de Procesamiento de Datos) solo existe para **clientes
+     comerciales** (API, Consola, **Team**, Enterprise) — hay un trámite de
+     autoservicio documentado ("¿Cómo puedo ver y firmar su DPA?") una vez en
+     un plan comercial, sin necesidad de contrato a medida.
+   - **Conclusión:** antes de procesar cualquier dato real de cliente con
+     Claude (en cualquier superficie — Local, Remote Control, Cloud), Diego
+     necesita pasar de Pro a **Team** y firmar el DPA ahí. Mismo tipo de
+     gestión que ya estaba prevista para Google Workspace — se añade a la
+     misma familia de pendientes de la Fase 5, no es un bloqueo nuevo de
+     arquitectura. Nada de lo construido hasta ahora (GitHub, escáner,
+     multi-superficie) se ve afectado, porque todo eso sigue siendo para el
+     canal de datos sintéticos/anonimizados, que nunca necesitó DPA.
+   - `.claude/rules/datos.md` queda pendiente de una corrección: su frase
+     actual sobre "Local: sin problema con datos reales" es imprecisa y hay
+     que matizarla con esto.
+
 ### Pendiente (primer mensaje al retomar)
 
 1. Repasar a mano `DIRECTORIO_NACIONAL_PROVEEDORES.json` (ver `NUNCA_SUBE.md`)
