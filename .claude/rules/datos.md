@@ -16,9 +16,21 @@ dato real de cliente (factura, NIF, contabilidad), aunque sea en Local, hace
 falta tener un DPA (Adenda de Procesamiento de Datos) con Anthropic — y eso
 solo existe en cuentas COMERCIALES (Team/Enterprise/API), no en Pro/Max/Free
 (regidas por "Consumer Terms", sin marco de DPA). Confirmado en
-`privacy.claude.com` y `code.claude.com/docs/en/data-usage`. Hasta que la
-cuenta pase a Team y se firme el DPA, NINGÚN dato real de cliente se le pasa a
-Claude en ninguna superficie — ni Local, ni Remote Control, ni Cloud.
+`privacy.claude.com` y `code.claude.com/docs/en/data-usage`.
+
+MECANISMO CONCRETO (revisado 31-07-2026, `code.claude.com/docs/en/authentication.md`):
+NO hace falta pasar toda la cuenta de Diego a Team. Se combina Pro (para el
+canal código de siempre — Remote Control, Cloud, este repositorio) con
+API/Consola de Anthropic (comercial, DPA incluido, sin el mínimo de 2 asientos
+de Team) SOLO para sesiones con datos reales. El interruptor es la variable de
+entorno `ANTHROPIC_API_KEY`: puesta → prioriza la API/DPA sobre la suscripción
+(una vez aprobada); `unset ANTHROPIC_API_KEY` → vuelve a la suscripción
+Pro/Remote Control. Comprobar con `/status` cuál está activa. LÍMITE REAL:
+Claude Code on the Web SIEMPRE usa la suscripción, nunca la API key — así que
+el modo "datos reales" solo puede darse en sesión LOCAL, nunca en Remote
+Control ni en Cloud/Web. Hasta que la API/Consola esté contratada y
+`ANTHROPIC_API_KEY` configurada, NINGÚN dato real de cliente se le pasa a
+Claude en ninguna superficie.
 
 Esta frontera es ARQUITECTÓNICA, no una revisión puntual. Nunca se cruza.
 

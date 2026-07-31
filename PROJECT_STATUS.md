@@ -202,18 +202,32 @@ incidente de subida accidental documentado en su sección 1.4.
      comerciales** (API, Consola, **Team**, Enterprise) — hay un trámite de
      autoservicio documentado ("¿Cómo puedo ver y firmar su DPA?") una vez en
      un plan comercial, sin necesidad de contrato a medida.
-   - **Conclusión:** antes de procesar cualquier dato real de cliente con
-     Claude (en cualquier superficie — Local, Remote Control, Cloud), Diego
-     necesita pasar de Pro a **Team** y firmar el DPA ahí. Mismo tipo de
-     gestión que ya estaba prevista para Google Workspace — se añade a la
-     misma familia de pendientes de la Fase 5, no es un bloqueo nuevo de
-     arquitectura. Nada de lo construido hasta ahora (GitHub, escáner,
-     multi-superficie) se ve afectado, porque todo eso sigue siendo para el
-     canal de datos sintéticos/anonimizados, que nunca necesitó DPA.
-   - `.claude/rules/datos.md` corregido en el mismo commit que este hallazgo
-     (ya no queda pendiente): añadida la distinción Local=ejecución de
-     herramientas vs. modelo=siempre en la nube de Anthropic, y la condición
-     de DPA/plan Team antes de cualquier dato real.
+   - **Conclusión REVISADA (31-07-2026, tras investigar a fondo
+     `code.claude.com/docs/en/authentication.md`):** NO hace falta pasar toda
+     la cuenta a Team. Se puede combinar Pro + API/Consola en el mismo PC:
+     - **Pro (el que ya paga Diego)** se queda para el canal código de
+       siempre — Remote Control, Cloud, este repositorio, datos sintéticos.
+       Cero cambios.
+     - **API/Consola (nueva, de pago por uso, SIN el mínimo de 2 asientos de
+       Team)** se activa solo para sesiones con datos reales, poniendo la
+       variable de entorno `ANTHROPIC_API_KEY` — Claude Code la prioriza
+       automáticamente sobre la suscripción una vez aprobada (documentado:
+       "la API key tiene prioridad una vez aprobada... `unset
+       ANTHROPIC_API_KEY` para volver a tu suscripción"). Comprobar con
+       `/status` cuál está activa en cada momento.
+     - **Límite real confirmado (no evitable):** Claude Code on the Web
+       SIEMPRE usa las credenciales de la suscripción, nunca la API key —
+       así que el modo "datos reales" solo puede darse en sesión **Local**,
+       nunca en Remote Control ni en Cloud/Web. Encaja exactamente con el
+       objetivo ya replanteado por Diego (datos reales solo desde el PC de
+       la asesoría, no en remoto).
+     - Coste esperado: bastante por debajo de los $50/mes de Team, al ser
+       pago por uso y sin mínimo — pendiente de confirmar importe real con
+       uso propio, no asumido.
+   - `.claude/rules/datos.md` corregido con la distinción Local=ejecución de
+     herramientas vs. modelo=siempre en la nube de Anthropic, y con este
+     mecanismo de interruptor Pro↔API key (pendiente de un segundo ajuste
+     menor para reflejar la conclusión revisada, ver Pendiente).
 
 5. **`scripts/guardar_avance.sh` construido y probado (dos veces: caso limpio
    y caso con dato sospechoso de ejemplo).** Automatiza la parte de
@@ -244,16 +258,21 @@ incidente de subida accidental documentado en su sección 1.4.
    decidir con Diego el mecanismo técnico concreto de consulta (¿RAG? ¿conector
    MCP de Drive? ¿adjunto manual por consulta?) — sin esto especificado, no
    contratar Workspace todavía.
-4. **Gestión de cuenta pendiente (nueva, 31-07-2026):** pasar la cuenta de
-   Claude de Diego de Pro a Team y firmar el DPA — condición previa a
-   procesar cualquier dato real de cliente con Claude, en cualquier
-   superficie. Misma familia de gestión que el DPA de Google Workspace (punto
-   3), pero son dos trámites independientes, ambos necesarios.
+4. **Gestión de cuenta pendiente (revisada 31-07-2026):** contratar acceso de
+   API/Consola de Anthropic (comercial, con DPA incluido automáticamente al
+   aceptar los Términos de Servicio Comerciales) — NO hace falta pasar a
+   Team. Configurar `ANTHROPIC_API_KEY` como interruptor para sesiones
+   Locales con datos reales; confirmar el coste real de uso una vez
+   contratada. Misma familia de gestión que el DPA de Google Workspace
+   (punto 3), pero son dos trámites independientes, ambos necesarios.
 5. Seguir con Fase 2/PoC Gemini (activar facturación, `GEMINI_API_KEY`,
    primera factura real por `captura_orquestador.py`).
 6. Diego dejó una frase a medias en la sesión del 31-07-2026 ("Además de...",
    tras pedir el script `guardar_avance.sh`) sin completar — preguntarle qué
    quería añadir ahí al retomar, no se ha resuelto todavía.
+7. Pequeño ajuste pendiente en `.claude/rules/datos.md`: reflejar el
+   mecanismo de interruptor Pro↔`ANTHROPIC_API_KEY` en vez de "hace falta
+   Team" (la sección de DPA ya está bien, solo falta afinar esta frase).
 
 ### Nota técnica de entorno
 
