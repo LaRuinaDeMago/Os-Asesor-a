@@ -104,6 +104,13 @@ con un archivo limpio → pasa.
 - `.github/workflows/privacidad.yml`
 - `NUNCA_SUBE_FILENAMES.txt` (solo nombres de archivo, no datos personales)
 - `.gitignore`
+- `scripts/guardar_avance.sh` (31-07-2026): automatiza la parte de "preparar"
+  el guardado (escanea, `git add` de lo que corresponde, crea el commit) para
+  no repetir el mismo comando a mano cada vez. Deliberadamente NO hace
+  `git push` — eso sigue siendo siempre una decisión y una acción manual
+  aparte, aprobada explícitamente por Diego cada vez. Probado dos veces:
+  con un archivo limpio (completa el commit) y con un dato sospechoso de
+  ejemplo (para sin commitear nada).
 
 ## Criterio de verificación en limpio (Fase 1, sección 2.3 del plan)
 
