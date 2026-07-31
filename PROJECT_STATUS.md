@@ -210,9 +210,26 @@ incidente de subida accidental documentado en su sección 1.4.
      arquitectura. Nada de lo construido hasta ahora (GitHub, escáner,
      multi-superficie) se ve afectado, porque todo eso sigue siendo para el
      canal de datos sintéticos/anonimizados, que nunca necesitó DPA.
-   - `.claude/rules/datos.md` queda pendiente de una corrección: su frase
-     actual sobre "Local: sin problema con datos reales" es imprecisa y hay
-     que matizarla con esto.
+   - `.claude/rules/datos.md` corregido en el mismo commit que este hallazgo
+     (ya no queda pendiente): añadida la distinción Local=ejecución de
+     herramientas vs. modelo=siempre en la nube de Anthropic, y la condición
+     de DPA/plan Team antes de cualquier dato real.
+
+5. **`scripts/guardar_avance.sh` construido y probado (dos veces: caso limpio
+   y caso con dato sospechoso de ejemplo).** Automatiza la parte de
+   "preparar" el guardado (escanea, `git add` de lo que corresponde, crea el
+   commit) — decidido tras suficiente uso real repetido en la propia sesión
+   de hoy como para justificarlo (ya no era sobreingeniería hipotética). El
+   `git push` sigue siendo SIEMPRE una acción manual aparte, aprobada
+   explícitamente por Diego cada vez — eso no se automatiza sin decisión en
+   contra explícita.
+6. Guardadas dos reglas de memoria (fuera de este repo, en el sistema de
+   memoria de Claude) para que cualquier sesión futura las respete sin que
+   Diego tenga que repetirlas: (a) recordar activamente guardar avances, no
+   solo al cerrar sesión, cada vez que se cierre un bloque de trabajo con
+   sentido propio; (b) explicar en llano cualquier comando o decisión antes
+   de pedir aprobación, no solo las "importantes" — reforzado explícitamente
+   por Diego el 31-07-2026.
 
 ### Pendiente (primer mensaje al retomar)
 
@@ -227,8 +244,16 @@ incidente de subida accidental documentado en su sección 1.4.
    decidir con Diego el mecanismo técnico concreto de consulta (¿RAG? ¿conector
    MCP de Drive? ¿adjunto manual por consulta?) — sin esto especificado, no
    contratar Workspace todavía.
-4. Seguir con Fase 2/PoC Gemini (activar facturación, `GEMINI_API_KEY`,
+4. **Gestión de cuenta pendiente (nueva, 31-07-2026):** pasar la cuenta de
+   Claude de Diego de Pro a Team y firmar el DPA — condición previa a
+   procesar cualquier dato real de cliente con Claude, en cualquier
+   superficie. Misma familia de gestión que el DPA de Google Workspace (punto
+   3), pero son dos trámites independientes, ambos necesarios.
+5. Seguir con Fase 2/PoC Gemini (activar facturación, `GEMINI_API_KEY`,
    primera factura real por `captura_orquestador.py`).
+6. Diego dejó una frase a medias en la sesión del 31-07-2026 ("Además de...",
+   tras pedir el script `guardar_avance.sh`) sin completar — preguntarle qué
+   quería añadir ahí al retomar, no se ha resuelto todavía.
 
 ### Nota técnica de entorno
 
