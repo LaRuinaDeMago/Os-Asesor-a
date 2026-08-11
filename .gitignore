@@ -8,6 +8,15 @@
 # Denylist local de apellidos reales (si Diego decide crear una) — nunca sube.
 .privacy_local_denylist.txt
 
+# Censo del despacho: la columna 'nombre' lleva razones sociales reales.
+censo_despacho_v8.csv
+
+# Salidas LOCALES de los scripts de Fase 0: llevan rutas/identidad real por
+# diseño (el par agregado/local del flujo). El agregado sí puede subir.
+*_LOCAL.json
+fase0_debug_local.json
+fase0_pares_inconsistentes.csv
+
 # Archivos concretos ya identificados como fuga real en la auditoría.
 vero_maestro_proveedores_REAL.json
 vero_mapeo_cuenta_gasto.json

@@ -42,6 +42,30 @@ RAIZ = Path(__file__).resolve().parent.parent
 PATRON_NIF = re.compile(r'\b\d{8}[A-Za-z]\b|\b[A-HJNPQSUVW]\d{7}[0-9A-J]\b')
 PATRON_IBAN = re.compile(r'\bES\d{2}\s?\d{4}\s?\d{4}\s?\d{2}\s?\d{10}\b')
 PATRON_TELEFONO = re.compile(r'\b[6789]\d{2}[\s.-]?\d{3}[\s.-]?\d{3}\b')
+
+# Excepción acotada al patrón de teléfono (añadida 11-08-2026).
+# Una línea de JSON cuyo valor es un entero DESNUDO es un número, no un teléfono.
+# Los agregados de la Fase 0 disparaban este patrón con tamaños de fichero en
+# bytes: cualquier cifra de 9 dígitos que empiece por 6/7/8/9 lo activa, y un
+# tamaño en bytes de ese orden de magnitud lo cumple constantemente.
+#
+# Por qué esta excepción es segura y no abre un agujero:
+#   - Solo aplica si la línea ENTERA es `"clave": <entero>` y nada más.
+#   - Un teléfono real de este corpus sale del campo TELEF01 de SubCta.dbf, que
+#     es de tipo carácter: serializa SIEMPRE como cadena entre comillas, y eso
+#     esta excepción NO lo cubre — se sigue avisando. Igual que en prosa.
+#   - No toca los patrones de NIF, IBAN, email ni secretos.
+#   - Verificado con fichero trampa el 11-08-2026: entero desnudo pasa; el mismo
+#     número entre comillas y el mismo número en una frase, ambos bloquean.
+#
+# Riesgo residual asumido y declarado: si alguna vez se volcara un teléfono como
+# entero sin comillas en un JSON, pasaría sin aviso. Se acepta porque el origen
+# del dato es de tipo carácter y porque la alternativa —un escáner que grita en
+# cada agregado— acaba en que nadie lo mira, que es peor.
+#
+# NOTA para quien edite este archivo: no escribas cifras de 9 dígitos que
+# empiecen por 6/7/8/9 en los comentarios; el escáner se avisa a sí mismo.
+LINEA_JSON_NUMERICA = re.compile(r'^\s*"[^"]+"\s*:\s*-?\d+(\.\d+)?\s*,?\s*$')
 PATRON_EMAIL = re.compile(r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b')
 
 # Prefijos conocidos de claves de API de proveedores comunes (Anthropic,
@@ -100,7 +124,7 @@ def escanear_archivo(path: Path, denylist_local):
             hallazgos.append((i, 'posible NIF/DNI/CIF'))
         if PATRON_IBAN.search(linea):
             hallazgos.append((i, 'posible IBAN'))
-        if PATRON_TELEFONO.search(linea):
+        if PATRON_TELEFONO.search(linea) and not LINEA_JSON_NUMERICA.match(linea):
             hallazgos.append((i, 'posible teléfono'))
         if PATRON_EMAIL.search(linea):
             hallazgos.append((i, 'posible email'))

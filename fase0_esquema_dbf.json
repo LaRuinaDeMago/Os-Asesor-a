@@ -1,0 +1,575 @@
+{
+  "version": "esquema_dbf_v1",
+  "n_contenedores": 3857,
+  "n_muestreados": 3857,
+  "tablas": {
+    "diario.dbf": {
+      "n_cabeceras_leidas": 1287,
+      "n_esquemas_distintos": 1,
+      "estable_en_el_tiempo": true,
+      "codepages_vistos": {
+        "cp1252 (Windows ANSI)": 82,
+        "no declarado": 1205
+      },
+      "versiones_vistas": {
+        "dBase III+ sin memo": 1287
+      },
+      "long_registro": {
+        "954": 1287
+      },
+      "registros_min": 0,
+      "registros_max": 9133,
+      "registros_suma_muestra": 948486,
+      "cuadra_long_registro": true,
+      "campos": [
+        {
+          "nombre": "ASIEN",
+          "tipo": "N",
+          "long": 6,
+          "dec": 0
+        },
+        {
+          "nombre": "FECHA",
+          "tipo": "D",
+          "long": 8,
+          "dec": 0
+        },
+        {
+          "nombre": "SUBCTA",
+          "tipo": "C",
+          "long": 12,
+          "dec": 0
+        },
+        {
+          "nombre": "CONTRA",
+          "tipo": "C",
+          "long": 12,
+          "dec": 0
+        },
+        {
+          "nombre": "PTADEBE",
+          "tipo": "N",
+          "long": 16,
+          "dec": 2
+        },
+        {
+          "nombre": "CONCEPTO",
+          "tipo": "C",
+          "long": 25,
+          "dec": 0
+        },
+        {
+          "nombre": "PTAHABER",
+          "tipo": "N",
+          "long": 16,
+          "dec": 2
+        },
+        {
+          "nombre": "FACTURA",
+          "tipo": "N",
+          "long": 8,
+          "dec": 0
+        },
+        {
+          "nombre": "BASEIMPO",
+          "tipo": "N",
+          "long": 16,
+          "dec": 2
+        },
+        {
+          "nombre": "IVA",
+          "tipo": "N",
+          "long": 5,
+          "dec": 2
+        },
+        {
+          "nombre": "RECEQUIV",
+          "tipo": "N",
+          "long": 5,
+          "dec": 2
+        },
+        {
+          "nombre": "DOCUMENTO",
+          "tipo": "C",
+          "long": 10,
+          "dec": 0
+        },
+        {
+          "nombre": "DEPARTA",
+          "tipo": "C",
+          "long": 3,
+          "dec": 0
+        },
+        {
+          "nombre": "CLAVE",
+          "tipo": "C",
+          "long": 6,
+          "dec": 0
+        },
+        {
+          "nombre": "ESTADO",
+          "tipo": "C",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "NCASADO",
+          "tipo": "N",
+          "long": 6,
+          "dec": 0
+        },
+        {
+          "nombre": "TCASADO",
+          "tipo": "N",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "TRANS",
+          "tipo": "N",
+          "long": 6,
+          "dec": 0
+        },
+        {
+          "nombre": "CAMBIO",
+          "tipo": "N",
+          "long": 16,
+          "dec": 6
+        },
+        {
+          "nombre": "DEBEME",
+          "tipo": "N",
+          "long": 16,
+          "dec": 2
+        },
+        {
+          "nombre": "HABERME",
+          "tipo": "N",
+          "long": 16,
+          "dec": 2
+        },
+        {
+          "nombre": "AUXILIAR",
+          "tipo": "C",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "SERIE",
+          "tipo": "C",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "SUCURSAL",
+          "tipo": "C",
+          "long": 4,
+          "dec": 0
+        },
+        {
+          "nombre": "CODDIVISA",
+          "tipo": "C",
+          "long": 5,
+          "dec": 0
+        },
+        {
+          "nombre": "IMPAUXME",
+          "tipo": "N",
+          "long": 16,
+          "dec": 2
+        },
+        {
+          "nombre": "MONEDAUSO",
+          "tipo": "C",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "EURODEBE",
+          "tipo": "N",
+          "long": 16,
+          "dec": 2
+        },
+        {
+          "nombre": "EUROHABER",
+          "tipo": "N",
+          "long": 16,
+          "dec": 2
+        },
+        {
+          "nombre": "BASEEURO",
+          "tipo": "N",
+          "long": 16,
+          "dec": 2
+        },
+        {
+          "nombre": "NOCONV",
+          "tipo": "L",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "NUMEROINV",
+          "tipo": "C",
+          "long": 10,
+          "dec": 0
+        },
+        {
+          "nombre": "SERIE_RT",
+          "tipo": "C",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "FACTU_RT",
+          "tipo": "N",
+          "long": 8,
+          "dec": 0
+        },
+        {
+          "nombre": "BASEIMP_RT",
+          "tipo": "N",
+          "long": 16,
+          "dec": 2
+        },
+        {
+          "nombre": "BASEIMP_RF",
+          "tipo": "N",
+          "long": 16,
+          "dec": 2
+        },
+        {
+          "nombre": "RECTIFICA",
+          "tipo": "L",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "FECHA_RT",
+          "tipo": "D",
+          "long": 8,
+          "dec": 0
+        },
+        {
+          "nombre": "NIC",
+          "tipo": "C",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "LPERIODICO",
+          "tipo": "L",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "CODMOVPER",
+          "tipo": "N",
+          "long": 6,
+          "dec": 0
+        },
+        {
+          "nombre": "LINTERRUMP",
+          "tipo": "L",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "SEGACTIV",
+          "tipo": "C",
+          "long": 6,
+          "dec": 0
+        },
+        {
+          "nombre": "SEGGEOGR",
+          "tipo": "C",
+          "long": 6,
+          "dec": 0
+        },
+        {
+          "nombre": "LRECT349",
+          "tipo": "L",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "FECHA_OP",
+          "tipo": "D",
+          "long": 8,
+          "dec": 0
+        },
+        {
+          "nombre": "FECHA_EX",
+          "tipo": "D",
+          "long": 8,
+          "dec": 0
+        },
+        {
+          "nombre": "TIPOOPE",
+          "tipo": "C",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "NFACTICK",
+          "tipo": "N",
+          "long": 8,
+          "dec": 0
+        },
+        {
+          "nombre": "NUMACUINI",
+          "tipo": "C",
+          "long": 40,
+          "dec": 0
+        },
+        {
+          "nombre": "NUMACUFIN",
+          "tipo": "C",
+          "long": 40,
+          "dec": 0
+        },
+        {
+          "nombre": "TERIDNIF",
+          "tipo": "N",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "TERNIF",
+          "tipo": "C",
+          "long": 15,
+          "dec": 0
+        },
+        {
+          "nombre": "TERNOM",
+          "tipo": "C",
+          "long": 40,
+          "dec": 0
+        },
+        {
+          "nombre": "TERNIF14",
+          "tipo": "C",
+          "long": 9,
+          "dec": 0
+        },
+        {
+          "nombre": "TBIENTRAN",
+          "tipo": "L",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "TBIENCOD",
+          "tipo": "C",
+          "long": 10,
+          "dec": 0
+        },
+        {
+          "nombre": "TRANSINM",
+          "tipo": "L",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "METAL",
+          "tipo": "L",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "METALIMP",
+          "tipo": "N",
+          "long": 16,
+          "dec": 2
+        },
+        {
+          "nombre": "CLIENTE",
+          "tipo": "C",
+          "long": 12,
+          "dec": 0
+        },
+        {
+          "nombre": "OPBIENES",
+          "tipo": "N",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "FACTURAEX",
+          "tipo": "C",
+          "long": 40,
+          "dec": 0
+        },
+        {
+          "nombre": "GUID",
+          "tipo": "C",
+          "long": 40,
+          "dec": 0
+        },
+        {
+          "nombre": "L340",
+          "tipo": "L",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "METALEJE",
+          "tipo": "N",
+          "long": 4,
+          "dec": 0
+        },
+        {
+          "nombre": "CLIENTESUP",
+          "tipo": "C",
+          "long": 12,
+          "dec": 0
+        },
+        {
+          "nombre": "FECHASUP",
+          "tipo": "D",
+          "long": 8,
+          "dec": 0
+        },
+        {
+          "nombre": "IMPORTESUP",
+          "tipo": "N",
+          "long": 16,
+          "dec": 2
+        },
+        {
+          "nombre": "DOCSUP",
+          "tipo": "C",
+          "long": 40,
+          "dec": 0
+        },
+        {
+          "nombre": "CLIENTEPRO",
+          "tipo": "C",
+          "long": 12,
+          "dec": 0
+        },
+        {
+          "nombre": "FECHAPRO",
+          "tipo": "D",
+          "long": 8,
+          "dec": 0
+        },
+        {
+          "nombre": "IMPORTEPRO",
+          "tipo": "N",
+          "long": 16,
+          "dec": 2
+        },
+        {
+          "nombre": "DOCPRO",
+          "tipo": "C",
+          "long": 40,
+          "dec": 0
+        },
+        {
+          "nombre": "NIRPF",
+          "tipo": "N",
+          "long": 5,
+          "dec": 2
+        },
+        {
+          "nombre": "NCLAVEIRPF",
+          "tipo": "N",
+          "long": 2,
+          "dec": 0
+        },
+        {
+          "nombre": "CTIMESTAMP",
+          "tipo": "C",
+          "long": 19,
+          "dec": 0
+        },
+        {
+          "nombre": "CUSRTMSTMP",
+          "tipo": "C",
+          "long": 2,
+          "dec": 0
+        },
+        {
+          "nombre": "LESIRPF",
+          "tipo": "L",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "TIPOSUPPRO",
+          "tipo": "N",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "TIPOREGULA",
+          "tipo": "N",
+          "long": 2,
+          "dec": 0
+        },
+        {
+          "nombre": "LARREND347",
+          "tipo": "L",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "NSITINMUEB",
+          "tipo": "N",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "CREFCATAST",
+          "tipo": "C",
+          "long": 25,
+          "dec": 0
+        },
+        {
+          "nombre": "CONCIL347",
+          "tipo": "N",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "NCRITCAJA",
+          "tipo": "N",
+          "long": 2,
+          "dec": 0
+        },
+        {
+          "nombre": "LCRITCAJA",
+          "tipo": "L",
+          "long": 1,
+          "dec": 0
+        },
+        {
+          "nombre": "DMAXLIQUI",
+          "tipo": "D",
+          "long": 8,
+          "dec": 0
+        },
+        {
+          "nombre": "NTOTALFAC",
+          "tipo": "N",
+          "long": 16,
+          "dec": 2
+        },
+        {
+          "nombre": "IDFACTURA",
+          "tipo": "C",
+          "long": 32,
+          "dec": 0
+        },
+        {
+          "nombre": "NCOBRPAGO",
+          "tipo": "N",
+          "long": 16,
+          "dec": 2
+        }
+      ]
+    }
+  },
+  "errores": {}
+}

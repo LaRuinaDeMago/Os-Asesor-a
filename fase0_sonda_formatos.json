@@ -1,0 +1,184 @@
+{
+  "version": "sonda_formatos_v1",
+  "pdf": {
+    "n_total": 478,
+    "n_analizados_a_fondo": 40,
+    "clasificacion": {
+      "INDETERMINADO": 7,
+      "TEXTO": 34,
+      "TEXTO_probable": 392,
+      "ESCANEADO_probable": 45
+    },
+    "paginas_totales_estimadas": 8917,
+    "ops_texto_muestra": {
+      "min": 38,
+      "max": 4420,
+      "media": 506.4,
+      "n_con_cero_ops": 0
+    },
+    "errores": {}
+  },
+  "dat": {
+    "n_total": 3857,
+    "n_firmas_distintas": 760,
+    "firmas_mas_frecuentes": {
+      ".. .. 03 04 14 00 00 00 00 00 .. .. .. .. 00 00": {
+        "n_ficheros": 672,
+        "tam_min": 1384,
+        "tam_max": 1384,
+        "long_registro_comunes_en_el_grupo": [
+          173,
+          346,
+          692,
+          1384
+        ],
+        "alineado_a_pagina": {}
+      },
+      ".. .. 03 04 14 00 00 00 00 00 .. 96 .. .. 00 00": {
+        "n_ficheros": 100,
+        "tam_min": 1384,
+        "tam_max": 1384,
+        "long_registro_comunes_en_el_grupo": [
+          173,
+          346,
+          692,
+          1384
+        ],
+        "alineado_a_pagina": {}
+      },
+      ".. .. 03 04 14 00 00 00 08 00 .. .. FD .. B6 FB": {
+        "n_ficheros": 69,
+        "tam_min": 446213,
+        "tam_max": 1605354,
+        "long_registro_comunes_en_el_grupo": [
+          37,
+          101,
+          163,
+          3737
+        ],
+        "alineado_a_pagina": {}
+      },
+      ".. .. 03 04 14 00 00 00 08 00 .. .. .. .. .. 81": {
+        "n_ficheros": 67,
+        "tam_min": 464927,
+        "tam_max": 1733411,
+        "long_registro_comunes_en_el_grupo": [],
+        "alineado_a_pagina": {}
+      },
+      ".. .. 03 04 14 00 00 00 00 00 .. 94 .. .. 00 00": {
+        "n_ficheros": 62,
+        "tam_min": 1384,
+        "tam_max": 1384,
+        "long_registro_comunes_en_el_grupo": [
+          173,
+          346,
+          692,
+          1384
+        ],
+        "alineado_a_pagina": {}
+      },
+      ".. .. 03 04 14 00 00 00 00 00 19 .. .. .. 00 00": {
+        "n_ficheros": 56,
+        "tam_min": 1384,
+        "tam_max": 1384,
+        "long_registro_comunes_en_el_grupo": [
+          173,
+          346,
+          692,
+          1384
+        ],
+        "alineado_a_pagina": {}
+      },
+      ".. .. 03 04 14 00 00 00 00 00 .. 95 .. .. 00 00": {
+        "n_ficheros": 56,
+        "tam_min": 1384,
+        "tam_max": 1384,
+        "long_registro_comunes_en_el_grupo": [],
+        "alineado_a_pagina": {}
+      },
+      ".. .. 03 04 14 00 00 00 08 00 .. .. .. .. D5 80": {
+        "n_ficheros": 43,
+        "tam_min": 452128,
+        "tam_max": 663383,
+        "long_registro_comunes_en_el_grupo": [],
+        "alineado_a_pagina": {}
+      },
+      ".. .. 03 04 14 00 00 00 00 00 F7 .. .. .. 00 00": {
+        "n_ficheros": 36,
+        "tam_min": 1384,
+        "tam_max": 1384,
+        "long_registro_comunes_en_el_grupo": [
+          173,
+          346,
+          692,
+          1384
+        ],
+        "alineado_a_pagina": {}
+      },
+      ".. .. 03 04 14 00 00 00 00 00 D7 96 .. .. 00 00": {
+        "n_ficheros": 36,
+        "tam_min": 1384,
+        "tam_max": 1384,
+        "long_registro_comunes_en_el_grupo": [
+          173,
+          346,
+          692,
+          1384
+        ],
+        "alineado_a_pagina": {}
+      },
+      ".. .. 03 04 14 00 00 00 00 00 B8 .. .. .. 00 00": {
+        "n_ficheros": 32,
+        "tam_min": 1384,
+        "tam_max": 1384,
+        "long_registro_comunes_en_el_grupo": [
+          173,
+          346,
+          692,
+          1384
+        ],
+        "alineado_a_pagina": {}
+      },
+      ".. .. 03 04 14 00 00 00 00 00 D5 .. .. .. 00 00": {
+        "n_ficheros": 30,
+        "tam_min": 1384,
+        "tam_max": 1384,
+        "long_registro_comunes_en_el_grupo": [
+          173,
+          346,
+          692,
+          1384
+        ],
+        "alineado_a_pagina": {}
+      },
+      ".. .. 03 04 14 00 00 00 08 00 .. 9A .. .. A2 D1": {
+        "n_ficheros": 29,
+        "tam_min": 450748,
+        "tam_max": 805865,
+        "long_registro_comunes_en_el_grupo": [],
+        "alineado_a_pagina": {}
+      },
+      ".. .. 03 04 14 00 00 00 00 00 E2 .. .. .. 00 00": {
+        "n_ficheros": 28,
+        "tam_min": 1384,
+        "tam_max": 1384,
+        "long_registro_comunes_en_el_grupo": [
+          173,
+          346,
+          692,
+          1384
+        ],
+        "alineado_a_pagina": {}
+      },
+      ".. .. 03 04 14 00 00 00 00 00 08 .. .. .. 00 00": {
+        "n_ficheros": 28,
+        "tam_min": 1384,
+        "tam_max": 1384,
+        "long_registro_comunes_en_el_grupo": [],
+        "alineado_a_pagina": {}
+      }
+    },
+    "errores": {}
+  },
+  "nota": "Solo numeros y firmas enmascaradas. Ningun contenido ni nombre."
+}

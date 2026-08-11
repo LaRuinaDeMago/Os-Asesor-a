@@ -10,7 +10,18 @@ Jerarquía de verdad: Código → Tests → Git → este archivo.
 FASE 0 — Auditoría de privacidad: CERRADA (31-07-2026).
 FASE 1 — GitHub como columna vertebral del código: CERRADA (31-07-2026, ver
 más abajo). Repo privado: `https://github.com/LaRuinaDeMago/Os-Asesor-a`.
-FASE 2 — PoC Gemini: siguiente, sin empezar todavía.
+
+**FASE 0 DEL FLUJO OPERATIVO (medición del histórico) — EN CURSO desde
+11-08-2026.** No confundir con la "Fase 0" de privacidad de arriba: son cosas
+distintas con el mismo nombre. Los números medidos están en
+`FASE0_RESULTADOS.md` — ese archivo manda sobre cualquier resumen de aquí.
+
+Resuelto: formato del corpus, esquema, codificación, volumen, y si el motor se
+puede reejecutar sobre el histórico (**68,26% de asientos reconstruibles**).
+Pendiente: el núcleo de la Fase 0 (consistencia por par cliente–tercero).
+
+FASE 2 — PoC Gemini: aplazada. No es el cuello de botella: el corpus histórico
+no lleva facturas escaneadas, lleva asientos, y se lee sin IA ninguna.
 
 Nota: se está siguiendo `PLAN_FLUJO_CONTINUO_v2.md` (fuera de este repo, en
 local del usuario) a partir de aquí — sustituye la numeración de fases del
@@ -41,13 +52,27 @@ Ninguno todavía — no se ha ejecutado la Fase 1/2 con datos reales de Gemini.
 número real aquí, es la señal de que el proyecto ha empezado de verdad.**
 
 ## SIGUIENTE ACCIÓN CONCRETA
-GitHub ya está montado y verificado (ver más abajo). Lo siguiente: activar
-facturación en Google AI Studio, configurar `GEMINI_API_KEY`, ejecutar
-`captura_orquestador.py --imagen [una factura] --proveedor gemini` una sola vez.
-En paralelo, sin bloquear lo anterior: confirmar con Diego el mecanismo técnico
-concreto de consulta de la Fase 5 de v2 (RAG / conector MCP de Drive / adjunto
-manual) antes de contratar Google Workspace — ver nota en la sección de
-auditoría de privacidad.
+
+**Primer mensaje al retomar, literal:**
+
+> Retomamos la Fase 0. Lee `FASE0_RESULTADOS.md` entero. Toca el punto 1: la
+> consistencia por par (cliente, tercero). Antes de escribir el script,
+> resuelve cómo modelar las copias parciales, porque si no el número saldrá
+> pesimista sin que se note.
+
+Detalle de por qué: el corpus tiene copias tomadas a mitad de ejercicio y años
+incompletos (confirmado por Diego, 11-08-2026). Quedarse con "la copia más
+reciente de cada empresa-ejercicio" truncaría datos en silencio, y una
+cobertura parcial hace que un par parezca menos consistente de lo que es.
+
+Requisito previo del punto 1: para agrupar por par (cliente, tercero) hace
+falta la identidad del cliente, y **eso todavía no se ha extraído** — hasta
+ahora todo se ha agrupado por contenedor de forma anónima. Hay que decidir de
+dónde sale el cliente (¿el nombre de la subcarpeta? ¿una tabla dentro del ZIP?)
+sin que ese identificador salga nunca al agregado.
+
+Aplazado a propósito, no olvidado: Gemini/OCR (el corpus no lo necesita),
+Google Workspace, y la contratación de API/Consola de Anthropic.
 
 ## NO HACER TODAVÍA (declarado explícitamente, no por omisión)
 - No añadir Vertex AI — solo si la Fase 1/2 sale bien Y se necesita residencia UE garantizada.
@@ -245,6 +270,47 @@ incidente de subida accidental documentado en su sección 1.4.
    de pedir aprobación, no solo las "importantes" — reforzado explícitamente
    por Diego el 31-07-2026.
 
+### Sesión 11-08-2026 — Fase 0 del flujo operativo: reconocimiento del corpus
+
+Sesión local, con el corpus real en el PC. **Ninguna fila de dato real llegó al
+modelo en ningún momento.** Todo se midió con seis scripts que solo emiten
+recuentos. Números completos en `FASE0_RESULTADOS.md`.
+
+1. **Diagnóstico del intento anterior de Fase 0.** `fase0_csv.py` corría contra
+   `censo_despacho_v8.csv`, que es el *catálogo* de las copias (columnas
+   `nombre, ejercicio, apuntes, hash, origen…`), no la contabilidad. La pregunta
+   central de la Fase 0 no se puede calcular ahí: no hay `tercero` ni `cuenta`.
+   Además sumaba apuntes fila a fila sobre 1.022 filas que son solo 264 pares
+   empresa-ejercicio, así que sus 798.375 apuntes estaban inflados ~4x. Es
+   exactamente la trampa que avisa el §3.6c del flujo, y ocurrió igual.
+2. **Formato resuelto:** los `.DAT` son ZIP (firma `PK\x03\x04`) con dBase III+
+   dentro. 3.857 contenedores, 3.857 ZIP válidos, 0 corruptos.
+3. **Esquema resuelto:** `Diario.dbf`, 91 campos, 954 bytes/registro, **un solo
+   esquema estable en las 1.287 copias de 2016 a 2026**.
+4. **TEST_ENCODING resuelto: `cp1252`**, no CP850 — corrige el §3.6c del flujo,
+   que lo daba por hecho. 14.141 bytes en rango cp1252, **0** en rango cp850.
+5. **Volumen medido (S15):** 348.716 líneas únicas, 101.122 asientos únicos,
+   factor de duplicación 2,7x. 98,42% de los asientos cuadran debe = haber.
+6. **Reejecutar el motor sobre el histórico: 68,26% de asientos reconstruibles**
+   (S16). La primera medición dio 0% porque se hizo por línea; la unidad
+   correcta es el asiento. Error detectado y corregido dentro de la sesión.
+7. **`BASEIMPO` está vacío al 0,78% y no importa:** la base se deriva del
+   asiento con 97,27% de acierto (`base + cuota = total`) y 96,44%
+   (`base × tipo = cuota`).
+8. **Los 7 casos especiales de la spec v1.4 aparecen 0,00% de las veces** en
+   941.435 líneas. Hay guards construidos sin caso real que los respalde.
+   Pendiente de decidir qué hacer con eso.
+9. **§11.2 comprobado y limpio:** Escritorio y Documentos sin redirigir a
+   OneDrive, ningún cliente de sincronización corriendo.
+10. **Dos agujeros tapados:** `censo_despacho_v8.csv` estaba sin trackear y
+    fuera del `.gitignore` con razones sociales reales dentro (añadido, junto
+    con el patrón `*_LOCAL.json`). Y se detectó que la regla "ningún `.zip`
+    sube" está escrita sobre la extensión: estos ZIP se llaman `.dat` y
+    pasarían por delante de ella. **Sin arreglar todavía.**
+11. **Método de trabajo acordado:** ningún script para pegar en el terminal
+    (se crea como fichero y se ejecuta), rutas por parámetro, ningún script
+    aborta al primer fallo, y se dice qué se espera ver antes de ejecutar.
+
 ### Pendiente (primer mensaje al retomar)
 
 1. Repasar a mano `DIRECTORIO_NACIONAL_PROVEEDORES.json` (ver `NUNCA_SUBE.md`)
@@ -276,10 +342,12 @@ incidente de subida accidental documentado en su sección 1.4.
 
 ### Nota técnica de entorno
 
-Este equipo no tenía Python instalado. Se instaló una distribución portátil
-("embeddable") de Python 3.12 en el directorio temporal de la sesión para poder
-ejecutar `test_motor_veredicto.py` y el escáner de privacidad durante la
-auditoría — no queda instalada de forma persistente en este equipo. En el PC
-real de la asesoría, verificar qué versión de Python hay disponible, y ejecutar
-`scripts/install_hooks.sh` tras clonar el repo ahí (el hook no viaja solo con
-`git clone`).
+**Actualizado 11-08-2026:** este equipo **ya tiene Python 3.14.6 instalado** de
+forma persistente, disponible como `python` y como `py`. La nota anterior (que
+decía que no había Python y que se usó una distribución portátil de 3.12 en un
+directorio temporal) queda obsoleta. Los seis scripts `fase0_*.py` corren con
+biblioteca estándar únicamente — `zipfile`, `struct`, `zlib`, `hashlib` — sin
+instalar ninguna dependencia.
+
+Sigue vigente: ejecutar `scripts/install_hooks.sh` tras clonar el repo en otro
+equipo (el hook de pre-commit no viaja con `git clone`).

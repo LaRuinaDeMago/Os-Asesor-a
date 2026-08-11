@@ -1,0 +1,203 @@
+{
+  "version": "reconocimiento_v1",
+  "n_ficheros_encontrados": 4413,
+  "n_ficheros_analizados_a_fondo": 122,
+  "n_carpetas": 157,
+  "profundidad_maxima_carpetas": 3,
+  "tope_de_ficheros_alcanzado": false,
+  "bytes_totales": 1018463150,
+  "n_extensiones_distintas": 10,
+  "por_extension": {
+    ".dat": {
+      "n_ficheros": 3857,
+      "bytes_totales": 788941439,
+      "tam_min": 1384,
+      "tam_max": 2184898,
+      "n_analizados_a_fondo": 25,
+      "codificacion": {
+        "votos_absolutos": {
+          "cp850_cp437": 18275,
+          "cp1252_latin1": 21331,
+          "utf8": 2000
+        },
+        "veredicto": "cp1252_latin1"
+      },
+      "ratio_bytes_control_medio": 0.3782,
+      "con_saltos_de_linea": 25,
+      "longitudes_registro_comunes": []
+    },
+    ".pdf": {
+      "n_ficheros": 478,
+      "bytes_totales": 191590987,
+      "tam_min": 11121,
+      "tam_max": 8778909,
+      "n_analizados_a_fondo": 25,
+      "codificacion": {
+        "votos_absolutos": {
+          "cp850_cp437": 6974,
+          "cp1252_latin1": 7727,
+          "utf8": 943
+        },
+        "veredicto": "cp1252_latin1"
+      },
+      "ratio_bytes_control_medio": 0.0309,
+      "con_saltos_de_linea": 25,
+      "longitudes_registro_comunes": []
+    },
+    ".wma": {
+      "n_ficheros": 5,
+      "bytes_totales": 27398602,
+      "tam_min": 3770608,
+      "tam_max": 6405982,
+      "n_analizados_a_fondo": 5,
+      "codificacion": {
+        "votos_absolutos": {
+          "cp850_cp437": 9635,
+          "cp1252_latin1": 5996,
+          "utf8": 706
+        },
+        "veredicto": "cp850_cp437"
+      },
+      "ratio_bytes_control_medio": 0.4015,
+      "con_saltos_de_linea": 5,
+      "longitudes_registro_comunes": []
+    },
+    ".cat": {
+      "n_ficheros": 28,
+      "bytes_totales": 9317076,
+      "tam_min": 7552,
+      "tam_max": 540197,
+      "n_analizados_a_fondo": 25,
+      "codificacion": {
+        "votos_absolutos": {
+          "cp850_cp437": 85,
+          "cp1252_latin1": 157,
+          "utf8": 26
+        },
+        "veredicto": "cp1252_latin1"
+      },
+      "ratio_bytes_control_medio": 0.0417,
+      "con_saltos_de_linea": 25,
+      "longitudes_registro_comunes": []
+    },
+    ".xlsx": {
+      "n_ficheros": 9,
+      "bytes_totales": 1101268,
+      "tam_min": 15507,
+      "tam_max": 493983,
+      "n_analizados_a_fondo": 9,
+      "codificacion": {
+        "votos_absolutos": {
+          "cp850_cp437": 12569,
+          "cp1252_latin1": 12273,
+          "utf8": 1408
+        },
+        "veredicto": "cp850_cp437"
+      },
+      "ratio_bytes_control_medio": 0.1737,
+      "con_saltos_de_linea": 9,
+      "longitudes_registro_comunes": []
+    },
+    ".txt": {
+      "n_ficheros": 28,
+      "bytes_totales": 73375,
+      "tam_min": 689,
+      "tam_max": 9842,
+      "n_analizados_a_fondo": 25,
+      "codificacion": {
+        "votos_absolutos": {
+          "cp850_cp437": 0,
+          "cp1252_latin1": 245,
+          "utf8": 0
+        },
+        "veredicto": "cp1252_latin1"
+      },
+      "ratio_bytes_control_medio": 0.0,
+      "con_saltos_de_linea": 25,
+      "longitudes_registro_comunes": []
+    },
+    ".jpg": {
+      "n_ficheros": 4,
+      "bytes_totales": 25890,
+      "tam_min": 2848,
+      "tam_max": 10097,
+      "n_analizados_a_fondo": 4,
+      "codificacion": {
+        "votos_absolutos": {
+          "cp850_cp437": 782,
+          "cp1252_latin1": 970,
+          "utf8": 124
+        },
+        "veredicto": "cp1252_latin1"
+      },
+      "ratio_bytes_control_medio": 0.1452,
+      "con_saltos_de_linea": 4,
+      "longitudes_registro_comunes": []
+    },
+    ".py": {
+      "n_ficheros": 1,
+      "bytes_totales": 13788,
+      "tam_min": 13788,
+      "tam_max": 13788,
+      "n_analizados_a_fondo": 1,
+      "codificacion": {
+        "votos_absolutos": {
+          "cp850_cp437": 11,
+          "cp1252_latin1": 0,
+          "utf8": 33
+        },
+        "veredicto": "utf8"
+      },
+      "ratio_bytes_control_medio": 0.0,
+      "con_saltos_de_linea": 1,
+      "longitudes_registro_comunes": [
+        18,
+        36,
+        383,
+        766,
+        1149,
+        1532,
+        2298,
+        3447
+      ]
+    },
+    ".ini": {
+      "n_ficheros": 2,
+      "bytes_totales": 723,
+      "tam_min": 361,
+      "tam_max": 362,
+      "n_analizados_a_fondo": 2,
+      "codificacion": {
+        "votos_absolutos": {
+          "cp850_cp437": 0,
+          "cp1252_latin1": 0,
+          "utf8": 0
+        },
+        "veredicto": "sin_acentos_en_la_muestra"
+      },
+      "ratio_bytes_control_medio": 0.0028,
+      "con_saltos_de_linea": 2,
+      "longitudes_registro_comunes": []
+    },
+    ".json": {
+      "n_ficheros": 1,
+      "bytes_totales": 2,
+      "tam_min": 2,
+      "tam_max": 2,
+      "n_analizados_a_fondo": 1,
+      "codificacion": {
+        "votos_absolutos": {
+          "cp850_cp437": 0,
+          "cp1252_latin1": 0,
+          "utf8": 0
+        },
+        "veredicto": "sin_acentos_en_la_muestra"
+      },
+      "ratio_bytes_control_medio": 0.0,
+      "con_saltos_de_linea": 0,
+      "longitudes_registro_comunes": []
+    }
+  },
+  "errores_por_tipo": {},
+  "nota": "Solo numeros. Ningun nombre de fichero, carpeta ni contenido."
+}

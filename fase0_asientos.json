@@ -1,0 +1,54 @@
+{
+  "version": "asientos_v1",
+  "asientos_totales": 275566,
+  "asientos_unicos": 101122,
+  "factor_duplicacion": 2.73,
+  "lineas_por_asiento": {
+    "2": 36383,
+    "3": 190758,
+    "4": 30122,
+    "5": 9440,
+    "6": 2887,
+    "7": 780,
+    "8": 830,
+    "9": 260,
+    "10": 384,
+    "11": 158,
+    "12": 3564
+  },
+  "patron": {
+    "otros": 41688,
+    "compra_completa": 131756,
+    "venta_completa": 80917,
+    "gasto_o_ingreso_sin_patron": 21205
+  },
+  "patron_pct": {
+    "otros": 15.13,
+    "compra_completa": 47.81,
+    "venta_completa": 29.36,
+    "gasto_o_ingreso_sin_patron": 7.7
+  },
+  "con_nif_contraparte_pct": 74.18,
+  "con_tipo_iva_pct": 72.52,
+  "con_nif_y_iva_pct": 68.8,
+  "cuadra_debe_haber_pct": 98.42,
+  "RECONSTRUIBLES_POR_EL_MOTOR": {
+    "n": 188089,
+    "pct": 68.26,
+    "criterio": "patron compra/venta completo + NIF contraparte + tipo de IVA"
+  },
+  "derivacion_de_base": {
+    "compras_simples_3_lineas": 105307,
+    "ventas_simples_3_lineas": 76185,
+    "base_mas_cuota_igual_total": 102431,
+    "pct_sobre_compras_simples": 97.27,
+    "ademas_base_por_tipo_igual_cuota": 101557,
+    "pct_coherentes": 96.44
+  },
+  "campo_de_importe": {
+    "lineas_en_euro": 925638,
+    "lineas_en_campo_legado": 20
+  },
+  "errores": {},
+  "nota": "Solo recuentos. Ningun valor, ningun hash publicado."
+}
