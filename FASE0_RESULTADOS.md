@@ -194,6 +194,75 @@ aspecto de escaneado, 7 indeterminados. De los 40 analizados descomprimiendo str
 > crudos y no la ve cuando va dentro de un flujo comprimido (PDF 1.5+), así que
 > infravalora. Hace falta una prueba de extracción real. **Sin medir.**
 
+## 10. Restricciones del dominio — confirmadas por el titular (11-08-2026)
+
+Tres hechos sobre cómo se ha trabajado estos diez años. **No son detalles: cada uno
+invalida un diseño que parecía razonable.** Hay que tenerlos delante antes de calcular
+la consistencia por par.
+
+### 10.1 El código de subcuenta NO identifica a un tercero
+
+El mismo proveedor puede ser la `400001` en un cliente y la `400035` en otro. Y al
+revés: el mismo código en dos clientes puede ser dos proveedores distintos. Ocurre
+porque, entre clientes de actividad parecida (p. ej. dos bares), **se copia buena parte
+del cuadro de cuentas al dar de alta**, para ahorrar trabajo — así que hay códigos
+heredados que apuntan a cosas distintas o que nunca se usaron. Lo mismo aplica a los
+clientes (cuentas 430).
+
+> **Consecuencia de diseño:** la identidad del tercero sale del **NIF** (`TERNIF`,
+> relleno en el 74,18% de los asientos), **nunca del código de subcuenta**. Agrupar por
+> código produciría un resultado con toda la apariencia de ser correcto y sin ningún
+> valor.
+
+### 10.2 El código de empresa de ContaPlus varía de un año a otro
+
+El número del nombre de contenedor (`SP_C_04.DAT`) es el código de empresa de
+ContaPlus, pero **no apunta al mismo cliente todos los años**. No sirve para seguir a un
+cliente a lo largo del histórico.
+
+> **Consecuencia de diseño:** la identidad del cliente hay que sacarla de la tabla de
+> empresas de dentro del ZIP (nombre y NIF), mantenerla **solo en local**, y sustituirla
+> por un índice anónimo estable antes de cualquier agregado.
+
+### 10.3 ⚠️ El cuadro de cuentas se arrastra de un ejercicio al siguiente
+
+Al cerrar un año y abrir el siguiente, se mantienen todos los proveedores y clientes en
+las mismas cuentas que tenían. Es la práctica normal del oficio y el programa lo ofrece.
+
+**Pero tiene una consecuencia que condiciona toda la medición de consistencia:** si la
+cuenta del año pasado ya viene puesta, la consistencia observada es **en parte
+mecánica** — refleja el arrastre del programa, no una decisión repetida cada año.
+
+Esto convierte el aviso del §3.2 del flujo (*"un par que lleva diez años yendo a la
+cuenta equivocada tiene consistencia del 100%, y el sistema automatiza el error a
+escala"*) en **estructural para este corpus, no hipotético**. Tres consecuencias:
+
+1. **Una consistencia alta era de esperar y no prueba corrección.** Un 95% no significa
+   95% de acierto: significa que el arrastre funcionó.
+2. **La señal valiosa está donde la consistencia SE ROMPE.** Un cambio de cuenta, con el
+   arrastre en contra, es una decisión consciente. Eso sí es información.
+3. **La mitigación del §3.2 pasa de recomendable a obligatoria:** memoria y árbol en
+   desacuerdo → excepción de prioridad máxima, nunca verde.
+
+### 10.4 El concepto es necesario en la clave — S14 confirmado con caso real
+
+Un mismo proveedor puede ir legítimamente a cuentas distintas según qué facture. Caso
+aportado por el titular: una operadora de telefonía factura el servicio mensual (cuenta
+de gasto) y algún día un terminal (inmovilizado material). Mirando solo el par
+(cliente, tercero) parece incoherencia, y no lo es.
+
+> **Consecuencia:** la clave `(cliente, tercero)` se queda corta. Hace falta el concepto
+> o tipo de gasto como tercera dimensión. **S14 deja de ser un supuesto abierto.**
+
+### 10.5 Sobre los guards del motor sin caso histórico
+
+Los siete casos especiales aparecen 0,00% de las veces (§8). El titular confirma que se
+construyeron previendo casos futuros y horizontes a los que el despacho pueda llegar.
+**Decisión: se quedan.** Matiz que sí hay que registrar: **no están mal, están sin
+validar.** Un guard nunca ejercitado contra un caso real se disparará por primera vez en
+producción sin evidencia de que acierta, así que **no cuentan como "motor probado"**.
+Pendiente marcarlos `NO_VALIDADO`.
+
 ---
 
 ## Actualización del registro de supuestos
@@ -202,6 +271,7 @@ aspecto de escaneado, 7 indeterminados. De los 40 analizados descomprimiendo str
 |---|---|---|
 | **S15** — nº de líneas únicas | ☐ sin medir | ✅ **medido 11-08-2026**: 348.716 líneas / 101.122 asientos |
 | **S16** — % con campos suficientes | ☐ supuesto | ✅ **medido 11-08-2026**: 68,26% por asiento |
+| **S14** — clave de agrupación `(cliente, tercero)` | ☐ supuesto | ✅ **confirmado insuficiente 11-08-2026**: hace falta el concepto como tercera dimensión (§10.4, caso real aportado) |
 | **S18** — Remote Control hereda el volumen | ☐ sin verificar | ✅ **confirmado por fuente oficial**: sí, acceso completo al sistema de ficheros local. Además, Remote Control **no arranca con `ANTHROPIC_API_KEY` puesta** — control estructural, no procedimental |
 | **§3.6c p.8** — codificación CP850 | dado por hecho | ❌ **falso**: es cp1252 |
 | **§11.2** — OneDrive | ☐ sin comprobar | ✅ **limpio**: Escritorio y Documentos sin redirigir, OneDrive no corriendo, ni Dropbox/Drive/iCloud |

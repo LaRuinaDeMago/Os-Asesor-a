@@ -55,24 +55,45 @@ número real aquí, es la señal de que el proyecto ha empezado de verdad.**
 
 **Primer mensaje al retomar, literal:**
 
-> Retomamos la Fase 0. Lee `FASE0_RESULTADOS.md` entero. Toca el punto 1: la
-> consistencia por par (cliente, tercero). Antes de escribir el script,
-> resuelve cómo modelar las copias parciales, porque si no el número saldrá
-> pesimista sin que se note.
+> Retomamos donde lo dejamos. Lee `FASE0_RESULTADOS.md` entero, sobre todo la
+> sección 10 (restricciones del dominio). Toca construir el INVENTARIO: qué
+> clientes y qué ejercicios tengo cubiertos, con qué copias, hasta qué fecha
+> llega cada una y cuántos asientos trae. Lo ejecuto yo, no tú.
 
-Detalle de por qué: el corpus tiene copias tomadas a mitad de ejercicio y años
-incompletos (confirmado por Diego, 11-08-2026). Quedarse con "la copia más
-reciente de cada empresa-ejercicio" truncaría datos en silencio, y una
-cobertura parcial hace que un par parezca menos consistente de lo que es.
+**Qué es el inventario y por qué va antes que la consistencia por par.** Es el
+entregable que desbloquea el resto y vale por sí solo: dice hasta dónde se
+puede fiar uno del propio histórico. Resuelve de una vez la identidad del
+cliente (índice anónimo estable), la cobertura parcial (última fecha de asiento
+de cada copia), y qué años son utilizables.
 
-Requisito previo del punto 1: para agrupar por par (cliente, tercero) hace
-falta la identidad del cliente, y **eso todavía no se ha extraído** — hasta
-ahora todo se ha agrupado por contenedor de forma anónima. Hay que decidir de
-dónde sale el cliente (¿el nombre de la subcarpeta? ¿una tabla dentro del ZIP?)
-sin que ese identificador salga nunca al agregado.
+Dos salidas, patrón de los dos planos:
+- `inventario_LOCAL.csv` — con nombres reales. Nunca sube, nunca lo lee Claude.
+- `inventario_agregado.json` — solo cobertura en porcentajes. Ese sí sube.
 
-Aplazado a propósito, no olvidado: Gemini/OCR (el corpus no lo necesita),
-Google Workspace, y la contratación de API/Consola de Anthropic.
+**Restricciones que ya están resueltas y NO hay que volver a investigar**
+(detalle en `FASE0_RESULTADOS.md` §10):
+- La identidad del tercero sale del **NIF** (`TERNIF`), nunca del código de
+  subcuenta: los códigos se copian entre clientes de actividad parecida.
+- La identidad del cliente sale de la tabla de empresas de dentro del ZIP, no
+  del código de empresa de ContaPlus (varía de un año a otro) ni del nombre de
+  subcarpeta (van por fecha, no por cliente).
+- El cuadro de cuentas se arrastra de un ejercicio al siguiente, así que una
+  consistencia alta es **esperable y no prueba corrección**. La señal está
+  donde la consistencia se rompe.
+- La clave necesita el **concepto** como tercera dimensión (S14 confirmado).
+
+**Acuerdo de método para la próxima sesión:** el inventario lo ejecuta Diego,
+no Claude. El dato no llega a Claude en ninguno de los dos casos, pero
+ejecutándolo Diego hay un control humano de más: ve la salida antes y decide
+si la pasa. Aplica a todo script que toque nombres o NIF.
+
+**Regla dura declarada por Claude:** no abre nunca un fichero `_LOCAL`. Si hace
+falta mirar algo de ahí, se lo pide a Diego. Cumplido dos veces el 11-08-2026.
+
+Aplazado a propósito, no olvidado: los 478 PDF de diarios del Registro (se
+usarán al final, para blindar el histórico cuando el motor esté afinado),
+Gemini/OCR (el corpus no lo necesita: no hay facturas escaneadas), Google
+Workspace, y la contratación de API/Consola de Anthropic.
 
 ## NO HACER TODAVÍA (declarado explícitamente, no por omisión)
 - No añadir Vertex AI — solo si la Fase 1/2 sale bien Y se necesita residencia UE garantizada.

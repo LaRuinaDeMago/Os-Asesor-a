@@ -1,0 +1,1655 @@
+{
+  "version": "contenedores_v1",
+  "n_contenedores_dat": 3857,
+  "n_son_zip": 3857,
+  "n_no_son_zip": 0,
+  "n_zip_corruptos": 0,
+  "n_subcarpetas_primer_nivel": 28,
+  "entradas_por_contenedor": {
+    "min": 8,
+    "max": 201,
+    "media": 67.7
+  },
+  "n_entradas_total": 261124,
+  "bytes_descomprimidos_total": 8172612313,
+  "extensiones_internas": {
+    ".dbf": 137740,
+    ".cdx": 96395,
+    ".asc": 10280,
+    ".txt": 10280,
+    ".rtf": 6429
+  },
+  "nombres_de_sistema": {
+    "Memoria.rtf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 1810040601,
+      "bytes_comprimidos": 167954685,
+      "tam_desc_max": 1406623,
+      "tam_desc_medio": 1406403
+    },
+    "Diario.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 908648433,
+      "bytes_comprimidos": 53362794,
+      "tam_desc_max": 8715829,
+      "tam_desc_medio": 706021
+    },
+    "Balan.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 651448064,
+      "bytes_comprimidos": 42599236,
+      "tam_desc_max": 518292,
+      "tam_desc_medio": 506176
+    },
+    "SubCta.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 641935511,
+      "bytes_comprimidos": 29328503,
+      "tam_desc_max": 3088123,
+      "tam_desc_medio": 532727
+    },
+    "ecpnOpenOffice.rtf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 507724340,
+      "bytes_comprimidos": 35541475,
+      "tam_desc_max": 421348,
+      "tam_desc_medio": 421348
+    },
+    "formecpn.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 437068481,
+      "bytes_comprimidos": 20294066,
+      "tam_desc_max": 339603,
+      "tam_desc_medio": 339603
+    },
+    "ecpn.rtf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 405518256,
+      "bytes_comprimidos": 24894441,
+      "tam_desc_max": 315088,
+      "tam_desc_medio": 315088
+    },
+    "Cuadro.rtf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 393298191,
+      "bytes_comprimidos": 32377059,
+      "tam_desc_max": 305593,
+      "tam_desc_medio": 305593
+    },
+    "Balan.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 254946816,
+      "bytes_comprimidos": 71865579,
+      "tam_desc_max": 204800,
+      "tam_desc_medio": 198094
+    },
+    "Diario.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 235621888,
+      "bytes_comprimidos": 91917578,
+      "tam_desc_max": 1647616,
+      "tam_desc_medio": 183078
+    },
+    "EFEDet.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 189790029,
+      "bytes_comprimidos": 12559846,
+      "tam_desc_max": 147467,
+      "tam_desc_medio": 147467
+    },
+    "Formun.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 153072495,
+      "bytes_comprimidos": 5749861,
+      "tam_desc_max": 119925,
+      "tam_desc_medio": 118937
+    },
+    "Memortf.rtf": {
+      "en_n_subcarpetas": 22,
+      "n_apariciones": 97,
+      "bytes_descomprimidos": 136442431,
+      "bytes_comprimidos": 12660731,
+      "tam_desc_max": 1406623,
+      "tam_desc_medio": 1406623
+    },
+    "MemoriaOpenOffice.rtf": {
+      "en_n_subcarpetas": 24,
+      "n_apariciones": 59,
+      "bytes_descomprimidos": 75031657,
+      "bytes_comprimidos": 7388334,
+      "tam_desc_max": 1271723,
+      "tam_desc_medio": 1271723
+    },
+    "DCarta.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 73180485,
+      "bytes_comprimidos": 2926750,
+      "tam_desc_max": 115893,
+      "tam_desc_medio": 60731
+    },
+    "MovPerD.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 67212288,
+      "bytes_comprimidos": 2094879,
+      "tam_desc_max": 52224,
+      "tam_desc_medio": 52224
+    },
+    "Dianic.cdx": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1257,
+      "bytes_descomprimidos": 65645568,
+      "bytes_comprimidos": 2045139,
+      "tam_desc_max": 52224,
+      "tam_desc_medio": 52224
+    },
+    "PyGPlan.Dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 61027487,
+      "bytes_comprimidos": 3647962,
+      "tam_desc_max": 52963,
+      "tam_desc_medio": 50645
+    },
+    "CuadroOpenOffice.rtf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1207,
+      "bytes_descomprimidos": 56412218,
+      "bytes_comprimidos": 11797365,
+      "tam_desc_max": 306246,
+      "tam_desc_medio": 46738
+    },
+    "Prede.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 52281564,
+      "bytes_comprimidos": 4665072,
+      "tam_desc_max": 142678,
+      "tam_desc_medio": 40623
+    },
+    "SubCta.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 46262272,
+      "bytes_comprimidos": 13713868,
+      "tam_desc_max": 136704,
+      "tam_desc_medio": 35946
+    },
+    "Columnas.dbf": {
+      "en_n_subcarpetas": 22,
+      "n_apariciones": 97,
+      "bytes_descomprimidos": 45763339,
+      "bytes_comprimidos": 3529927,
+      "tam_desc_max": 471787,
+      "tam_desc_medio": 471787
+    },
+    "M390A.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 38244492,
+      "bytes_comprimidos": 3777335,
+      "tam_desc_max": 29716,
+      "tam_desc_medio": 29716
+    },
+    "EFE.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 37311417,
+      "bytes_comprimidos": 4872417,
+      "tam_desc_max": 28991,
+      "tam_desc_medio": 28991
+    },
+    "balofnns.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 34104213,
+      "bytes_comprimidos": 4293432,
+      "tam_desc_max": 26499,
+      "tam_desc_medio": 26499
+    },
+    "Mod303.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 30727125,
+      "bytes_comprimidos": 4359045,
+      "tam_desc_max": 23875,
+      "tam_desc_medio": 23875
+    },
+    "Venci.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 27916800,
+      "bytes_comprimidos": 1951705,
+      "tam_desc_max": 54784,
+      "tam_desc_medio": 21691
+    },
+    "DTalon.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 23737295,
+      "bytes_comprimidos": 1466215,
+      "tam_desc_max": 19699,
+      "tam_desc_medio": 19699
+    },
+    "Cheq.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 21745152,
+      "bytes_comprimidos": 670851,
+      "tam_desc_max": 16896,
+      "tam_desc_medio": 16896
+    },
+    "RatPyG.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 20519543,
+      "bytes_comprimidos": 1670093,
+      "tam_desc_max": 52215,
+      "tam_desc_medio": 15944
+    },
+    "formecam.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 17960085,
+      "bytes_comprimidos": 2526780,
+      "tam_desc_max": 13955,
+      "tam_desc_medio": 13955
+    },
+    "AmoInv.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 17791488,
+      "bytes_comprimidos": 536201,
+      "tam_desc_max": 13824,
+      "tam_desc_medio": 13824
+    },
+    "BalanNic.cdx": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1257,
+      "bytes_descomprimidos": 17376768,
+      "bytes_comprimidos": 588276,
+      "tam_desc_max": 13824,
+      "tam_desc_medio": 13824
+    },
+    "balofnas.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 16395093,
+      "bytes_comprimidos": 2348775,
+      "tam_desc_max": 12739,
+      "tam_desc_medio": 12739
+    },
+    "balofnps.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 15731001,
+      "bytes_comprimidos": 2235519,
+      "tam_desc_max": 12223,
+      "tam_desc_medio": 12223
+    },
+    "balofnnp.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 15509637,
+      "bytes_comprimidos": 2835261,
+      "tam_desc_max": 12051,
+      "tam_desc_medio": 12051
+    },
+    "Subnic.cdx": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1257,
+      "bytes_descomprimidos": 13515264,
+      "bytes_comprimidos": 457548,
+      "tam_desc_max": 10752,
+      "tam_desc_medio": 10752
+    },
+    "RatSit.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 13143335,
+      "bytes_comprimidos": 1094429,
+      "tam_desc_max": 71140,
+      "tam_desc_medio": 10212
+    },
+    "Divisa.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1180,
+      "bytes_descomprimidos": 12398260,
+      "bytes_comprimidos": 2239336,
+      "tam_desc_max": 10507,
+      "tam_desc_medio": 10507
+    },
+    "Anexo.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 11860992,
+      "bytes_comprimidos": 409266,
+      "tam_desc_max": 9216,
+      "tam_desc_medio": 9216
+    },
+    "MovPerC.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 11860992,
+      "bytes_comprimidos": 449163,
+      "tam_desc_max": 9216,
+      "tam_desc_medio": 9216
+    },
+    "Cuadron.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 8872578,
+      "bytes_comprimidos": 1638467,
+      "tam_desc_max": 6894,
+      "tam_desc_medio": 6894
+    },
+    "Venci.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 8668333,
+      "bytes_comprimidos": 1356137,
+      "tam_desc_max": 114778,
+      "tam_desc_medio": 6735
+    },
+    "AsiPre.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 8202752,
+      "bytes_comprimidos": 1186619,
+      "tam_desc_max": 10240,
+      "tam_desc_medio": 6374
+    },
+    "AmoCta.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 7907328,
+      "bytes_comprimidos": 289385,
+      "tam_desc_max": 6144,
+      "tam_desc_medio": 6144
+    },
+    "GESTDOC.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 7907328,
+      "bytes_comprimidos": 306306,
+      "tam_desc_max": 6144,
+      "tam_desc_medio": 6144
+    },
+    "SubDiaC.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 7907328,
+      "bytes_comprimidos": 308880,
+      "tam_desc_max": 6144,
+      "tam_desc_medio": 6144
+    },
+    "SubDiaD.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 7907328,
+      "bytes_comprimidos": 305019,
+      "tam_desc_max": 6144,
+      "tam_desc_medio": 6144
+    },
+    "TelBal.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 7907328,
+      "bytes_comprimidos": 294723,
+      "tam_desc_max": 6144,
+      "tam_desc_medio": 6144
+    },
+    "balofnap.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 7526773,
+      "bytes_comprimidos": 1590618,
+      "tam_desc_max": 5859,
+      "tam_desc_medio": 5848
+    },
+    "Divisa.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 7248384,
+      "bytes_comprimidos": 1404117,
+      "tam_desc_max": 5632,
+      "tam_desc_medio": 5632
+    },
+    "EFEDet.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 7112192,
+      "bytes_comprimidos": 1233083,
+      "tam_desc_max": 6656,
+      "tam_desc_medio": 5526
+    },
+    "balofnpp.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 7086797,
+      "bytes_comprimidos": 1521552,
+      "tam_desc_max": 5515,
+      "tam_desc_medio": 5506
+    },
+    "formecpn.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 6589440,
+      "bytes_comprimidos": 1727154,
+      "tam_desc_max": 5120,
+      "tam_desc_medio": 5120
+    },
+    "Formun.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 6589440,
+      "bytes_comprimidos": 1544112,
+      "tam_desc_max": 5120,
+      "tam_desc_medio": 5120
+    },
+    "Subnic.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 6263829,
+      "bytes_comprimidos": 1542510,
+      "tam_desc_max": 4867,
+      "tam_desc_medio": 4867
+    },
+    "RatSit.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 6162432,
+      "bytes_comprimidos": 433498,
+      "tam_desc_max": 7680,
+      "tam_desc_medio": 4788
+    },
+    "RatPyG.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 6013440,
+      "bytes_comprimidos": 503497,
+      "tam_desc_max": 7168,
+      "tam_desc_medio": 4672
+    },
+    "diariot.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 6010880,
+      "bytes_comprimidos": 255115,
+      "tam_desc_max": 84992,
+      "tam_desc_medio": 4670
+    },
+    "DiarioH.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 6008832,
+      "bytes_comprimidos": 265955,
+      "tam_desc_max": 82944,
+      "tam_desc_medio": 4669
+    },
+    "AmoBaj.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 235521,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "AmoGru.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 235562,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "AmoNat.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 243835,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "AmoUbi.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 244027,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "Concep.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 292267,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "Concil.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 283140,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "DatMov.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 221364,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "Depart.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 237256,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "HBABELC.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 218832,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "HCarta.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 321743,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "HTalon.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 305019,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "LegalD.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 251505,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "Presu.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 238495,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "Proyec.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 237624,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "SCtaB.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 245459,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "SegActiv.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 238559,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "SegGeogr.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 241981,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "TelFig.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 238095,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "TelFim.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 238095,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "TelFio.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 391248,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "VenTi.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 5930496,
+      "bytes_comprimidos": 238456,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "AsiPrnic.cdx": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1257,
+      "bytes_descomprimidos": 5792256,
+      "bytes_comprimidos": 233802,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "CheqFac.cdx": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1257,
+      "bytes_descomprimidos": 5792256,
+      "bytes_comprimidos": 207405,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "CheqFacL.cdx": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1257,
+      "bytes_descomprimidos": 5792256,
+      "bytes_comprimidos": 207405,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "SCtaBNic.cdx": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1257,
+      "bytes_descomprimidos": 5792256,
+      "bytes_comprimidos": 235059,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "VenFAC.cdx": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1257,
+      "bytes_descomprimidos": 5792256,
+      "bytes_comprimidos": 211176,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "VenFACL.cdx": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1257,
+      "bytes_descomprimidos": 5792256,
+      "bytes_comprimidos": 211176,
+      "tam_desc_max": 4608,
+      "tam_desc_medio": 4608
+    },
+    "Prede.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 4747776,
+      "bytes_comprimidos": 602226,
+      "tam_desc_max": 5120,
+      "tam_desc_medio": 3689
+    },
+    "EFE.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 4249088,
+      "bytes_comprimidos": 461812,
+      "tam_desc_max": 3584,
+      "tam_desc_medio": 3302
+    },
+    "AsiPre.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 4102935,
+      "bytes_comprimidos": 938426,
+      "tam_desc_max": 11773,
+      "tam_desc_medio": 3405
+    },
+    "CFGC347D.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3984384,
+      "bytes_comprimidos": 190296,
+      "tam_desc_max": 4096,
+      "tam_desc_medio": 3096
+    },
+    "RecDel.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3960832,
+      "bytes_comprimidos": 175017,
+      "tam_desc_max": 4096,
+      "tam_desc_medio": 3078
+    },
+    "AmoHis.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3953664,
+      "bytes_comprimidos": 194881,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "AmoPro.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3953664,
+      "bytes_comprimidos": 166023,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "AmoSeg.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3953664,
+      "bytes_comprimidos": 168597,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "Cambio.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3953664,
+      "bytes_comprimidos": 216597,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "CFGC347M.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3953664,
+      "bytes_comprimidos": 172458,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "Cuadron.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3953664,
+      "bytes_comprimidos": 478764,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "DatAsi.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3953664,
+      "bytes_comprimidos": 150579,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "DatSub.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3953664,
+      "bytes_comprimidos": 148005,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "DCarta.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3953664,
+      "bytes_comprimidos": 368730,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "DTalon.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3953664,
+      "bytes_comprimidos": 235521,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "GDOCTIPO.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3953664,
+      "bytes_comprimidos": 211075,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "HBABELD.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3953664,
+      "bytes_comprimidos": 146759,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "LegalC.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3953664,
+      "bytes_comprimidos": 238095,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "Mod130.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3953664,
+      "bytes_comprimidos": 155727,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "Mod303.cdx": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3953664,
+      "bytes_comprimidos": 157014,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "Datnic.cdx": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1257,
+      "bytes_descomprimidos": 3861504,
+      "bytes_comprimidos": 147069,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "DatSubNic.cdx": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1257,
+      "bytes_descomprimidos": 3861504,
+      "bytes_comprimidos": 144555,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "Predenic.cdx": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1257,
+      "bytes_descomprimidos": 3861504,
+      "bytes_comprimidos": 145812,
+      "tam_desc_max": 3072,
+      "tam_desc_medio": 3072
+    },
+    "Dianic.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3792789,
+      "bytes_comprimidos": 1303009,
+      "tam_desc_max": 2947,
+      "tam_desc_medio": 2947
+    },
+    "MovPerD.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 3792789,
+      "bytes_comprimidos": 1311519,
+      "tam_desc_max": 2947,
+      "tam_desc_medio": 2947
+    },
+    "BabelTra.Dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 3697343,
+      "bytes_comprimidos": 1218771,
+      "tam_desc_max": 3115,
+      "tam_desc_medio": 3068
+    },
+    "TelDat.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 3570415,
+      "bytes_comprimidos": 447147,
+      "tam_desc_max": 2963,
+      "tam_desc_medio": 2963
+    },
+    "LegalC.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 2804373,
+      "bytes_comprimidos": 637729,
+      "tam_desc_max": 2179,
+      "tam_desc_medio": 2179
+    },
+    "M390A2.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 2588340,
+      "bytes_comprimidos": 327760,
+      "tam_desc_max": 2148,
+      "tam_desc_medio": 2148
+    },
+    "Telfio.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 2516003,
+      "bytes_comprimidos": 622196,
+      "tam_desc_max": 1955,
+      "tam_desc_medio": 1955
+    },
+    "Predenic.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 2063061,
+      "bytes_comprimidos": 666469,
+      "tam_desc_max": 1603,
+      "tam_desc_medio": 1603
+    },
+    "SubDiaD.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 2047295,
+      "bytes_comprimidos": 727808,
+      "tam_desc_max": 1699,
+      "tam_desc_medio": 1699
+    },
+    "TelDia.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 1796655,
+      "bytes_comprimidos": 415729,
+      "tam_desc_max": 1491,
+      "tam_desc_medio": 1491
+    },
+    "gdoctipo.DBF": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 1703339,
+      "bytes_comprimidos": 175945,
+      "tam_desc_max": 2689,
+      "tam_desc_medio": 1414
+    },
+    "x390a.dbf": {
+      "en_n_subcarpetas": 22,
+      "n_apariciones": 97,
+      "bytes_descomprimidos": 1507768,
+      "bytes_comprimidos": 213852,
+      "tam_desc_max": 15544,
+      "tam_desc_medio": 15544
+    },
+    "AmoInv.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 1468895,
+      "bytes_comprimidos": 503185,
+      "tam_desc_max": 1219,
+      "tam_desc_medio": 1219
+    },
+    "Divisa.Dbf": {
+      "en_n_subcarpetas": 25,
+      "n_apariciones": 107,
+      "bytes_descomprimidos": 1124249,
+      "bytes_comprimidos": 203076,
+      "tam_desc_max": 10507,
+      "tam_desc_medio": 10507
+    },
+    "Anexo.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 992277,
+      "bytes_comprimidos": 399703,
+      "tam_desc_max": 771,
+      "tam_desc_medio": 771
+    },
+    "TCta.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 936103,
+      "bytes_comprimidos": 398434,
+      "tam_desc_max": 779,
+      "tam_desc_medio": 777
+    },
+    "CHEQFACL.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 929055,
+      "bytes_comprimidos": 370825,
+      "tam_desc_max": 771,
+      "tam_desc_medio": 771
+    },
+    "VENFACL.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 929055,
+      "bytes_comprimidos": 367134,
+      "tam_desc_max": 771,
+      "tam_desc_medio": 771
+    },
+    "SincImp.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 838680,
+      "bytes_comprimidos": 265851,
+      "tam_desc_max": 696,
+      "tam_desc_medio": 696
+    },
+    "Concil.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 827541,
+      "bytes_comprimidos": 342204,
+      "tam_desc_max": 643,
+      "tam_desc_medio": 643
+    },
+    "Cambio.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 792572,
+      "bytes_comprimidos": 286087,
+      "tam_desc_max": 1172,
+      "tam_desc_medio": 616
+    },
+    "BalanNic.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 786357,
+      "bytes_comprimidos": 336100,
+      "tam_desc_max": 611,
+      "tam_desc_medio": 611
+    },
+    "Presu.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 752949,
+      "bytes_comprimidos": 214476,
+      "tam_desc_max": 1065,
+      "tam_desc_medio": 585
+    },
+    "SincExp.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 741075,
+      "bytes_comprimidos": 203138,
+      "tam_desc_max": 615,
+      "tam_desc_medio": 615
+    },
+    "Cheq.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 719189,
+      "bytes_comprimidos": 279073,
+      "tam_desc_max": 1497,
+      "tam_desc_medio": 559
+    },
+    "RecDel.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 700079,
+      "bytes_comprimidos": 173654,
+      "tam_desc_max": 21433,
+      "tam_desc_medio": 581
+    },
+    "Filtro.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 684684,
+      "bytes_comprimidos": 193566,
+      "tam_desc_max": 532,
+      "tam_desc_medio": 532
+    },
+    "FiltroNic.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 684684,
+      "bytes_comprimidos": 156679,
+      "tam_desc_max": 532,
+      "tam_desc_medio": 532
+    },
+    "Nivel.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 604890,
+      "bytes_comprimidos": 167046,
+      "tam_desc_max": 470,
+      "tam_desc_medio": 470
+    },
+    "NivelNic.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 604890,
+      "bytes_comprimidos": 167341,
+      "tam_desc_max": 470,
+      "tam_desc_medio": 470
+    },
+    "Bloque.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1097,
+      "bytes_descomprimidos": 515590,
+      "bytes_comprimidos": 142314,
+      "tam_desc_max": 470,
+      "tam_desc_medio": 470
+    },
+    "CHEQFAC.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 504895,
+      "bytes_comprimidos": 228391,
+      "tam_desc_max": 419,
+      "tam_desc_medio": 419
+    },
+    "VENFAC.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 504895,
+      "bytes_comprimidos": 227894,
+      "tam_desc_max": 419,
+      "tam_desc_medio": 419
+    },
+    "SCtaB.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 470389,
+      "bytes_comprimidos": 170240,
+      "tam_desc_max": 951,
+      "tam_desc_medio": 390
+    },
+    "BloqueA.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 943,
+      "bytes_descomprimidos": 443210,
+      "bytes_comprimidos": 122273,
+      "tam_desc_max": 470,
+      "tam_desc_medio": 470
+    },
+    "SCtaBNic.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 427775,
+      "bytes_comprimidos": 172917,
+      "tam_desc_max": 355,
+      "tam_desc_medio": 355
+    },
+    "CFGC347M.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 402831,
+      "bytes_comprimidos": 155727,
+      "tam_desc_max": 313,
+      "tam_desc_medio": 313
+    },
+    "DiarioH.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 380155,
+      "bytes_comprimidos": 177961,
+      "tam_desc_max": 88233,
+      "tam_desc_medio": 295
+    },
+    "Proyec.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 378197,
+      "bytes_comprimidos": 184642,
+      "tam_desc_max": 521,
+      "tam_desc_medio": 294
+    },
+    "LegalD.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 375945,
+      "bytes_comprimidos": 182765,
+      "tam_desc_max": 652,
+      "tam_desc_medio": 292
+    },
+    "TelAc01.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 374517,
+      "bytes_comprimidos": 168203,
+      "tam_desc_max": 291,
+      "tam_desc_medio": 291
+    },
+    "SegGeogr.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 350655,
+      "bytes_comprimidos": 170816,
+      "tam_desc_max": 291,
+      "tam_desc_medio": 291
+    },
+    "MovPerC.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 333333,
+      "bytes_comprimidos": 163864,
+      "tam_desc_max": 259,
+      "tam_desc_medio": 259
+    },
+    "HTalon.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 313300,
+      "bytes_comprimidos": 168319,
+      "tam_desc_max": 260,
+      "tam_desc_medio": 260
+    },
+    "AmoHis.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 312095,
+      "bytes_comprimidos": 153402,
+      "tam_desc_max": 259,
+      "tam_desc_medio": 259
+    },
+    "SubDiaC.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 312095,
+      "bytes_comprimidos": 151477,
+      "tam_desc_max": 259,
+      "tam_desc_medio": 259
+    },
+    "TelFig.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 312095,
+      "bytes_comprimidos": 149211,
+      "tam_desc_max": 259,
+      "tam_desc_medio": 259
+    },
+    "TelFim.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 312095,
+      "bytes_comprimidos": 149211,
+      "tam_desc_max": 259,
+      "tam_desc_medio": 259
+    },
+    "HCarta.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 307526,
+      "bytes_comprimidos": 172926,
+      "tam_desc_max": 350,
+      "tam_desc_medio": 255
+    },
+    "TelAc.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 303732,
+      "bytes_comprimidos": 82368,
+      "tam_desc_max": 236,
+      "tam_desc_medio": 236
+    },
+    "datempre.dbf": {
+      "en_n_subcarpetas": 22,
+      "n_apariciones": 97,
+      "bytes_descomprimidos": 295171,
+      "bytes_comprimidos": 76921,
+      "tam_desc_max": 3043,
+      "tam_desc_medio": 3043
+    },
+    "TIva.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 276922,
+      "bytes_comprimidos": 132061,
+      "tam_desc_max": 273,
+      "tam_desc_medio": 230
+    },
+    "AmoCta.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 273535,
+      "bytes_comprimidos": 117228,
+      "tam_desc_max": 227,
+      "tam_desc_medio": 227
+    },
+    "TelBal.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 273535,
+      "bytes_comprimidos": 130097,
+      "tam_desc_max": 227,
+      "tam_desc_medio": 227
+    },
+    "diariot.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 269937,
+      "bytes_comprimidos": 128581,
+      "tam_desc_max": 60319,
+      "tam_desc_medio": 210
+    },
+    "TelAc07.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 250965,
+      "bytes_comprimidos": 109800,
+      "tam_desc_max": 195,
+      "tam_desc_medio": 195
+    },
+    "AsiPrnic.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 234975,
+      "bytes_comprimidos": 118079,
+      "tam_desc_max": 195,
+      "tam_desc_medio": 195
+    },
+    "gestdoc.DBF": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 234975,
+      "bytes_comprimidos": 114491,
+      "tam_desc_max": 195,
+      "tam_desc_medio": 195
+    },
+    "Concep.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 226057,
+      "bytes_comprimidos": 110285,
+      "tam_desc_max": 351,
+      "tam_desc_medio": 176
+    },
+    "CFGC347D.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 209781,
+      "bytes_comprimidos": 91280,
+      "tam_desc_max": 163,
+      "tam_desc_medio": 163
+    },
+    "TelAc03.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 209781,
+      "bytes_comprimidos": 105038,
+      "tam_desc_max": 163,
+      "tam_desc_medio": 163
+    },
+    "TelAc04.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 209781,
+      "bytes_comprimidos": 108053,
+      "tam_desc_max": 163,
+      "tam_desc_medio": 163
+    },
+    "HBabelC.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 196543,
+      "bytes_comprimidos": 95241,
+      "tam_desc_max": 291,
+      "tam_desc_medio": 163
+    },
+    "AmoUbi.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 196415,
+      "bytes_comprimidos": 92218,
+      "tam_desc_max": 163,
+      "tam_desc_medio": 163
+    },
+    "SegActiv.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 196415,
+      "bytes_comprimidos": 102870,
+      "tam_desc_max": 163,
+      "tam_desc_medio": 163
+    },
+    "DatMov.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 168597,
+      "bytes_comprimidos": 84946,
+      "tam_desc_max": 131,
+      "tam_desc_medio": 131
+    },
+    "TelAc05.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 168597,
+      "bytes_comprimidos": 79307,
+      "tam_desc_max": 131,
+      "tam_desc_medio": 131
+    },
+    "TelAc06.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 168597,
+      "bytes_comprimidos": 79307,
+      "tam_desc_max": 131,
+      "tam_desc_medio": 131
+    },
+    "Depart.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 157989,
+      "bytes_comprimidos": 81444,
+      "tam_desc_max": 238,
+      "tam_desc_medio": 123
+    },
+    "AmoPro.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 157855,
+      "bytes_comprimidos": 83537,
+      "tam_desc_max": 131,
+      "tam_desc_medio": 131
+    },
+    "AmoSeg.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 157855,
+      "bytes_comprimidos": 87940,
+      "tam_desc_max": 131,
+      "tam_desc_medio": 131
+    },
+    "Datnic.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 127413,
+      "bytes_comprimidos": 64264,
+      "tam_desc_max": 99,
+      "tam_desc_medio": 99
+    },
+    "Mod130.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 127413,
+      "bytes_comprimidos": 72472,
+      "tam_desc_max": 99,
+      "tam_desc_medio": 99
+    },
+    "TelAc02.dbf": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 1287,
+      "bytes_descomprimidos": 127413,
+      "bytes_comprimidos": 63057,
+      "tam_desc_max": 99,
+      "tam_desc_medio": 99
+    },
+    "HBabelD.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 122688,
+      "bytes_comprimidos": 60667,
+      "tam_desc_max": 3492,
+      "tam_desc_medio": 102
+    },
+    "AmoBaj.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 119295,
+      "bytes_comprimidos": 58151,
+      "tam_desc_max": 99,
+      "tam_desc_medio": 99
+    },
+    "AmoGru.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 119295,
+      "bytes_comprimidos": 59347,
+      "tam_desc_max": 99,
+      "tam_desc_medio": 99
+    },
+    "AmoNat.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 119295,
+      "bytes_comprimidos": 65358,
+      "tam_desc_max": 99,
+      "tam_desc_medio": 99
+    },
+    "DatAsi.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 119295,
+      "bytes_comprimidos": 60254,
+      "tam_desc_max": 99,
+      "tam_desc_medio": 99
+    },
+    "DatSub.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 119295,
+      "bytes_comprimidos": 59384,
+      "tam_desc_max": 99,
+      "tam_desc_medio": 99
+    },
+    "DatSubNic.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 119295,
+      "bytes_comprimidos": 59044,
+      "tam_desc_max": 99,
+      "tam_desc_medio": 99
+    },
+    "VenTi.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 119295,
+      "bytes_comprimidos": 59419,
+      "tam_desc_max": 99,
+      "tam_desc_medio": 99
+    },
+    "SbBloque.dbf": {
+      "en_n_subcarpetas": 27,
+      "n_apariciones": 1205,
+      "bytes_descomprimidos": 80735,
+      "bytes_comprimidos": 39827,
+      "tam_desc_max": 67,
+      "tam_desc_medio": 67
+    },
+    "lsRetIRPF.dbf": {
+      "en_n_subcarpetas": 22,
+      "n_apariciones": 97,
+      "bytes_descomprimidos": 62371,
+      "bytes_comprimidos": 22698,
+      "tam_desc_max": 643,
+      "tam_desc_medio": 643
+    },
+    "sbbloqu.dbf": {
+      "en_n_subcarpetas": 22,
+      "n_apariciones": 97,
+      "bytes_descomprimidos": 6499,
+      "bytes_comprimidos": 3201,
+      "tam_desc_max": 67,
+      "tam_desc_medio": 67
+    },
+    "ACCIONES.ASC": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 2570,
+      "bytes_descomprimidos": 0,
+      "bytes_comprimidos": 0,
+      "tam_desc_max": 0,
+      "tam_desc_medio": 0
+    },
+    "ACCIONES.TXT": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 2570,
+      "bytes_descomprimidos": 0,
+      "bytes_comprimidos": 0,
+      "tam_desc_max": 0,
+      "tam_desc_medio": 0
+    },
+    "CERTIF.ASC": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 2570,
+      "bytes_descomprimidos": 0,
+      "bytes_comprimidos": 0,
+      "tam_desc_max": 0,
+      "tam_desc_medio": 0
+    },
+    "DATOS.ASC": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 2570,
+      "bytes_descomprimidos": 0,
+      "bytes_comprimidos": 0,
+      "tam_desc_max": 0,
+      "tam_desc_medio": 0
+    },
+    "FICHERO.TXT": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 2570,
+      "bytes_descomprimidos": 0,
+      "bytes_comprimidos": 0,
+      "tam_desc_max": 0,
+      "tam_desc_medio": 0
+    },
+    "GESTION.TXT": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 2570,
+      "bytes_descomprimidos": 0,
+      "bytes_comprimidos": 0,
+      "tam_desc_max": 0,
+      "tam_desc_medio": 0
+    },
+    "INSTANCIA.ASC": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 2570,
+      "bytes_descomprimidos": 0,
+      "bytes_comprimidos": 0,
+      "tam_desc_max": 0,
+      "tam_desc_medio": 0
+    },
+    "MEMORIA.TXT": {
+      "en_n_subcarpetas": 28,
+      "n_apariciones": 2570,
+      "bytes_descomprimidos": 0,
+      "bytes_comprimidos": 0,
+      "tam_desc_max": 0,
+      "tam_desc_medio": 0
+    }
+  },
+  "nombres_no_genericos": {
+    "cuantos": 61,
+    "bytes_descomprimidos": 56613172,
+    "nota": "Aparecen en menos de 20 subcarpetas distintas. No se nombran por precaucion."
+  },
+  "errores": {},
+  "nota": "Solo indices ZIP. No se ha leido el contenido de ninguna entrada."
+}
