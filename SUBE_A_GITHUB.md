@@ -31,9 +31,16 @@ toda la lógica y los números. Verificado con test_motor_veredicto.py (100% en
 verde) y con una segunda pasada de grep tras la edición (0 coincidencias).
 
 - `motor_veredicto.py`
+- `contrato_datos.py` (añadido 19-08-2026) — la frontera entre la IA y el motor.
+  Solo lógica de clasificación y normalización, sin ningún dato real. Sus
+  informes citan nombres de campo y estados, nunca contenido, y el `repr` de un
+  `Dato` omite el valor a propósito porque puede acabar en un log.
 - `layout_diario_contaplus.py` (verificado solo por compilación, no tiene test
   propio en test_motor_veredicto.py — considerar añadir uno)
 - `orquestador.py` (igual: verificado por compilación, sin test propio)
+- `test_adversarial.py` (añadido 19-08-2026) — batería de ataque al motor. Todos
+  sus NIF/CIF son inventados con checksum válido y ya están en el allowlist de
+  `scripts/privacy_scan.py`.
 - `test_motor_veredicto.py` — además de genericar nombres, el DNI/NIF de
   ejemplo se sustituyó por uno inventado con dígito de control matemáticamente
   válido (`12345678Z` para DNI, `B12345674` para CIF), nunca el real.
