@@ -167,6 +167,67 @@ como opción, sin evaluar.
 
 ---
 
+## El objetivo, reformulado (19-08-2026) — la mejor frase del proyecto
+
+De la tercera tanda de valoraciones estratégicas sale una formulación que sustituye
+a todas las anteriores y que conviene no perder:
+
+> **No construir una IA que sustituya al asesor. Construir una IA que fabrique un
+> mejor asesor.**
+
+Y su consecuencia, que es la que cambia el KPI de sitio: el tiempo que la
+automatización libera **no debe desaparecer en más volumen del mismo trabajo**.
+Se reinvierte en casos complejos, normativa y especialización. La máquina no te
+hace menos necesario: te sube de nivel.
+
+La pregunta de control dentro de cinco años, entonces, no es *"¿cuánto hemos
+automatizado?"* sino:
+
+> **"¿Cuánto más sabe esta asesoría que hace cinco años?"**
+
+Su implementación concreta y sin fricción está en `DISENO_APRENDIZAJE.md` §8
+(telemetría pasiva por delta entre `veredicto_maquina` y `veredicto_humano`).
+
+## Menú de expansión — aparcado a propósito, no es un plan
+
+La tercera tanda incluye ~26 vías de expansión: controller externo, auditoría
+interna continua, informe de salud contable, compra de carteras, back-office para
+otras asesorías, migración de despachos, due diligence, concursal, pericial,
+auditoría ROAC, VERI\*FACTU como puerta de entrada.
+
+**Se archiva como menú, no se adopta como plan.** Valoración honesta: hay ideas
+buenas ahí dentro, pero son 26 opciones para un proyecto que necesita una, y
+ninguna está respaldada por evidencia de cuál encaja con la cartera real.
+
+Tres cosas sí merecen quedar anotadas:
+
+- **VERI\*FACTU es contexto de mercado real**, con plazos regulatorios de verdad.
+  No es una línea de producto: es la razón por la que los clientes van a aceptar
+  cambios de proceso que antes no aceptaban. Puerta de entrada, no producto.
+- **Back-office para otras asesorías necesita su propio análisis legal antes de
+  ser considerado**: procesar los datos de los clientes de otro despacho te
+  convierte en encargado del tratamiento de terceros, con las obligaciones que
+  eso arrastra. No es la línea roja de `.claude/rules/datos.md` (que es sobre
+  ceder lo derivado), pero es adyacente y no está resuelto.
+- **Concursal, pericial y auditoría son actividades reguladas.** La única forma
+  defendible que plantean los propios textos es la correcta: *infraestructura de
+  análisis para el profesional habilitado*, nunca el sistema ejerciendo.
+
+### ⛔ Y un consejo de esos textos que se rechaza explícitamente
+
+Proponen: *"antes de escribir prácticamente una línea más de código, dibujar el
+Mapa de Explotación con 20–30 vías de monetización"*.
+
+**No.** El 19-08-2026 se confirmaron **8 falsos verdes P0** ejecutando el motor
+(`test_adversarial.py`): una factura sin ningún importe legible sale VERDE.
+Dibujar un mapa de monetización de 26 ramas mientras el motor da por buena una
+factura vacía es, literalmente, *construir a lo ancho antes de medir* — el error
+que este proyecto ya ha cometido tres veces (`ARQUITECTURA_DATOS.md` §4).
+
+El orden no cambia: **primero el contrato de datos, después las 14 pruebas
+adversariales en verde, después la medición. El mapa de monetización, cuando haya
+algo medido que monetizar.**
+
 ## Qué queda sin decidir (a propósito)
 
 - El modelo de precio (cuota, valor generado, mixto).

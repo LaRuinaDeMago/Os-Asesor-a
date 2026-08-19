@@ -57,9 +57,25 @@ decisión, no su motivo.
 - *"Cambié a 629 porque este proveedor factura dos cosas distintas y esta línea es
   la de mantenimiento"* → una regla que generaliza a casos nuevos.
 
-**Decisión:** el motivo es un campo obligatorio de la corrección, en texto libre
-del asesor. Sin motivo, la corrección se registra pero se marca como
-`SIN_JUSTIFICAR` y no alimenta ninguna inferencia posterior.
+**Decisión inicial, CORREGIDA el 19-08-2026:** primero se escribió aquí que el
+motivo sería *campo obligatorio* en cada corrección. **Estaba mal**, y la objeción
+que lo tumba es correcta: pedir una justificación en cada corrección es fricción
+que garantiza que no se haga. Un asesor saturado no escribe el porqué de 12
+correcciones al día, y un sistema que depende de eso no recoge nada.
+
+> *"Un verdadero mentor observa, no pregunta."*
+
+**Decisión corregida — el motivo se pide poco y donde paga:**
+
+- La **corrección en sí** se captura siempre y de forma **pasiva** (§8), sin pedir
+  nada al asesor.
+- El **motivo** se pregunta solo cuando el **mismo guard** se ha corregido **3 o
+  más veces** en poco tiempo. Entonces la pregunta no explica un caso: explica un
+  **patrón**, y una sola respuesta cubre las N correcciones anteriores.
+- Sin motivo, la corrección sigue siendo válida como etiqueta (dice *qué* era
+  correcto). Simplemente no genera regla.
+
+Así se conserva lo que hacía falta del porqué sin la fricción que lo mataba.
 
 ### 3.2 Sobrescribe sin historia — bug real
 
@@ -171,6 +187,76 @@ No es un fallo del sistema: es el límite de lo que la información permite infe
 
 El P4 con test adversarial no solo dirá cuántos falsos verdes hay: dirá **de qué
 tipo son**. Si los que quedan son todos "sin huella", ese es el techo real.
+
+---
+
+## 8. Telemetría pasiva — cómo se captura sin fricción
+
+La mecánica que hace posible todo lo anterior, y no cuesta ni un clic extra:
+
+1. El motor emite su veredicto y se guarda en **`veredicto_maquina`**.
+2. El asesor revisa y emite el suyo — **cosa que ya hace hoy, porque el
+   responsable legal es él**. Se guarda en **`veredicto_humano`**.
+3. Un proceso posterior calcula el **delta** entre ambos.
+
+El asesor no hace nada nuevo. El sistema escucha.
+
+### Corrección importante: se registra TODO, también los aciertos
+
+La propuesta original decía guardar solo las discrepancias, *"por ahorro de
+espacio"*. **Eso hay que rechazarlo**, y por dos motivos que no son de estilo:
+
+- **Sin los aciertos no hay tasa de acierto.** Se pierde el denominador, que es
+  justo el número que decide el proyecto.
+- **Se destruye la medición del sesgo de automatización** (§4.3). La señal de que
+  el asesor ha dejado de razonar es que la tasa de coincidencia sube al 100%, y
+  eso solo se ve si se registran las coincidencias.
+
+El coste real del "ahorro": unos cientos de bytes por factura. A 50.000 facturas
+al año son unos pocos MB. **Es una falsa economía que cuesta la métrica central.**
+
+### Dos salidas, ninguna intrusiva
+
+**A — Aviso justo a tiempo, no bloqueante.** Cuando un mismo guard acumula 3+
+correcciones en poco tiempo, la siguiente factura de ese tipo muestra un aviso de
+una línea. No interrumpe, no obliga, no propone la respuesta (§4.1).
+
+**B — Resumen semanal de tres líneas, no un cuadro de mando.** Texto plano:
+
+```
+Esta semana: 12 correcciones sobre 150 facturas (92% de coincidencia).
+  7 en VENTA   (guard dominante: base imponible)
+  3 en COMPRA  (guard dominante: fecha de devengo)
+```
+
+Un cuadro de mando se mira una vez al mes y no cambia nada. Diez líneas los
+viernes, sí.
+
+### Por qué esto es exactamente el bucle B
+
+Esto es lo que convierte el sistema en las dos cosas a la vez:
+
+```
+El sistema aprende  ->  las correcciones son etiquetas (§1)
+El asesor aprende   ->  el delta le enseña dónde está corrigiendo siempre lo mismo
+```
+
+Y responde a la pregunta que de verdad importa dentro de cinco años, que no es
+*"¿cuánto hemos automatizado?"* sino **"¿cuánto más sabe esta asesoría que hace
+cinco años?"**.
+
+### Deriva de esquema — riesgo real, acotado con lo ya medido
+
+Los formatos de exportación de bancos y aplicaciones cambian cada 6–12 meses, y
+un motor que no lo detecta muere en silencio. Es una objeción válida, con un
+matiz medido: **para ContaPlus el esquema lleva diez años estable** —91 campos,
+un solo esquema en las 1.287 copias de 2016 a 2026 (`FASE0_RESULTADOS.md` §3)—.
+Así que el riesgo es bajo en la fuente principal y alto en las auxiliares.
+
+**Regla:** toda entrada lleva una huella de su esquema, y un cambio de huella
+**para el proceso con un aviso**, nunca lo deja pasar adaptándose solo. Es la
+misma regla que el escáner de privacidad aprendió por las malas: *no comprobado
+no es OK*.
 
 ---
 
