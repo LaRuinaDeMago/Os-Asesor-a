@@ -204,6 +204,33 @@ comprobar("H", "NIF con digito de control incorrecto sigue dando ROJO",
           v == "ROJO", f"veredicto={v}", "ROJO", "P0")
 
 
+print("\n=== FAMILIA I — Auditoria propia del 19-08-2026 (fallos del arreglo) ===")
+# Estos cuatro salieron de auditar el codigo escrito ESE MISMO DIA para cerrar
+# los P0. Tres eran defectos nuevos introducidos al arreglar los viejos.
+
+v, _ = evaluar(None)
+comprobar("I", "una fila que no es un dict no revienta el proceso",
+          not str(v).startswith("EXCEPCION"), f"{v}", "un veredicto, no una excepcion", "P1")
+
+v, _ = evaluar({})
+comprobar("I", "un dict vacio da veredicto (y no VERDE)",
+          v not in ("VERDE",) and not str(v).startswith("EXCEPCION"), f"{v}",
+          "AMBAR/ROJO", "P1")
+
+# FALSO ROJO introducido al arreglar los P0: una factura coherente (base+IVA=total)
+# a la que la captura no desgloso los tramos NO es un descuadre aritmetico.
+v, mot = evaluar({**BASE_FILA, 'base_total': '100', 'iva_total': '21',
+                  'total_factura': '121'})
+comprobar("I", "base+IVA coherentes sin desglose de tramos NO es ROJO (falso rojo)",
+          v != "ROJO", f"veredicto={v} ({mot})", "AMBAR: falta el desglose, no hay descuadre", "P1")
+
+# Semantica del veredicto: ROJO significa "he encontrado un error en la factura".
+# No poder leer los importes no es un error de la factura.
+v, _ = evaluar({**BASE_FILA, 'base_total': '', 'iva_total': '', 'total_factura': ''})
+comprobar("I", "importes ilegibles -> AMBAR (revision), no ROJO (error)",
+          v == "AMBAR", f"veredicto={v}", "AMBAR", "P1")
+
+
 # ---------------------------------------------------------------------------
 print("\n" + "=" * 70)
 fallos = [r for r in resultados if not r[2]]

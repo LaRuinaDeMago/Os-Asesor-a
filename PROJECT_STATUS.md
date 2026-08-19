@@ -81,11 +81,11 @@ siquiera se ejecutan**, en vez de operar con ceros inventados.
 
 | Ataque | Antes | Ahora |
 |---|---|---|
-| Todos los importes ausentes (`''`) | VERDE | **ROJO** (integridad) |
-| Todos los importes a `None` | VERDE | **ROJO** (integridad) |
-| Importes ilegibles (`'abc'`) | VERDE | **ROJO** (integridad) |
-| Fechas `2026-99-99`, `2026-02-30`, `2026-13-01` | VERDE | **ROJO** (fecha `INVALID`) |
-| Falta la clave `total_factura` | `KeyError` | **ROJO**, con veredicto |
+| Todos los importes ausentes (`''`) | VERDE | **AMBAR** (integridad) |
+| Todos los importes a `None` | VERDE | **AMBAR** (integridad) |
+| Importes ilegibles (`'abc'`) | VERDE | **AMBAR** (integridad) |
+| Fechas `2026-99-99`, `2026-02-30`, `2026-13-01` | VERDE | **AMBAR** (fecha `INVALID`) |
+| Falta la clave `total_factura` | `KeyError` | **AMBAR**, con veredicto |
 | Importes como número JSON | `AttributeError` | **veredicto normal** |
 | `irpf` = 999 con diferencia de 150 | OK | **FALLO** (se contradicen) |
 | Negativo sin `tipo_documento` | OK | **NO_COMPROBADO** |
@@ -100,6 +100,32 @@ que diga siempre ROJO. Por eso `test_adversarial.py` incluye la familia G:
 - Los tramos de IVA ausentes de forma legítima **no impiden el VERDE**.
 - Un IVA que no cuadra, un NIF con dígito de control malo y un duplicado escrito
   de otra forma **siguen detectándose**.
+
+### Auditoría propia del código escrito ese mismo día
+
+Terminado el arreglo, se auditó el código recién escrito. **Salieron tres
+defectos, dos de ellos introducidos al arreglar los P0.** Los cuatro casos están
+ahora en la batería (familia I) para que no puedan volver:
+
+| Defecto | Estado |
+|---|---|
+| Una fila que no es un `dict` (`None`) reventaba el proceso entero | ✅ corregido |
+| **Falso rojo nuevo:** una factura coherente (`base+IVA=total`) sin desglose de tramos daba ROJO por "DESCUADRE", cuando lo que falta es el desglose, no el cuadre | ✅ corregido |
+| **Semántica mal decidida:** los importes ilegibles daban ROJO. En este motor ROJO significa *"he encontrado un error en la factura"*, y no poder leerla no es un error de la factura | ✅ ahora AMBAR |
+
+Sobre el tercero, que es el más importante de los tres: es la misma razón que este
+proyecto ya documentó en `scripts/privacy_scan.py` al descartar un patrón ruidoso
+—*"un escáner que grita demasiado deja de mirarse"*—. Si cada foto mal hecha
+produce un ROJO, ROJO deja de significar error. Lo innegociable no cambia: **nunca
+puede salir VERDE**, y AMBAR lo cumple.
+
+### Prueba de punta a punta (orquestador, datos sintéticos)
+
+```
+3 facturas -> 2 VERDE + 1 AMBAR (la que no traía importes, parada por integridad)
+```
+
+Sin excepciones, con `--nif-titular` y `mapeo_cuenta_gasto` llegando al motor.
 
 ### Lo que sigue sin medirse, y no ha cambiado
 

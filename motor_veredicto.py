@@ -98,9 +98,17 @@ def guard_integridad_datos(canon):
         partes.append(f"ausentes: {', '.join(ausentes)}")
     if ilegibles:
         partes.append(f"ilegibles: {', '.join(ilegibles)}")
-    # FALLO, no NO_COMPROBADO: que falte un campo critico no es "no he podido
-    # comprobarlo", es que la factura no se puede dar por buena con lo que hay.
-    return "FALLO", f"campos criticos sin dato utilizable -> {'; '.join(partes)}"
+    # NO_COMPROBADO, no FALLO. CORREGIDO en la auditoria propia del 19-08-2026,
+    # unas horas despues de escribirlo: primero devolvia FALLO -> ROJO, y estaba
+    # mal por semantica. En este motor ROJO significa "he encontrado un error en
+    # la factura". Que no se hayan podido leer los importes NO es un error de la
+    # factura: es una incapacidad de comprobarla, que es exactamente lo que
+    # NO_COMPROBADO significa, y lo que manda a AMBAR (revision humana).
+    # Ademas, por el mismo motivo que este proyecto ya documento en
+    # scripts/privacy_scan.py al descartar un patron ruidoso: si cada foto mal
+    # hecha produce un ROJO, ROJO deja de significar "error" y deja de mirarse.
+    # Lo que NO cambia, y es lo unico innegociable: nunca puede salir VERDE.
+    return "NO_COMPROBADO", f"campos criticos sin dato utilizable -> {'; '.join(partes)}"
 
 
 def guard_anti_duplicado(fila, vistos):
@@ -656,6 +664,11 @@ def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
     Todo lo que no tiene dato real detras se declara NO_COMPROBADO/NO_APLICA,
     nunca OK por omision."""
     plazos_cache = plazos_cache or {}
+    # Una fila que no es un dict (None, una lista, lo que sea) no puede dar
+    # veredicto, pero tampoco debe reventar el proceso entero de una tanda:
+    # se trata como una fila sin ningun dato y el guard de integridad la para.
+    if not isinstance(fila, dict):
+        fila = {}
 
     # --- FRONTERA DE DATOS (19-08-2026) -----------------------------------
     # Todo entra por el contrato antes de tocar un guard fiscal. Ver
@@ -679,10 +692,25 @@ def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
 
     # Nivel 1 - Aritmeticos. NO se ejecutan si falta un dato critico: operar con
     # ceros inventados es exactamente lo que producia los falsos verdes.
-    if datos_integros:
+    # Un tramo de IVA ausente significa "no hay base a ese tipo" y vale 0: eso es
+    # legitimo y frecuente (casi ninguna factura lleva los tres tipos). Pero si
+    # NO HAY NINGUN tramo declarado, no hay nada con que contrastar el IVA: eso
+    # no es un descuadre, es una falta de dato.
+    # AUDITORIA PROPIA 19-08-2026: antes esto daba FALLO -> ROJO en una factura
+    # perfectamente coherente (base_total=100, iva=21, total=121) solo porque la
+    # captura no habia desglosado el tramo. Falso rojo.
+    hay_tramos = any(canon.campos[c].utilizable for c in ('base_10', 'base_4', 'base_21'))
+    if datos_integros and hay_tramos:
         guards["aritmetica_base_tipo"] = guard_aritmetica_base_tipo(base_10 or 0.0, base_4 or 0.0, base_21 or 0.0, iva_total)
         guards["suma_tramos"] = guard_suma_tramos(base_10 or 0.0, base_4 or 0.0, base_21 or 0.0, base_total)
         guards["cuadre_total"] = guard_cuadre_total(base_10 or 0.0, base_4 or 0.0, base_21 or 0.0, iva_total, irpf or 0.0, total)
+    elif datos_integros:
+        sin_tramos = ("NO_COMPROBADO", "ningun tramo de IVA declarado: no hay desglose con que contrastar el IVA total")
+        guards["aritmetica_base_tipo"] = sin_tramos
+        guards["suma_tramos"] = sin_tramos
+        # El cuadre total SI se puede comprobar sin desglose: base + IVA - IRPF = total.
+        guards["cuadre_total"] = guard_cuadre_total(base_total or 0.0, 0.0, 0.0, iva_total, irpf or 0.0, total) \
+            if base_total is not None else sin_tramos
     else:
         sin_dato = ("NO_COMPROBADO", "no ejecutado: faltan campos criticos (ver integridad_datos)")
         guards["aritmetica_base_tipo"] = sin_dato
