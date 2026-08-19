@@ -1,10 +1,11 @@
 # PROJECT_STATUS — estado operativo, no documentación
 
-Este archivo se actualiza cada vez que algo cambia de verdad. Al abrir Claude Code
-después de días sin tocar el proyecto, léelo primero — dice exactamente dónde
-retomar, sin tener que releer toda la conversación. Si algo aquí no coincide con
-lo que demuestran los tests o el código, mandan los tests, no este texto.
-Jerarquía de verdad: Código → Tests → Git → este archivo.
+> **Para ARRANCAR una sesión, lee `EMPEZAR_AQUI.md`.** Este fichero es la
+> referencia detallada: sirve para consultar, no para empezar.
+
+Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
+coincide con lo que demuestran los tests o el código, mandan los tests, no este
+texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
 ## FASE ACTUAL
 FASE 0 — Auditoría de privacidad: CERRADA (31-07-2026).
@@ -42,7 +43,7 @@ Criterio de aprobación: funcionamiento técnico reproducible (no precisión tod
   19-08: los otros cuatro son `integridad_datos` (nuevo) y los tres que existían
   pero nadie llamaba.
 - `test_motor_veredicto.py`: **21/21 en verde** (regresión).
-- `test_adversarial.py`: **21/21 en verde** (ataque + control positivo).
+- `test_adversarial.py`: **25/25 en verde** (ataque + control positivo + auditoría propia).
 - `contrato_datos.py`: frontera IA→motor con estados
   `VALUE`/`ZERO`/`MISSING`/`INVALID`.
 - Probado en su día con 91 facturas reales de clientes piloto anonimizados + 1
@@ -57,7 +58,7 @@ bastó atacar el motor con entradas construidas.
 
 ```
 test_motor_veredicto.py  ->  21/21 EN VERDE   (regresion, no se ha roto nada)
-test_adversarial.py      ->  21/21 EN VERDE   (ataque, ningun falso verde en pie)
+test_adversarial.py      ->  25/25 EN VERDE   (ataque, ningun falso verde en pie)
 audit_project.py         ->  20 guards, todos cableados y consultados
 ```
 
@@ -196,17 +197,15 @@ palabra más.
 
 ## SIGUIENTE ACCIÓN CONCRETA
 
+> ## 👉 Para arrancar, lee `EMPEZAR_AQUI.md`, no este fichero.
+>
+> Este documento tiene 700 líneas y sirve para **consultar**. `EMPEZAR_AQUI.md`
+> dice en una página por dónde empezar hoy y en qué orden.
+
 **Primer mensaje al retomar, literal:**
 
-> Retomamos. Lee `ARQUITECTURA_DATOS.md` y `DIRECCION_PRODUCTO.md` enteros, y
-> `FASE0_RESULTADOS.md` §11.1, §12 y §13. Toca CERRAR EL INVENTARIO: (1) enlazar el código de empresa entre
-> carpetas con la regla dura de que dentro de una carpeta dos códigos nunca se
-> fusionan; (2) explicar la caída de 2022–2023 cruzando las altas y bajas;
-> (3) clasificar los 9 contenedores sin ejercicio y los 28 `.cat`; (4) asignar a
-> cada par (cliente, ejercicio) uno de los cuatro estados de
-> `ARQUITECTURA_DATOS.md` §5; (5) emitir el `inventario_LOCAL.csv` definitivo y
-> su agregado. El inventario se cierra cuando `PARCIAL_SIN_EXPLICAR` baje del 5%
-> y cada caso restante esté listado uno a uno.
+> Continuamos. Ejecuta `python3 audit_project.py` y dime qué sale. Luego lee
+> `EMPEZAR_AQUI.md` entero y seguimos por ahí.
 
 **Orden de construcción acordado el 19-08-2026** (detalle y motivos en
 `ARQUITECTURA_DATOS.md`): **ordenar → situar los modelos → validar.** No es una
