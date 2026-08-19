@@ -437,6 +437,59 @@ no existía:
 Metida esa restricción en el agrupamiento, la huella puede enlazar entre carpetas pero no
 pegar clientes dentro de una.
 
+## 13. Cobertura real del corpus — la respuesta definitiva (12-08-2026)
+
+Medida con el método verificado del §12 (dentro de una carpeta, el número del nombre es
+el código de empresa). La cota inferior por ejercicio es el número de empresas de la
+carpeta más completa que contenga ese año: no depende del enlace entre carpetas, que
+sigue pendiente.
+
+| Ejercicio | Clientes (mínimo) | Copias | Carpetas | Estado |
+|---|---|---|---|---|
+| 2016 | — | — | — | ❌ **No existe en `.DAT`** |
+| 2017 | — | — | — | ❌ **No existe en `.DAT`** |
+| 2018 | **1** | 3 | 3 | ❌ Prácticamente inexistente |
+| 2019 | 32 | 95 | 3 | ✅ |
+| 2020 | 34 | 246 | 13 | ✅ |
+| 2021 | 37 | 372 | 12 | ✅ |
+| 2022 | 30 | 216 | 14 | ⚠️ ¿bajas o falta? |
+| 2023 | 29 | 89 | 6 | ⚠️ ¿bajas o falta? |
+| 2024 | 31 | 116 | 6 | ✅ |
+| 2025 | **33** | 91 | 4 | ✅ |
+| 2026 | **33** | 34 | 2 | ✅ |
+| 2011 | 1 | 16 | 16 | Anomalía suelta |
+
+> **Corrige de nuevo la premisa: el corpus detallado empieza en 2019, no en 2018.** El
+> ejercicio 2018 tiene una sola empresa. (Antes se dijo 2018–2026; antes de eso,
+> 2016–2026. Este es el número medido con el método correcto.)
+
+**Causa del hueco 2016–2018, confirmada por el titular:** de esos años solo existen las
+contabilidades enviadas al Registro. Una copia de ContaPlus solo guarda las empresas
+abiertas en ese momento, y la carpeta de copia más antigua se hizo en 2019/2020: los
+ejercicios anteriores ya estaban cerrados y nunca entraron en una copia.
+
+**Esto NO bloquea el proyecto.** Para poblar la memoria, calibrar el semáforo y medir
+falsos verdes bastan de sobra los 101.122 asientos de 2019–2026. Y para 2016–2018 las
+cuentas depositadas **son** el registro oficial: falta el detalle diario, no la verdad
+contable de esos ejercicios.
+
+### Ficheros del árbol que siguen sin clasificar
+
+| Extensión | n | MB |
+|---|---|---|
+| `.cat` | 28 | 8,89 |
+| `.wma` | 5 | 26,13 |
+| `.xlsx` | 9 | 1,05 |
+| `.txt` | 28 | 0,07 |
+| `.jpg` | 4 | 0,02 |
+| `.ini` / `.json` / `.py` | 4 | ~0 |
+
+Más **9 contenedores sin ejercicio detectable** (diario vacío o con fechas fuera de rango).
+
+**Criterio acordado para decidir qué merece pulirse:** *¿lo consume el motor?* El mapa
+cliente-año sí (decide qué se usa para entrenar y qué para validar). Los `.wma` y `.jpg`
+no. Los `.cat` están sin determinar y por eso se miran.
+
 ---
 
 ## Actualización del registro de supuestos

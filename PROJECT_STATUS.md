@@ -55,15 +55,31 @@ número real aquí, es la señal de que el proyecto ha empezado de verdad.**
 
 **Primer mensaje al retomar, literal:**
 
-> Retomamos donde lo dejamos. Lee `FASE0_RESULTADOS.md` entero, sobre todo la
-> sección 10. ORDEN: (1) cifrado de disco y copia de seguridad — ver "RIESGO
-> PRINCIPAL" más abajo, van antes que nada; (2) localizar el campo de identidad
-> del cliente; (3) el INVENTARIO; (4) el 303 contra el M390A.dbf. Los scripts
-> que tocan nombres o NIF los ejecuto yo, no tú.
+> Retomamos. Lee `FASE0_RESULTADOS.md` entero, sobre todo §12 y §13. Toca CERRAR
+> EL INVENTARIO en cuatro pasos: (1) enlazar el código de empresa entre carpetas
+> con la regla dura de que dentro de una carpeta dos códigos nunca se fusionan;
+> (2) explicar la caída de 2022–2023; (3) clasificar los 9 contenedores sin
+> ejercicio y los 28 `.cat`; (4) emitir el `inventario_LOCAL.csv` definitivo.
+> Cuando esté, el inventario se cierra y NO volvemos a él: pasamos a la
+> consistencia por par (cliente, tercero).
 
-> **Corregido 12-08-2026:** este bloque decía que tocaba el inventario y
-> contradecía a la sección de RIESGO PRINCIPAL, que dice que cifrado y copia van
-> primero. Manda el orden de arriba.
+**Estado al cerrar el 12-08-2026.** Todo lo de abajo está medido y verificado:
+
+| | |
+|---|---|
+| Corpus detallado | **2019–2026**, 33 clientes, 1.287 copias, 101.122 asientos |
+| 2016–2018 | Solo cuentas depositadas en PDF. El detalle diario **no existe** |
+| Formato / esquema / codificación | ZIP+dBase · 91 campos estables · cp1252 |
+| Estructura del backup | 3 ficheros por empresa (1 con datos + 2 vacíos de 1.384 B) |
+| Auditoría independiente | **5 de 5 en verde** (`fase0_verificacion.py`) |
+| Cifrado de disco · copia en USB | ✅ activado · ✅ existe |
+
+**Pendiente de decidir con Diego, no urgente:** los 478 PDF del Registro (segundo
+corpus, cubre 2016–2018, es la verdad dura para validar) se dejan para después
+del motor — no deben retrasarlo.
+
+**Criterio acordado para decidir qué se pule:** *¿lo consume el motor?* El mapa
+cliente-año sí; los `.wma` y `.jpg` no; los `.cat` sin determinar.
 
 **Cerrado el 12-08-2026:** la identidad del cliente **no está** en las copias
 (siete vías descartadas con número, ver `FASE0_RESULTADOS.md` §11.1). Se resuelve

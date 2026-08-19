@@ -1,0 +1,103 @@
+{
+  "version": "cobertura_real_v1",
+  "por_ejercicio": [
+    {
+      "ejercicio": 2011,
+      "COTA_INFERIOR_CLIENTES": 1,
+      "copias_totales": 16,
+      "carpetas_que_lo_contienen": 16
+    },
+    {
+      "ejercicio": 2018,
+      "COTA_INFERIOR_CLIENTES": 1,
+      "copias_totales": 3,
+      "carpetas_que_lo_contienen": 3
+    },
+    {
+      "ejercicio": 2019,
+      "COTA_INFERIOR_CLIENTES": 32,
+      "copias_totales": 95,
+      "carpetas_que_lo_contienen": 3
+    },
+    {
+      "ejercicio": 2020,
+      "COTA_INFERIOR_CLIENTES": 34,
+      "copias_totales": 246,
+      "carpetas_que_lo_contienen": 13
+    },
+    {
+      "ejercicio": 2021,
+      "COTA_INFERIOR_CLIENTES": 37,
+      "copias_totales": 372,
+      "carpetas_que_lo_contienen": 12
+    },
+    {
+      "ejercicio": 2022,
+      "COTA_INFERIOR_CLIENTES": 30,
+      "copias_totales": 216,
+      "carpetas_que_lo_contienen": 14
+    },
+    {
+      "ejercicio": 2023,
+      "COTA_INFERIOR_CLIENTES": 29,
+      "copias_totales": 89,
+      "carpetas_que_lo_contienen": 6
+    },
+    {
+      "ejercicio": 2024,
+      "COTA_INFERIOR_CLIENTES": 31,
+      "copias_totales": 116,
+      "carpetas_que_lo_contienen": 6
+    },
+    {
+      "ejercicio": 2025,
+      "COTA_INFERIOR_CLIENTES": 33,
+      "copias_totales": 91,
+      "carpetas_que_lo_contienen": 4
+    },
+    {
+      "ejercicio": 2026,
+      "COTA_INFERIOR_CLIENTES": 33,
+      "copias_totales": 34,
+      "carpetas_que_lo_contienen": 2
+    }
+  ],
+  "otros_ficheros": {
+    ".txt": {
+      "n": 28,
+      "MB": 0.07
+    },
+    ".cat": {
+      "n": 28,
+      "MB": 8.89
+    },
+    ".xlsx": {
+      "n": 9,
+      "MB": 1.05
+    },
+    ".wma": {
+      "n": 5,
+      "MB": 26.13
+    },
+    ".jpg": {
+      "n": 4,
+      "MB": 0.02
+    },
+    ".ini": {
+      "n": 2,
+      "MB": 0.0
+    },
+    ".json": {
+      "n": 1,
+      "MB": 0.0
+    },
+    ".py": {
+      "n": 1,
+      "MB": 0.01
+    }
+  },
+  "errores": {
+    "sin_ejercicio": 9
+  },
+  "nota": "Solo recuentos. La cota inferior es el maximo de empresas de una sola carpeta para ese ejercicio."
+}
