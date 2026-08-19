@@ -88,9 +88,50 @@ NIF_SINTETICOS_CONOCIDOS = {
     "12345678Z", "12345678Y", "B12345674", "B12345678", "B99999999",
 }
 
-EXTENSIONES_TEXTO = {
-    '.py', '.md', '.json', '.txt', '.csv', '.yml', '.yaml', '.cfg', '.ini',
+# NOTA (19-08-2026): antes existía aquí una lista blanca de extensiones de texto
+# (`.py`, `.md`, `.json`…) y cualquier fichero fuera de ella se saltaba el escaneo
+# de contenido EN SILENCIO. Eso dejaba sin revisar `scripts/*.sh`, `.gitignore` y
+# `scripts/pre-commit`, que sí son texto y sí podían llevar un NIF dentro.
+# Sustituida por detección de texto POR CONTENIDO, más abajo: mismo principio que
+# la detección de binarios — manda el contenido, no el nombre.
+
+# ---------------------------------------------------------------------------
+# Detección por CONTENIDO, no por extensión (añadido 19-08-2026)
+#
+# EL AGUJERO QUE CIERRA: la regla "ningún .zip sube" estaba escrita sobre la
+# EXTENSIÓN. Los contenedores de ContaPlus son ZIP con extensión `.DAT`, así que
+# pasaban por delante de la regla sin que saltara nada. Verificado con fichero
+# trampa el 19-08-2026: un ZIP llamado `SP_C_04A.DAT` devolvía "sin hallazgos" y
+# código de salida 0 — no solo se colaba, además se declaraba limpio.
+#
+# Es el mismo principio que ya está escrito en .claude/rules/datos.md para los
+# repositorios privados: **la barrera real es el CONTENIDO, no el nombre.**
+#
+# Firmas ZIP: cabecera local (PK\x03\x04), fin de directorio central de un
+# archivo vacío (PK\x05\x06) y descriptor de archivo repartido (PK\x07\x08).
+MAGIC_ZIP = (b'PK\x03\x04', b'PK\x05\x06', b'PK\x07\x08')
+
+# Otros binarios que, si aparecen, son datos del despacho y nunca código.
+MAGIC_OTROS = {
+    b'%PDF-': 'PDF',
+    b'\xd0\xcf\x11\xe0': 'documento Office antiguo (.doc/.xls)',
 }
+
+
+def firma_de(path: Path):
+    """Devuelve una etiqueta si el CONTENIDO del fichero es de un tipo que no
+    debe subir, mire lo que mire la extensión. Nunca devuelve contenido."""
+    try:
+        with open(path, 'rb') as f:
+            cabecera = f.read(8)
+    except OSError:
+        return None
+    if cabecera.startswith(MAGIC_ZIP):
+        return 'ZIP'
+    for magic, etiqueta in MAGIC_OTROS.items():
+        if cabecera.startswith(magic):
+            return etiqueta
+    return None
 
 
 def cargar_denylist_local():
@@ -109,10 +150,30 @@ def cargar_nombres_prohibidos():
         return {linea.strip() for linea in f if linea.strip() and not linea.startswith('#')}
 
 
+def es_texto(path: Path) -> bool:
+    """¿Es un fichero de texto escaneable línea a línea? Se decide por CONTENIDO.
+
+    Un binario trae bytes nulos casi siempre; el texto, nunca. Es el mismo
+    criterio que usa `git` para decidir si un fichero es binario.
+    """
+    try:
+        with open(path, 'rb') as f:
+            muestra = f.read(8192)
+    except OSError:
+        return False
+    if b'\x00' in muestra:
+        return False
+    try:
+        muestra.decode('utf-8')
+    except UnicodeDecodeError:
+        # Puede ser texto en otra codificación (cp1252, latin-1). Se acepta como
+        # texto: escanearlo de más es seguro, saltárselo no.
+        return True
+    return True
+
+
 def escanear_archivo(path: Path, denylist_local):
     hallazgos = []
-    if path.suffix.lower() not in EXTENSIONES_TEXTO:
-        return hallazgos
     try:
         with open(path, encoding='utf-8', errors='ignore') as f:
             lineas = f.readlines()
@@ -155,6 +216,29 @@ def escanear(archivos):
 
         if not path.exists():
             continue  # borrado en este commit, nada que escanear
+
+        # Por CONTENIDO, antes que nada: pilla el ZIP disfrazado de .DAT.
+        firma = firma_de(path)
+        if firma == 'ZIP':
+            errores.append(
+                f"{archivo}: BLOQUEADO — el CONTENIDO es un ZIP, sea cual sea su "
+                f"extensión (los contenedores de ContaPlus son ZIP en .DAT)"
+            )
+            continue
+        if firma:
+            errores.append(f"{archivo}: BLOQUEADO — el contenido es un {firma}, no código")
+            continue
+
+        # Un binario desconocido no se puede escanear línea a línea. Antes esto
+        # pasaba EN SILENCIO y el escáner decía "sin hallazgos", que se lee como
+        # "está limpio" cuando en realidad significa "no lo he mirado". Se avisa.
+        if not es_texto(path):
+            errores.append(
+                f"{archivo}: BLOQUEADO — es un binario no reconocido; su contenido "
+                f"NO se ha podido revisar. Nada que no sea texto sube sin que un "
+                f"humano lo apruebe a mano"
+            )
+            continue
 
         hallazgos = escanear_archivo(path, denylist_local)
         for linea, motivo in hallazgos:

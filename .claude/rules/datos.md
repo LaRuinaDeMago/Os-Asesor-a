@@ -109,6 +109,40 @@ Un repositorio "privado" de GitHub NO es suficiente frontera por sí solo — un
 sesión Cloud puede acceder a cualquier repositorio que vea la cuenta de GitHub
 conectada, así que la barrera real es el CONTENIDO, no el candado del repo.
 
+## La barrera mira el CONTENIDO, no la extensión (cerrado 19-08-2026)
+
+**El agujero, que estuvo abierto ocho días:** la regla "ningún `.zip` sube" estaba
+escrita sobre la **extensión**. Los contenedores de ContaPlus son ZIP con
+extensión `.DAT`, así que pasaban por delante sin que saltara nada.
+
+Verificado con fichero trampa antes de arreglarlo: un ZIP llamado `SP_C_04A.DAT`
+devolvía **`Escáner de privacidad: sin hallazgos` y código de salida 0**. No es
+solo que se colara — es que además se declaraba limpio, porque su extensión
+tampoco estaba en la lista de ficheros escaneables. Lo peor de los dos mundos.
+
+**Cerrado así, y en este orden:**
+
+1. `scripts/privacy_scan.py` detecta ZIP (`PK\x03\x04`), PDF y documentos Office
+   **por los bytes de cabecera**, sea cual sea el nombre del fichero.
+2. La lista blanca de extensiones de texto se ha eliminado. Ahora "¿es texto?" se
+   decide por contenido (presencia de bytes nulos), igual que hace `git`. Eso
+   destapó un segundo agujero menor: `scripts/*.sh`, `.gitignore` y
+   `scripts/pre-commit` **nunca se habían escaneado**, y sí pueden llevar un NIF.
+3. Cualquier binario no reconocido **bloquea** en vez de pasar en silencio.
+4. `.gitignore` añade `*.dat`, `*.DAT`, `*.dbf`, `*.DBF` como capa extra.
+
+**Regla general que se extrae, y que aplica más allá de este caso:**
+
+> Una barrera que decide por el **nombre** de algo (extensión, ruta, título) es
+> una barrera de conveniencia. La que decide por su **contenido** es la real. Es
+> el mismo principio ya escrito arriba sobre los repositorios privados.
+
+**Y el fallo de diseño que hay detrás, que importa más que el bug:** el escáner
+respondía "sin hallazgos" en un caso en que no había mirado nada. Un "OK" que
+significa "no lo he comprobado" es exactamente el falso verde que el motor tiene
+prohibido dar. La barrera de privacidad ahora sigue la misma regla que el motor:
+**si no se ha podido comprobar, no es OK.**
+
 ## Los .zip nunca se suben
 
 Ningún archivo `.zip` sube a este repositorio bajo ninguna circunstancia, revisado

@@ -5,6 +5,15 @@
 # Los dos .zip originales — regla fija, nunca suben (sección 1.4 del plan).
 *.zip
 
+# Contenedores de ContaPlus. Son ZIP con dBase dentro, pero con extensión .DAT:
+# la regla de arriba, escrita sobre la extensión, no los cubría (agujero real
+# detectado el 11-08-2026 y cerrado el 19-08-2026). La barrera de verdad es la
+# detección por contenido de scripts/privacy_scan.py — esto es la capa extra.
+*.dat
+*.DAT
+*.dbf
+*.DBF
+
 # Denylist local de apellidos reales (si Diego decide crear una) — nunca sube.
 .privacy_local_denylist.txt
 
