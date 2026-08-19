@@ -169,6 +169,101 @@ secundario de los datos de cliente"), para que no bloquee esto por error:
 
 ---
 
+## 9. Escepticismo estructural — que el sistema no aprenda tus errores
+
+El riesgo más silencioso del proyecto: si el sistema aprende de las decisiones del
+asesor, **aprende también sus sesgos**, y los aplica diez mil veces. Un criterio
+equivocado sostenido durante años deja de parecer un error y pasa a parecer *la
+forma en que se hacen las cosas aquí*.
+
+La respuesta correcta no es hacer el sistema más listo. Es hacerlo **más
+desconfiado** — de la máquina y del asesor por igual. Cuatro capas, adoptadas con
+un matiz en la última:
+
+### 9.1 Grounding asimétrico — el histórico clasifica, la norma decide
+
+> El histórico puede decir **qué se hizo**. Solo la norma puede decir **qué es
+> correcto**.
+
+- Las correcciones del asesor son **etiquetas y evidencia**, nunca cambian una
+  regla por sí solas.
+- Una regla del motor solo se modifica contra **fuente externa** (BOE, LIVA,
+  LIRPF, consultas vinculantes de la DGT).
+- Si una corrección **contradice** la fuente, el sistema no la absorbe: avisa.
+  *"Has corregido esto, pero la norma dice X."*
+
+Es la misma invariante que ya está en `ARQUITECTURA_DATOS.md` §2 (la validación va
+de fuera hacia dentro), aplicada al aprendizaje.
+
+### 9.2 Detector de disonancia — cuando te desvías de ti mismo
+
+Cálculo de desviación estándar, sin IA: si un criterio se aplica en un cliente y
+en ningún otro de la cartera con el mismo perfil, se señala. No dice que esté mal;
+pide una segunda mirada.
+
+### 9.3 ⭐ Caducidad de reglas — la mejor idea de todo el bloque
+
+**Toda regla aprendida caduca a los 12 meses.** Al caducar no se borra: su estado
+pasa de `OK` a `NO_COMPROBADO — regla caducada, revisar`.
+
+Por qué es tan buena, y por qué encaja exactamente aquí:
+
+- Cuesta **un campo de fecha**. Es la relación coste/impacto más alta de todo lo
+  que se ha propuesto en esta sesión.
+- Ataca de frente el mecanismo documentado en `FASE0_RESULTADOS.md` §10.3 —el
+  arrastre del cuadro de cuentas de un ejercicio al siguiente— que es justo cómo
+  un error se vuelve permanente.
+- Y es la pareja natural del versionado de §3.2: el versionado conserva el
+  historial de un cambio; la caducidad **fuerza a que haya una revisión**.
+- Fricción real: revisar unas pocas reglas al año.
+
+> Una regla que nadie ha vuelto a mirar en un año no es conocimiento consolidado.
+> Es una suposición con antigüedad.
+
+### 9.4 Casos adversariales — adoptado, pero NO en el flujo real
+
+La cuarta capa propone inyectar facturas sintéticas en el trabajo diario para
+probar los sesgos del asesor. La técnica es correcta (exposición forzada a
+contraejemplos), pero **la implementación propuesta es peligrosa aquí**: este
+sistema produce asientos contables. Una factura falsa suelta en el flujo real
+puede acabar contabilizada, y el daño de eso supera al beneficio del ejercicio.
+
+**Adoptado con cambio:** los casos adversariales viven en un **modo de
+entrenamiento separado**, marcados de forma inequívoca, que **nunca** escribe en
+la contabilidad real. Jamás se mezclan con facturas de clientes.
+
+### 9.5 Vigilancia normativa — la bomba de relojería
+
+Un guard codifica una regla fiscal del momento en que se escribió. Cuando la norma
+cambia, el guard **sigue diciendo OK y ahora está mal**, en silencio. No hay
+ninguna señal interna que lo delate: los tests siguen verdes, porque los tests
+codifican la misma regla vieja.
+
+**Requisito de mantenimiento, no funcionalidad:** cada guard con base normativa
+declara **qué norma aplica y de qué fecha**. Sin eso, el proyecto acumula deuda
+fiscal invisible.
+
+### ⚠️ Corrección técnica a la "confianza 0–1 por campo"
+
+Se propone que la IA devuelva un valor de confianza numérico por campo y rechazar
+por debajo de 0,95. **La idea de confianza por campo es buena (§4 y §10). El
+número no.**
+
+Un valor de confianza que devuelve un modelo de lenguaje **no es una probabilidad
+calibrada**: es más texto generado. Un `0.97` no significa que acierte 97 de cada
+100 veces; significa que el modelo ha escrito "0.97".
+
+Y contradice algo que este proyecto ya tiene medido: `verificacion=OK` es una
+afirmación del propio modelo, no evidencia independiente — por eso existe
+`triangulacion_identidad_v0.py`. Un umbral de 0,95 sobre un número no calibrado
+es la misma fe, con más decimales.
+
+**La confianza real se construye con evidencia independiente:** checksum, cruce
+con el histórico, coherencia documental, y medidas deterministas de la imagen
+(§7). El dato que dé el modelo entra como **una señal más**, nunca como el umbral.
+
+---
+
 ## 6. El techo: no se persigue el cero
 
 Ningún guard puede detectar un error que no deja **ninguna huella estadística ni

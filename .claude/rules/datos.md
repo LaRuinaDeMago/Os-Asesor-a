@@ -100,6 +100,59 @@ asesoría, no cesión de datos); y el secreto profesional aplica al margen del R
 cliente** es exactamente el servicio que se le presta. Ese es todo el margen que
 hay, y es amplio. Comparar clientes entre sí para beneficio de un tercero, no.
 
+### REITERADO Y ENDURECIDO 19-08-2026 (segunda propuesta, ya con precios)
+
+La idea ha vuelto en una tercera tanda de valoraciones, esta vez concretada como
+producto y con tarifa: *"Datos como Servicio"*, informes sectoriales vendidos a
+**asociaciones, bancos, fondos de inversión y administración pública** por
+5.000–15.000 €, incluyendo *"empresas con alta probabilidad de impago"*.
+
+**La respuesta es la misma y no cambia por venir mejor empaquetada.** Vender a un
+banco una valoración de la salud financiera de empresas cuyos libros llevas es una
+brecha directa de secreto profesional, con precio.
+
+### ⛔ Y una propuesta nueva que también se descarta: predecir a Hacienda
+
+Se ha propuesto un *"Informe de Riesgo de Inspección"* (500–1.500 €/cliente) que
+diría cosas como *"este perfil de gasto es auditado en un 73% de los casos"*.
+
+**Ese número no se puede calcular y no existe.** Para estimar probabilidad de
+inspección haría falta saber **quién fue inspeccionado**, y ese dato no está en
+la contabilidad: los libros dicen qué se contabilizó, no si vino una comprobación.
+La cartera no contiene la variable dependiente. El 73% y el 68% del texto original
+no salen de ningún sitio.
+
+Vender a un cliente una probabilidad inventada, sobre la que va a tomar decisiones
+reales, no es un producto agresivo: es falsa precisión cobrada.
+
+### ⚠️ Matiz que CORRIGE lo escrito antes en este mismo apartado
+
+La frase *"analizar los datos de un cliente para ese mismo cliente"* se escribió
+pensando en el patrón agregado de cuentas (`DISENO_APRENDIZAJE.md` §5), y para eso
+vale. **Pero es demasiado permisiva para el "benchmarking sectorial"** que proponen
+estos textos, y conviene afinarla:
+
+| Uso | Veredicto |
+|---|---|
+| El agregado de la cartera informa **el criterio del asesor** (a qué cuenta suele ir este proveedor) | ✅ Es experiencia profesional sistematizada |
+| El agregado se **entrega al cliente como entregable** comparándolo con los demás | ⚠️ Es un producto construido sobre los datos de B…Z, que no lo consintieron |
+
+Con 33 clientes en un mercado local, un "sector" puede tener n=3. Un ratio medio
+de tres empresas del pueblo es reidentificable por cualquiera que las conozca.
+
+**Regla:** si un agregado sale del despacho en un documento, exige un **n mínimo
+declarado por adelantado** (nunca menos de 10) y consentimiento informado de los
+clientes cuyos datos lo componen. Si no se cumple, no sale.
+
+### ⚠️ Cobrar un porcentaje del ahorro fiscal
+
+Propuesto varias veces (30–50% del ahorro). Se anota como **problema, no como
+modelo**: un honorario que crece cuanto más agresiva es la posición fiscal empuja
+en dirección contraria a todo lo que este motor hace —que es no dar nunca un OK
+sin evidencia—. Antes de plantearlo siquiera hay que contrastarlo con el código
+deontológico del colegio profesional correspondiente. No es una decisión de
+producto.
+
 CORRECCIÓN 29-07-2026: ni siquiera con Remote Control (ejecución local) se debe
 pegar, escribir o mostrar en el chat un NIF real o nombre de cliente real — la
 transcripción de Remote Control se guarda en servidores de Anthropic, aunque la
