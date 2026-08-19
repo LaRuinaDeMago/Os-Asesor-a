@@ -55,8 +55,8 @@ número real aquí, es la señal de que el proyecto ha empezado de verdad.**
 
 **Primer mensaje al retomar, literal:**
 
-> Retomamos. Lee `ARQUITECTURA_DATOS.md` entero y `FASE0_RESULTADOS.md` §11.1,
-> §12 y §13. Toca CERRAR EL INVENTARIO: (1) enlazar el código de empresa entre
+> Retomamos. Lee `ARQUITECTURA_DATOS.md` y `DIRECCION_PRODUCTO.md` enteros, y
+> `FASE0_RESULTADOS.md` §11.1, §12 y §13. Toca CERRAR EL INVENTARIO: (1) enlazar el código de empresa entre
 > carpetas con la regla dura de que dentro de una carpeta dos códigos nunca se
 > fusionan; (2) explicar la caída de 2022–2023 cruzando las altas y bajas;
 > (3) clasificar los 9 contenedores sin ejercicio y los 28 `.cat`; (4) asignar a
@@ -534,6 +534,13 @@ recuentos. Números completos en `FASE0_RESULTADOS.md`.
    Locales con datos reales; confirmar el coste real de uso una vez
    contratada. Misma familia de gestión que el DPA de Google Workspace
    (punto 3), pero son dos trámites independientes, ambos necesarios.
+
+   > **Reevaluado el 19-08-2026 (`DIRECCION_PRODUCTO.md` §2 de "las tres
+   > puertas"):** esto ha dejado de ser un trámite administrativo en una lista.
+   > Validar una factura procesa un documento; el análisis financiero continuo
+   > por cliente al que apunta la dirección de producto procesa *todo* — y todo
+   > eso pasa por la API. **Sin API/Consola con DPA, esa dirección no se puede
+   > construir sobre datos reales.** Es la puerta de entrada, no un pendiente.
 5. Seguir con Fase 2/PoC Gemini (activar facturación, `GEMINI_API_KEY`,
    primera factura real por `captura_orquestador.py`).
 6. Diego dejó una frase a medias en la sesión del 31-07-2026 ("Además de...",
