@@ -13,6 +13,29 @@ un número sin origen no entra en un documento.
 
 ---
 
+## ⚠️ Corrección de alcance (19-08-2026) — el despacho es más que contabilidad
+
+Dato aportado por el titular y que corrige un supuesto implícito de todo este
+documento y de `ARQUITECTURA_DATOS.md`:
+
+> **El despacho vive de contabilidad, laboral, fiscal, mercantil y normativa.**
+
+Todo lo diseñado hasta ahora asume **contabilidad + fiscal**. **Laboral** (nóminas,
+seguros sociales, contratos, altas y bajas de trabajadores) y **mercantil**
+(constitución, registro, cuentas anuales, actas) son dos dominios enteros sin
+tocar, y no son marginales: en un despacho pequeño suelen ser una parte grande de
+la facturación recurrente y del trabajo repetitivo.
+
+**Consecuencias, sin cambiar el orden de trabajo:**
+
+- La espina `(cliente, periodo)` de `ARQUITECTURA_DATOS.md` **ya los admite** sin
+  rediseño: son dos conjuntos más que se enganchan. Eso valida la arquitectura.
+- El KPI y el objetivo (§"El destino") aplican igual a los cinco dominios.
+- **Pero el motor actual solo cubre uno.** Cualquier afirmación sobre "automatizar
+  el despacho" debe decir *qué parte* del despacho.
+- No se construye nada de laboral ni mercantil todavía: primero el corte vertical
+  de contabilidad funcionando, por las mismas puertas de siempre.
+
 ## El destino, en una frase
 
 > Una asesoría cuyo **funcionamiento interno** está diseñado alrededor de datos,
@@ -227,6 +250,46 @@ que este proyecto ya ha cometido tres veces (`ARQUITECTURA_DATOS.md` §4).
 El orden no cambia: **primero el contrato de datos, después las 14 pruebas
 adversariales en verde, después la medición. El mapa de monetización, cuando haya
 algo medido que monetizar.**
+
+## Las tres "ideas de fractura" — una buena, una con trampa, una descartada
+
+Cuarta tanda (19-08-2026). Se valoran una a una porque son muy desiguales.
+
+### 🟢 "Arqueólogo fiscal" — buena idea con un conflicto que nadie vio
+
+Revisar el histórico buscando deducciones no aplicadas o IVA pagado de más. Usa
+**solo los datos del propio cliente, en su propio beneficio**: no roza ninguna
+línea roja. La idea es sólida.
+
+**Pero tiene un conflicto de interés que ninguno de los textos menciona:** en tus
+clientes actuales, esa contabilidad histórica **la llevó tu propio despacho**. O no
+encuentras nada (y el servicio no vale), o encuentras errores propios — y cobrar
+un 30% por arreglar lo que uno mismo hizo mal no se sostiene.
+
+> **Reformulado:** el arqueólogo fiscal es una **herramienta de captación de
+> clientes nuevos**, sobre libros que llevó otro. Sobre los propios es una
+> auditoría interna gratuita, que también vale, pero no es un producto.
+
+### 🟠 "Testamento viviente" (planificación de sucesión) — legítimo, con cautela
+
+Necesidad real y trabajo de asesoría de verdad. La cautela es la de siempre:
+extrapolar diez años con tres tasas de crecimiento produce cifras que **parecen
+precisas y no lo son**. Decirle a un cliente *"si vendes ahora te quedan 800.000 €"*
+a partir de una extrapolación es el mismo problema de falsa precisión. La
+valoración de empresas es una disciplina propia y no sale de proyectar el histórico.
+
+### ⛔ "Matchmaker empresarial" — descartado
+
+Poner en contacto a dos clientes usando lo que sabes de sus cuentas —que A tiene
+problemas de liquidez, que C quiere vender, que D busca comprar— y cobrar comisión
+por la operación.
+
+**Es un conflicto de interés en los dos lados a la vez, con información
+confidencial de ambos como materia prima.** Estarías negociando entre dos partes
+cuyos libros llevas, cobrando de la operación. Y "certificar su salud financiera en
+24 horas" con el propio motor no es certificar nada: eso es una función reservada.
+
+No es una cuestión de matices ni de cómo se implemente. Se descarta.
 
 ## Qué queda sin decidir (a propósito)
 

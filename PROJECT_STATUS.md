@@ -81,6 +81,35 @@ no corre no protege de nada. El más grave de los tres es el primero: es la piez
 que conecta el histórico del despacho con la decisión, o sea lo más diferencial
 del proyecto, y hoy está fuera del camino del veredicto.
 
+### Cuatro hallazgos más, verificados el 19-08-2026 (auditoría externa)
+
+| # | Hallazgo | Estado |
+|---|---|---|
+| 1 | El agujero `.DAT`/`.zip` de la barrera de privacidad | ✅ **CERRADO** (`d204f56`) |
+| 2 | `audit_project.py` imprimía `"21/21 OK"` como **cadena escrita a mano** | ✅ **CERRADO** — ahora cuenta |
+| 3 | El estado `MEDIA` de `guard_confianza_captura` es **inalcanzable** | 🔴 ABIERTO |
+| 4 | `nif_cliente_titular` va siempre `None` desde el orquestador | 🔴 ABIERTO |
+
+**Sobre el 2, que merece una nota:** el informe de auditoría del propio proyecto
+declaraba `21/21 OK` sin contar nada. Si se añadía o quitaba un check, seguiría
+imprimiendo `21/21` para siempre. **Es la misma clase de fallo que el motor existe
+para evitar** — un informe que declara éxito sin haberlo medido — y es la tercera
+vez que aparece en esta sesión, después del escáner de privacidad que decía "sin
+hallazgos" sobre un fichero que no había leído, y del motor que da VERDE a una
+factura sin importes. Ya cuenta las líneas de resultado y falla si no cuadran.
+
+**Sobre el 3:** `OK_INFERIDO` solo aparece en `motor_veredicto.py`, en el guard que
+lo consume. **Nadie lo produce**: el prompt de `captura_orquestador.py` solo pide
+`OK` o `DUDA`. El escalón `MEDIA` es código muerto esperando un valor que ningún
+componente emite.
+
+**Sobre el 4, que es el más grave de los dos abiertos:** en `orquestador.py:140`
+el argumento posicional que corresponde a `nif_cliente_titular` es literalmente
+`None`. Por tanto `guard_sentido_compra_venta` **nunca puede disparar su rama
+crítica** —"el emisor es el propio cliente, esto es una venta y no un gasto"— en
+ninguna ejecución real. Solo se ha probado en el test unitario. Es exactamente el
+patrón que la Fase 0 ya nombró: guards construidos sin caso real que los respalde.
+
 **Qué NO se ha hecho aquí, a propósito:** no se ha tocado `motor_veredicto.py`.
 El arreglo es arquitectónico (distinguir `MISSING` / `INVALID` / `ZERO` / `VALUE`
 antes de que el dato llegue al motor) y se decide con Diego, no de oficio.

@@ -69,8 +69,26 @@ def check_tests():
     resultado = subprocess.run([sys.executable, "test_motor_veredicto.py"],
                                 capture_output=True, text=True)
     ok = "TODAS LAS PRUEBAS PASAN" in resultado.stdout
+    # CORREGIDO 19-08-2026 (auditoria externa): aqui habia un "21/21 OK" escrito
+    # a mano como cadena. No contaba nada: si se anadia o quitaba un check,
+    # seguiria imprimiendo "21/21" indefinidamente aunque fuera mentira.
+    # Es la misma clase de fallo que el motor existe para evitar — un informe que
+    # declara exito sin haberlo medido. Ahora se cuentan las lineas de resultado.
+    n_pasan = sum(1 for l in resultado.stdout.splitlines() if l.strip().startswith("OK "))
+    n_declarados = 0
+    try:
+        with open("test_motor_veredicto.py", encoding="utf-8") as f:
+            n_declarados = sum(1 for l in f if l.startswith("check("))
+    except OSError:
+        pass
+    detalle = f"{n_pasan}/{n_declarados} checks en verde"
+    if ok and n_declarados and n_pasan != n_declarados:
+        # La suite dice que pasa todo pero no salen las cuentas: no se da por bueno.
+        ok = False
+        detalle = (f"la suite declara exito pero solo {n_pasan} de {n_declarados} "
+                   f"checks han reportado OK - revisar")
     check("Suite de pruebas (test_motor_veredicto.py)", ok,
-          "21/21 OK" if ok else resultado.stdout[-500:])
+          detalle if ok else f"{detalle}\n{resultado.stdout[-500:]}")
 
 
 def check_dependencias():
