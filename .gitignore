@@ -46,6 +46,10 @@ requirements (1).txt
 __pycache__/
 *.pyc
 
+# Caché local de audit_project.py (comparación entre ejecuciones), se
+# regenera en cada corrida — no es código fuente.
+.audit_historico.json
+
 # Configuración local de la sesión de Claude Code (permisos de este equipo,
 # no es código ni configuración del proyecto).
 .claude/settings.local.json
