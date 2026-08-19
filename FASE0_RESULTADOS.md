@@ -520,7 +520,13 @@ codificación, volumen) más los puntos 3, 4 y 5. **Queda pendiente el núcleo:*
       sucesivas. El factor de duplicación de 2,73x dice que hay material para esto.
 - [ ] **Punto 7 — ventanas de cambio.**
 - [ ] **Prueba real de capa de texto en los PDF.**
-- [ ] Qué son los 2.570 contenedores que **no** llevan `Diario.dbf`.
+- [x] ~~Qué son los 2.570 contenedores que **no** llevan `Diario.dbf`.~~
+      **RESUELTO** (verificado 19-08-2026 sobre `fase0_diagnostico.json`, que ya
+      lo contenía): son las **plantillas vacías** del backup. Los 2.570 pesan
+      1.384 bytes exactos, traen 8 entradas cada uno (`ACCIONES.ASC`,
+      `DATOS.ASC`, `CERTIF.ASC`, `FICHERO.TXT`, `GESTION.TXT`…) y **ninguna
+      supera los 4 KB descomprimidos: todas a cero**. Concuerda con §12:
+      `3.857 = 1.287 × 3` — un fichero con datos y dos plantillas por empresa.
 
 **Nota metodológica pendiente y no trivial:** el propio titular confirma que hay copias
 tomadas a mitad de ejercicio y años incompletos. Eso significa que **"quedarse con la

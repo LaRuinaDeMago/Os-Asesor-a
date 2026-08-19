@@ -55,13 +55,23 @@ número real aquí, es la señal de que el proyecto ha empezado de verdad.**
 
 **Primer mensaje al retomar, literal:**
 
-> Retomamos. Lee `FASE0_RESULTADOS.md` entero, sobre todo §12 y §13. Toca CERRAR
-> EL INVENTARIO en cuatro pasos: (1) enlazar el código de empresa entre carpetas
-> con la regla dura de que dentro de una carpeta dos códigos nunca se fusionan;
-> (2) explicar la caída de 2022–2023; (3) clasificar los 9 contenedores sin
-> ejercicio y los 28 `.cat`; (4) emitir el `inventario_LOCAL.csv` definitivo.
-> Cuando esté, el inventario se cierra y NO volvemos a él: pasamos a la
-> consistencia por par (cliente, tercero).
+> Retomamos. Lee `ARQUITECTURA_DATOS.md` entero y `FASE0_RESULTADOS.md` §11.1,
+> §12 y §13. Toca CERRAR EL INVENTARIO: (1) enlazar el código de empresa entre
+> carpetas con la regla dura de que dentro de una carpeta dos códigos nunca se
+> fusionan; (2) explicar la caída de 2022–2023 cruzando las altas y bajas;
+> (3) clasificar los 9 contenedores sin ejercicio y los 28 `.cat`; (4) asignar a
+> cada par (cliente, ejercicio) uno de los cuatro estados de
+> `ARQUITECTURA_DATOS.md` §5; (5) emitir el `inventario_LOCAL.csv` definitivo y
+> su agregado. El inventario se cierra cuando `PARCIAL_SIN_EXPLICAR` baje del 5%
+> y cada caso restante esté listado uno a uno.
+
+**Orden de construcción acordado el 19-08-2026** (detalle y motivos en
+`ARQUITECTURA_DATOS.md`): **ordenar → situar los modelos → validar.** No es una
+preferencia de método: el 390 dentro de las copias está en blanco, así que la
+validación fiscal necesita el corpus de modelos presentados situado en el tiempo
+primero. Entra como conjunto nuevo el **036** (altas, bajas y obligaciones
+declaradas): es la única fuente que dice lo que TENDRÍA que haber, y convierte
+"faltan modelos" en una resta comprobable.
 
 **Estado al cerrar el 12-08-2026.** Todo lo de abajo está medido y verificado:
 
@@ -233,9 +243,21 @@ como material a procesar.
 1. **Existen todos los modelos presentados de diez años.** Eso convierte la
    validación fiscal en la mejor disponible: un 303 presentado es un hecho, no
    un criterio, así que no arrastra la ambigüedad de "lo que contabilizaste vs
-   lo que era correcto". **Nuevo primer corte vertical propuesto:** reconstruir
-   el 303/390 desde el diario y cuadrarlo contra el `M390A.dbf` que ContaPlus
-   guarda en cada copia. Sin OCR, sin API, con verdad dura.
+   lo que era correcto".
+
+   > ⛔ **CORREGIDO 19-08-2026 — el corte vertical propuesto aquí el 11-08 no se
+   > puede hacer como estaba escrito.** Decía: "reconstruir el 303/390 desde el
+   > diario y cuadrarlo contra el `M390A.dbf` que ContaPlus guarda en cada
+   > copia". **Esa tabla está en blanco:** 1.268 de las 1.287 copias la tienen
+   > enteramente a cero, todas de 29.716 bytes exactos (medido el 12-08,
+   > `fase0_identidad_v2.json`; conclusión ya escrita en `FASE0_RESULTADOS.md`
+   > §11.1 y no propagada hasta hoy a este fichero).
+   >
+   > **Consecuencia, y no es menor:** la validación fiscal necesita el corpus de
+   > **modelos presentados**, que vive FUERA de las copias de contabilidad. Hay
+   > que inventariarlo y situarlo en el tiempo antes de poder cuadrar nada. Por
+   > eso el orden es ordenar → situar modelos → validar, y no al revés
+   > (`ARQUITECTURA_DATOS.md` §4).
 2. **Existen las altas y bajas de clientes.** El inventario DEBE cruzarlas: una
    copia que corta a mitad de ejercicio porque el cliente se dio de alta en
    junio **no es un hueco, es la historia real**. Sin ese cruce, el inventario
