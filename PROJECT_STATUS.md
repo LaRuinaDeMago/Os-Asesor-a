@@ -95,6 +95,61 @@ usarán al final, para blindar el histórico cuando el motor esté afinado),
 Gemini/OCR (el corpus no lo necesita: no hay facturas escaneadas), Google
 Workspace, y la contratación de API/Consola de Anthropic.
 
+### ⚠️ RIESGO PRINCIPAL DEL PROYECTO — y no es Claude ni el DPA
+
+Declarado por el titular el 11-08-2026: este equipo concentra en un solo disco
+diez años de contabilidad, **todos los modelos fiscales presentados**, altas y
+bajas, escrituras y copias de DNI. Es el patrimonio de datos personales
+completo del despacho.
+
+Con eso, las dos casillas sin marcar de mayor impacto son de la §11 del flujo,
+y valen hoy más que `osa-check`, la Action, VeraCrypt y los once tests juntos:
+
+- **§11.1 — Cifrado de disco. SIN COMPROBAR.** Windows 11 **Home**: BitLocker no
+  está en su forma habitual. Comprobar en Ajustes > Privacidad y seguridad >
+  Cifrado de dispositivo; si no aparece, ir por cifrado de sistema de VeraCrypt.
+  Sin esto, la pérdida o robo del equipo es una brecha notificable que afecta a
+  todos los clientes a la vez, con DNIs incluidos.
+- **§11.2b — Copia de seguridad del corpus. SIN COMPROBAR.** Si el disco muere,
+  desaparecen diez años de trabajo. No es privacidad, es continuidad.
+
+**Ambas van ANTES que cualquier otra cosa de la próxima sesión.**
+
+### Frontera de alcance — escrita para que no se erosione
+
+Este proyecto toca **contabilidad (`.DAT`)** y, más adelante, **facturas**. Los
+**DNIs y las escrituras no entran en ningún pipeline automatizado, nunca**: no
+aportan nada al motor y multiplican el daño de cualquier fallo. Los **modelos
+presentados sí entran, pero solo como verdad contra la que cuadrar**, nunca
+como material a procesar.
+
+### Dos cosas que cambian el plan, aportadas por el titular el 11-08-2026
+
+1. **Existen todos los modelos presentados de diez años.** Eso convierte la
+   validación fiscal en la mejor disponible: un 303 presentado es un hecho, no
+   un criterio, así que no arrastra la ambigüedad de "lo que contabilizaste vs
+   lo que era correcto". **Nuevo primer corte vertical propuesto:** reconstruir
+   el 303/390 desde el diario y cuadrarlo contra el `M390A.dbf` que ContaPlus
+   guarda en cada copia. Sin OCR, sin API, con verdad dura.
+2. **Existen las altas y bajas de clientes.** El inventario DEBE cruzarlas: una
+   copia que corta a mitad de ejercicio porque el cliente se dio de alta en
+   junio **no es un hueco, es la historia real**. Sin ese cruce, el inventario
+   marcaría como incompleto lo que está correcto.
+
+### Objetivo del producto, en palabras del titular (para que no se pierda)
+
+`foto de la factura → motor → fichero importable → ContaPlus`, más los modelos
+fiscales (303, 130, 111, 115) y el valor añadido al cliente. **Exportar a
+ContaPlus en vez de sustituirlo** es decisión deliberada y acertada: no obliga a
+cambiar la forma de trabajar.
+
+Prueba previa informal con Opus: ~98% de facturas fotografiadas dadas por
+buenas. **No cuenta como evidencia todavía** — no consta el tamaño de la
+muestra, mezclaba tasa de extracción con tasa del motor, y "verde" significaba
+"el motor no encontró problema", que no es lo mismo que "el asiento es
+correcto". **El número de falsos verdes sigue sin medirse y es la métrica que
+decide el proyecto.**
+
 ## NO HACER TODAVÍA (declarado explícitamente, no por omisión)
 - No añadir Vertex AI — solo si la Fase 1/2 sale bien Y se necesita residencia UE garantizada.
 - No añadir Claude API a producción — ya se decidió que Gemini va primero.
