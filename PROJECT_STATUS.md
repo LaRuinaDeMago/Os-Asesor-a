@@ -46,10 +46,45 @@ Criterio de aprobación: funcionamiento técnico reproducible (no precisión tod
   no viven en el código ni en este archivo).
 - Orquestador (`orquestador.py`) probado de punta a punta, reproducible.
 
-## FALSOS VERDES CONOCIDOS
-Ninguno todavía — no se ha ejecutado la Fase 1/2 con datos reales de Gemini.
-**Esta es la métrica más importante de todo el proyecto. Cuando aparezca el primer
-número real aquí, es la señal de que el proyecto ha empezado de verdad.**
+## 🔴 FALSOS VERDES CONOCIDOS — 8 confirmados el 19-08-2026
+
+**Esto ya no está vacío.** Antes decía "ninguno todavía"; era falso. No hizo falta
+Gemini ni datos reales: bastó atacar el motor con entradas construidas.
+
+Reproducible con `python3 test_adversarial.py` (14 pruebas, **14 fallan, 8 son P0**).
+Verificado ejecutando el motor real, no leyendo el código.
+
+| Entrada | Veredicto real | Debería ser |
+|---|---|---|
+| Todos los importes ausentes (`''`) | **VERDE** | AMBAR/ROJO |
+| Todos los importes a `None` | **VERDE** | AMBAR/ROJO |
+| Importes ilegibles (`'abc'`) | **VERDE** (solo un `UserWarning`) | AMBAR/ROJO |
+| Fecha imposible `2026-99-99`, `2026-02-30`, `2026-13-01` | **VERDE** | AMBAR/ROJO |
+| Falta la clave `total_factura` | **KeyError**, sin veredicto | un veredicto |
+| Importes como número JSON en vez de cadena | **KeyError/AttributeError** | un veredicto |
+| `irpf` declarado = 999 con diferencia de 150 | **OK** | FALLO |
+| Importe negativo sin `tipo_documento` | **OK** | NO_COMPROBADO |
+
+**Causa raíz única de la mayoría: `_f()` convierte ausencia e ilegibilidad en
+`0.0`.** Y `0` es un dato fiscal válido, así que "no sé qué había" y "había cero"
+son indistinguibles para todos los guards aritméticos. Con todo a cero, `0+0+0=0`
+cuadra perfectamente y los tres guards aritméticos dan OK.
+
+> Esto **viola la invariante fundacional del propio motor** — *"si no hay dato, el
+> estado es NO_COMPROBADO, nunca OK por omisión"*. La invariante está escrita en el
+> docstring y desmentida por el parser numérico, tres líneas más abajo.
+
+**Hallazgo aparte, del mismo ataque:** `guard_cuenta_gasto_coherente`,
+`guard_tipo_producto_iva_semantico` y `guard_tipo_operacion_especial` **existen,
+tienen tests propios que pasan, y no los llama `evaluar_fila_v4`**. Un guard que
+no corre no protege de nada. El más grave de los tres es el primero: es la pieza
+que conecta el histórico del despacho con la decisión, o sea lo más diferencial
+del proyecto, y hoy está fuera del camino del veredicto.
+
+**Qué NO se ha hecho aquí, a propósito:** no se ha tocado `motor_veredicto.py`.
+El arreglo es arquitectónico (distinguir `MISSING` / `INVALID` / `ZERO` / `VALUE`
+antes de que el dato llegue al motor) y se decide con Diego, no de oficio.
+`test_motor_veredicto.py` sigue 100% en verde.
 
 ## SIGUIENTE ACCIÓN CONCRETA
 
