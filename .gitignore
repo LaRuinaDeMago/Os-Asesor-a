@@ -13,7 +13,11 @@ censo_despacho_v8.csv
 
 # Salidas LOCALES de los scripts de Fase 0: llevan rutas/identidad real por
 # diseño (el par agregado/local del flujo). El agregado sí puede subir.
-*_LOCAL.json
+# Patrón por extensión LIBRE a propósito: el 12-08-2026 el inventario salió en
+# .csv y el patrón de entonces (*_LOCAL.json) no lo cubría. La convención es el
+# sufijo _LOCAL, no el formato.
+*_LOCAL.*
+*_local.*
 fase0_debug_local.json
 fase0_pares_inconsistentes.csv
 

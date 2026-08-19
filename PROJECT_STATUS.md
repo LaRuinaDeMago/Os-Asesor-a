@@ -56,9 +56,46 @@ número real aquí, es la señal de que el proyecto ha empezado de verdad.**
 **Primer mensaje al retomar, literal:**
 
 > Retomamos donde lo dejamos. Lee `FASE0_RESULTADOS.md` entero, sobre todo la
-> sección 10 (restricciones del dominio). Toca construir el INVENTARIO: qué
-> clientes y qué ejercicios tengo cubiertos, con qué copias, hasta qué fecha
-> llega cada una y cuántos asientos trae. Lo ejecuto yo, no tú.
+> sección 10. ORDEN: (1) cifrado de disco y copia de seguridad — ver "RIESGO
+> PRINCIPAL" más abajo, van antes que nada; (2) localizar el campo de identidad
+> del cliente; (3) el INVENTARIO; (4) el 303 contra el M390A.dbf. Los scripts
+> que tocan nombres o NIF los ejecuto yo, no tú.
+
+> **Corregido 12-08-2026:** este bloque decía que tocaba el inventario y
+> contradecía a la sección de RIESGO PRINCIPAL, que dice que cifrado y copia van
+> primero. Manda el orden de arriba.
+
+**Cerrado el 12-08-2026:** la identidad del cliente **no está** en las copias
+(siete vías descartadas con número, ver `FASE0_RESULTADOS.md` §11.1). Se resuelve
+por **huella dactilar de contrapartes**, y el método está validado: histograma
+bimodal, meseta estable de 35 grupos entre umbrales 0,30 y 0,60, 34 de 35 grupos
+presentes en varias subcarpetas, y el grupo mayor verificado a mano por el titular
+(89–100% de contrapartes en común → un solo cliente).
+
+Inventario construido: 35 clientes, 206 pares cliente-ejercicio, **79,1% de
+ejercicios completos hasta diciembre**, tramos continuos sin agujeros interiores.
+**El corpus es 2018–2026, no 2016–2026.**
+
+## 🔴 BLOQUEANTE ABIERTO — 35 grupos frente a 43 clientes reales
+
+El titular confirma 43 clientes solo en 2025; el mapa detecta 23 ese año y 35 en
+total. **La Fase 0 no avanza hasta cerrarlo.** Cinco candidatas en
+`FASE0_RESULTADOS.md` §11.4; la principal es que **2.570 contenedores (67% del
+corpus) están sin examinar** — no tienen diario ni subcuentas y nunca se ha mirado
+qué son.
+
+**Siguiente acción, ya escrita como plan:** diagnóstico de los 2.570 (qué tablas
+llevan dentro), test de fusión de grupos (similitud mínima intra-grupo y
+contenedores repetidos de mismo grupo/ejercicio/carpeta) y distribución real de
+NIF por contenedor para revisar el umbral arbitrario `MIN_NIFS = 5`.
+
+**Dos preguntas que solo puede contestar el titular, y que pueden explicarlo
+entero sin ningún script:**
+1. De los 43 clientes de 2025, ¿cuántos son S.L. con contabilidad completa en
+   ContaPlus y cuántos son autónomos que solo llevan libros registro?
+2. ¿Existe todavía el "ordenador de José" que aparece en varios nombres de
+   carpeta, o sus copias ya están volcadas aquí? Si faltan clientes y faltan
+   2016–2017, pueden estar allí.
 
 **Qué es el inventario y por qué va antes que la consistencia por par.** Es el
 entregable que desbloquea el resto y vale por sí solo: dice hasta dónde se
@@ -105,15 +142,27 @@ completo del despacho.
 Con eso, las dos casillas sin marcar de mayor impacto son de la §11 del flujo,
 y valen hoy más que `osa-check`, la Action, VeraCrypt y los once tests juntos:
 
-- **§11.1 — Cifrado de disco. SIN COMPROBAR.** Windows 11 **Home**: BitLocker no
-  está en su forma habitual. Comprobar en Ajustes > Privacidad y seguridad >
-  Cifrado de dispositivo; si no aparece, ir por cifrado de sistema de VeraCrypt.
-  Sin esto, la pérdida o robo del equipo es una brecha notificable que afecta a
-  todos los clientes a la vez, con DNIs incluidos.
-- **§11.2b — Copia de seguridad del corpus. SIN COMPROBAR.** Si el disco muere,
-  desaparecen diez años de trabajo. No es privacidad, es continuidad.
+- **§11.1 — Cifrado de disco. ✅ RESUELTO 12-08-2026.** Estaba **desactivado**
+  (comprobado en Ajustes > Privacidad y seguridad > Cifrado de dispositivo:
+  interruptor en "Desactivado"). El titular lo **activó** ese mismo día.
+  `manage-bde -status` no sirve para comprobarlo en esta edición de Windows: da
+  error de acceso aunque la consola sea de administrador, porque en Home no
+  existe BitLocker como tal, solo Cifrado de dispositivo. Se comprueba por la
+  interfaz de Ajustes.
+- **§11.2b — Copia de seguridad. ✅ PARCIAL 12-08-2026.** El titular confirma
+  el 100% de la **contabilidad** en un USB externo. **Pendiente confirmar** si
+  esa copia incluye también modelos, escrituras y DNIs.
 
-**Ambas van ANTES que cualquier otra cosa de la próxima sesión.**
+**Tres cabos sueltos derivados, sin cerrar:**
+1. **Clave de recuperación del cifrado**: debe guardarse FUERA del equipo
+   (impresa o en un USB aparte). Está en la cuenta Microsoft asociada, que es
+   hoy un punto único de fallo: perder el acceso a esa cuenta = perder los datos.
+2. **El USB de copia es ahora el eslabón débil.** Cifrado el disco principal, la
+   copia sin cifrar es lo único que se lee sin barrera. Robarla produce la misma
+   brecha que antes producía robar el equipo. Cifrarla (BitLocker To Go o
+   VeraCrypt).
+3. **Alcance de la copia**: confirmar que cubre modelos, escrituras y DNIs, no
+   solo contabilidad.
 
 ### Frontera de alcance — escrita para que no se erosione
 

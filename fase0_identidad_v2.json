@@ -1,0 +1,176 @@
+{
+  "version": "identidad_v2",
+  "n_contenedores": 3857,
+  "tablas": {
+    "LegalC.dbf": {
+      "contenedores_con_la_tabla": 1287,
+      "campos": [
+        {
+          "campo": "NOMLIBRO",
+          "valores_leidos": 19305,
+          "distintos_en_el_corpus": 15,
+          "contenedores_con_el_campo": 1287,
+          "pct_constante_en_contenedor": 0.0,
+          "pct_forma_nif": 0.0
+        },
+        {
+          "campo": "NOMFICHERO",
+          "valores_leidos": 19305,
+          "distintos_en_el_corpus": 15,
+          "contenedores_con_el_campo": 1287,
+          "pct_constante_en_contenedor": 0.0,
+          "pct_forma_nif": 0.0
+        }
+      ]
+    },
+    "SubCta.dbf": {
+      "contenedores_con_la_tabla": 1287,
+      "campos": [
+        {
+          "campo": "CODDIVISA",
+          "valores_leidos": 1499,
+          "distintos_en_el_corpus": 1,
+          "contenedores_con_el_campo": 663,
+          "pct_constante_en_contenedor": 100.0,
+          "pct_forma_nif": 0.0
+        },
+        {
+          "campo": "SUBEQUIV",
+          "valores_leidos": 2007,
+          "distintos_en_el_corpus": 4,
+          "contenedores_con_el_campo": 1145,
+          "pct_constante_en_contenedor": 84.8,
+          "pct_forma_nif": 0.0
+        },
+        {
+          "campo": "CODPAIS",
+          "valores_leidos": 303,
+          "distintos_en_el_corpus": 4,
+          "contenedores_con_el_campo": 215,
+          "pct_constante_en_contenedor": 77.2,
+          "pct_forma_nif": 0.0
+        },
+        {
+          "campo": "TELEF01",
+          "valores_leidos": 236,
+          "distintos_en_el_corpus": 5,
+          "contenedores_con_el_campo": 158,
+          "pct_constante_en_contenedor": 75.3,
+          "pct_forma_nif": 0.0
+        },
+        {
+          "campo": "DOMICILIO",
+          "valores_leidos": 7679,
+          "distintos_en_el_corpus": 254,
+          "contenedores_con_el_campo": 582,
+          "pct_constante_en_contenedor": 24.2,
+          "pct_forma_nif": 0.0
+        },
+        {
+          "campo": "CODPOSTAL",
+          "valores_leidos": 5939,
+          "distintos_en_el_corpus": 78,
+          "contenedores_con_el_campo": 488,
+          "pct_constante_en_contenedor": 20.9,
+          "pct_forma_nif": 0.0
+        },
+        {
+          "campo": "CUSRTMSTMP",
+          "valores_leidos": 154480,
+          "distintos_en_el_corpus": 3,
+          "contenedores_con_el_campo": 1271,
+          "pct_constante_en_contenedor": 6.1,
+          "pct_forma_nif": 0.0
+        },
+        {
+          "campo": "PROVINCIA",
+          "valores_leidos": 135576,
+          "distintos_en_el_corpus": 120,
+          "contenedores_con_el_campo": 1249,
+          "pct_constante_en_contenedor": 3.0,
+          "pct_forma_nif": 0.0
+        },
+        {
+          "campo": "POBLACION",
+          "valores_leidos": 127428,
+          "distintos_en_el_corpus": 252,
+          "contenedores_con_el_campo": 1249,
+          "pct_constante_en_contenedor": 3.0,
+          "pct_forma_nif": 0.0
+        },
+        {
+          "campo": "NIF",
+          "valores_leidos": 137903,
+          "distintos_en_el_corpus": 4534,
+          "contenedores_con_el_campo": 1249,
+          "pct_constante_en_contenedor": 1.0,
+          "pct_forma_nif": 97.8
+        },
+        {
+          "campo": "CTIMESTAMP",
+          "valores_leidos": 154480,
+          "distintos_en_el_corpus": 6273,
+          "contenedores_con_el_campo": 1271,
+          "pct_constante_en_contenedor": 0.5,
+          "pct_forma_nif": 0.0
+        },
+        {
+          "campo": "TIPOIVA",
+          "valores_leidos": 15474,
+          "distintos_en_el_corpus": 7,
+          "contenedores_con_el_campo": 1287,
+          "pct_constante_en_contenedor": 0.0,
+          "pct_forma_nif": 0.0
+        },
+        {
+          "campo": "TITULOL",
+          "valores_leidos": 70849,
+          "distintos_en_el_corpus": 120,
+          "contenedores_con_el_campo": 1287,
+          "pct_constante_en_contenedor": 0.0,
+          "pct_forma_nif": 0.0
+        },
+        {
+          "campo": "COD",
+          "valores_leidos": 300462,
+          "distintos_en_el_corpus": 2199,
+          "contenedores_con_el_campo": 1287,
+          "pct_constante_en_contenedor": 0.0,
+          "pct_forma_nif": 0.0
+        },
+        {
+          "campo": "TITULO",
+          "valores_leidos": 300462,
+          "distintos_en_el_corpus": 6437,
+          "contenedores_con_el_campo": 1287,
+          "pct_constante_en_contenedor": 0.0,
+          "pct_forma_nif": 0.0
+        }
+      ]
+    },
+    "TelDat.dbf": {
+      "contenedores_con_la_tabla": 1287,
+      "campos": []
+    },
+    "Datnic.dbf": {
+      "contenedores_con_la_tabla": 1287,
+      "campos": []
+    }
+  },
+  "datos_asc": {
+    "contenedores_con_el_fichero": 2570,
+    "FICHEROS_DISTINTOS": 1,
+    "tam_min": 0,
+    "tam_max": 0,
+    "contenedores_con_algo_con_forma_de_nif": 0
+  },
+  "m390a": {
+    "registros_leidos": 1287,
+    "campos_numericos_no_cero_min": 0,
+    "campos_numericos_no_cero_max": 1,
+    "campos_numericos_no_cero_media": 0.0,
+    "copias_totalmente_a_cero": 1268
+  },
+  "errores": {},
+  "nota": "Solo nombres de campo y recuentos. Ningun valor, ningun hash."
+}

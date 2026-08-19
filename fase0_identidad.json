@@ -1,0 +1,153 @@
+{
+  "version": "identidad_v1",
+  "n_contenedores": 3857,
+  "tablas": {
+    "M390A.dbf": {
+      "contenedores_con_la_tabla": 1287,
+      "campos": [
+        {
+          "campo": "H1058",
+          "contenedores_con_valor": 5,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 1
+        },
+        {
+          "campo": "H1059",
+          "contenedores_con_valor": 5,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 1
+        },
+        {
+          "campo": "H1060",
+          "contenedores_con_valor": 5,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 1
+        },
+        {
+          "campo": "H1006",
+          "contenedores_con_valor": 19,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 4
+        }
+      ]
+    },
+    "LegalC.dbf": {
+      "contenedores_con_la_tabla": 1287,
+      "campos": [
+        {
+          "campo": "NOMLIBRO",
+          "contenedores_con_valor": 1287,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 1
+        },
+        {
+          "campo": "NOMFICHERO",
+          "contenedores_con_valor": 1287,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 1
+        }
+      ]
+    },
+    "SubCta.dbf": {
+      "contenedores_con_la_tabla": 1287,
+      "campos": [
+        {
+          "campo": "NIF",
+          "contenedores_con_valor": 898,
+          "pct_con_forma_de_nif": 100.0,
+          "valores_distintos": 29
+        },
+        {
+          "campo": "CODDIVISA",
+          "contenedores_con_valor": 310,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 1
+        },
+        {
+          "campo": "SUBEQUIV",
+          "contenedores_con_valor": 53,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 1
+        },
+        {
+          "campo": "TELEF01",
+          "contenedores_con_valor": 3,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 1
+        },
+        {
+          "campo": "TIPOIVA",
+          "contenedores_con_valor": 531,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 2
+        },
+        {
+          "campo": "CODPAIS",
+          "contenedores_con_valor": 59,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 2
+        },
+        {
+          "campo": "CUSRTMSTMP",
+          "contenedores_con_valor": 1228,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 3
+        },
+        {
+          "campo": "TITULO",
+          "contenedores_con_valor": 1287,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 5
+        },
+        {
+          "campo": "TITULOL",
+          "contenedores_con_valor": 1287,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 5
+        },
+        {
+          "campo": "CODPOSTAL",
+          "contenedores_con_valor": 352,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 6
+        },
+        {
+          "campo": "COD",
+          "contenedores_con_valor": 1287,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 7
+        },
+        {
+          "campo": "DOMICILIO",
+          "contenedores_con_valor": 386,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 10
+        },
+        {
+          "campo": "PROVINCIA",
+          "contenedores_con_valor": 898,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 10
+        },
+        {
+          "campo": "POBLACION",
+          "contenedores_con_valor": 898,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 18
+        },
+        {
+          "campo": "CTIMESTAMP",
+          "contenedores_con_valor": 1228,
+          "pct_con_forma_de_nif": 0.0,
+          "valores_distintos": 44
+        }
+      ]
+    },
+    "TelDat.dbf": {
+      "contenedores_con_la_tabla": 1287,
+      "campos": []
+    }
+  },
+  "errores": {},
+  "nota": "Solo nombres de campo y recuentos. Ningun valor, ningun hash."
+}

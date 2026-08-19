@@ -263,6 +263,92 @@ validar.** Un guard nunca ejercitado contra un caso real se disparará por prime
 producción sin evidencia de que acierta, así que **no cuentan como "motor probado"**.
 Pendiente marcarlos `NO_VALIDADO`.
 
+## 11. Identidad del cliente e inventario (12-08-2026)
+
+### 11.1 La identidad NO está en las copias — cuatro vías descartadas con número
+
+Una copia de ContaPlus no dice de qué empresa es: el nombre y el NIF viven en el
+registro global de la instalación, no en la copia (por eso al restaurar el programa
+pregunta a qué empresa meterla).
+
+| Vía | Medición | Veredicto |
+|---|---|---|
+| Nombre de subcarpeta | Van por fecha de copia, no por cliente | Descartada |
+| Código de empresa (`SP_C_04`) | El mismo cliente aparece como `SP_C_07`, `_32`, `_71`, `_76`, `_82` | Descartada |
+| `datempre.dbf` | Tiene `CNIFEMP` y `CNOMEMP` pero **0 registros** en los 97 contenedores que lo llevan | Descartada |
+| `DATOS.ASC` | 1 fichero distinto, **tamaño 0 bytes** en los 2.570 | Descartada |
+| `LegalC.dbf` | 15 valores distintos, 0% constante: es el catálogo fijo de libros | Descartada |
+| `M390A.dbf` | **1.268 de 1.287 copias enteramente a cero** | Descartada |
+| `TelDat` / `Datnic` | Sin campos de texto con valor | Descartadas |
+
+**Por qué el código varía:** ContaPlus crea **una "empresa" nueva por cada ejercicio**.
+No reasigna códigos al azar: cada año es una empresa distinta para el programa.
+
+**`M390A.dbf` en blanco cierra también el corte vertical propuesto el 11-08:** no se
+puede cuadrar el 303 contra esa tabla. La validación fiscal necesita las carpetas de
+modelos presentados, que están **fuera** de `100% contabilidad`.
+
+### 11.2 La huella dactilar por contrapartes — funciona
+
+Si la copia no dice de quién es, se deduce de su contenido: el **conjunto de NIF de
+contrapartes** de `SubCta.dbf` es una huella de la empresa. Nunca hace falta saber
+quién es nadie; salen grupos anónimos.
+
+**Evidencia de que la separación es real, no fabricada por el umbral:**
+
+| Prueba | Resultado |
+|---|---|
+| Histograma de similitud (696.790 pares) | **Bimodal**: 95,4% por debajo de 0,1; valle en 0,3–0,4 (466 pares); 3,3% por encima de 0,4 |
+| Estabilidad del nº de grupos | **35 → 35 → 36 → 38** entre umbrales 0,30 y 0,60. Meseta plana |
+| Grupos en varias subcarpetas | **34 de 35** (uno en 27 subcarpetas) → no agrupa por fecha |
+| Validación manual del grupo mayor (73 copias) | **89,2%–100%** de contrapartes en común en 12 copias muestreadas → **un solo cliente** |
+
+Herramienta de validación manual: `fase0_ver_grupo.py` (local, imprime nombres reales
+en pantalla, no escribe fichero; su salida nunca se pega en el chat).
+
+### 11.3 Inventario — el mapa del histórico
+
+| Medida | Valor |
+|---|---|
+| Contenedores con diario | 1.287 |
+| **Sin diario ni subcuentas** | **2.570 — sin examinar** |
+| Sin cliente asignado (huella < 5 NIF) | 106 |
+| **Clientes detectados** | **35** |
+| Pares cliente-ejercicio | 206 |
+| **Ejercicios completos hasta diciembre** | **163 (79,1%)** |
+| Coherencia con la fecha del nombre de carpeta | 935 correctas, 18 anómalas, 334 sin fecha |
+
+**El mapa tiene tramos continuos, no agujeros interiores.** Los huecos están al principio
+(altas) o al final (bajas). Un archivo con copias perdidas tendría agujeros aleatorios en
+medio de un tramo; este no los tiene.
+
+> ⚠️ **Corrige la premisa del proyecto: el corpus contable es 2018–2026, no 2016–2026.**
+> Los ejercicios presentes son 2011 (un caso suelto), 2018, 2019, 2020, 2021, 2022, 2023,
+> 2024, 2025 y 2026. **No hay 2016 ni 2017** en esta carpeta.
+
+### 11.4 ⚠️ ABIERTO: 35 grupos frente a 43 clientes reales en 2025
+
+El titular confirma **43 clientes solo en 2025**; el mapa detecta **23 activos ese año** y
+**35 en total**. La discrepancia no está explicada. Cinco candidatas, ninguna descartada:
+
+1. **Los 2.570 contenedores sin diario están sin examinar.** Es un 67% del corpus y podría
+   contener contabilidades de otros clientes en otro formato. **La más probable, y es un
+   error de orden de trabajo: el inventario se construyó sobre un tercio del corpus sin
+   averiguar antes qué era el resto.**
+2. El umbral `MIN_NIFS = 5` de `fase0_huella_cliente.py` es una elección arbitraria sin
+   medir; descartó 106 contenedores. Un cliente con pocos proveedores se cae del mapa.
+3. La huella podría estar fusionando clientes parecidos (solo se validó 1 grupo de 35).
+4. Puede que muchos clientes sean **autónomos sin contabilidad en ContaPlus** (solo libros
+   registro). Eso lo confirma el titular, no un script.
+5. Puede que no se hicieran copias de todos.
+
+**Pista sin explotar:** varios nombres de carpeta contienen "ORDENADOR JOSE", lo que apunta
+a otro equipo con contabilidades. Si faltan clientes y faltan 2016–2017, pueden no estar en
+esta carpeta.
+
+**Nada de la Fase 0 avanza hasta cerrar esto**: un inventario que dice 35 clientes cuando
+hay 43 no es un mapa, es un mapa equivocado.
+
 ---
 
 ## Actualización del registro de supuestos
