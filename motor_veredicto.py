@@ -11,6 +11,7 @@ nunca OK por omision. Esto es lo que se me olvido aplicar manualmente esta noche
 from nif_check import valida_nif
 from datetime import date
 import re
+import contrato_datos
 # NOTA: 'import statistics' se quito el 28-07-2026 - 0 usos reales en todo el
 # archivo (confirmado por revision externa), era codigo muerto.
 
@@ -73,11 +74,46 @@ def guard_nif_digito_control(nif):
     return "FALLO", f"{tipo} invalido: {detalle}"
 
 
+def guard_integridad_datos(canon):
+    """Guard #0 - se ejecuta ANTES que ningun guard fiscal.
+
+    ANADIDO 19-08-2026 tras confirmar 8 falsos verdes P0 con test_adversarial.py.
+    El motor declaraba "nunca OK por omision" y su parser numerico lo desmentia:
+    `_f()` convertia '', None y 'abc' en 0.0, y como 0 es un importe fiscalmente
+    valido, 0+0+0=0 cuadraba y los tres guards aritmeticos daban OK. Una factura
+    sin un solo importe legible salia VERDE.
+
+    Este guard es la frontera: si un campo critico no es utilizable, ningun guard
+    aritmetico llega siquiera a ejecutarse con datos inventados.
+
+    Solo cita NOMBRES de campo y estados, nunca su contenido.
+    """
+    incidencias = canon.incidencias()
+    if not incidencias:
+        return "OK", "todos los campos criticos presentes y legibles"
+    ausentes = [c for c, e in incidencias if e == contrato_datos.MISSING]
+    ilegibles = [c for c, e in incidencias if e == contrato_datos.INVALID]
+    partes = []
+    if ausentes:
+        partes.append(f"ausentes: {', '.join(ausentes)}")
+    if ilegibles:
+        partes.append(f"ilegibles: {', '.join(ilegibles)}")
+    # FALLO, no NO_COMPROBADO: que falte un campo critico no es "no he podido
+    # comprobarlo", es que la factura no se puede dar por buena con lo que hay.
+    return "FALLO", f"campos criticos sin dato utilizable -> {'; '.join(partes)}"
+
+
 def guard_anti_duplicado(fila, vistos):
-    clave = (fila['nif'].strip(), fila['nº_documento'].strip(),
-             fila['fecha_expedicion'].strip(), fila['total_factura'].strip())
+    """CORREGIDO 19-08-2026: antes construia la clave con acceso directo
+    (`fila['nif']`) y `.strip()`, asi que una clave ausente daba KeyError y un
+    importe numerico (lo normal si la IA devuelve JSON) daba AttributeError: el
+    motor ni siquiera llegaba a emitir veredicto. Ademas '1.200' y '1200.00'
+    producian claves distintas para la misma factura. Ahora la clave sale del
+    contrato de datos, ya normalizada."""
+    canon = contrato_datos.canonizar(fila)
+    clave = canon.clave_documental()
     if clave in vistos:
-        return "FALLO", f"duplicado exacto de {clave}"
+        return "FALLO", "duplicado exacto de una factura ya vista en esta tanda"
     vistos.add(clave)
     return "OK", "clave unica"
 
@@ -204,10 +240,20 @@ def guard_retencion_vs_error(base_total, iva_total, irpf, total_decl, tipo_docum
     for tipico in RETENCIONES_TIPICAS:
         if abs(pct - tipico) < 0.15:
             etiqueta = f" (tipo_documento={tipo_documento})" if tipo_documento else ""
-            coherente = abs(abs(irpf) - abs(diferencia)) < TOL if irpf else False
-            if coherente:
+            # CORREGIDO 19-08-2026 (bateria adversarial, falso verde confirmado):
+            # antes, si la diferencia se PARECIA a una retencion tipica, devolvia
+            # OK aunque el irpf declarado fuera 0 o fuera otro numero distinto.
+            # Es decir, convertia una HIPOTESIS en un HECHO. Comprobado:
+            #   guard_retencion_vs_error(1000, 210, 999, 1060) -> OK
+            # con un irpf declarado de 999 contra una diferencia de 150.
+            # Ahora la hipotesis solo se confirma si el dato declarado la respalda.
+            if irpf is None:
+                return "NO_COMPROBADO", f"la diferencia de {diferencia} encaja con una retencion del {tipico}%, pero no hay irpf declarado con que confirmarlo{etiqueta}"
+            if abs(abs(irpf) - abs(diferencia)) < TOL:
                 return "OK", f"diferencia de {diferencia} = retencion {tipico}% declarada y coherente{etiqueta}"
-            return "OK", f"diferencia de {diferencia} coincide con retencion tipica del {tipico}%{etiqueta}"
+            if abs(irpf) < TOL:
+                return "NO_COMPROBADO", f"la diferencia de {diferencia} encaja con una retencion del {tipico}%, pero el irpf declarado es 0: hipotesis sin confirmar{etiqueta}"
+            return "FALLO", f"la diferencia es {diferencia} pero el irpf declarado es {irpf}: se contradicen{etiqueta}"
     return "FALLO", f"diferencia de {diferencia} ({pct}%) no corresponde a ninguna retencion tipica {RETENCIONES_TIPICAS}"
 
 
@@ -235,7 +281,12 @@ def guard_signo_efectivo(nº_documento, motivo_texto, base_total, total_factura,
     if es_abono_textual and not es_negativo:
         return "FALLO", "el nº de documento sugiere abono/rectificativa pero el importe es POSITIVO"
     if not es_abono_textual and es_negativo:
-        return "OK", "importe negativo (abono identificado por signo, sin tipo_documento declarado)"
+        # CORREGIDO 19-08-2026 (bateria adversarial): antes devolvia OK, o sea
+        # "el signo identifica el documento". El signo NO identifica el tipo
+        # documental: un negativo puede ser un abono, una rectificativa, un
+        # importe leido con el signo cambiado, o una operacion especial. Convertir
+        # esa ambiguedad en OK era un falso verde.
+        return "NO_COMPROBADO", "importe negativo sin tipo_documento declarado: el signo no identifica el tipo de documento (abono, rectificativa o error de lectura)"
     return "NO_APLICA", "factura normal con importe positivo"
 
 
@@ -466,9 +517,15 @@ def guard_tipo_producto_iva_semantico(categoria_producto, tipo_declarado):
         esperado = 10
     else:
         return "NO_COMPROBADO", f"categoria '{categoria_producto}' no catalogada en la tabla oficial todavia"
-    if abs(tipo_declarado - esperado) < 0.5:
+    # ANADIDO 19-08-2026: al cablear este guard al veredicto se descubrio que
+    # reventaba (TypeError) si venia la categoria pero no el tipo declarado.
+    # Sin dato con que comparar no hay comprobacion posible - nunca un OK.
+    tipo = contrato_datos.parse_numero(tipo_declarado)
+    if not tipo.utilizable:
+        return "NO_COMPROBADO", f"categoria '{categoria_producto}' declarada pero sin tipo de IVA legible con que contrastarla"
+    if abs(tipo.valor - esperado) < 0.5:
         return "OK", f"{categoria_producto} -> {esperado}% segun tabla oficial IVA 2026, coincide"
-    return "FALLO", f"{categoria_producto} deberia ser {esperado}% segun tabla oficial, se aplico {tipo_declarado}%"
+    return "FALLO", f"{categoria_producto} deberia ser {esperado}% segun tabla oficial, se aplico {tipo.valor}%"
 
 
 PALABRAS_CLAVE_OPERACION_ESPECIAL = {
@@ -592,29 +649,45 @@ def cargar_cache_json(path):
 
 def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
                      secuencia_cache, maestro_proveedores, alta_cliente_anio,
-                     nif_cliente_titular=None, ejercicio_tanda=None, plazos_cache=None):
+                     nif_cliente_titular=None, ejercicio_tanda=None, plazos_cache=None,
+                     mapeo_cuenta_gasto=None):
     """Version 4: 16 guards. Añade suma_tramos, sentido_compra_venta,
     retencion_vs_error, signo_efectivo, ejercicio_coherente, vencimiento_coherente.
     Todo lo que no tiene dato real detras se declara NO_COMPROBADO/NO_APLICA,
     nunca OK por omision."""
     plazos_cache = plazos_cache or {}
-    base_10 = _f(fila.get('base_10'))
-    base_4 = _f(fila.get('base_4'))
-    base_21 = _f(fila.get('base_21'))
-    base_total = _f(fila.get('base_total'))
-    iva_total = _f(fila.get('iva_total'))
-    irpf = _f(fila.get('irpf_retencion', 0))
-    total = _f(fila.get('total_factura'))
-    proveedor = fila.get('proveedor', '')
-    nif = fila.get('nif', '')
-    num_doc = fila.get('nº_documento', '')
-    motivo = fila.get('motivo_semaforo', '')
 
+    # --- FRONTERA DE DATOS (19-08-2026) -----------------------------------
+    # Todo entra por el contrato antes de tocar un guard fiscal. Ver
+    # contrato_datos.py y test_adversarial.py para el porque.
+    canon = contrato_datos.canonizar(fila)
     guards = {}
-    # Nivel 1 - Aritmeticos
-    guards["aritmetica_base_tipo"] = guard_aritmetica_base_tipo(base_10, base_4, base_21, iva_total)
-    guards["suma_tramos"] = guard_suma_tramos(base_10, base_4, base_21, base_total)
-    guards["cuadre_total"] = guard_cuadre_total(base_10, base_4, base_21, iva_total, irpf, total)
+    guards["integridad_datos"] = guard_integridad_datos(canon)
+    datos_integros = guards["integridad_datos"][0] == "OK"
+
+    base_10 = canon.num('base_10')
+    base_4 = canon.num('base_4')
+    base_21 = canon.num('base_21')
+    base_total = canon.num('base_total')
+    iva_total = canon.num('iva_total')
+    irpf = canon.num('irpf_retencion')
+    total = canon.num('total_factura')
+    proveedor = canon.texto('proveedor')
+    nif = canon.texto('nif')
+    num_doc = canon.texto('nº_documento')
+    motivo = canon.texto('motivo_semaforo')
+
+    # Nivel 1 - Aritmeticos. NO se ejecutan si falta un dato critico: operar con
+    # ceros inventados es exactamente lo que producia los falsos verdes.
+    if datos_integros:
+        guards["aritmetica_base_tipo"] = guard_aritmetica_base_tipo(base_10 or 0.0, base_4 or 0.0, base_21 or 0.0, iva_total)
+        guards["suma_tramos"] = guard_suma_tramos(base_10 or 0.0, base_4 or 0.0, base_21 or 0.0, base_total)
+        guards["cuadre_total"] = guard_cuadre_total(base_10 or 0.0, base_4 or 0.0, base_21 or 0.0, iva_total, irpf or 0.0, total)
+    else:
+        sin_dato = ("NO_COMPROBADO", "no ejecutado: faltan campos criticos (ver integridad_datos)")
+        guards["aritmetica_base_tipo"] = sin_dato
+        guards["suma_tramos"] = sin_dato
+        guards["cuadre_total"] = sin_dato
     guards["nif_digito_control"] = guard_nif_digito_control(nif)
     # Nivel 1-bis - Forma
     guards["estructura_reconocida"] = guard_estructura_reconocida(proveedor, num_doc, formato_cache)
@@ -624,9 +697,15 @@ def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
     guards["anti_duplicado"] = guard_anti_duplicado(fila, vistos_duplicado)
     # Nivel 4 - Sentido y regimen
     guards["sentido_compra_venta"] = guard_sentido_compra_venta(nif, nif_cliente_titular, maestro_proveedores)
-    guards["retencion_vs_error"] = guard_retencion_vs_error(
-        base_total or (base_10+base_4+base_21), iva_total, irpf, total, fila.get('tipo_documento'))
-    guards["signo_efectivo"] = guard_signo_efectivo(num_doc, motivo, base_total, total, fila.get('tipo_documento'))
+    if datos_integros:
+        guards["retencion_vs_error"] = guard_retencion_vs_error(
+            base_total or ((base_10 or 0.0) + (base_4 or 0.0) + (base_21 or 0.0)),
+            iva_total, irpf, total, canon.texto('tipo_documento') or None)
+        guards["signo_efectivo"] = guard_signo_efectivo(
+            num_doc, motivo, base_total, total, canon.texto('tipo_documento') or None)
+    else:
+        guards["retencion_vs_error"] = sin_dato
+        guards["signo_efectivo"] = sin_dato
     # Nacimiento del Dato
     guards["secuencia_documental_proveedor"] = guard_secuencia_documental_proveedor(proveedor, num_doc, secuencia_cache)
     guards["importe_atipico"] = guard_importe_atipico(proveedor, total, historico_proveedor)
@@ -635,6 +714,22 @@ def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
     guards["ejercicio_coherente"] = guard_ejercicio_coherente(fila.get('fecha_expedicion', ''), ejercicio_tanda)
     guards["vencimiento_coherente"] = guard_vencimiento_coherente(
         fila.get('fecha_expedicion', ''), fila.get('fecha_vencimiento', ''), plazos_cache, proveedor)
+    # --- Guards que EXISTIAN pero nadie llamaba (cableados el 19-08-2026) ---
+    # La bateria adversarial confirmo que estas tres funciones tenian test propio
+    # en verde y NUNCA participaban en el veredicto. Un guard que no corre no
+    # protege de nada, y el primero de los tres es justo la pieza que conecta el
+    # historico del despacho con la decision: lo mas diferencial del proyecto,
+    # fuera del camino.
+    # Entran con parametros OPCIONALES para no romper a quien ya llama a esta
+    # funcion: si el dato no viene, el guard se declara NO_APLICA - nunca OK.
+    guards["cuenta_gasto_coherente"] = guard_cuenta_gasto_coherente(
+        canon.texto('cuenta_proveedor') or fila.get('cuenta_proveedor'),
+        mapeo_cuenta_gasto or {})
+    guards["tipo_producto_iva_semantico"] = guard_tipo_producto_iva_semantico(
+        fila.get('categoria_producto'), fila.get('tipo_iva_declarado'))
+    guards["tipo_operacion_especial"] = guard_tipo_operacion_especial(
+        fila.get('concepto', '') or motivo, fila.get('cuenta_debe'), nif)
+
     # Confianza
     guards["confianza_captura"] = guard_confianza_captura(fila)
 
@@ -645,7 +740,8 @@ def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
 def calcular_veredicto_v4(guards):
     """Veredicto con los 16 guards. Criticos ampliados con suma_tramos,
     sentido_compra_venta, signo_efectivo y ejercicio_coherente."""
-    criticos = ["aritmetica_base_tipo", "suma_tramos", "cuadre_total", "nif_digito_control",
+    criticos = ["integridad_datos",
+                "aritmetica_base_tipo", "suma_tramos", "cuadre_total", "nif_digito_control",
                 "nif_casa_historico", "anti_duplicado", "fecha_posterior_alta",
                 "sentido_compra_venta", "signo_efectivo", "ejercicio_coherente",
                 "retencion_vs_error"]
@@ -662,6 +758,16 @@ def calcular_veredicto_v4(guards):
     if guards.get("vencimiento_coherente", ("OK", ""))[0] == "FALLO":
         return "AMBAR", f"vencimiento_coherente: {guards['vencimiento_coherente'][1]}"
 
+    # Guards cableados el 19-08-2026. Un tipo de IVA que contradice la tabla
+    # oficial es un error de hecho -> ROJO. Una operacion especial detectada o
+    # una cuenta de gasto que no casa con el historico son señales -> AMBAR.
+    if guards.get("tipo_producto_iva_semantico", ("NO_APLICA", ""))[0] == "FALLO":
+        return "ROJO", f"tipo_producto_iva_semantico: {guards['tipo_producto_iva_semantico'][1]}"
+    if guards.get("tipo_operacion_especial", ("NO_APLICA", ""))[0] == "AMBAR":
+        return "AMBAR", f"tipo_operacion_especial: {guards['tipo_operacion_especial'][1]}"
+    if guards.get("cuenta_gasto_coherente", ("NO_APLICA", ""))[0] == "FALLO":
+        return "AMBAR", f"cuenta_gasto_coherente: {guards['cuenta_gasto_coherente'][1]}"
+
     confianza = guards.get("confianza_captura", ("ALTA", ""))[0]
     if confianza != "ALTA":
         return "AMBAR", f"confianza_captura={confianza}"
@@ -670,7 +776,19 @@ def calcular_veredicto_v4(guards):
     # Se excluyen los que son NO_COMPROBADO por falta estructural de dato
     # (vencimiento no capturado hoy, importe_atipico con n<3) - eso ya esta declarado.
     exentos = {"vencimiento_coherente", "importe_atipico", "secuencia_documental_proveedor",
-               "estructura_reconocida"}
+               "estructura_reconocida",
+               # ANADIDO 19-08-2026 al cablear el guard. Mismo motivo declarado que
+               # 'vencimiento_coherente': el campo 'categoria_producto' NO lo produce
+               # hoy ningun componente (comprobado con grep en todo el repo), asi que
+               # su NO_COMPROBADO es estructural, no un fallo de esta factura.
+               # DEUDA DECLARADA: en cuanto la captura emita 'categoria_producto',
+               # este guard debe SALIR de la lista de exentos. Mientras siga aqui, un
+               # IVA semanticamente incorrecto solo se detecta si alguien informa la
+               # categoria a mano.
+               "tipo_producto_iva_semantico",
+               # 'cuenta_gasto_coherente' da NO_APLICA (no NO_COMPROBADO) cuando el
+               # proveedor es nuevo, asi que no necesita exencion: no penaliza solo.
+               }
     # CORREGIDO 28-07-2026 (revision externa): ejercicio_coherente estaba tambien en
     # 'exentos', lo que lo dejaba mudo (ni ROJO ni AMBAR) si la fecha no parseaba -
     # dependia implicitamente de que fecha_posterior_alta cazara el mismo fallo, sin

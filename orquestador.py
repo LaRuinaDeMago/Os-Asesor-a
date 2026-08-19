@@ -93,6 +93,15 @@ def main():
                          'IMPORTANTE: un export de subcuentas de un solo ejercicio solo trae cuentas ACTIVAS '
                          'ese año - proveedores antiguos/poco frecuentes (caso real anonimizado) no '
                          'aparecen ahi aunque sean historicos validos. Usar el maestro completo cuando exista.')
+    # ANADIDO 19-08-2026 (auditoria externa verificada): antes se pasaba None
+    # como nif_cliente_titular, asi que guard_sentido_compra_venta NUNCA podia
+    # disparar su rama critica ("el emisor es el propio cliente: esto es una
+    # venta, no un gasto") en ninguna ejecucion real del orquestador. El guard
+    # solo se habia probado en el test unitario.
+    parser.add_argument('--nif-titular', help='NIF del cliente titular de la tanda. '
+                        'Sin el, guard_sentido_compra_venta no puede detectar que una '
+                        'factura la emitio el propio cliente (venta) en vez de un '
+                        'proveedor (gasto): se declara NO_COMPROBADO, nunca OK.')
     parser.add_argument('--salida', default='veredicto_salida.csv')
     args = parser.parse_args()
 
@@ -137,7 +146,8 @@ def main():
     for fila in filas:
         veredicto, motivo, guards = evaluar_fila_v4(
             fila, vistos_duplicado, hist_importes, formato_cache, secuencia_final,
-            maestro, alta_cliente_anio, None, ejercicio_tanda, {})
+            maestro, alta_cliente_anio, args.nif_titular, ejercicio_tanda, {},
+            mapeo_cuenta_gasto=mapeo_gasto)
         conteo[veredicto] += 1
         fila_salida = dict(fila)
         fila_salida['VEREDICTO'] = veredicto

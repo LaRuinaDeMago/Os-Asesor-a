@@ -91,6 +91,23 @@ def check_tests():
           detalle if ok else f"{detalle}\n{resultado.stdout[-500:]}")
 
 
+def check_adversarial():
+    """ANADIDO 19-08-2026. La suite de regresion comprueba que lo que funcionaba
+    sigue funcionando; esta comprueba que el motor no puede dar un VERDE por
+    falta de informacion. Son preguntas distintas y hacen falta las dos: el
+    19-08-2026 la regresion estaba 21/21 en verde mientras el motor daba VERDE a
+    una factura sin un solo importe legible."""
+    if not os.path.exists("test_adversarial.py"):
+        check("Bateria adversarial", False, "test_adversarial.py no encontrado")
+        return
+    resultado = subprocess.run([sys.executable, "test_adversarial.py"],
+                                capture_output=True, text=True)
+    ok = resultado.returncode == 0
+    linea = next((l for l in resultado.stdout.splitlines() if l.startswith("Pruebas:")), "")
+    check("Bateria adversarial (test_adversarial.py)", ok,
+          linea or resultado.stdout[-300:])
+
+
 def check_dependencias():
     if not os.path.exists("requirements.txt"):
         check("requirements.txt", False, "no encontrado")
@@ -132,6 +149,7 @@ if __name__ == "__main__":
     check_cableado()
     check_dependencias()
     check_tests()
+    check_adversarial()
     comparar_con_anterior()
 
     todos_ok = all(c["ok"] for c in RESULTADO["checks"].values())

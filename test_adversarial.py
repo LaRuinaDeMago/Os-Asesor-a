@@ -153,6 +153,58 @@ for g in ('guard_cuenta_gasto_coherente',
 
 
 # ---------------------------------------------------------------------------
+print("\n=== FAMILIA G — CONTROL POSITIVO (sin esto, la bateria no vale nada) ===")
+# Una bateria que solo comprueba "no debe dar VERDE" se aprueba entera con un
+# motor que diga siempre ROJO. Estas pruebas son la otra mitad: una factura
+# correcta TIENE que salir VERDE. Si alguna vez fallan, el motor se ha vuelto
+# inutil por exceso de celo, que es la otra forma de romperlo.
+FACTURA_BUENA = {**BASE_FILA, 'base_10': '132.90', 'base_4': '0', 'base_21': '0',
+                 'base_total': '132.90', 'iva_total': '13.29',
+                 'irpf_retencion': '0', 'total_factura': '146.19'}
+v, mot = evaluar(FACTURA_BUENA)
+comprobar("G", "factura completa y correcta SI da VERDE",
+          v == "VERDE", f"veredicto={v} ({mot})", "VERDE", "P0")
+
+# La misma, con los importes escritos en formato espanol.
+v, _ = evaluar({**FACTURA_BUENA, 'base_10': '1.328,90', 'base_total': '1.328,90',
+                'iva_total': '132,89', 'total_factura': '1.461,79'})
+comprobar("G", "misma factura en formato espanol (1.328,90) tambien da VERDE",
+          v == "VERDE", f"veredicto={v}", "VERDE", "P0")
+
+# Tramos de IVA ausentes que legitimamente son cero (no se declara el 4%).
+v, _ = evaluar({**BASE_FILA, 'base_21': '100', 'base_total': '100',
+                'iva_total': '21', 'total_factura': '121'})
+comprobar("G", "tramos 4% y 10% ausentes (legitimo) no impiden el VERDE",
+          v == "VERDE", f"veredicto={v}", "VERDE", "P1")
+
+
+print("\n=== FAMILIA H — Que los guards sigan detectando lo que ya detectaban ===")
+vistos = set()
+f1 = {**FACTURA_BUENA}
+f2 = {**FACTURA_BUENA, 'total_factura': '146,19', 'nº_documento': 'FAC 2026 001'}
+try:
+    m.evaluar_fila_v4(f1, vistos, {}, {}, {}, MAESTRO, 2020, NIF_TITULAR, 2026)
+    v2, mot2, _ = m.evaluar_fila_v4(f2, vistos, {}, {}, {}, MAESTRO, 2020, NIF_TITULAR, 2026)
+    dup_ok = v2 == "ROJO" and "duplicado" in mot2.lower()
+except Exception as e:
+    v2, dup_ok = type(e).__name__, False
+comprobar("H", "duplicado escrito de otra forma SI se detecta",
+          dup_ok, f"veredicto={v2}", "ROJO por duplicado", "P1")
+
+e, det = m.guard_retencion_vs_error(661.15, 138.84, -125.62, 674.37)
+comprobar("H", "retencion del 19% real y coherente sigue dando OK (no falso rojo)",
+          e == "OK", f"{e}: {det}", "OK", "P0")
+
+v, mot = evaluar({**FACTURA_BUENA, 'iva_total': '99.99'})
+comprobar("H", "IVA que no cuadra con la base sigue dando ROJO",
+          v == "ROJO", f"veredicto={v} ({mot})", "ROJO", "P0")
+
+v, _ = evaluar({**FACTURA_BUENA, 'nif': '12345678Y'})
+comprobar("H", "NIF con digito de control incorrecto sigue dando ROJO",
+          v == "ROJO", f"veredicto={v}", "ROJO", "P0")
+
+
+# ---------------------------------------------------------------------------
 print("\n" + "=" * 70)
 fallos = [r for r in resultados if not r[2]]
 p0 = [r for r in fallos if r[5] == "P0"]

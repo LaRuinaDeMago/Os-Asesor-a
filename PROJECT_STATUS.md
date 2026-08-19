@@ -36,50 +36,99 @@ Criterio de aprobación: funcionamiento técnico reproducible (no precisión tod
 ## ÚLTIMO RESULTADO
 (vacío — se rellena la primera vez que se ejecute `captura_orquestador.py --proveedor gemini` de verdad)
 
-## MOTOR — estado verificado el 30-07-2026 (re-verificado tras limpieza de privacidad)
-- 19 funciones de guard, 16 activas en el veredicto principal (`evaluar_fila_v4`).
-- `test_motor_veredicto.py`: 100% de comprobaciones en verde (17 checks),
-  ejecutado en esta sesión con Python 3.12 portátil tras genericar los datos de
-  prueba (ver sección de auditoría más abajo).
+## MOTOR — estado verificado el 19-08-2026
+- **20 guards activos** en el veredicto principal (`evaluar_fila_v4`), todos
+  cableados y consultados (`audit_project.py`, sin huérfanos). Eran 16 hasta el
+  19-08: los otros cuatro son `integridad_datos` (nuevo) y los tres que existían
+  pero nadie llamaba.
+- `test_motor_veredicto.py`: **21/21 en verde** (regresión).
+- `test_adversarial.py`: **21/21 en verde** (ataque + control positivo).
+- `contrato_datos.py`: frontera IA→motor con estados
+  `VALUE`/`ZERO`/`MISSING`/`INVALID`.
 - Probado en su día con 91 facturas reales de clientes piloto anonimizados + 1
   factura nueva en vivo → VERDE correcto (cifras conservadas, nombres reales ya
   no viven en el código ni en este archivo).
 - Orquestador (`orquestador.py`) probado de punta a punta, reproducible.
 
-## 🔴 FALSOS VERDES CONOCIDOS — 8 confirmados el 19-08-2026
+## ✅ FALSOS VERDES — 8 encontrados y CERRADOS el 19-08-2026
 
-**Esto ya no está vacío.** Antes decía "ninguno todavía"; era falso. No hizo falta
-Gemini ni datos reales: bastó atacar el motor con entradas construidas.
+**Encontrados y arreglados el mismo día.** No hizo falta Gemini ni datos reales:
+bastó atacar el motor con entradas construidas.
 
-Reproducible con `python3 test_adversarial.py` (14 pruebas, **14 fallan, 8 son P0**).
-Verificado ejecutando el motor real, no leyendo el código.
+```
+test_motor_veredicto.py  ->  21/21 EN VERDE   (regresion, no se ha roto nada)
+test_adversarial.py      ->  21/21 EN VERDE   (ataque, ningun falso verde en pie)
+audit_project.py         ->  20 guards, todos cableados y consultados
+```
 
-| Entrada | Veredicto real | Debería ser |
+**Lo que se construyó para cerrarlos: `contrato_datos.py`**, la frontera entre la
+IA y el motor. Distingue cuatro estados donde antes solo había un número:
+
+| Estado | Significado | Ejemplo |
 |---|---|---|
-| Todos los importes ausentes (`''`) | **VERDE** | AMBAR/ROJO |
-| Todos los importes a `None` | **VERDE** | AMBAR/ROJO |
-| Importes ilegibles (`'abc'`) | **VERDE** (solo un `UserWarning`) | AMBAR/ROJO |
-| Fecha imposible `2026-99-99`, `2026-02-30`, `2026-13-01` | **VERDE** | AMBAR/ROJO |
-| Falta la clave `total_factura` | **KeyError**, sin veredicto | un veredicto |
-| Importes como número JSON en vez de cadena | **KeyError/AttributeError** | un veredicto |
-| `irpf` declarado = 999 con diferencia de 150 | **OK** | FALLO |
-| Importe negativo sin `tipo_documento` | **OK** | NO_COMPROBADO |
+| `VALUE` | Hay un dato útil | `125.40`, `"1.234,56"` |
+| `ZERO` | Hay un cero **declarado**, que es un dato fiscal válido | `0`, `"0"` |
+| `MISSING` | No venía el campo, o venía vacío | `""`, `None`, clave ausente |
+| `INVALID` | Venía algo que no se puede interpretar | `"abc"`, `"2026-02-30"`, `NaN` |
 
-**Causa raíz única de la mayoría: `_f()` convierte ausencia e ilegibilidad en
-`0.0`.** Y `0` es un dato fiscal válido, así que "no sé qué había" y "había cero"
-son indistinguibles para todos los guards aritméticos. Con todo a cero, `0+0+0=0`
-cuadra perfectamente y los tres guards aritméticos dan OK.
+> **`MISSING` ≠ `ZERO`. `INVALID` ≠ `ZERO`.** Ahí estaba todo el problema.
 
-> Esto **viola la invariante fundacional del propio motor** — *"si no hay dato, el
-> estado es NO_COMPROBADO, nunca OK por omisión"*. La invariante está escrita en el
-> docstring y desmentida por el parser numérico, tres líneas más abajo.
+Y un guard nuevo, `guard_integridad_datos`, que corre **antes que ningún guard
+fiscal** y es crítico: si falta un campo crítico, los guards aritméticos **ni
+siquiera se ejecutan**, en vez de operar con ceros inventados.
 
-**Hallazgo aparte, del mismo ataque:** `guard_cuenta_gasto_coherente`,
-`guard_tipo_producto_iva_semantico` y `guard_tipo_operacion_especial` **existen,
-tienen tests propios que pasan, y no los llama `evaluar_fila_v4`**. Un guard que
-no corre no protege de nada. El más grave de los tres es el primero: es la pieza
-que conecta el histórico del despacho con la decisión, o sea lo más diferencial
-del proyecto, y hoy está fuera del camino del veredicto.
+### Estado de los ocho, uno a uno
+
+| Ataque | Antes | Ahora |
+|---|---|---|
+| Todos los importes ausentes (`''`) | VERDE | **ROJO** (integridad) |
+| Todos los importes a `None` | VERDE | **ROJO** (integridad) |
+| Importes ilegibles (`'abc'`) | VERDE | **ROJO** (integridad) |
+| Fechas `2026-99-99`, `2026-02-30`, `2026-13-01` | VERDE | **ROJO** (fecha `INVALID`) |
+| Falta la clave `total_factura` | `KeyError` | **ROJO**, con veredicto |
+| Importes como número JSON | `AttributeError` | **veredicto normal** |
+| `irpf` = 999 con diferencia de 150 | OK | **FALLO** (se contradicen) |
+| Negativo sin `tipo_documento` | OK | **NO_COMPROBADO** |
+
+### Y el control positivo, que es la otra mitad
+
+Una batería que solo comprueba "no debe dar VERDE" se aprueba entera con un motor
+que diga siempre ROJO. Por eso `test_adversarial.py` incluye la familia G:
+
+- Una factura completa y correcta **sigue dando VERDE**.
+- La misma con importes en formato español (`1.328,90`) **también**.
+- Los tramos de IVA ausentes de forma legítima **no impiden el VERDE**.
+- Un IVA que no cuadra, un NIF con dígito de control malo y un duplicado escrito
+  de otra forma **siguen detectándose**.
+
+### Lo que sigue sin medirse, y no ha cambiado
+
+Esto cierra los falsos verdes **del motor ante entradas construidas**. La métrica
+que decide el proyecto —**cuántas facturas reales dan VERDE siendo incorrectas**—
+sigue sin medir, y para eso hacen falta facturas reales, captura real y las
+etiquetas de `DISENO_APRENDIZAJE.md`. Un motor que resiste el ataque sintético es
+condición necesaria, no suficiente.
+
+### La causa raíz, para que no se repita
+
+**`_f()` convertía ausencia e ilegibilidad en `0.0`.** Y `0` es un dato fiscal
+válido, así que "no sé qué había" y "había cero" eran indistinguibles para todos
+los guards aritméticos. Con todo a cero, `0+0+0=0` cuadra y los tres daban OK.
+
+> La invariante *"si no hay dato, NO_COMPROBADO, nunca OK por omisión"* estaba
+> escrita en el docstring del módulo y desmentida por el parser numérico tres
+> líneas más abajo. **Es la tercera vez en esta sesión que aparece el mismo
+> patrón**: el escáner de privacidad decía "sin hallazgos" sobre un fichero que
+> no había leído, y `audit_project.py` decía "21/21" sin contar. Un "correcto"
+> que en realidad significa "no lo he comprobado".
+
+**Los tres guards huérfanos, también cerrados:** `guard_cuenta_gasto_coherente`,
+`guard_tipo_producto_iva_semantico` y `guard_tipo_operacion_especial` existían con
+test propio en verde y `evaluar_fila_v4` no los llamaba. Ya están cableados (de 16
+a **20 guards**), con parámetros opcionales para no romper a quien ya llamaba a la
+función: si el dato no viene, `NO_APLICA`, nunca OK. Al cablear el segundo se
+descubrió además que **reventaba** (`TypeError`) si la categoría venía sin tipo de
+IVA; arreglado.
 
 ### Cuatro hallazgos más, verificados el 19-08-2026 (auditoría externa)
 
@@ -87,8 +136,8 @@ del proyecto, y hoy está fuera del camino del veredicto.
 |---|---|---|
 | 1 | El agujero `.DAT`/`.zip` de la barrera de privacidad | ✅ **CERRADO** (`d204f56`) |
 | 2 | `audit_project.py` imprimía `"21/21 OK"` como **cadena escrita a mano** | ✅ **CERRADO** — ahora cuenta |
-| 3 | El estado `MEDIA` de `guard_confianza_captura` es **inalcanzable** | 🔴 ABIERTO |
-| 4 | `nif_cliente_titular` va siempre `None` desde el orquestador | 🔴 ABIERTO |
+| 3 | El estado `MEDIA` de `guard_confianza_captura` es **inalcanzable** | 🟠 ABIERTO (documentado) |
+| 4 | `nif_cliente_titular` va siempre `None` desde el orquestador | ✅ **CERRADO** — `--nif-titular` |
 
 **Sobre el 2, que merece una nota:** el informe de auditoría del propio proyecto
 declaraba `21/21 OK` sin contar nada. Si se añadía o quitaba un check, seguiría
@@ -103,17 +152,21 @@ lo consume. **Nadie lo produce**: el prompt de `captura_orquestador.py` solo pid
 `OK` o `DUDA`. El escalón `MEDIA` es código muerto esperando un valor que ningún
 componente emite.
 
-**Sobre el 4, que es el más grave de los dos abiertos:** en `orquestador.py:140`
+**Sobre el 4 (ya cerrado):** en `orquestador.py:140`
 el argumento posicional que corresponde a `nif_cliente_titular` es literalmente
 `None`. Por tanto `guard_sentido_compra_venta` **nunca puede disparar su rama
 crítica** —"el emisor es el propio cliente, esto es una venta y no un gasto"— en
 ninguna ejecución real. Solo se ha probado en el test unitario. Es exactamente el
 patrón que la Fase 0 ya nombró: guards construidos sin caso real que los respalde.
+**Cerrado el 19-08-2026:** el orquestador acepta `--nif-titular` y se lo pasa al
+motor. Sin ese argumento el guard se declara `NO_COMPROBADO`, nunca OK. En la
+misma pasada se le pasa también `mapeo_cuenta_gasto`, que tampoco llegaba.
 
-**Qué NO se ha hecho aquí, a propósito:** no se ha tocado `motor_veredicto.py`.
-El arreglo es arquitectónico (distinguir `MISSING` / `INVALID` / `ZERO` / `VALUE`
-antes de que el dato llegue al motor) y se decide con Diego, no de oficio.
-`test_motor_veredicto.py` sigue 100% en verde.
+**Sobre el 3, que sigue abierto:** `OK_INFERIDO` solo existe en el guard que lo
+consume; el prompt de captura solo pide `OK` o `DUDA`. El escalón `MEDIA` es
+código muerto. No se ha tocado a propósito: arreglarlo bien significa **confianza
+por campo** (`DISENO_APRENDIZAJE.md` §4), no parchear el prompt para que emita una
+palabra más.
 
 ## SIGUIENTE ACCIÓN CONCRETA
 
