@@ -87,6 +87,27 @@ que tenerlo inventariado y situado en el tiempo antes.
 
 No es una preferencia de método: es el único orden que funciona.
 
+### Las puertas — no se pasa a la siguiente sin cruzar la anterior
+
+Recuperado de la autocorrección del 11-08-2026, que sigue vigente y nombra el
+error que este proyecto **ya ha cometido tres veces** (versiones v3, v4 y v5 del
+plan): **construir a lo ancho antes de medir.**
+
+| # | Puerta | No se pasa hasta que… |
+|---|---|---|
+| 0 | **Fase 0** — medir si el histórico es consistente | Los agregados estén medidos, no supuestos |
+| 1 | **Corte vertical** — un solo tipo de caso, de punta a punta | Ese caso funcione completo y reproducible |
+| 2 | **Memoria por par** — poblada cliente a cliente | El corte vertical lo justifique con números |
+| 3 | **Producto** — informes, detección de oportunidades | Exista una tasa de falsos verdes medida |
+
+El fallo característico es saltar directo a la puerta 2 o 3 porque son las
+visibles y las que ilusionan. **Generalizar a los 33 clientes antes de que el
+corte vertical funcione es exactamente el error de v3/v4/v5.**
+
+Señal de alarma concreta: si alguien —persona o modelo— propone "poblar la
+memoria de todos los clientes" o "generar el informe para el primer cliente
+piloto" y las puertas anteriores no están cruzadas, la respuesta es no.
+
 ---
 
 ## 5. Criterio de "hecho" del inventario

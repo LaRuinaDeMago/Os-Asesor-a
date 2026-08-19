@@ -120,6 +120,53 @@ Sigue vigente sin cambios:
 
 ---
 
+## Ideas concretas propuestas — qué se guarda y qué se descarta
+
+Segunda tanda de valoraciones estratégicas (19-08-2026). Mismo criterio: se
+guarda lo que resiste, se descartan las cifras sin derivación (retainers,
+proyecciones de facturación, "% del ahorro generado") por el mismo motivo que la
+primera tanda.
+
+### Se guardan como candidatas — detrás de la puerta 3
+
+Ninguna se construye hasta que exista una tasa de falsos verdes medida
+(`ARQUITECTURA_DATOS.md` §4, tabla de puertas):
+
+- **Módulo de detección de oportunidades.** Reglas sobre el histórico ya
+  estructurado: amortizaciones no aplicadas, activos sin amortización asociada
+  (cuentas 21x sin 28x), tratamiento de intracomunitarias. Es una extensión
+  natural del motor de guards, con la misma disciplina: nunca un `OK` por
+  omisión, y toda propuesta con su base normativa citada.
+- **Informe de control de gestión** por cliente: rentabilidad, márgenes,
+  previsión de tesorería, cuadro de mando. Se apoya en la misma espina.
+- **Planificación plurianual y simulación de escenarios.** El de mayor valor y
+  el de mayor exposición a responsabilidad profesional. No antes que el resto.
+
+### Se descarta: "Nivel 3 — Datos como activo"
+
+La propuesta de explotar el histórico como producto para terceros —informes
+sectoriales a la venta, predicción de insolvencia, cesión de indicadores a
+bancos, detección de oportunidades de inversión sobre empresas— **queda
+descartada, no aplazada.**
+
+Motivo en `.claude/rules/datos.md`, sección "Uso secundario de los datos de
+cliente". Resumen: la anonimización no es viable con 33 clientes en un mercado
+local, no hay base legal para ese tratamiento, y el secreto profesional aplica al
+margen del RGPD. Los datos están en el despacho por una relación de servicio; no
+son un activo comercializable.
+
+**La línea:** analizar los datos de un cliente **para ese mismo cliente** es el
+servicio. Compararlos para beneficio de un tercero, no.
+
+### Nota sobre el SaaS para otras asesorías
+
+Vender la herramienta a otros despachos es **un negocio distinto**, no una fase
+del actual: exige soporte, multi-tenant, facturación, y traslada al despacho una
+responsabilidad sobre presentaciones ajenas que hoy no tiene. Se deja anotado
+como opción, sin evaluar.
+
+---
+
 ## Qué queda sin decidir (a propósito)
 
 - El modelo de precio (cuota, valor generado, mixto).

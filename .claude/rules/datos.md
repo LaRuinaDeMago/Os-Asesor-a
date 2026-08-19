@@ -34,6 +34,72 @@ Claude en ninguna superficie.
 
 Esta frontera es ARQUITECTÓNICA, no una revisión puntual. Nunca se cruza.
 
+## PRECISIÓN 19-08-2026 — el DPA hace falta cuando el dato LLEGA al modelo
+
+Esto afina lo de arriba, no lo contradice, y evita dos errores opuestos: creerse
+libre porque "se ejecuta en local", y bloquearse creyendo que sin DPA no se puede
+tocar nada real.
+
+> **Lo que exige DPA es que el dato REALICE el viaje a Anthropic. Si no viaja, no
+> hace falta.**
+
+El **diseño de tres roles** que ya se usa en la Fase 0 evita ese viaje, y por eso
+funciona con Pro:
+
+1. **Claude escribe el script** — sin ver datos, solo el esquema.
+2. **Diego lo ejecuta en su máquina** — el NIF vive en la memoria del proceso, se
+   usa para agrupar, y la identidad se escribe únicamente en el fichero `_LOCAL`,
+   que se queda en el disco.
+3. **Claude lee solo el agregado** — recuentos y porcentajes.
+
+El NIF nunca entra en una petición a la API. Con ese diseño, medir el histórico
+completo es legítimo hoy, sin contratar nada.
+
+**Las tres formas de romperlo, y cómo está tapada cada una:**
+
+| Riesgo | Mitigación (ya aplicada) |
+|---|---|
+| Un script peta e imprime una fila en el mensaje de error | Los scripts capturan por registro y reportan **solo el tipo** de excepción: `errores[type(e).__name__] += 1`. Nunca el mensaje, que arrastra datos |
+| Claude abre un fichero `_LOCAL` | **Regla dura: no se abre un `_LOCAL` jamás.** Si hace falta algo de ahí, se le pide a Diego |
+| Se pega la salida en el chat | Prohibido explícitamente (ver corrección 29-07-2026 arriba) |
+
+**Dónde el diseño de tres roles NO sirve, y ahí sí hace falta el DPA sin
+excepción:** cualquier funcionalidad en la que **el propio modelo** tenga que leer
+el dato del cliente para hacer su trabajo — leer una factura, redactar un informe
+sobre una empresa concreta, analizar su tesorería, proponerle una optimización.
+Ahí el dato viaja por definición y no hay diseño que lo evite. Es decir: **toda la
+dirección de producto de `DIRECCION_PRODUCTO.md` está al otro lado de esa puerta.**
+
+Regla práctica para saber en qué lado estás:
+
+> ¿El modelo necesita **ver** el dato para producir el resultado, o le basta con
+> **contarlo** un script? Si necesita verlo → DPA. Si basta contarlo → tres roles.
+
+## Uso secundario de los datos de cliente — LÍNEA ROJA
+
+Los datos contables de los clientes están en el despacho por una relación de
+servicio profesional, con secreto profesional de por medio. **No son un activo
+comercializable del despacho.**
+
+Queda **descartado, no aplazado**, cualquier uso que convierta esos datos en
+producto para terceros. En concreto, y porque se ha propuesto explícitamente
+(valoraciones estratégicas del 19-08-2026, "Nivel 3 — Datos como activo"):
+
+- ❌ Vender informes o estudios sectoriales derivados de las contabilidades.
+- ❌ Modelos de predicción de insolvencia sobre empresas, ofrecidos a terceros.
+- ❌ Ceder o compartir indicadores de salud financiera con bancos, aseguradoras,
+  inversores o asociaciones.
+- ❌ Detección de "oportunidades de inversión" en empresas a partir de sus libros.
+
+**"Con anonimización" no lo arregla**, por tres motivos independientes y cada uno
+suficiente: con una cartera de 33 clientes en un mercado local la reidentificación
+es trivial; no existe base legal para ese tratamiento (los clientes contrataron
+asesoría, no cesión de datos); y el secreto profesional aplica al margen del RGPD.
+
+**Dónde sí está la línea:** analizar los datos de un cliente **para ese mismo
+cliente** es exactamente el servicio que se le presta. Ese es todo el margen que
+hay, y es amplio. Comparar clientes entre sí para beneficio de un tercero, no.
+
 CORRECCIÓN 29-07-2026: ni siquiera con Remote Control (ejecución local) se debe
 pegar, escribir o mostrar en el chat un NIF real o nombre de cliente real — la
 transcripción de Remote Control se guarda en servidores de Anthropic, aunque la
