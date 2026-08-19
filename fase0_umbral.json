@@ -1,0 +1,120 @@
+{
+  "version": "umbral_v1",
+  "huellas": 1278,
+  "tabla_umbrales": [
+    {
+      "umbral": 0.3,
+      "grupos": 32,
+      "VIOLACIONES": 256,
+      "grupos_con_violacion": 10,
+      "grupo_mayor": 141
+    },
+    {
+      "umbral": 0.35,
+      "grupos": 36,
+      "VIOLACIONES": 170,
+      "grupos_con_violacion": 11,
+      "grupo_mayor": 94
+    },
+    {
+      "umbral": 0.4,
+      "grupos": 38,
+      "VIOLACIONES": 147,
+      "grupos_con_violacion": 12,
+      "grupo_mayor": 72
+    },
+    {
+      "umbral": 0.45,
+      "grupos": 39,
+      "VIOLACIONES": 129,
+      "grupos_con_violacion": 12,
+      "grupo_mayor": 72
+    },
+    {
+      "umbral": 0.5,
+      "grupos": 39,
+      "VIOLACIONES": 129,
+      "grupos_con_violacion": 12,
+      "grupo_mayor": 72
+    },
+    {
+      "umbral": 0.55,
+      "grupos": 42,
+      "VIOLACIONES": 124,
+      "grupos_con_violacion": 12,
+      "grupo_mayor": 72
+    },
+    {
+      "umbral": 0.6,
+      "grupos": 43,
+      "VIOLACIONES": 118,
+      "grupos_con_violacion": 12,
+      "grupo_mayor": 72
+    },
+    {
+      "umbral": 0.65,
+      "grupos": 45,
+      "VIOLACIONES": 118,
+      "grupos_con_violacion": 12,
+      "grupo_mayor": 72
+    },
+    {
+      "umbral": 0.7,
+      "grupos": 52,
+      "VIOLACIONES": 115,
+      "grupos_con_violacion": 12,
+      "grupo_mayor": 72
+    },
+    {
+      "umbral": 0.75,
+      "grupos": 53,
+      "VIOLACIONES": 115,
+      "grupos_con_violacion": 12,
+      "grupo_mayor": 72
+    },
+    {
+      "umbral": 0.8,
+      "grupos": 62,
+      "VIOLACIONES": 108,
+      "grupos_con_violacion": 12,
+      "grupo_mayor": 72
+    },
+    {
+      "umbral": 0.85,
+      "grupos": 78,
+      "VIOLACIONES": 108,
+      "grupos_con_violacion": 12,
+      "grupo_mayor": 72
+    },
+    {
+      "umbral": 0.9,
+      "grupos": 100,
+      "VIOLACIONES": 85,
+      "grupos_con_violacion": 13,
+      "grupo_mayor": 72
+    },
+    {
+      "umbral": 0.95,
+      "grupos": 164,
+      "VIOLACIONES": 51,
+      "grupos_con_violacion": 12,
+      "grupo_mayor": 47
+    }
+  ],
+  "UMBRAL_SIN_VIOLACIONES": 0.95,
+  "GRUPOS": 164,
+  "clientes_activos_por_ejercicio": {
+    "2011": 1,
+    "2018": 1,
+    "2019": 31,
+    "2020": 40,
+    "2021": 51,
+    "2022": 39,
+    "2023": 43,
+    "2024": 45,
+    "2025": 46,
+    "2026": 32
+  },
+  "errores": {},
+  "nota": "Solo recuentos. Ningun nombre, NIF ni hash."
+}

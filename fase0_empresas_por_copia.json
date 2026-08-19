@@ -1,0 +1,203 @@
+{
+  "version": "empresas_por_copia_v1",
+  "ficheros_sin_patron_reconocible": 0,
+  "carpetas": [
+    {
+      "carpeta": "CONTABILIDADES 2017 ENVIADAS REGISTRO MERCANTIL",
+      "codigos_distintos": 42,
+      "EMPRESAS_CON_DATOS": 42,
+      "ficheros": 124,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "CONTABILIDADES 2020",
+      "codigos_distintos": 33,
+      "EMPRESAS_CON_DATOS": 33,
+      "ficheros": 99,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "CONTABILIDADES 2021",
+      "codigos_distintos": 39,
+      "EMPRESAS_CON_DATOS": 39,
+      "ficheros": 117,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIA CONTABILIDAD 2025, AL 22.07.2025",
+      "codigos_distintos": 32,
+      "EMPRESAS_CON_DATOS": 32,
+      "ficheros": 96,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIA CONTABILIDADES 2026 HASTA EL 20-07-26",
+      "codigos_distintos": 33,
+      "EMPRESAS_CON_DATOS": 33,
+      "ficheros": 99,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDAD EJERCICIOS 2020 Y 2021 ORDENADOR JOSE AL 05.04.2021",
+      "codigos_distintos": 66,
+      "EMPRESAS_CON_DATOS": 66,
+      "ficheros": 198,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDAD JOSE 2025",
+      "codigos_distintos": 1,
+      "EMPRESAS_CON_DATOS": 1,
+      "ficheros": 3,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDAD ORDENADOR JOSE, AÑOS 2022 Y 2023, AL 10.11.2023",
+      "codigos_distintos": 61,
+      "EMPRESAS_CON_DATOS": 61,
+      "ficheros": 183,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDAD TODAS LAS EMPRESAS AL 16.12.2020 ORDENADOR JOSE",
+      "codigos_distintos": 67,
+      "EMPRESAS_CON_DATOS": 67,
+      "ficheros": 201,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDAD TODAS LAS EMPRESAS AL 28.01.2021 ORDENADOR JOSE",
+      "codigos_distintos": 68,
+      "EMPRESAS_CON_DATOS": 68,
+      "ficheros": 204,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES 2019",
+      "codigos_distintos": 32,
+      "EMPRESAS_CON_DATOS": 32,
+      "ficheros": 96,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES 2020 Y 2021 AL 16.06.2021",
+      "codigos_distintos": 66,
+      "EMPRESAS_CON_DATOS": 66,
+      "ficheros": 198,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES 2021 AL 21.01.2022",
+      "codigos_distintos": 40,
+      "EMPRESAS_CON_DATOS": 40,
+      "ficheros": 120,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES 2021, AL 31.01.2022",
+      "codigos_distintos": 39,
+      "EMPRESAS_CON_DATOS": 39,
+      "ficheros": 117,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES 2022,2023, AL 15.02.2023",
+      "codigos_distintos": 59,
+      "EMPRESAS_CON_DATOS": 59,
+      "ficheros": 177,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES 2024, AL 19.04.2024, EMPRE",
+      "codigos_distintos": 28,
+      "EMPRESAS_CON_DATOS": 28,
+      "ficheros": 84,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES 2025 COMPLETO",
+      "codigos_distintos": 38,
+      "EMPRESAS_CON_DATOS": 38,
+      "ficheros": 114,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES EJERCICIO 2020 Y 2021 - AL 20.10.2021",
+      "codigos_distintos": 70,
+      "EMPRESAS_CON_DATOS": 70,
+      "ficheros": 210,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES EJERCICIO 2022 AL 15.10.2022",
+      "codigos_distintos": 31,
+      "EMPRESAS_CON_DATOS": 31,
+      "ficheros": 93,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES EJERCICIOS 2020 Y 2021 AL 16.04.2021",
+      "codigos_distintos": 66,
+      "EMPRESAS_CON_DATOS": 66,
+      "ficheros": 198,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES EJERCICIOS 2021 Y 2022 AL 08.08.2022",
+      "codigos_distintos": 69,
+      "EMPRESAS_CON_DATOS": 69,
+      "ficheros": 207,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES EJERCICIOS 2021 Y 2022 AL 20.09.2022",
+      "codigos_distintos": 69,
+      "EMPRESAS_CON_DATOS": 69,
+      "ficheros": 207,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES EJERCICIOS 2023 Y 2024, AL 01.02.2024",
+      "codigos_distintos": 58,
+      "EMPRESAS_CON_DATOS": 58,
+      "ficheros": 174,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES ORDENADOR DE JOSE EJERCICIO 2021",
+      "codigos_distintos": 28,
+      "EMPRESAS_CON_DATOS": 28,
+      "ficheros": 82,
+      "partes_por_empresa": 2.9
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES ORDENADOR DE JOSE EJERCICIO 2022",
+      "codigos_distintos": 29,
+      "EMPRESAS_CON_DATOS": 29,
+      "ficheros": 87,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES ORDENADOR DE JOSE EJERCICIO 2022, EMPRESAS DE LA 50 A LA 78, FECHA 09.01.2024",
+      "codigos_distintos": 29,
+      "EMPRESAS_CON_DATOS": 29,
+      "ficheros": 87,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES ORDENADOR DE JOSE EJERCICIOS 2024 Y 2025 AL 28.02.2025",
+      "codigos_distintos": 64,
+      "EMPRESAS_CON_DATOS": 64,
+      "ficheros": 192,
+      "partes_por_empresa": 3.0
+    },
+    {
+      "carpeta": "COPIAS CONTABILIDADES ORDENADOR JOSE EJERCICIO 2024",
+      "codigos_distintos": 30,
+      "EMPRESAS_CON_DATOS": 30,
+      "ficheros": 90,
+      "partes_por_empresa": 3.0
+    }
+  ],
+  "nota": "Solo recuentos y nombres de carpeta."
+}

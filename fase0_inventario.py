@@ -87,15 +87,20 @@ def fecha_de_carpeta(ruta, raiz):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("carpeta")
+    ap.add_argument("--mapa", default=MAPA_HUELLA,
+                    help="Fichero _LOCAL con la correspondencia contenedor->grupo. "
+                         "Por defecto el de fase0_huella_cliente.py; usar el de "
+                         "fase0_reagrupa.py para la agrupacion corregida.")
     args = ap.parse_args()
     raiz = os.path.abspath(args.carpeta)
     if not os.path.isdir(raiz):
         print("ERROR: la ruta no existe o no es una carpeta.")
         return 1
 
+    mapa_path = args.mapa
     grupo_de = {}
-    if os.path.exists(MAPA_HUELLA):
-        with open(MAPA_HUELLA, encoding="utf-8") as f:
+    if os.path.exists(mapa_path):
+        with open(mapa_path, encoding="utf-8") as f:
             grupo_de = {k: int(v) for k, v in json.load(f)["contenedor_a_grupo"].items()}
         print(f"Huellas cargadas: {len(grupo_de)} contenedores con cliente asignado.")
     else:

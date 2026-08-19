@@ -326,6 +326,25 @@ medio de un tramo; este no los tiene.
 > Los ejercicios presentes son 2011 (un caso suelto), 2018, 2019, 2020, 2021, 2022, 2023,
 > 2024, 2025 y 2026. **No hay 2016 ni 2017** en esta carpeta.
 
+### 11.0 ⛔ AVISO: LOS RECUENTOS DE CLIENTE DE §11.2, §11.3 Y §11.4 SON FALSOS
+
+Resuelto el 12-08-2026 por la tarde. **La huella dactilar fusionaba clientes** y todos
+los recuentos que produjo están mal. Se conservan como registro del proceso, no como
+resultado. La sección **§12** tiene los números verificados.
+
+| Dato publicado antes | Realidad |
+|---|---|
+| 35 / 38 / 39 / 40 "clientes" | Fusionados. Ninguno es correcto |
+| 23–24 clientes activos en 2025 | **Son 33** |
+| Mapa de cobertura, 78,9% completos | Invalidado: se agrupó sobre clientes fusionados |
+
+Ficheros con recuentos de cliente erróneos: `fase0_huella.json`, `fase0_reagrupa.json`,
+`fase0_huella_v2.json`, `fase0_umbral.json`, `inventario_agregado.json`.
+
+**Lo que NO se invalida** (no depende del agrupamiento): formato, esquema, codificación,
+348.716 líneas únicas, 101.122 asientos, 68,26% reconstruibles, y el recuento de
+sociedades presentadas por año.
+
 ### 11.4 ⚠️ ABIERTO: 35 grupos frente a 43 clientes reales en 2025
 
 El titular confirma **43 clientes solo en 2025**; el mapa detecta **23 activos ese año** y
@@ -348,6 +367,75 @@ esta carpeta.
 
 **Nada de la Fase 0 avanza hasta cerrar esto**: un inventario que dice 35 clientes cuando
 hay 43 no es un mapa, es un mapa equivocado.
+
+## 12. La estructura real del backup — verificada (12-08-2026, tarde)
+
+Todos los intentos de identificar al cliente por el contenido fallaban porque **la
+identidad estaba en el nombre del fichero y nadie lo había leído entero**. El patrón real
+no es `SP_C_04` sino `SP_C_04A`: hay una **letra final** que se estaba ignorando.
+
+```
+AA_A_##A   →  SP_C_04A, SP_C_04B, SP_C_04C
+              prefijo · CÓDIGO DE EMPRESA · parte
+```
+
+- El **número** es el código de empresa dentro de esa copia.
+- La **letra final** es la parte del backup de esa misma empresa.
+
+**Consecuencia:** dentro de una carpeta de copia, contar códigos distintos da el número
+exacto de empresas. Sin huellas, sin umbrales, sin inferencia.
+
+### Auditoría independiente — 5 de 5 en verde
+
+| Prueba | Resultado |
+|---|---|
+| **V6** suma de ficheros por carpeta == total de `.DAT` | ✅ 3.857 = 3.857 |
+| **V1** códigos de empresa == contenedores con `Diario.dbf` | ✅ **1.287 = 1.287** |
+| **V2** cada código tiene exactamente un fichero con datos | ✅ reparto `{1: 1287}` |
+| **V3** todos los ficheros vacíos pesan lo mismo | ✅ `[1384]` |
+| **V4** la copia de 2026 tiene 33 empresas | ✅ `{2026: 33}` |
+
+> **Cada copia de empresa son 3 ficheros `.DAT`: uno con datos y dos plantillas vacías de
+> 1.384 bytes exactos.** Eso explica los 2.570 "contenedores misteriosos": no eran
+> contenedores, eran las dos plantillas de cada copia. `3.857 = 1.287 × 3`.
+
+### El número que cierra el bloqueante
+
+```
+COPIAS CONTABILIDADES 2025 COMPLETO    →  ejercicios {2025: 33, ...}
+COPIA CONTABILIDADES 2026 HASTA 20-07  →  ejercicios {2026: 33}
+```
+
+**33 empresas con ejercicio 2025 y 33 con ejercicio 2026**, confirmado en dos carpetas
+independientes. Coincide exactamente con lo declarado por el titular: **14 S.L. + 19
+autónomos = 33**.
+
+> **Las copias de seguridad están completas. No falta ningún cliente.** El déficit que
+> mostraba el mapa (23–24 en vez de 33) era un artefacto del agrupamiento por huella.
+
+*(Las 38 empresas de "2025 COMPLETO" son esas 33 más cinco rezagadas de otros ejercicios
+—2011, 2022, 2023, 2024, 2026, una de cada— que quedaron abiertas.)*
+
+### Vías descartadas por el camino, con su medición
+
+| Hipótesis | Resultado |
+|---|---|
+| Comentario del ZIP lleva la empresa | **0 de 400** contenedores tienen comentario |
+| Las rutas internas del ZIP llevan carpeta de empresa | **0 entradas** con directorio (5.704 sin él) |
+| Huella por nombre mejor que por NIF | **Peor**: 24 clientes vs 23, y el grupo mayor sube a 180 con umbral 0,30 |
+| Umbral elegido por restricción "una empresa por carpeta y ejercicio" | **La restricción era falsa** (nunca baja de 51 violaciones): varias partes del mismo backup comparten código |
+
+### Lo que queda para cerrar la Fase 0
+
+Enlazar el **código 04 de una carpeta** con el **código 12 de otra** (el mismo cliente en
+copias distintas). Ahora es un problema acotado, y con una regla dura verdadera que antes
+no existía:
+
+> **Dentro de una misma carpeta, dos códigos distintos son dos empresas distintas.
+> Nunca se pueden fusionar.**
+
+Metida esa restricción en el agrupamiento, la huella puede enlazar entre carpetas pero no
+pegar clientes dentro de una.
 
 ---
 

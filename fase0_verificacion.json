@@ -1,0 +1,73 @@
+{
+  "pruebas": [
+    {
+      "prueba": "V6 · suma de ficheros por carpeta == total de .DAT",
+      "ok": true,
+      "detalle": "3857 vs 3857"
+    },
+    {
+      "prueba": "V1 · codigos de empresa == contenedores con Diario.dbf",
+      "ok": true,
+      "detalle": "codigos 1287 · con diario 1287"
+    },
+    {
+      "prueba": "V2 · cada codigo tiene EXACTAMENTE un fichero con datos",
+      "ok": true,
+      "detalle": "con 1: 1287 de 1287 · reparto {1: 1287}"
+    },
+    {
+      "prueba": "V3 · todos los ficheros vacios pesan lo mismo",
+      "ok": true,
+      "detalle": "tamanos distintos entre los vacios: [1384]"
+    },
+    {
+      "prueba": "V4 · la copia de 2026 tiene 33 empresas",
+      "ok": true,
+      "detalle": "empresas 33 · ejercicios {2026: 33}"
+    }
+  ],
+  "carpetas_recientes": {
+    "COPIA CONTABILIDAD 2025, AL 22.07.2025": {
+      "empresas": 32,
+      "ejercicios": {
+        "2022": 1,
+        "2023": 1,
+        "2024": 1,
+        "2025": 29
+      }
+    },
+    "COPIA CONTABILIDADES 2026 HASTA EL 20-07-26": {
+      "empresas": 33,
+      "ejercicios": {
+        "2026": 33
+      }
+    },
+    "COPIAS CONTABILIDAD JOSE 2025": {
+      "empresas": 1,
+      "ejercicios": {
+        "2025": 1
+      }
+    },
+    "COPIAS CONTABILIDADES 2025 COMPLETO": {
+      "empresas": 38,
+      "ejercicios": {
+        "2011": 1,
+        "2022": 1,
+        "2023": 1,
+        "2024": 1,
+        "2025": 33,
+        "2026": 1
+      }
+    },
+    "COPIAS CONTABILIDADES ORDENADOR DE JOSE EJERCICIOS 2024 Y 2025 AL 28.02.2025": {
+      "empresas": 64,
+      "ejercicios": {
+        "2011": 1,
+        "2022": 2,
+        "2023": 2,
+        "2024": 31,
+        "2025": 28
+      }
+    }
+  }
+}

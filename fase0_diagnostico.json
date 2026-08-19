@@ -1,0 +1,397 @@
+{
+  "version": "diagnostico_v1",
+  "contenedores": 3857,
+  "con_diario": 1287,
+  "sin_diario": 2570,
+  "A_contenedores_sin_diario": {
+    "subcarpetas_en_que_viven": 28,
+    "tam_zip_min": 1384,
+    "tam_zip_max": 1384,
+    "tam_zip_medio": 1384,
+    "casi_vacios_menos_de_2KB": 2570,
+    "entradas_por_contenedor_media": 8.0,
+    "descomprimido_total_MB": 0.0,
+    "tablas": {
+      "ACCIONES.ASC": {
+        "apariciones": 2570,
+        "subcarpetas": 28,
+        "desc_total_MB": 0.0,
+        "desc_medio": 0,
+        "desc_max": 0,
+        "copias_con_datos_mas_de_4KB": 0
+      },
+      "ACCIONES.TXT": {
+        "apariciones": 2570,
+        "subcarpetas": 28,
+        "desc_total_MB": 0.0,
+        "desc_medio": 0,
+        "desc_max": 0,
+        "copias_con_datos_mas_de_4KB": 0
+      },
+      "CERTIF.ASC": {
+        "apariciones": 2570,
+        "subcarpetas": 28,
+        "desc_total_MB": 0.0,
+        "desc_medio": 0,
+        "desc_max": 0,
+        "copias_con_datos_mas_de_4KB": 0
+      },
+      "DATOS.ASC": {
+        "apariciones": 2570,
+        "subcarpetas": 28,
+        "desc_total_MB": 0.0,
+        "desc_medio": 0,
+        "desc_max": 0,
+        "copias_con_datos_mas_de_4KB": 0
+      },
+      "FICHERO.TXT": {
+        "apariciones": 2570,
+        "subcarpetas": 28,
+        "desc_total_MB": 0.0,
+        "desc_medio": 0,
+        "desc_max": 0,
+        "copias_con_datos_mas_de_4KB": 0
+      },
+      "GESTION.TXT": {
+        "apariciones": 2570,
+        "subcarpetas": 28,
+        "desc_total_MB": 0.0,
+        "desc_medio": 0,
+        "desc_max": 0,
+        "copias_con_datos_mas_de_4KB": 0
+      },
+      "INSTANCIA.ASC": {
+        "apariciones": 2570,
+        "subcarpetas": 28,
+        "desc_total_MB": 0.0,
+        "desc_medio": 0,
+        "desc_max": 0,
+        "copias_con_datos_mas_de_4KB": 0
+      },
+      "MEMORIA.TXT": {
+        "apariciones": 2570,
+        "subcarpetas": 28,
+        "desc_total_MB": 0.0,
+        "desc_medio": 0,
+        "desc_max": 0,
+        "copias_con_datos_mas_de_4KB": 0
+      }
+    },
+    "tablas_ocultas_por_precaucion": 0
+  },
+  "B_fusion_de_grupos": {
+    "grupos": [
+      {
+        "grupo": 0,
+        "n": 23,
+        "sim_min": 1.0,
+        "sim_media": 1.0,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 1,
+        "n": 40,
+        "sim_min": 0.366,
+        "sim_media": 0.791,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 2,
+        "n": 45,
+        "sim_min": 1.0,
+        "sim_media": 1.0,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 3,
+        "n": 52,
+        "sim_min": 0.375,
+        "sim_media": 0.764,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 4,
+        "n": 39,
+        "sim_min": 0.435,
+        "sim_media": 0.829,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 5,
+        "n": 63,
+        "sim_min": 0.093,
+        "sim_media": 0.714,
+        "pares_bajo_0_2": 21
+      },
+      {
+        "grupo": 6,
+        "n": 73,
+        "sim_min": 0.667,
+        "sim_media": 0.881,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 7,
+        "n": 40,
+        "sim_min": 0.686,
+        "sim_media": 0.885,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 8,
+        "n": 40,
+        "sim_min": 0.931,
+        "sim_media": 0.987,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 9,
+        "n": 32,
+        "sim_min": 0.784,
+        "sim_media": 0.914,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 10,
+        "n": 40,
+        "sim_min": 0.253,
+        "sim_media": 0.67,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 11,
+        "n": 50,
+        "sim_min": 0.8,
+        "sim_media": 0.946,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 12,
+        "n": 36,
+        "sim_min": 0.941,
+        "sim_media": 0.984,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 13,
+        "n": 32,
+        "sim_min": 0.981,
+        "sim_media": 0.991,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 14,
+        "n": 39,
+        "sim_min": 0.881,
+        "sim_media": 0.967,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 15,
+        "n": 39,
+        "sim_min": 0.44,
+        "sim_media": 0.805,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 16,
+        "n": 39,
+        "sim_min": 0.653,
+        "sim_media": 0.884,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 17,
+        "n": 39,
+        "sim_min": 0.656,
+        "sim_media": 0.902,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 18,
+        "n": 39,
+        "sim_min": 0.508,
+        "sim_media": 0.779,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 19,
+        "n": 59,
+        "sim_min": 0.414,
+        "sim_media": 0.732,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 20,
+        "n": 45,
+        "sim_min": 0.703,
+        "sim_media": 0.904,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 21,
+        "n": 39,
+        "sim_min": 0.797,
+        "sim_media": 0.93,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 22,
+        "n": 21,
+        "sim_min": 0.667,
+        "sim_media": 0.903,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 23,
+        "n": 21,
+        "sim_min": 1.0,
+        "sim_media": 1.0,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 24,
+        "n": 35,
+        "sim_min": 0.188,
+        "sim_media": 0.597,
+        "pares_bajo_0_2": 14
+      },
+      {
+        "grupo": 25,
+        "n": 21,
+        "sim_min": 0.615,
+        "sim_media": 0.886,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 26,
+        "n": 21,
+        "sim_min": 0.815,
+        "sim_media": 0.949,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 27,
+        "n": 10,
+        "sim_min": 1.0,
+        "sim_media": 1.0,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 28,
+        "n": 20,
+        "sim_min": 0.379,
+        "sim_media": 0.697,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 29,
+        "n": 25,
+        "sim_min": 0.292,
+        "sim_media": 0.653,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 30,
+        "n": 18,
+        "sim_min": 0.147,
+        "sim_media": 0.564,
+        "pares_bajo_0_2": 5
+      },
+      {
+        "grupo": 31,
+        "n": 3,
+        "sim_min": 0.75,
+        "sim_media": 0.833,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 32,
+        "n": 39,
+        "sim_min": 0.065,
+        "sim_media": 0.654,
+        "pares_bajo_0_2": 31
+      },
+      {
+        "grupo": 33,
+        "n": 3,
+        "sim_min": 1.0,
+        "sim_media": 1.0,
+        "pares_bajo_0_2": 0
+      },
+      {
+        "grupo": 34,
+        "n": 1,
+        "sim_min": null,
+        "sim_media": null
+      }
+    ],
+    "grupos_sospechosos_sim_min_bajo_0_2": 4
+  },
+  "C_nif_por_contenedor": {
+    "contenedores_con_subcta": 1287,
+    "con_1_a_4_nif_descartados_por_el_umbral": 68,
+    "distribucion": {
+      "0": 38,
+      "1": 13,
+      "2": 7,
+      "3": 40,
+      "4": 8,
+      "5": 51,
+      "6": 6,
+      "8": 1,
+      "9": 45,
+      "10": 15,
+      "11": 7,
+      "12": 9,
+      "13": 1,
+      "14": 3,
+      "15": 2,
+      "16": 13,
+      "17": 5,
+      "18": 3,
+      "19": 6,
+      "22": 16,
+      "23": 29,
+      "24": 9,
+      "25": 3,
+      "26": 5,
+      "27": 28,
+      "28": 8,
+      "29": 39,
+      "30": 7,
+      "31": 4,
+      "32": 17,
+      "33": 1,
+      "34": 5,
+      "35": 18,
+      "36": 2,
+      "37": 14,
+      "38": 7,
+      "39": 16,
+      "40": 9,
+      "41": 5,
+      "42": 9,
+      "43": 34,
+      "44": 10,
+      "45": 9,
+      "46": 14,
+      "47": 9,
+      "48": 32,
+      "49": 10,
+      "50": 15,
+      "51": 21,
+      "52": 15,
+      "53": 10,
+      "54": 1,
+      "55": 17,
+      "56": 2,
+      "57": 2,
+      "58": 18,
+      "59": 26,
+      "60": 518
+    }
+  },
+  "errores": {},
+  "nota": "Solo recuentos y tamanos. Ningun NIF, nombre ni ruta."
+}

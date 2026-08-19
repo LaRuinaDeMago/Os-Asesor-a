@@ -1,0 +1,225 @@
+{
+  "version": "huella_v2_nombre",
+  "huellas_utilizables": 1287,
+  "sin_subcta": 2570,
+  "huellas_vacias": 0,
+  "elementos_por_huella": {
+    "min": 6,
+    "media": 233.6,
+    "max": 2163
+  },
+  "histograma_similitud": {
+    "0.0": 749391,
+    "0.1": 40155,
+    "0.2": 10226,
+    "0.3": 1284,
+    "0.4": 952,
+    "0.5": 2196,
+    "0.6": 2285,
+    "0.7": 2671,
+    "0.8": 5043,
+    "0.9": 13338
+  },
+  "estabilidad_por_umbral": [
+    {
+      "umbral": 0.3,
+      "n_grupos": 31,
+      "grupo_mayor": 180,
+      "sueltos": 0
+    },
+    {
+      "umbral": 0.4,
+      "n_grupos": 38,
+      "grupo_mayor": 73,
+      "sueltos": 2
+    },
+    {
+      "umbral": 0.5,
+      "n_grupos": 40,
+      "grupo_mayor": 73,
+      "sueltos": 3
+    },
+    {
+      "umbral": 0.6,
+      "n_grupos": 44,
+      "grupo_mayor": 73,
+      "sueltos": 3
+    },
+    {
+      "umbral": 0.7,
+      "n_grupos": 52,
+      "grupo_mayor": 73,
+      "sueltos": 5
+    },
+    {
+      "umbral": 0.8,
+      "n_grupos": 63,
+      "grupo_mayor": 73,
+      "sueltos": 7
+    },
+    {
+      "umbral": 0.9,
+      "n_grupos": 102,
+      "grupo_mayor": 73,
+      "sueltos": 19
+    }
+  ],
+  "GRUPOS": 38,
+  "grupos_con_fusion": 0,
+  "clientes_activos_por_ejercicio": {
+    "2011": 1,
+    "2018": 1,
+    "2019": 30,
+    "2020": 30,
+    "2021": 31,
+    "2022": 27,
+    "2023": 27,
+    "2024": 26,
+    "2025": 24,
+    "2026": 25
+  },
+  "diagnostico_por_grupo": [
+    {
+      "grupo": 0,
+      "copias": 69,
+      "sim_min": 0.281,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 1,
+      "copias": 40,
+      "sim_min": 0.448,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 2,
+      "copias": 49,
+      "sim_min": 0.594,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 3,
+      "copias": 52,
+      "sim_min": 0.4,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 4,
+      "copias": 39,
+      "sim_min": 0.451,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 5,
+      "copias": 63,
+      "sim_min": 0.122,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 21
+    },
+    {
+      "grupo": 6,
+      "copias": 73,
+      "sim_min": 0.709,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 7,
+      "copias": 40,
+      "sim_min": 0.707,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 8,
+      "copias": 40,
+      "sim_min": 0.924,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 9,
+      "copias": 32,
+      "sim_min": 0.786,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 10,
+      "copias": 40,
+      "sim_min": 0.26,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 11,
+      "copias": 50,
+      "sim_min": 0.792,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 12,
+      "copias": 36,
+      "sim_min": 0.927,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 13,
+      "copias": 32,
+      "sim_min": 0.975,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 14,
+      "copias": 39,
+      "sim_min": 0.894,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 15,
+      "copias": 39,
+      "sim_min": 0.482,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 16,
+      "copias": 39,
+      "sim_min": 0.678,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 17,
+      "copias": 39,
+      "sim_min": 0.657,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 18,
+      "copias": 39,
+      "sim_min": 0.495,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    },
+    {
+      "grupo": 19,
+      "copias": 59,
+      "sim_min": 0.417,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_anos": 0
+    }
+  ],
+  "errores": {},
+  "nota": "Solo recuentos. Ningun nombre, ningun NIF, ningun hash."
+}

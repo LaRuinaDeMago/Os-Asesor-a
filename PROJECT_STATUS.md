@@ -76,7 +76,47 @@ Inventario construido: 35 clientes, 206 pares cliente-ejercicio, **79,1% de
 ejercicios completos hasta diciembre**, tramos continuos sin agujeros interiores.
 **El corpus es 2018–2026, no 2016–2026.**
 
-## 🔴 BLOQUEANTE ABIERTO — 35 grupos frente a 43 clientes reales
+## ✅ BLOQUEANTE CERRADO (12-08-2026, tarde) — las copias están completas
+
+La identidad estaba **en el nombre del fichero**, no en su contenido: el patrón real es
+`SP_C_04A` (con letra final), no `SP_C_04`. El número es el código de empresa y la letra
+es la parte del backup. Cada copia de empresa son **3 ficheros**: uno con datos y dos
+plantillas vacías de 1.384 bytes. `3.857 = 1.287 × 3`.
+
+**Auditoría independiente: 5 de 5 en verde** (`fase0_verificacion.py`). Y el número que
+cierra la duda, confirmado en dos carpetas por separado:
+
+```
+ejercicio 2025 -> 33 empresas      ejercicio 2026 -> 33 empresas
+```
+
+**Coincide exactamente con los 14 S.L. + 19 autónomos declarados. No falta ningún
+cliente.** El déficit anterior era un artefacto del agrupamiento por huella.
+
+### ⛔ Números anteriores que quedan INVALIDADOS
+
+La huella fusionaba clientes, así que **todos sus recuentos son falsos**: "35 / 38 / 39 /
+40 clientes", "23–24 activos en 2025" y el mapa de cobertura con su 78,9%. Los ficheros
+`fase0_huella.json`, `fase0_reagrupa.json`, `fase0_huella_v2.json`, `fase0_umbral.json` e
+`inventario_agregado.json` contienen recuentos de cliente erróneos; se conservan como
+registro del proceso, no como resultado. Detalle en `FASE0_RESULTADOS.md` §11.0 y §12.
+
+**No se invalida** nada que no dependa del agrupamiento: formato, esquema, codificación
+cp1252, 348.716 líneas únicas, 101.122 asientos, 68,26% reconstruibles, y el recuento de
+sociedades presentadas por año.
+
+### Lo único que queda para cerrar la Fase 0
+
+Enlazar el código de empresa **entre carpetas distintas** (mismo cliente, códigos
+distintos según la copia), con esta regla dura ya verificada:
+
+> Dentro de una misma carpeta, **dos códigos distintos son dos empresas distintas**.
+> Nunca se pueden fusionar.
+
+Con esa restricción, la huella enlaza entre carpetas pero no puede pegar clientes dentro
+de una. Es media hora de trabajo y el mapa queda cuadrado con la realidad.
+
+## 🔴 Histórico del bloqueante (resuelto, se conserva por trazabilidad)
 
 El titular confirma 43 clientes solo en 2025; el mapa detecta 23 ese año y 35 en
 total. **La Fase 0 no avanza hasta cerrarlo.** Cinco candidatas en

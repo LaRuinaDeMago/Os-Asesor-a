@@ -1,0 +1,767 @@
+{
+  "version": "reagrupa_v1",
+  "umbral_nif_antes": 5,
+  "umbral_nif_ahora": 1,
+  "umbral_similitud": 0.4,
+  "huellas_utilizables": 1249,
+  "contenedores_sin_ningun_nif": 38,
+  "GRUPOS_ANTES": 35,
+  "GRUPOS_AHORA": 40,
+  "grupos_con_fusion_confirmada": 0,
+  "grupos_con_solo_deriva_temporal": 4,
+  "diagnostico_por_grupo": [
+    {
+      "grupo": 0,
+      "copias": 23,
+      "sim_min": 1.0,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 3,
+      "copias_por_ejercicio_max": 16
+    },
+    {
+      "grupo": 1,
+      "copias": 40,
+      "sim_min": 0.366,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 8,
+      "copias_por_ejercicio_max": 10
+    },
+    {
+      "grupo": 2,
+      "copias": 49,
+      "sim_min": 0.444,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 8,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 3,
+      "copias": 52,
+      "sim_min": 0.375,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 8,
+      "copias_por_ejercicio_max": 16
+    },
+    {
+      "grupo": 4,
+      "copias": 39,
+      "sim_min": 0.435,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 8,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 5,
+      "copias": 63,
+      "sim_min": 0.093,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 21,
+      "ejercicios": 7,
+      "copias_por_ejercicio_max": 17
+    },
+    {
+      "grupo": 6,
+      "copias": 73,
+      "sim_min": 0.667,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 7,
+      "copias_por_ejercicio_max": 22
+    },
+    {
+      "grupo": 7,
+      "copias": 40,
+      "sim_min": 0.686,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 8,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 8,
+      "copias": 40,
+      "sim_min": 0.931,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 8,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 9,
+      "copias": 32,
+      "sim_min": 0.784,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 5,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 10,
+      "copias": 40,
+      "sim_min": 0.253,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 8,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 11,
+      "copias": 50,
+      "sim_min": 0.8,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 8,
+      "copias_por_ejercicio_max": 21
+    },
+    {
+      "grupo": 12,
+      "copias": 36,
+      "sim_min": 0.941,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 6,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 13,
+      "copias": 32,
+      "sim_min": 0.981,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 3,
+      "copias_por_ejercicio_max": 15
+    },
+    {
+      "grupo": 14,
+      "copias": 39,
+      "sim_min": 0.881,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 8,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 15,
+      "copias": 39,
+      "sim_min": 0.44,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 8,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 16,
+      "copias": 39,
+      "sim_min": 0.653,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 8,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 17,
+      "copias": 39,
+      "sim_min": 0.656,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 8,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 18,
+      "copias": 39,
+      "sim_min": 0.508,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 8,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 19,
+      "copias": 59,
+      "sim_min": 0.414,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 9,
+      "copias_por_ejercicio_max": 12
+    },
+    {
+      "grupo": 21,
+      "copias": 45,
+      "sim_min": 0.703,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 8,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 22,
+      "copias": 39,
+      "sim_min": 0.797,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 8,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 138,
+      "copias": 45,
+      "sim_min": 0.222,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 8,
+      "copias_por_ejercicio_max": 14
+    },
+    {
+      "grupo": 24,
+      "copias": 21,
+      "sim_min": 0.667,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 3,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 25,
+      "copias": 21,
+      "sim_min": 1.0,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 3,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 26,
+      "copias": 35,
+      "sim_min": 0.188,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 14,
+      "ejercicios": 7,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 169,
+      "copias": 40,
+      "sim_min": 0.033,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 35,
+      "ejercicios": 7,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 29,
+      "copias": 21,
+      "sim_min": 0.615,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 3,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 30,
+      "copias": 21,
+      "sim_min": 0.815,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 3,
+      "copias_por_ejercicio_max": 11
+    },
+    {
+      "grupo": 66,
+      "copias": 10,
+      "sim_min": 1.0,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 2,
+      "copias_por_ejercicio_max": 7
+    },
+    {
+      "grupo": 67,
+      "copias": 13,
+      "sim_min": 1.0,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 2,
+      "copias_por_ejercicio_max": 7
+    },
+    {
+      "grupo": 105,
+      "copias": 20,
+      "sim_min": 0.379,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 4,
+      "copias_por_ejercicio_max": 7
+    },
+    {
+      "grupo": 112,
+      "copias": 25,
+      "sim_min": 0.292,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 6,
+      "copias_por_ejercicio_max": 7
+    },
+    {
+      "grupo": 121,
+      "copias": 18,
+      "sim_min": 0.147,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 5,
+      "ejercicios": 5,
+      "copias_por_ejercicio_max": 7
+    },
+    {
+      "grupo": 173,
+      "copias": 1,
+      "sim_min": 1.0,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 1,
+      "copias_por_ejercicio_max": 1
+    },
+    {
+      "grupo": 321,
+      "copias": 3,
+      "sim_min": 1.0,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 1,
+      "copias_por_ejercicio_max": 3
+    },
+    {
+      "grupo": 326,
+      "copias": 3,
+      "sim_min": 1.0,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 1,
+      "copias_por_ejercicio_max": 3
+    },
+    {
+      "grupo": 328,
+      "copias": 3,
+      "sim_min": 1.0,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 1,
+      "copias_por_ejercicio_max": 3
+    },
+    {
+      "grupo": 359,
+      "copias": 1,
+      "sim_min": 1.0,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 0,
+      "copias_por_ejercicio_max": 0
+    },
+    {
+      "grupo": 756,
+      "copias": 1,
+      "sim_min": 1.0,
+      "CONFLICTOS_MISMO_EJERCICIO": 0,
+      "bajos_entre_ejercicios_distintos": 0,
+      "ejercicios": 1,
+      "copias_por_ejercicio_max": 1
+    }
+  ],
+  "subcarpetas": [
+    {
+      "nombre": "CONTABILIDADES 2016 ENVIADAS REGISTRO MERCANTIL",
+      "tipo": "REGISTRO",
+      "anios_en_el_nombre": [
+        "2016"
+      ],
+      "n_dat": 0,
+      "n_pdf": 38,
+      "n_otros": 2
+    },
+    {
+      "nombre": "CONTABILIDADES 2017 ENVIADAS REGISTRO MERCANTIL",
+      "tipo": "REGISTRO",
+      "anios_en_el_nombre": [
+        "2017"
+      ],
+      "n_dat": 124,
+      "n_pdf": 64,
+      "n_otros": 1
+    },
+    {
+      "nombre": "CONTABILIDADES 2018 ENVIADAS REGISTRO MERCANTIL",
+      "tipo": "REGISTRO",
+      "anios_en_el_nombre": [
+        "2018"
+      ],
+      "n_dat": 0,
+      "n_pdf": 32,
+      "n_otros": 0
+    },
+    {
+      "nombre": "CONTABILIDADES 2019 ENVIADAS REGISTRO MERCANTIL",
+      "tipo": "REGISTRO",
+      "anios_en_el_nombre": [
+        "2019"
+      ],
+      "n_dat": 0,
+      "n_pdf": 32,
+      "n_otros": 0
+    },
+    {
+      "nombre": "CONTABILIDADES 2020",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2020"
+      ],
+      "n_dat": 99,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "CONTABILIDADES 2020 ENVIADAS REGISTRO MERCANTIL",
+      "tipo": "REGISTRO",
+      "anios_en_el_nombre": [
+        "2020"
+      ],
+      "n_dat": 0,
+      "n_pdf": 32,
+      "n_otros": 0
+    },
+    {
+      "nombre": "CONTABILIDADES 2021",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2021"
+      ],
+      "n_dat": 117,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "CONTABILIDADES 2021 ENVIADAS REGISTRO MERCANTIL",
+      "tipo": "REGISTRO",
+      "anios_en_el_nombre": [
+        "2021"
+      ],
+      "n_dat": 0,
+      "n_pdf": 76,
+      "n_otros": 0
+    },
+    {
+      "nombre": "CONTABILIDADES 2022 ENVIADAS REGISTRO MERCANTIL",
+      "tipo": "REGISTRO",
+      "anios_en_el_nombre": [
+        "2022"
+      ],
+      "n_dat": 0,
+      "n_pdf": 69,
+      "n_otros": 2
+    },
+    {
+      "nombre": "CONTABILIDADES 2023 ENVIADAS REGISTRO MERCANTIL",
+      "tipo": "REGISTRO",
+      "anios_en_el_nombre": [
+        "2023"
+      ],
+      "n_dat": 0,
+      "n_pdf": 41,
+      "n_otros": 0
+    },
+    {
+      "nombre": "CONTABILIDADES 2024 ENVIADAS REGISTRO MERCANTIL",
+      "tipo": "REGISTRO",
+      "anios_en_el_nombre": [
+        "2024"
+      ],
+      "n_dat": 0,
+      "n_pdf": 39,
+      "n_otros": 0
+    },
+    {
+      "nombre": "CONTABILIDADES 2025 ENVIADAS REGISTRO MERCANTIL",
+      "tipo": "REGISTRO",
+      "anios_en_el_nombre": [
+        "2025"
+      ],
+      "n_dat": 0,
+      "n_pdf": 55,
+      "n_otros": 5
+    },
+    {
+      "nombre": "COPIA CONTABILIDAD 2025, AL 22.07.2025",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2025"
+      ],
+      "n_dat": 96,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIA CONTABILIDADES 2026 HASTA EL 20-07-26",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2026"
+      ],
+      "n_dat": 99,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDAD EJERCICIOS 2020 Y 2021 ORDENADOR JOSE AL 05.04.2021",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2020",
+        "2021"
+      ],
+      "n_dat": 198,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDAD JOSE 2025",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2025"
+      ],
+      "n_dat": 3,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDAD ORDENADOR JOSE, AÑOS 2022 Y 2023, AL 10.11.2023",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2022",
+        "2023"
+      ],
+      "n_dat": 183,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDAD TODAS LAS EMPRESAS AL 16.12.2020 ORDENADOR JOSE",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2020"
+      ],
+      "n_dat": 201,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDAD TODAS LAS EMPRESAS AL 28.01.2021 ORDENADOR JOSE",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2021"
+      ],
+      "n_dat": 204,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES 2019",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2019"
+      ],
+      "n_dat": 96,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES 2020 Y 2021 AL 16.06.2021",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2020",
+        "2021"
+      ],
+      "n_dat": 198,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES 2021 AL 21.01.2022",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2021",
+        "2022"
+      ],
+      "n_dat": 120,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES 2021, AL 31.01.2022",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2021",
+        "2022"
+      ],
+      "n_dat": 117,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES 2022,2023, AL 15.02.2023",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2022",
+        "2023"
+      ],
+      "n_dat": 177,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES 2024, AL 19.04.2024, EMPRE",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2024"
+      ],
+      "n_dat": 84,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES 2025 COMPLETO",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2025"
+      ],
+      "n_dat": 114,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES EJERCICIO 2020 Y 2021 - AL 20.10.2021",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2020",
+        "2021"
+      ],
+      "n_dat": 210,
+      "n_pdf": 0,
+      "n_otros": 13
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES EJERCICIO 2022 AL 15.10.2022",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2022"
+      ],
+      "n_dat": 93,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES EJERCICIOS 2020 Y 2021 AL 16.04.2021",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2020",
+        "2021"
+      ],
+      "n_dat": 198,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES EJERCICIOS 2021 Y 2022 AL 08.08.2022",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2021",
+        "2022"
+      ],
+      "n_dat": 207,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES EJERCICIOS 2021 Y 2022 AL 20.09.2022",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2021",
+        "2022"
+      ],
+      "n_dat": 207,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES EJERCICIOS 2023 Y 2024, AL 01.02.2024",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2023",
+        "2024"
+      ],
+      "n_dat": 174,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES ORDENADOR DE JOSE EJERCICIO 2021",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2021"
+      ],
+      "n_dat": 82,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES ORDENADOR DE JOSE EJERCICIO 2022",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2022"
+      ],
+      "n_dat": 87,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES ORDENADOR DE JOSE EJERCICIO 2022, EMPRESAS DE LA 50 A LA 78, FECHA 09.01.2024",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2022",
+        "2024"
+      ],
+      "n_dat": 87,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES ORDENADOR DE JOSE EJERCICIOS 2024 Y 2025 AL 28.02.2025",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2024",
+        "2025"
+      ],
+      "n_dat": 192,
+      "n_pdf": 0,
+      "n_otros": 2
+    },
+    {
+      "nombre": "COPIAS CONTABILIDADES ORDENADOR JOSE EJERCICIO 2024",
+      "tipo": "copia",
+      "anios_en_el_nombre": [
+        "2024"
+      ],
+      "n_dat": 90,
+      "n_pdf": 0,
+      "n_otros": 2
+    }
+  ],
+  "resumen_subcarpetas": {
+    "total": 37,
+    "de_copia": 27,
+    "de_registro": 10,
+    "pdf_totales": 478
+  },
+  "errores": {},
+  "nota": "Solo recuentos y nombres de carpeta. Ningun NIF ni cliente."
+}

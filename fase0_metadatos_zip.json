@@ -1,0 +1,40 @@
+{
+  "version": "metadatos_zip_v1",
+  "muestreados": 400,
+  "comentario_del_zip": {
+    "con_comentario": 0,
+    "long_max": 0,
+    "patrones": {}
+  },
+  "entradas_con_comentario": 0,
+  "rutas_internas": {
+    "entradas_con_directorio": 0,
+    "entradas_sin_directorio": 5704,
+    "directorios_distintos": 0,
+    "patrones_de_directorio": {}
+  },
+  "nombre_del_dat": {
+    "distintos": 112,
+    "patrones": {
+      "AA_A_##A": 386,
+      "AA_A_##": 14
+    }
+  },
+  "anio_de_la_marca_de_tiempo_del_zip": {
+    "2011": 205,
+    "2013": 14,
+    "2015": 83,
+    "2017": 1,
+    "2018": 8,
+    "2019": 248,
+    "2020": 859,
+    "2021": 3038,
+    "2022": 592,
+    "2023": 240,
+    "2024": 144,
+    "2025": 176,
+    "2026": 96
+  },
+  "errores": {},
+  "nota": "Solo patrones enmascarados y recuentos."
+}
