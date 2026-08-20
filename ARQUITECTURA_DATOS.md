@@ -173,6 +173,63 @@ construir tan fluida como se quiera, hoy mismo, sin esperar a nada.
 La única disciplina que sí aplica ahí es otra, y ya está escrita
 (`DISENO_APRENDIZAJE.md` §9.1): sin cita textual de la fuente, no hay respuesta.
 
+## 1-quater. Dónde vive cada cosa, y qué interfaz hace falta (y cuál no)
+
+Pregunta recurrente: *"¿dónde vive esto? ¿en Workspace? ¿en Claude Code?
+¿tendremos un dashboard?"*. La pila real no tiene nada de exótico y casi toda
+existe ya:
+
+| Capa | Dónde | Estado |
+|---|---|---|
+| **Entrada** de documentos | Drive, carpeta compartida con el cliente | Sin contratar |
+| **Almacenamiento** | Disco cifrado del PC | ✅ existe |
+| **Cómputo** (motor) | Local, la máquina de Diego | ✅ existe |
+| **Memoria** (consultas) | Índice local, SQLite | Por construir (§1-ter) |
+| **Exploración** | Claude Code | ✅ existe, es la interfaz |
+| **Operación** (revisar) | Página HTML local | Por construir, cuando haga falta |
+| **Registro oficial** | **ContaPlus** | ✅ y sigue siéndolo |
+
+**ContaPlus no se sustituye.** Fue decisión deliberada y sigue en pie: el sistema
+es una capa **encima**, no un reemplazo. Por eso ninguna interfaz nuestra tiene
+que replicar las vistas contables — ya están ahí.
+
+### El dashboard: no, y probablemente no haga falta en mucho tiempo
+
+Un dashboard es una interfaz para quien no puede o no quiere escribir. **Claude
+Code ya es la interfaz**, y para preguntar es *mejor* que un panel: un panel solo
+enseña lo que alguien anticipó que querrías ver.
+
+Un dashboard gana en tres sitios, y solo uno aplica pronto:
+
+1. Vistas repetidas de un vistazo (estado del cierre). Útil, no urgente.
+2. Enseñarle algo a un cliente. Pero eso es un **informe**, no un panel.
+3. **Revisar muchas cosas seguidas.** Este sí: revisar 50 facturas en ÁMBAR una
+   a una en un terminal es inviable.
+
+> **La primera interfaz necesaria no es un dashboard: es una COLA DE REVISIÓN.**
+> Una página HTML local, servida desde el PC, que lee el índice y escribe el
+> veredicto humano de vuelta. Sin nube, sin autenticación, sin hosting. Es
+> literalmente las dos columnas de `DISENO_APRENDIZAJE.md` §8 con cara.
+
+**Cuándo:** cuando arranque el paralelo y haya ÁMBARes que revisar. Ni un día
+antes. Construir interfaz antes de tener flujo real que operar es el error de
+*construir a lo ancho antes de medir* con otra ropa.
+
+### Nota sobre "inteligencia de negocio de la propia asesoría"
+
+Idea propuesta el 20-08-2026 y **buena**: que el sistema no aprenda solo de los
+clientes sino de la asesoría como negocio (qué trabajos consumen más horas, qué
+servicios tienen más margen, dónde se cometen más errores).
+
+**Pero exige datos que hoy NO existen.** Para saber qué trabajo consume más horas
+hay que **registrar horas**; para saber qué servicio da más margen hay que tener
+precios por servicio. Eso no está en la contabilidad de los clientes: está en la
+gestión del despacho, y es un **dataset nuevo que nadie lleva**.
+
+No es difícil —un registro de horas es trivial— pero es una **entrada nueva**, no
+algo deducible de lo que ya hay. Se anota como tal para que no se planifique como
+si saliera gratis del histórico.
+
 ## 2. La dirección de la validación: de fuera hacia dentro
 
 Los modelos presentados y el 036 son **hechos externos**: fechados, presentados
