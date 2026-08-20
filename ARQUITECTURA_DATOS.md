@@ -35,6 +35,82 @@ esta misma espina. Por eso el trabajo de ordenación no es de usar y tirar.
 
 ---
 
+## 1-bis. Cómo se enganchan los modelos a los clientes SIN romper la frontera
+
+Escrito el 20-08-2026. Es la pregunta operativa que faltaba: si los modelos
+(303, 130, 111, 115, 036) tienen que cruzarse con la contabilidad, y ese cruce
+necesita saber de quién es cada cosa, ¿cómo se hace sin que la identidad viaje?
+
+**Respuesta corta: exactamente igual que la Fase 0. El cruce lo hace un script en
+la máquina de Diego; a Claude le vuelven porcentajes.** No hace falta ninguna
+arquitectura nueva. Pero sí tres piezas concretas que hoy no existen.
+
+### El índice: un solo fichero donde identidad e índice se tocan
+
+```
+indice_clientes_LOCAL.json     { "<NIF>": "C07", ... }     ← NUNCA sale del disco
+```
+
+**Todo lo demás usa `C07` y nada más.** El inventario, los modelos, las altas y
+bajas, los deltas de corrección: todos hablan de `C07`. La correspondencia
+`C07 → NIF real` vive en ese único fichero y Claude no lo abre jamás.
+
+> ⚠️ **Hoy ese índice NO existe todavía.** El que se usa sale de
+> `fase0_huella_LOCAL.json`, y esa agrupación **está invalidada** (fusionaba
+> clientes, ver `FASE0_RESULTADOS.md` §11.0). El inventario de mañana tiene que
+> emitirlo con el método bueno —el código de empresa del nombre del fichero— y
+> emitirlo **pensado para durar**, no como subproducto.
+>
+> Si el inventario produce un índice de usar y tirar, los modelos no se pueden
+> enganchar y hay que rehacer las dos cosas. Es lo único de todo el diseño que
+> hay que acertar a la primera.
+
+### El flujo de los modelos, paso a paso
+
+```
+Ficheros de modelos (PDF/AEAT)
+        │  script en la maquina de Diego
+        ▼
+   extrae: NIF, modelo, ejercicio, periodo, fecha presentacion, resultado
+        │
+        ├──► modelos_LOCAL.csv      con el NIF real. Se queda. Claude no lo abre
+        └──► modelos_agregado.json  recuentos por ano y tipo. Ese si sube
+```
+
+El cruce con la contabilidad —obligaciones del 036 → presentaciones esperadas →
+lo que hay archivado → **huecos**— se calcula en local. Lo que vuelve a Claude es
+*"cobertura del 94%, 12 huecos, concentrados en 2022"*. Nunca la lista.
+
+### Dos riesgos NUEVOS que el corpus de contabilidad no tenía
+
+**1. Los modelos son PDF, no dBase.** Un `.DAT` se lee campo a campo con un script
+y sin modelo de por medio. Un PDF solo si **tiene capa de texto**. Si están
+escaneados haría falta OCR, y un OCR en la nube **sí hace viajar el dato** — eso
+cae del lado del DPA (`.claude/rules/datos.md`).
+
+> **Primera comprobación, antes de diseñar nada:** ¿tienen capa de texto los
+> modelos? Ya estaba pendiente en `FASE0_RESULTADOS.md` ("prueba real de capa de
+> texto en los PDF") y ahora está en el camino crítico. Los modelos descargados
+> de la AEAT normalmente sí la tienen, por ser generados y no escaneados — pero
+> eso se comprueba, no se supone.
+
+**2. Un agregado con una fila POR CLIENTE es reidentificable.** Con 33 clientes en
+un mercado local, *"C07: hostelería, 4 modelos en 2024, 1.284 asientos"* lo
+identifica cualquiera que conozca el pueblo, aunque no lleve nombre ni NIF.
+
+> **Regla:** los agregados que salen del despacho van **por año o por estado,
+> nunca por cliente**. Es el mismo criterio del n mínimo de
+> `.claude/rules/datos.md`. El agregado actual del inventario ya lo cumple:
+> recuentos y distribuciones, ninguna fila por cliente.
+
+### Y una advertencia sobre el 036
+
+El 036 lleva **más cosas que contabilidad**: datos personales del administrador,
+domicilios, representantes. De ahí se extraen **solo las obligaciones y sus
+fechas** —qué modelos, desde cuándo, en qué régimen— y nada más. El resto del
+documento no entra en ningún pipeline, igual que los DNI y las escrituras
+(`PROJECT_STATUS.md`, "Frontera de alcance").
+
 ## 2. La dirección de la validación: de fuera hacia dentro
 
 Los modelos presentados y el 036 son **hechos externos**: fechados, presentados

@@ -93,6 +93,10 @@ Cuatro pasos, ya acordados:
 3. Clasificar los 9 contenedores sin ejercicio y los 28 `.cat`.
 4. Asignar a cada par `(cliente, ejercicio)` uno de los cuatro estados y emitir
    `inventario_LOCAL.csv` + su agregado.
+5. **Emitir `indice_clientes_LOCAL.json`** (`{NIF: "C07"}`) — el índice anónimo
+   estable. ⚠️ **Esto es lo único que hay que acertar a la primera**: si sale
+   como subproducto de usar y tirar, los modelos no se podrán enganchar después
+   y habrá que rehacer las dos cosas. Ver `ARQUITECTURA_DATOS.md` §1-bis.
 
 **Los cuatro estados** (`ARQUITECTURA_DATOS.md` §5):
 `COMPLETO` · `PARCIAL_EXPLICADO` · `PARCIAL_SIN_EXPLICAR` · `INUTILIZABLE`
