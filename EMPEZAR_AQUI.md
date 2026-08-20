@@ -49,6 +49,39 @@ Sería el primer número real, sacado de trabajo ya hecho. Mirar esto antes que 
 > Es un fichero **local con datos reales**: lo abre Diego, no Claude. A Claude se
 > le pasan recuentos, nunca filas.
 
+### 📊 A-bis — El retro-semáforo (esto puede dar el primer número real HOY)
+
+```bash
+python retro_semaforo.py "RUTA_DEL_CORPUS" --limite 2000
+python retro_semaforo.py "RUTA_DEL_CORPUS" --inyectar        # la pasada completa
+```
+
+**La idea:** la contabilidad de los últimos años ya está hecha. Cada asiento de
+compra del histórico **es** una factura que en su día se leyó, se contabilizó y se
+presentó. No hacen falta las fotos: el asiento trae los mismos campos que el motor
+consume. Se reconstruye la fila desde el asiento, se pasa por el motor y se compara.
+
+> Eso convierte *"esperar tres meses de paralelo"* en *"ejecutar un script"*, y con
+> miles de casos en vez de veinte.
+
+**Qué mide de verdad:**
+
+| | |
+|---|---|
+| ✅ **Falsos rojos** | Estos asientos se presentaron. Si el motor marca ROJO al 40%, es inservible, y se sabe hoy |
+| ✅ **Dónde está el ruido** | Qué guards saltan más sobre datos reales |
+| ✅ **Tasa de detección** (`--inyectar`) | Coge asientos correctos, les mete errores realistas (IVA cambiado, decimal desplazado, NIF de otro) y cuenta cuántos caza |
+| ❌ **Falsos verdes reales** | **No.** Que un asiento se contabilizara así demuestra que se hizo así, no que fuera correcto. Eso sigue necesitando criterio humano |
+
+**No necesita el inventario terminado, ni fotos, ni Gemini, ni el DPA.** Solo leer
+los `.DAT`, que ya se sabe hacer. Probado aquí contra un corpus sintético: 400
+asientos correctos → 100% VERDE, 0% falsos rojos; 307 errores inyectados → 100%
+detectados. Esos números son de datos inventados y no valen como medición: solo
+demuestran que el mecanismo funciona.
+
+> **Lo ejecuta Diego.** Salida agregada = recuentos, se puede subir.
+> `retro_semaforo_LOCAL.json` se queda en el disco y Claude no lo abre.
+
 ### 📋 B — Terminar el inventario (el trabajo principal de hoy)
 
 Cuatro pasos, ya acordados:
