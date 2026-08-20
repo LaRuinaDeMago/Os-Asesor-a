@@ -232,6 +232,36 @@ comprobar("I", "importes ilegibles -> AMBAR (revision), no ROJO (error)",
 
 
 # ---------------------------------------------------------------------------
+print("\n=== TECHO CONOCIDO — facturas LEGALES que el motor todavia rechaza ===")
+# Estos casos NO son fallos del motor: son el limite del MODELO DE DATOS, que
+# solo sabe representar 4/10/21 (ver TECHO_Y_LIMITES.md §1). No cuentan como
+# fallo de la suite porque no se ha declarado todavia que se soporten. Se
+# imprimen y se cuentan en cada ejecucion a proposito, para que el techo este
+# delante de los ojos y no se olvide.
+TECHO = [
+    ("exenta art.20 (medico, seguro, alquiler vivienda)",
+     {**BASE_FILA, 'base_total': '100', 'iva_total': '0', 'total_factura': '100'}),
+    ("intracomunitaria (inversion del sujeto pasivo)",
+     {**BASE_FILA, 'nif': 'DE123456789', 'base_total': '100', 'iva_total': '0',
+      'total_factura': '100'}),
+    ("tipo 0%",
+     {**BASE_FILA, 'base_total': '100', 'iva_total': '0', 'total_factura': '100',
+      'base_21': '0'}),
+    ("recargo de equivalencia 5,2% (comun en autonomos de comercio)",
+     {**BASE_FILA, 'base_21': '100', 'base_total': '100', 'iva_total': '21',
+      'total_factura': '126.20'}),
+]
+n_techo = 0
+for nombre, f in TECHO:
+    v, _ = evaluar(f)
+    if v == "ROJO":
+        n_techo += 1
+    print(f"  [{'TECHO' if v == 'ROJO' else 'ambar'}] {nombre} -> {v}")
+print(f"  {n_techo} de {len(TECHO)} facturas legales dan ROJO. Es el modelo de")
+print("  datos, no el motor. Ver TECHO_Y_LIMITES.md §1 antes de tocar nada.")
+
+
+# ---------------------------------------------------------------------------
 print("\n" + "=" * 70)
 fallos = [r for r in resultados if not r[2]]
 p0 = [r for r in fallos if r[5] == "P0"]

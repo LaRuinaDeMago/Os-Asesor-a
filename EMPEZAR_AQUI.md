@@ -114,6 +114,28 @@ suscripción, nunca la API key. Datos reales = sentado en el PC de la asesoría.
 
 ---
 
+## 3-bis. 🔴 Antes de dar el motor por cerrado: lee `TECHO_Y_LIMITES.md`
+
+Medido el 20-08-2026: **tres de cada cuatro tipos de factura legal que se
+probaron dan ROJO.** No es un fallo del motor, es el modelo de datos, que solo
+sabe representar 4/10/21.
+
+| Caso | Hoy |
+|---|---|
+| Recargo de equivalencia 5,2% — **cotidiano en autónomos de comercio** | 🔴 ROJO |
+| Intracomunitaria (inversión del sujeto pasivo) | 🔴 ROJO |
+| Tipo 0% | 🔴 ROJO |
+| Exenta art. 20 (médico, seguro, alquiler de vivienda) | 🟠 AMBAR |
+
+19 de los 33 clientes son autónomos. Esto no es un caso de laboratorio.
+
+**Predicción que se comprueba en la misma ejecución del retro-semáforo:** si al
+desglosar los ROJO por motivo dominan `cuadre_total`, `suma_tramos` y
+`nif_digito_control`, el problema es el modelo de datos y no el motor.
+
+`test_adversarial.py` imprime estos cuatro casos en cada ejecución, bajo
+"TECHO CONOCIDO", para que no se olviden.
+
 ## 4. La decisión que hay que tomar hoy, antes de seguir tocando el motor
 
 **Acordado el 19-08:** primero se cierra bien el motor, después se valida. Decisión
@@ -242,4 +264,5 @@ hallazgo del patrón `SP_C_04A`.
 | `DISENO_APRENDIZAJE.md` | Correcciones, telemetría por delta, caducidad de reglas |
 | `DIRECCION_PRODUCTO.md` | Hacia dónde va, y qué queda descartado |
 | `FASE0_RESULTADOS.md` | Los números medidos del histórico |
+| `TECHO_Y_LIMITES.md` | Qué hay por encima del motor actual, medido |
 | `.claude/rules/datos.md` | La frontera de datos. Manda sobre todo lo demás |
