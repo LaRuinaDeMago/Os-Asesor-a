@@ -75,6 +75,70 @@ Regla práctica para saber en qué lado estás:
 > ¿El modelo necesita **ver** el dato para producir el resultado, o le basta con
 > **contarlo** un script? Si necesita verlo → DPA. Si basta contarlo → tres roles.
 
+## ⚠️ Lo que el DPA SÍ resuelve y lo que NO (precisión 20-08-2026)
+
+Conviene fijarlo antes de contratarlo, porque es fácil leerlo como "con el DPA ya
+no hay problema de privacidad" y **eso no es lo que hace un DPA**.
+
+> **El DPA amplía lo que es LEGAL. No reduce lo que sigue siendo responsabilidad
+> del despacho, ni lo que sigue siendo PRUDENTE.**
+
+**Lo que resuelve:** convierte a Anthropic en **encargado del tratamiento** válido.
+Con eso, mandarle datos de cliente para procesarlos deja de ser una cesión sin
+cobertura y pasa a ser un tratamiento por cuenta del responsable. Es necesario y
+sin él no se puede hacer nada con datos reales.
+
+**Lo que NO resuelve, y sigue siendo del despacho:**
+
+| Sigue siendo obligación de Diego | Por qué |
+|---|---|
+| **Base legal del tratamiento** | El DPA regula la relación con el encargado, no legitima el tratamiento en sí |
+| **Minimización** | Se manda lo necesario para el fin, no el disco entero. Es un principio, no una recomendación |
+| **Informar a los clientes** | Anthropic entra como **subencargado** en la cadena. El contrato de servicios y la información de privacidad del despacho pueden necesitar reflejarlo |
+| **Secreto profesional** | Es una obligación deontológica **independiente del RGPD**. Un DPA con un proveedor no la disuelve |
+| **Plazos de conservación y acceso** | La transcripción de la conversación es un sitio NUEVO donde viven esos datos, con su propia retención |
+
+**Y lo más importante para el día a día:**
+
+> **El diseño de tres roles sigue siendo MEJOR que el DPA para todo lo que un
+> script pueda contar.** El DPA hace legal el viaje; no viajar sigue siendo más
+> fuerte que viajar con contrato.
+
+La regla no cambia con el DPA contratado, solo se amplía:
+
+- ¿Basta con que un script lo **cuente**? → tres roles. **Aunque haya DPA.**
+- ¿El modelo necesita **verlo** para hacer su trabajo? → ahí, y solo ahí, el DPA.
+
+Contratar el DPA no es permiso para relajar el método: es lo que desbloquea la
+única parte que el método no puede cubrir.
+
+## Google Workspace — sin decidir, y hay un default que no rompe nada
+
+`PROJECT_STATUS.md` lo deja explícitamente pendiente: *"decidir el mecanismo
+técnico concreto de consulta antes de contratar nada"*. Sigue igual, y la
+decisión importa más de lo que parece porque hay dos formas y solo una conserva
+lo construido.
+
+**Opción A — Drive como archivador (recomendada).** Los ficheros viven en Drive,
+se sincronizan a la máquina, **todo se procesa en local** y solo salen agregados.
+Drive aporta copia de seguridad, acceso desde cualquier sitio, versiones y una
+carpeta compartida donde el cliente deja sus facturas. **El diseño de tres roles
+se mantiene intacto**, porque Drive es almacenamiento, no cómputo.
+
+**Opción B — conector MCP leyendo Drive directamente.** Cómodo, y rompe la
+frontera: cada fichero que el modelo toca viaja. Exige DPA para todo, no solo
+para lo que de verdad lo necesita, y se pierde la protección de los tres roles en
+bloque.
+
+**Además, Google entra como un segundo encargado** con su propio DPA (incluido en
+los planes de empresa de Workspace, no en las cuentas gratuitas). Serían dos
+proveedores en la cadena, no uno.
+
+> **Y conviene ver qué problema resuelve Workspace de verdad:** que el cliente
+> deje la factura en una carpeta compartida en vez de mandarla por WhatsApp. Eso
+> es un problema de **entrada de documentos**, no de IA. Merece la pena por eso
+> solo, y no obliga a cambiar nada de la arquitectura de datos.
+
 ## Uso secundario de los datos de cliente — LÍNEA ROJA
 
 Los datos contables de los clientes están en el despacho por una relación de
