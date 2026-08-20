@@ -1,4 +1,6 @@
 {
+  "INVALIDADO": true,
+  "_motivo": "Recuentos de CLIENTE erroneos: el agrupamiento por huella fusionaba clientes distintos. Invalidado el 12-08-2026, ver PROJECT_STATUS.md y FASE0_RESULTADOS.md §11.0. Se conserva como registro del proceso, NO como dato. No usar.",
   "version": "reagrupa_v1",
   "umbral_nif_antes": 5,
   "umbral_nif_ahora": 1,

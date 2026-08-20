@@ -2,18 +2,20 @@
 """
 CAPTURA — la pieza que faltaba: foto -> datos estructurados -> motor.
 
-Llama a la API de Claude (vision) para leer una factura y devuelve exactamente
+Llama a la API de vision (Gemini por defecto; Claude como alternativa
+explicita con --proveedor claude) para leer una factura y devuelve exactamente
 los campos que evaluar_fila_v4() espera, listos para pasar al motor sin
 transformación intermedia.
 
-REQUIERE: variable de entorno ANTHROPIC_API_KEY con una clave de API real,
+REQUIERE: GEMINI_API_KEY (por defecto) o ANTHROPIC_API_KEY (--proveedor claude),
 de una cuenta con DPA (no Free/Pro de consumo - ver la decision de
 infraestructura documentada en README.md). Esta clave NUNCA se pega en un
 chat - se configura en el propio entorno donde corra esto (Claude Code,
 tu ordenador), nunca en una conversacion.
 
 Uso:
-    export ANTHROPIC_API_KEY="tu-clave-real"
+    export GEMINI_API_KEY="tu-clave-real"     # proveedor por defecto
+    # export ANTHROPIC_API_KEY="..."        # solo si se usa --proveedor claude
     python3 captura_orquestador.py --imagen factura.jpg
     python3 captura_orquestador.py --carpeta /ruta/con/fotos/ --salida facturas.csv
 """
@@ -110,12 +112,13 @@ def leer_factura_gemini(path_imagen, modelo="gemini-3.1-flash-lite"):
     return datos
 
 
-def leer_factura(path_imagen, modelo="claude-sonnet-4-6", proveedor="claude"):
+def leer_factura(path_imagen, modelo=None, proveedor="gemini"):
     """Punto de entrada unico: proveedor='claude' o 'gemini'. Mismo prompt,
     mismo esquema de salida en los dos casos - lo unico que cambia es quien lee."""
     if proveedor == "gemini":
         return leer_factura_gemini(path_imagen)
-    return _leer_factura_claude(path_imagen, modelo)
+    # modelo=None significa "el que tenga por defecto la rama de Claude", no None.
+    return _leer_factura_claude(path_imagen, modelo) if modelo else _leer_factura_claude(path_imagen)
 
 
 def _leer_factura_claude(path_imagen, modelo="claude-sonnet-4-6"):
@@ -181,7 +184,7 @@ def _leer_factura_claude(path_imagen, modelo="claude-sonnet-4-6"):
     return datos
 
 
-def procesar_carpeta(carpeta, path_salida, proveedor="claude"):
+def procesar_carpeta(carpeta, path_salida, proveedor="gemini"):
     """Lee todas las imagenes de una carpeta y escribe un CSV con los campos
     ya estructurados - listo para pasar directamente a orquestador.py."""
     extensiones = (".jpg", ".jpeg", ".png")
@@ -219,7 +222,7 @@ if __name__ == "__main__":
     parser.add_argument("--imagen", help="Una sola imagen a procesar")
     parser.add_argument("--carpeta", help="Carpeta con varias imágenes a procesar")
     parser.add_argument("--salida", default="facturas_capturadas.csv")
-    parser.add_argument("--proveedor", choices=["claude", "gemini"], default="claude",
+    parser.add_argument("--proveedor", choices=["gemini", "claude"], default="gemini",
                          help="Qué modelo lee la factura (mismo prompt/esquema en los dos)")
     args = parser.parse_args()
 

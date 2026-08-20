@@ -103,6 +103,10 @@ def main():
                         'factura la emitio el propio cliente (venta) en vez de un '
                         'proveedor (gasto): se declara NO_COMPROBADO, nunca OK.')
     parser.add_argument('--salida', default='veredicto_salida.csv')
+    parser.add_argument('--xdiario', help='Ruta del xDiario.txt importable a ContaPlus. '
+                        'OPT-IN: solo se genera si se pide. Incluye unicamente las '
+                        'facturas VERDE con cuenta de proveedor resuelta en el maestro; '
+                        'las demas se quedan fuera y se cuentan, nunca se les inventa cuenta.')
     args = parser.parse_args()
 
     config = cargar_config(args.config)
@@ -152,6 +156,20 @@ def main():
         fila_salida = dict(fila)
         fila_salida['VEREDICTO'] = veredicto
         fila_salida['MOTIVO'] = motivo
+        # ANADIDO 20-08-2026 (auditoria de inventario). El maestro y el mapeo ya
+        # se construian aqui y no se unian nunca a la fila, asi que el ultimo
+        # tramo del objetivo del producto —el fichero importable a ContaPlus—
+        # quedaba imposible de generar. Resolver la cuenta NO es inventarsela:
+        # si no esta en el maestro/mapeo, la fila se queda sin cuenta y
+        # escribir_xdiario la descarta a proposito.
+        entrada_maestro = maestro.get((fila.get('nif') or '').strip())
+        if entrada_maestro:
+            cuenta_prov = entrada_maestro.get('cuenta')
+            if cuenta_prov:
+                fila_salida['cuenta_haber'] = cuenta_prov
+                mg = mapeo_gasto.get(cuenta_prov)
+                if mg and mg.get('cuenta_gasto'):
+                    fila_salida['cuenta_debe'] = mg['cuenta_gasto']
         resultados.append(fila_salida)
 
     campos = list(resultados[0].keys()) if resultados else []
@@ -162,6 +180,23 @@ def main():
 
     print(f"\nVeredicto: {dict(conteo)}")
     print(f"Escrito: {args.salida}")
+
+    # --- Ultimo tramo: el fichero que ContaPlus importa -------------------
+    # OPT-IN a proposito (--xdiario). Genera un artefacto contable real, asi que
+    # no se produce por defecto ni sin que alguien lo pida.
+    if args.xdiario:
+        from layout_diario_contaplus import escribir_xdiario
+        verdes = [r for r in resultados if r['VEREDICTO'] == 'VERDE']
+        exportables = [r for r in verdes if r.get('cuenta_haber')]
+        sin_cuenta = len(verdes) - len(exportables)
+        n_lineas, n_asientos = escribir_xdiario(exportables, args.xdiario)
+        print(f"xDiario: {n_asientos} asientos, {n_lineas} lineas -> {args.xdiario}")
+        if sin_cuenta:
+            print(f"  {sin_cuenta} facturas VERDE quedaron FUERA por no tener cuenta "
+                  f"de proveedor resuelta en el maestro. No se inventa ninguna cuenta.")
+        if not args.diario:
+            print("  AVISO: sin --diario no hay maestro ni mapeo, asi que casi nada "
+                  "sera exportable. Es el comportamiento correcto, no un fallo.")
 
     ruta_cache_gasto = config.get('cache_cuenta_gasto')
     if ruta_cache_gasto and mapeo_gasto:
