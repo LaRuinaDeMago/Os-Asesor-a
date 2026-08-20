@@ -111,6 +111,68 @@ fechas** —qué modelos, desde cuándo, en qué régimen— y nada más. El res
 documento no entra en ningún pipeline, igual que los DNI y las escrituras
 (`PROJECT_STATUS.md`, "Frontera de alcance").
 
+## 1-ter. El "cerebro" fluido — de dónde viene la fricción de verdad
+
+El objetivo declarado es tenerlo todo conectado y consultable sin fricción:
+histórico, motor contable, fiscal, normativa. La preocupación razonable es que la
+disciplina de privacidad lo vuelva incómodo de usar.
+
+> **Diagnóstico: la fricción no viene de la seguridad. Viene de que el histórico
+> no está indexado.**
+
+Hoy, responder a *"¿a qué cuenta suele ir este proveedor?"* obliga a abrir y
+parsear **1.287 contenedores ZIP** otra vez. Los `fase0_*.py` tardan minutos por
+pasada, y son de solo lectura. Esa es la fricción real, y **no tiene nada que ver
+con el RGPD**: la tendrías igual sin ninguna regla de privacidad.
+
+### La pieza que lo arregla: un índice local
+
+Una base local (SQLite basta) con el histórico ya extraído: asientos, líneas,
+terceros por índice anónimo, cuentas, periodos. En el disco cifrado de la
+máquina, construida una vez y actualizada cuando entren copias nuevas.
+
+Con eso, una consulta pasa de **minutos a milisegundos**, y de repente sí se
+puede preguntar cualquier cosa cuando haga falta.
+
+> **Esto NO contradice el "no migrar cachés a SQLite" de `PROJECT_STATUS.md`.**
+> Aquello era sobre las **cachés** del motor, que pesan MB y se leen en
+> milisegundos: ahí SQLite era sobreingeniería y sigue siéndolo. El **histórico**
+> es otro problema: 348.716 líneas repartidas en 1.287 ZIP. Son cosas distintas
+> con la misma herramienta.
+
+### Los dos modos, y por qué el 90% no tiene fricción
+
+La clave para que esto sea fluido **y** seguro es que no es un solo modo:
+
+| | **Modo consulta** (el 90% del día) | **Modo documento** |
+|---|---|---|
+| Qué se pregunta | *"¿cuántas?", "¿a qué cuenta?", "¿cuánto?"* | *"lee esta factura"* |
+| Qué necesita el modelo | **Contar**, no ver | **Ver** el dato |
+| Dónde corre | Índice local, instantáneo | API con DPA, sesión local |
+| Qué vuelve a Claude | Recuentos y porcentajes | El documento viaja |
+| Fricción | **Ninguna** | La de una decisión deliberada |
+
+**Casi todo lo que se quiere preguntar a diario cae en la primera columna.**
+*"¿Qué proveedores nuevos hay este trimestre?"*, *"¿a qué cuenta va este NIF
+normalmente?"*, *"¿cómo va el margen frente al año pasado?"* — todas son cuentas,
+y todas pueden volver enteras sin romper nada.
+
+> La fricción no se elimina fusionando los dos modos. Se elimina haciendo el
+> primero tan rápido y tan completo que rara vez haga falta el segundo.
+
+### La normativa no tiene NINGUNA restricción
+
+Punto que conviene no arrastrar por inercia: **el BOE, la LIVA, la LIRPF y las
+consultas de la DGT son públicos.** Un índice normativo local no contiene ni un
+dato de cliente.
+
+**Ahí no hay frontera que respetar, ni DPA que necesitar, ni tres roles que
+aplicar.** Es la pieza del "cerebro" con más libertad de todas y se puede
+construir tan fluida como se quiera, hoy mismo, sin esperar a nada.
+
+La única disciplina que sí aplica ahí es otra, y ya está escrita
+(`DISENO_APRENDIZAJE.md` §9.1): sin cita textual de la fuente, no hay respuesta.
+
 ## 2. La dirección de la validación: de fuera hacia dentro
 
 Los modelos presentados y el 036 son **hechos externos**: fechados, presentados
