@@ -378,3 +378,54 @@ imagen como `CALIDAD_BAJA` sin gastar una llamada.
 lo pida): no se construye hasta que haya una factura real que se haya leído mal
 por calidad de imagen. Hoy no existe ese caso porque no se ha capturado ninguna
 factura real todavía.
+
+### 7.1 Los dos tipos de error de captura, que no se defienden igual
+
+**Error incoherente.** El modelo lee 125,40 como 12.540, o se come un dígito. La
+aritmética deja de cuadrar y los guards lo cazan. **Esto está bien cubierto**, y
+es el grueso de los errores de lectura.
+
+**Error internamente coherente.** El modelo lee la factura entera de forma
+consistente pero equivocada: un ticket con dos totales y coge el que no es, una
+factura de dos páginas y lee la segunda, confunde vencimiento con expedición, o
+un NIF mal leído que da checksum válido *y* resulta ser el de otro proveedor real.
+**Aquí la aritmética cuadra perfectamente y ningún guard aritmético tiene nada que
+decir.** Es donde viven los falsos verdes de captura.
+
+Y hay una asimetría estructural que conviene ver:
+
+> Contra el error coherente, la única defensa es **evidencia independiente**: otra
+> fuente que diga lo mismo. Lo que el propio modelo declare sobre su confianza
+> (`verificacion: OK/DUDA`) **no es evidencia independiente** — es su opinión
+> sobre sí mismo.
+
+### 7.2 La doble lectura YA EXISTE — para la identidad
+
+`triangulacion_identidad_v0.py :: triangula()` recibe **`nif_cabecera` y
+`nif_margen`** y exige que coincidan. Eso ya es doble lectura, y en la versión
+buena: **dos sitios del mismo papel, no dos llamadas al modelo**. Sale gratis
+—una petición, dos campos— y una discrepancia salta a ALERTA sin que el modelo
+tenga que declarar ninguna duda.
+
+Cruza cuatro fuentes: NIF de cabecera (checksum), NIF de margen (coincidencia),
+tabla del cliente (histórico) y similitud del nombre. Es un diseño correcto.
+
+### 7.3 Lo que falta: el mismo principio, aplicado a los importes
+
+La identidad tiene evidencia independiente. **Los importes no.** Su única defensa
+hoy es la coherencia aritmética interna, que por definición no ve el error
+coherente.
+
+**Extensión propuesta, misma técnica:** pedir el total desde **dos ubicaciones**
+del documento —la línea de total y el "total a pagar" / casilla de pago, que en la
+mayoría de facturas y tickets aparecen por separado— y exigir que coincidan.
+Discrepancia → AMBAR. Sin llamada extra, sin autodeclaración.
+
+Redes aguas abajo que ya están previstas y ayudan, pero llegan más tarde:
+`guard_importe_atipico` contra el histórico del proveedor, y el cuadre trimestral
+contra el 303 presentado.
+
+**No se construye hasta tener el DPA y facturas reales delante.** Sin poder
+probarlo contra papel de verdad sería otra pieza levantada sobre suposiciones —
+y no se sabe todavía en qué fracción de las facturas reales el total aparece
+efectivamente dos veces. Eso es lo primero que hay que medir cuando se llegue.
