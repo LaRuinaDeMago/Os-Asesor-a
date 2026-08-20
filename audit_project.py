@@ -62,6 +62,53 @@ def check_cableado():
           else f"HUÉRFANOS: {huerfanos}")
 
 
+def check_modulos_huerfanos():
+    """ANADIDO 20-08-2026. El fallo que MAS se repite en este proyecto: construir
+    una pieza, probarla aislada, y no conectarla nunca a nada.
+
+    Ya ha pasado tres veces: los tres guards que existian con test propio y
+    evaluar_fila_v4 no llamaba (19-08), triangulacion_identidad_v0 que nadie
+    importa (20-08), y guard_g7_ledger. check_cableado() solo mira dentro del
+    motor; esto mira el repositorio entero.
+
+    Un modulo huerfano no es siempre un error (un script suelto se ejecuta a
+    mano), asi que esto AVISA con la lista, no bloquea: lo que no puede pasar es
+    que nadie se entere.
+    """
+    import ast
+    py = sorted(f for f in os.listdir(".") if f.endswith(".py"))
+    locales = {f[:-3] for f in py}
+    importado_por = {f: set() for f in py}
+    for f in py:
+        try:
+            arbol = ast.parse(open(f, encoding="utf-8").read())
+        except SyntaxError:
+            continue
+        for n in ast.walk(arbol):
+            mods = []
+            if isinstance(n, ast.Import):
+                mods = [a.name.split(".")[0] for a in n.names]
+            elif isinstance(n, ast.ImportFrom) and n.module:
+                mods = [n.module.split(".")[0]]
+            for m in mods:
+                if m in locales and m + ".py" != f:
+                    importado_por[m + ".py"].add(f)
+
+    # Los que SE EJECUTAN a mano son legitimos: se reconocen por tener __main__.
+    huerfanos = []
+    for f in py:
+        if importado_por[f]:
+            continue
+        texto = open(f, encoding="utf-8", errors="ignore").read()
+        if "__main__" in texto or f.startswith("test_"):
+            continue          # script ejecutable o suite: correcto que nadie lo importe
+        huerfanos.append(f)
+
+    check("Modulos sin conectar (ni importados ni ejecutables)", len(huerfanos) == 0,
+          "ninguno" if not huerfanos
+          else f"{huerfanos} - nadie los importa y no son ejecutables: codigo que no protege de nada")
+
+
 def check_tests():
     if not os.path.exists("test_motor_veredicto.py"):
         check("Suite de pruebas", False, "test_motor_veredicto.py no encontrado")
@@ -147,6 +194,7 @@ if __name__ == "__main__":
     print("=== AUDITORÍA COMPLETA DEL PROYECTO ===\n")
     check_sintaxis()
     check_cableado()
+    check_modulos_huerfanos()
     check_dependencias()
     check_tests()
     check_adversarial()

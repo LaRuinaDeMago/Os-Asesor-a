@@ -156,6 +156,61 @@ Cada factura revisada sin anotar las dos columnas es una etiqueta perdida.
 
 ---
 
+## 5-bis. Auditoría de inventario (20-08-2026) — lo que falta y lo que sobra
+
+### 🔴 Piezas construidas que NO están conectadas a nada
+
+**Es el fallo que más se repite en este proyecto: construir, probar aislado, no
+conectar.** Van cuatro veces. `audit_project.py` ya avisa de las dos primeras.
+
+| Pieza | Estado |
+|---|---|
+| `triangulacion_identidad_v0.py` | **Nadie la importa.** Es la defensa contra el error de captura más peligroso (NIF con checksum válido que resulta ser de otro proveedor real). Está muerta |
+| `escribir_xdiario()` en `layout_diario_contaplus.py` | **Nadie la llama.** Es el ÚLTIMO TRAMO del objetivo (`… → fichero importable → ContaPlus`). El orquestador solo importa la parte de lectura y escribe un CSV de veredictos |
+| `guard_g7_ledger.py` | Nadie lo importa — y además es de cripto, no de contabilidad |
+| 3 guards del motor | ✅ ya cableados el 19-08 |
+
+> `escribir_xdiario` es el más grave: **el objetivo declarado del producto es
+> llegar a ContaPlus, y ese paso está escrito y desconectado.**
+
+### 🟠 Declarado y no usado
+
+- `cache_maestro_proveedores` y `cache_iva_por_concepto`: en `config.example.json`
+  y el orquestador no las carga. Se ejecuta sin maestro y sin caché de IVA.
+- `salida_csv_veredicto`: declarada, se usa `--salida` en su lugar.
+- `google-genai` está en `requirements.txt` y `captura_orquestador.py` lo importa
+  dentro de una función, así que el chequeo de dependencias no lo veía.
+
+### 🟠 La migración a Gemini está a medias, y es peligroso en silencio
+
+La decisión cerrada es **Gemini primero**. Pero `captura_orquestador.py`:
+- La cabecera dice *"Llama a la API de Claude"* y pide `ANTHROPIC_API_KEY`.
+- `leer_factura(..., proveedor="claude")` y `--proveedor` tiene `default="claude"`.
+
+Quien ejecute el script sin argumentos usa el proveedor equivocado sin enterarse.
+Conviene además **verificar que el identificador de modelo sigue vigente**
+(`modelo="claude-sonnet-4-6"`), que no se ha comprobado.
+
+### 🗑️ Lo que sobra: cinco ficheros de un dominio distinto
+
+`guard_g7_ledger.py`, `DIA3_ESTADO_PARCIAL.md`, `MATRIZ_COBERTURA_v1.md`,
+`CATALOGO_EVENTOS_v1.md` y `TRIAJE_RONDA_2026-07-13.md` son del **módulo de
+cripto** (FIFO, lotes, permutas, staking, Bitget). No es que no valgan: están en
+el sitio equivocado, y **ya han confundido a un auditor externo**, que leyó
+`MATRIZ_COBERTURA_v1.md` como si fuera la matriz de cobertura del motor de
+facturas.
+
+### 🗑️ Y cuatro JSON con recuentos que el propio repo declara falsos
+
+`fase0_huella.json`, `fase0_huella_v2.json`, `fase0_reagrupa.json` y
+`fase0_umbral.json` vienen del agrupamiento por huella, **invalidado** el 12-08
+(`PROJECT_STATUS.md`). Se conservan "como registro del proceso", pero son una
+trampa: una sesión futura puede leerlos como datos. Si se quedan, deben llevar
+`"INVALIDADO": true` dentro. Los scripts que los produjeron
+(`fase0_huella_cliente`, `fase0_huella_v2`, `fase0_reagrupa`,
+`fase0_umbral_correcto`, `fase0_localiza_identidad`) están superados por el
+hallazgo del patrón `SP_C_04A`.
+
 ## 6. Lo que NO se hace hoy
 
 - Guards nuevos sin un caso real que los pida (`CLAUDE.md`).
