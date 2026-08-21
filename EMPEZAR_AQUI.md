@@ -15,19 +15,19 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 
 ```
 ✅ Sintaxis de todos los .py
-✅ Cableado de guards (sin huérfanos): 20 guards, todos consultados
+✅ Cableado de guards (sin huérfanos): 25 guards, todos consultados
 ✅ Suite de pruebas (test_motor_veredicto.py): 21/21 checks en verde
-✅ Bateria adversarial (test_adversarial.py): 25 en verde, 0 fallan
+✅ Bateria adversarial (test_adversarial.py): 48 en verde, 0 fallan
 ❌ Dependencias: faltan dbfread, anthropic, google-genai   <- NORMAL, son de captura
 ```
 
 ---
 
-## 2. Dónde quedó todo (19-08-2026)
+## 2. Dónde quedó todo (20-08-2026)
 
 | | |
 |---|---|
-| **Motor** | 20 guards cableados. Los 8 falsos verdes P0 **cerrados**. Resiste 25 ataques + controles positivos |
+| **Motor** | 25 guards cableados. Los 8 falsos verdes P0 **cerrados**. Resiste 48 ataques + controles positivos |
 | **Contrato de datos** | `contrato_datos.py`. `MISSING` ≠ `ZERO` ≠ `INVALID`. La ausencia ya no vale 0 |
 | **Barrera de privacidad** | Agujero del `.DAT` **cerrado**: decide por contenido, no por extensión |
 | **Inventario del histórico** | Falta poco. Es el trabajo de hoy |
@@ -74,8 +74,9 @@ consume. Se reconstruye la fila desde el asiento, se pasa por el motor y se comp
 | ❌ **Falsos verdes reales** | **No.** Que un asiento se contabilizara así demuestra que se hizo así, no que fuera correcto. Eso sigue necesitando criterio humano |
 
 **No necesita el inventario terminado, ni fotos, ni Gemini, ni el DPA.** Solo leer
-los `.DAT`, que ya se sabe hacer. Probado aquí contra un corpus sintético: 400
-asientos correctos → 100% VERDE, 0% falsos rojos; 307 errores inyectados → 100%
+los `.DAT`, que ya se sabe hacer. Probado aquí contra un corpus sintético que
+incluye los casos nuevos (tipos 21/10/4/0/5, recargo y compras sin IVA): 300
+asientos correctos → 100% VERDE, 0% falsos rojos; 205 errores inyectados → 100%
 detectados. Esos números son de datos inventados y no valen como medición: solo
 demuestran que el mecanismo funciona.
 
@@ -140,28 +141,6 @@ suscripción, nunca la API key. Datos reales = sentado en el PC de la asesoría.
 > 2. ¿En qué fracción de facturas aparece el total **dos veces** de verdad?
 > 3. ¿El modelo **copia** el valor en `total_factura_2` en vez de dejarlo vacío?
 >    Si lo copia, la comprobación es un espejo y no vale nada.
-
-## 3-bis. 🔴 Antes de dar el motor por cerrado: lee `TECHO_Y_LIMITES.md`
-
-Medido el 20-08-2026: **tres de cada cuatro tipos de factura legal que se
-probaron dan ROJO.** No es un fallo del motor, es el modelo de datos, que solo
-sabe representar 4/10/21.
-
-| Caso | Hoy |
-|---|---|
-| Recargo de equivalencia 5,2% — **cotidiano en autónomos de comercio** | 🔴 ROJO |
-| Intracomunitaria (inversión del sujeto pasivo) | 🔴 ROJO |
-| Tipo 0% | 🔴 ROJO |
-| Exenta art. 20 (médico, seguro, alquiler de vivienda) | 🟠 AMBAR |
-
-19 de los 33 clientes son autónomos. Esto no es un caso de laboratorio.
-
-**Predicción que se comprueba en la misma ejecución del retro-semáforo:** si al
-desglosar los ROJO por motivo dominan `cuadre_total`, `suma_tramos` y
-`nif_digito_control`, el problema es el modelo de datos y no el motor.
-
-`test_adversarial.py` imprime estos cuatro casos en cada ejecución, bajo
-"TECHO CONOCIDO", para que no se olviden.
 
 ## 4. La decisión que hay que tomar hoy, antes de seguir tocando el motor
 
