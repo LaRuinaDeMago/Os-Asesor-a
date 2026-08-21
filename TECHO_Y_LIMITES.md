@@ -153,3 +153,72 @@ La tubería existe; por dentro no ha pasado agua todavía.
 4. Con esa factura delante → **el prompt** (§2), y las tres mejoras a la vez.
 5. Conectar el histórico real al orquestador (`--diario`) para que
    `guard_cuenta_gasto_coherente` e `importe_atipico` dejen de recibir `{}`.
+
+---
+
+## 🎯 QUÉ SIGNIFICA UN VERDE — el techo real, y no es el que parecía
+
+Escrito el 20-08-2026, y es la sección más importante de este documento.
+
+Durante semanas el proyecto ha dado por hecho que el riesgo estaba en la captura:
+el 5 confundido con un 8, la foto borrosa, el OCR que se equivoca. **Eso está
+medido y resuelto:** de 99 mutaciones de un dígito en los euros de un importe,
+el motor caza las 99 (`prueba_digito_ocr.py`). El NIF, también al 100%, por su
+dígito de control. La redundancia aritmética de una factura —`base × tipo =
+cuota`, `base + cuota = total`— la convierte, sin habérselo buscado, en un código
+detector de errores.
+
+**Pero hay una categoría entera de error que ningún guard puede ver, y no tiene
+nada que ver con la captura.**
+
+> **Una factura puede estar capturada PERFECTAMENTE y la contabilidad estar mal.**
+
+El motor comprueba que la factura es **coherente consigo misma** y que está bien
+**identificada**. No comprueba —no puede— nada de esto:
+
+| Pregunta | ¿La ve el motor? |
+|---|---|
+| ¿Cuadra la aritmética? | ✅ sí |
+| ¿El NIF es válido y del proveedor que dice? | ✅ sí |
+| ¿Está duplicada? | ✅ sí |
+| ¿Las fechas son válidas y del ejercicio? | ✅ sí |
+| **¿Este gasto es deducible?** | ❌ **no** |
+| **¿Va a la cuenta contable correcta?** | ❌ **no** |
+| **¿El IVA es deducible al 100%, al 50% o al 0%?** (vehículos, restauración) | ❌ **no** |
+| **¿Corresponde a este ejercicio por devengo?** | ❌ **no** |
+| **¿Es un gasto de la empresa o personal?** | ❌ **no** |
+
+Una comida personal cargada a la empresa, fotografiada con nitidez y
+aritméticamente impecable, **sale VERDE**. Y hace bien: la factura es correcta.
+Lo que está mal es la decisión de contabilizarla.
+
+### La consecuencia práctica
+
+**Ahí es donde viven los falsos verdes de verdad. No en el OCR.**
+
+Por eso el veredicto ahora lo dice de su propia boca:
+
+```
+VERDE: coherencia formal verificada (aritmética, identidad, fechas, duplicados,
+       régimen de IVA); NO comprueba deducibilidad ni cuenta contable
+```
+
+No es prudencia ni letra pequeña: es lo que evita la **sobreconfianza**, que es
+el mecanismo real por el que un sistema así hace daño. Un asesor que lee "VERDE"
+y entiende "esto está bien contabilizado" deja de mirar, y ahí empieza el
+problema.
+
+### Y hacia dónde sí queda recorrido
+
+Las únicas dos piezas que empiezan a asomarse a la decisión contable —no a la
+forma— ya existen y son las más diferenciales del proyecto:
+
+- **`guard_cuenta_gasto_coherente`**: ¿a qué cuenta suele ir este proveedor según
+  los diez años de histórico? Cableado, pero recibiendo `{}` hasta que el
+  orquestador apunte a los `.DAT` reales.
+- **`guard_tipo_operacion_especial`**: detecta por estructura que esto no es una
+  compra normal (inmovilizado, intracomunitaria, amortización) y frena a ÁMBAR.
+
+> **El techo de "comprobar la forma" está tocado. El techo de "acertar la
+> decisión contable" está mucho más abajo, y el camino hacia él es el histórico
+> conectado al motor, no más guards aritméticos.**

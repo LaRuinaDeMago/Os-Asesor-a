@@ -1040,7 +1040,20 @@ def calcular_veredicto_v4(guards):
     if no_comprobados:
         return "AMBAR", f"NO_COMPROBADO: {', '.join(no_comprobados)}"
 
-    return "VERDE", "todos los guards aplicables OK, confianza ALTA"
+    # QUE SIGNIFICA ESTE VERDE, dicho en el propio veredicto (20-08-2026).
+    #
+    # El motor comprueba que la factura es COHERENTE CONSIGO MISMA y esta bien
+    # identificada. NO comprueba —no puede— si el gasto es deducible, si va a la
+    # cuenta correcta o si corresponde a este ejercicio por devengo. Una comida
+    # personal cargada a la empresa, perfectamente capturada y aritmeticamente
+    # impecable, sale VERDE.
+    #
+    # Decirlo aqui no es prudencia: es evitar la sobreconfianza, que es de donde
+    # salen los falsos verdes de verdad — no del OCR, que ya esta medido al 100%
+    # en los digitos de euros (prueba_digito_ocr.py).
+    return "VERDE", ("coherencia formal verificada (aritmetica, identidad, fechas, "
+                     "duplicados, regimen de IVA); NO comprueba deducibilidad ni "
+                     "cuenta contable")
 
 
 def evaluar_fila_v3(fila, vistos_duplicado, historico_proveedor, formato_cache,
