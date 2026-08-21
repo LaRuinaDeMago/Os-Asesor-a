@@ -649,6 +649,93 @@ _v, _m2 = evaluar(_sin_desglose('100', '21', '121'))
 comprobar("Q", "LIMITE DECLARADO: un error de escala coherente en los 3 campos pasa",
           _v == "VERDE", _v, "VERDE (y esta bien que sea asi, ver comentario)", "P1")
 
+
+print("\n=== FAMILIA R — Lo que destapo el barrido exhaustivo (21-08-2026) ===")
+# barrido_falsos_verdes.py no elige los ataques: los enumera. Coge una factura
+# VERDE y le aplica TODAS las mutaciones mecanicas de UN campo. De 1.351
+# mutaciones salieron tres defectos que ninguno de los 87 ataques escritos a mano
+# habia tocado. Aqui quedan fijados para que no vuelvan.
+
+_NIF_R = "B12345674"
+_M_R = {_NIF_R: {'titulo': 'PROVEEDOR PILOTO SL', 'cuenta': '400001'}}
+_BASE_R = {'nif': _NIF_R, 'proveedor': 'PROVEEDOR PILOTO SL',
+           'nº_documento': 'FAC-2026-0117', 'fecha_expedicion': '2026-03-15',
+           'base_21': '1000.00', 'base_total': '1000.00',
+           'iva_total': '210.00', 'total_factura': '1210.00', 'verificacion': 'OK'}
+
+def _ev_r(fila, **kw):
+    return m.evaluar_fila_v4(fila, set(), kw.pop('hist', {}), kw.pop('fmt', {}),
+                             kw.pop('sec', {}), _M_R, 2015, None, 2026, **kw)
+
+# --- R1: MISSING vs ZERO en el desglose, otra vez -------------------------
+# base_total=1000, base_21=0, iva=210 salia VERDE afirmando "toda la base al
+# 21%", mientras el propio desglose decia 0 EUR al 21%. tramos() descarta el cero
+# ("un cero no es un tramo", correcto para sumar) y eso lo hacia indistinguible
+# de una factura sin desglose, que si puede usar la comprobacion global.
+_v, _m2, _g = _ev_r({**_BASE_R, 'base_21': '0.00'})
+comprobar("R", "un desglose que se contradice con la base NO llega a VERDE",
+          _v == "AMBAR", _v, "AMBAR", "P0")
+comprobar("R", "y se declara como falta de dato, no como error de la factura",
+          "[FALTA DATO]" in _m2 and "DECLARA desglose" in _m2, _m2[:70],
+          "[FALTA DATO] ... DECLARA desglose", "P1")
+
+# La distincion completa, que es donde vive el fallo:
+for _valor, _esperado, _caso in ((None, "VERDE", "ausente: captura de camara, no dice nada"),
+                                 ("", "VERDE", "columna vacia de un CSV: tampoco dice nada"),
+                                 ("0.00", "AMBAR", "un cero ESCRITO: si dice algo, y se contradice"),
+                                 ("abc", "AMBAR", "ilegible: dice algo que no se puede leer"),
+                                 ("1000.00", "VERDE", "correcto: suma la base total")):
+    _f = {k: v for k, v in _BASE_R.items() if not (k == 'base_21' and _valor is None)}
+    if _valor is not None:
+        _f['base_21'] = _valor
+    _v, _m2, _g = _ev_r(_f)
+    comprobar("R", f"base_21 {_caso} -> {_esperado}", _v == _esperado, _v, _esperado, "P0")
+
+# --- R2: la fecha en formato espanol ---------------------------------------
+# Los tres guards de fecha hacian int(cadena[:4]): daban por hecho el ISO. Con
+# '15/03/2026' —el formato NORMAL en Espana, el que exporta Excel— eso da
+# ValueError y la factura se iba a AMBAR. Y el contrato ya sabia parsearlo desde
+# el primer dia: los guards se saltaban la frontera de datos.
+for _fecha in ('2026-03-15', '15/03/2026', '15-03-2026', '2026/03/15'):
+    _v, _m2, _g = _ev_r({**_BASE_R, 'fecha_expedicion': _fecha})
+    comprobar("R", f"fecha valida en formato {_fecha!r} llega a VERDE",
+              _v == "VERDE", f"{_v}: {_m2[:50]}", "VERDE", "P1")
+
+# Y lo que NO puede pasar: que aceptar mas formatos deje pasar una fecha imposible.
+for _fecha in ('2026-13-15', '2026-02-30', '32/03/2026', '30/02/2026'):
+    _v, _m2, _g = _ev_r({**_BASE_R, 'fecha_expedicion': _fecha})
+    comprobar("R", f"fecha imposible {_fecha!r} sigue sin llegar a VERDE",
+              _v != "VERDE", _v, "AMBAR o ROJO", "P0")
+
+# --- R3: cuatro guards apagados en silencio por el nombre -------------------
+# Las cuatro caches del motor se consultaban SOLO por el nombre del proveedor, y
+# el nombre no tiene digito de control. "PROVEEDOR PILOTO S.L." con puntos ya es
+# otro proveedor para un diccionario: los guards se declaraban NO_APLICA
+# —"primera vez que lo veo"— y la factura salia VERDE con cuatro protecciones
+# apagadas, sin distinguirse de un alta de verdad.
+_fmt_r = {_NIF_R: {'ejemplos': ['FAC-2026-001', 'FAC-2026-002'],
+                   'n_facturas_vistas': 40}}
+for _nombre, _caso in (('PROVEEDOR PILOTO SL', 'exacto'),
+                       ('PROVEEDOR PILOTO S.L.', 'con puntos'),
+                       ('proveedor piloto sl', 'en minusculas'),
+                       ('', 'vacio'),
+                       ('OTRA COSA', 'completamente distinto')):
+    _v, _m2, _g = _ev_r({**_BASE_R, 'nº_documento': 'XX/9999', 'proveedor': _nombre},
+                        fmt=_fmt_r)
+    comprobar("R", f"cache por NIF: el guard sigue vivo con el nombre {_caso}",
+              _g['estructura_reconocida'][0] == "FALLO",
+              _g['estructura_reconocida'][0], "FALLO", "P0")
+
+# Y la compatibilidad, que no es un detalle: las caches que ya estan en el disco
+# del despacho estan indexadas por NOMBRE. Romperlas seria cambiar un fallo
+# silencioso por otro.
+_fmt_viejo = {'PROVEEDOR PILOTO SL': {'ejemplos': ['FAC-2026-001', 'FAC-2026-002'],
+                                      'n_facturas_vistas': 40}}
+_v, _m2, _g = _ev_r({**_BASE_R, 'nº_documento': 'XX/9999'}, fmt=_fmt_viejo)
+comprobar("R", "una cache antigua indexada por nombre sigue funcionando",
+          _g['estructura_reconocida'][0] == "FALLO",
+          _g['estructura_reconocida'][0], "FALLO", "P0")
+
 # ---------------------------------------------------------------------------
 print("\n" + "=" * 70)
 fallos = [r for r in resultados if not r[2]]

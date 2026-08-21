@@ -321,10 +321,31 @@ def guard_confianza_captura(fila):
     return "BAJA", f"verificacion={v}"
 
 
+def _anio_de(fecha_str):
+    """Ano de una fecha, sea cual sea el formato en que venga escrita.
+
+    CORREGIDO 21-08-2026 (barrido_falsos_verdes.py). Los tres guards de fecha
+    hacian `int(cadena[:4])`, o sea: daban por hecho el formato ISO. Con
+    '15/03/2026' —el formato NORMAL en Espana, el que escribe cualquiera y el que
+    exporta Excel— eso da ValueError y el guard se declaraba NO_COMPROBADO. Es
+    decir: una fecha perfectamente valida mandaba la factura a AMBAR.
+
+    Lo peor no es el fallo, es que ya estaba resuelto: `contrato_datos.parse_fecha`
+    acepta cuatro formatos desde el primer dia. Estos tres guards se saltaban el
+    contrato y parseaban por su cuenta. La frontera de datos solo sirve si se
+    entra por ella."""
+    d = contrato_datos.parse_fecha(fecha_str)
+    return d.valor.year if d.estado == contrato_datos.VALUE else None
+
+
+def _fecha_de(fecha_str):
+    d = contrato_datos.parse_fecha(fecha_str)
+    return d.valor if d.estado == contrato_datos.VALUE else None
+
+
 def guard_fecha_posterior_alta(fecha_factura_str, fecha_alta_anio):
-    try:
-        anio_factura = int(fecha_factura_str[:4])
-    except (ValueError, TypeError):
+    anio_factura = _anio_de(fecha_factura_str)
+    if anio_factura is None:
         return "NO_COMPROBADO", "fecha no parseable"
     if fecha_alta_anio is None:
         return "NO_COMPROBADO", "sin fecha de alta del cliente"
@@ -333,8 +354,38 @@ def guard_fecha_posterior_alta(fecha_factura_str, fecha_alta_anio):
     return "OK", f"{anio_factura} >= alta {fecha_alta_anio}"
 
 
-def guard_importe_atipico(proveedor, total, historico_proveedor):
-    entry = historico_proveedor.get(proveedor)
+def _entrada_de_proveedor(cache, nif, nombre):
+    """Busca a un proveedor en una cache PRIMERO POR NIF, luego por nombre.
+
+    ANADIDO 21-08-2026 (barrido_falsos_verdes.py). Las cuatro caches del motor
+    —historico de importes, formato del numero, secuencia documental y plazos—
+    se consultaban SOLO por el nombre del proveedor. Y el nombre es un texto sin
+    digito de control: si la captura lo lee mal (o le sobra un espacio, o cambia
+    "S.L." por "SL"), la busqueda falla, los cuatro guards se declaran NO_APLICA
+    —"primera vez que veo a este proveedor"— y la factura sale VERDE.
+
+    Cuatro protecciones apagadas EN SILENCIO por un error en un campo que no es
+    ni siquiera un hecho fiscal. Y sin distinguirse de un proveedor nuevo de
+    verdad, que da exactamente lo mismo.
+
+    El NIF si tiene digito de control. Es la misma leccion que el patron de
+    cartera (indexado por NIF y no por cuenta contable) y la misma que el
+    escaner de privacidad: la clave buena es la que se puede verificar.
+
+    Se prueban las dos a proposito: las caches que ya estan en el disco del
+    despacho estan indexadas por nombre, y romperlas seria cambiar un fallo
+    silencioso por otro."""
+    if nif:
+        entrada = cache.get(nif)
+        if entrada:
+            return entrada
+    if nombre:
+        return cache.get(nombre)
+    return None
+
+
+def guard_importe_atipico(proveedor, total, historico_proveedor, nif=None):
+    entry = _entrada_de_proveedor(historico_proveedor, nif, proveedor)
     if not entry or entry.get('n_facturas_normales', 0) < 3 or total <= 0:
         return "NO_COMPROBADO", "n<3 facturas normales del proveedor, umbral no fiable"
     media, desv = entry['media'], entry['desv']
@@ -504,9 +555,8 @@ def guard_ejercicio_coherente(fecha_factura_str, ejercicio_tanda):
     """Validez Temporal B2: el año de la factura coincide con el ejercicio de la
     tanda que se procesa. NO_APLICA si se declara explicitamente que es un gasto
     de ejercicio anterior aportado a proposito."""
-    try:
-        anio = int(fecha_factura_str[:4])
-    except (ValueError, TypeError):
+    anio = _anio_de(fecha_factura_str)
+    if anio is None:
         return "NO_COMPROBADO", "fecha no parseable"
     if ejercicio_tanda is None:
         return "NO_APLICA", "no se ha declarado ejercicio de la tanda"
@@ -515,23 +565,20 @@ def guard_ejercicio_coherente(fecha_factura_str, ejercicio_tanda):
     return "FALLO", f"factura de {anio} en una tanda del ejercicio {ejercicio_tanda}"
 
 
-def guard_vencimiento_coherente(fecha_emision_str, fecha_vencimiento_str, plazos_cache, proveedor):
+def guard_vencimiento_coherente(fecha_emision_str, fecha_vencimiento_str, plazos_cache, proveedor, nif=None):
     """Validez Temporal B3: el plazo (vencimiento - emision) es coherente con el
     plazo habitual de ese proveedor. NO_COMPROBADO si no hay vencimiento capturado
     (hoy no lo capturamos en el CSV - por eso este guard queda declarado pero inerte
     hasta que la captura incluya el campo)."""
     if not fecha_vencimiento_str or not fecha_vencimiento_str.strip():
         return "NO_COMPROBADO", "fecha de vencimiento no capturada en el registro"
-    from datetime import date
-    try:
-        y1, m1, d1 = int(fecha_emision_str[:4]), int(fecha_emision_str[5:7]), int(fecha_emision_str[8:10])
-        y2, m2, d2 = int(fecha_vencimiento_str[:4]), int(fecha_vencimiento_str[5:7]), int(fecha_vencimiento_str[8:10])
-        dias = (date(y2, m2, d2) - date(y1, m1, d1)).days
-    except (ValueError, TypeError, IndexError):
+    f1, f2 = _fecha_de(fecha_emision_str), _fecha_de(fecha_vencimiento_str)
+    if f1 is None or f2 is None:
         return "NO_COMPROBADO", "fechas no parseables"
+    dias = (f2 - f1).days
     if dias < 0:
         return "FALLO", f"vencimiento anterior a la emision ({dias} dias)"
-    entry = plazos_cache.get(proveedor)
+    entry = _entrada_de_proveedor(plazos_cache, nif, proveedor)
     if not entry or not entry.get('plazos_vistos'):
         return "NO_APLICA", "sin historico de plazos para este proveedor"
     plazos = entry['plazos_vistos']
@@ -943,12 +990,12 @@ def guard_nif_casa_historico(nif, maestro_proveedores):
             "cliente. No es un error, es un alta que decidir")
 
 
-def guard_secuencia_documental_proveedor(proveedor, nº_documento, secuencia_cache):
+def guard_secuencia_documental_proveedor(proveedor, nº_documento, secuencia_cache, nif=None):
     """Nacimiento del Dato A1: el numero de documento sigue una secuencia numerica
     coherente respecto a los ya vistos del mismo proveedor (misma forma, numero
     correlativo dentro de rango razonable). Solo evalua la parte numerica final.
     NO_APLICA si no hay al menos 2 numeros previos con la misma forma para comparar."""
-    entry = secuencia_cache.get(proveedor)
+    entry = _entrada_de_proveedor(secuencia_cache, nif, proveedor)
     if not entry or len(entry.get('numeros_vistos', [])) < 2:
         return "NO_APLICA", "menos de 2 documentos previos del proveedor para establecer secuencia"
     numeros = entry['numeros_vistos']
@@ -972,12 +1019,12 @@ def guard_secuencia_documental_proveedor(proveedor, nº_documento, secuencia_cac
     return "OK", f"nº {actual_num} coherente con secuencia conocida"
 
 
-def guard_estructura_reconocida(proveedor, nº_documento, formato_cache):
+def guard_estructura_reconocida(proveedor, nº_documento, formato_cache, nif=None):
     """Guard 0 (Nivel 1-bis): ¿el nº de documento encaja en algun patron de forma
     ya visto para este proveedor? No es un guard de contenido, es de FORMA.
     FALLO no es 'esta mal' - es 'no se parece a nada que conozca de este proveedor',
     y baja a AMBAR automatico sin excepcion, aunque el resto cuadre."""
-    entry = formato_cache.get(proveedor)
+    entry = _entrada_de_proveedor(formato_cache, nif, proveedor)
     if not entry or not entry.get('ejemplos'):
         return "NO_APLICA", "sin historico de formato para este proveedor (primera vez)"
     forma_actual = _forma(nº_documento)
@@ -1101,14 +1148,37 @@ def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
         # contable del motor. Con la comparacion en euros, para colarse haria
         # falta que la parte mal tipificada moviera la cuota menos de 2 centimos,
         # o sea unos 18 centimos de base. Se limita solo.
+        # Y esta puerta SOLO se abre si la factura no dice nada de su desglose.
+        # Si dice algo —aunque sea un cero— y ese algo no suma la base total, hay
+        # una contradiccion entre campos declarados, y absolverla con la
+        # comprobacion global seria taparla. Lo destapo barrido_falsos_verdes.py:
+        # base_total=1000, base_21=0, iva=210 salia VERDE afirmando "toda la base
+        # al 21%" mientras el propio desglose decia 0 EUR al 21%.
+        #
+        # No es ROJO: no se puede distinguir un desglose CORROMPIDO de uno
+        # INCOMPLETO (una factura toda al 10% donde nadie relleno base_10 y si
+        # base_21=0). Cuando no se puede distinguir, NO_COMPROBADO -> AMBAR.
         TIPOS_SIN_MEZCLA_POSIBLE = (0, 21)
         tipo_efectivo = None
-        if base_total not in (None, 0) and iva_total is not None:
+        # Se define aqui y no dentro de una rama: la linea de cuadre_total de mas
+        # abajo lo usa venga por donde venga. Estaba definido solo en la ultima,
+        # asi que era un NameError esperando a una factura sin base_total.
+        sin_tramos = ("NO_COMPROBADO", "ningun tramo de IVA declarado y la operacion se declara SUJETA: falta el desglose")
+        if canon.declara_desglose():
+            contradice = ("NO_COMPROBADO",
+                          "la factura DECLARA desglose por tipos y ese desglose no "
+                          "suma la base total: puede estar corrompido o incompleto, "
+                          "y con estos datos no se distingue. Hace falta el desglose")
+            guards["aritmetica_base_tipo"] = contradice
+            guards["suma_tramos"] = contradice
+        elif base_total not in (None, 0) and iva_total is not None:
             for t in TIPOS_SIN_MEZCLA_POSIBLE:
                 if abs(iva_total - base_total * t / 100.0) <= TOL:
                     tipo_efectivo = t
                     break
-        if tipo_efectivo is not None:
+        if canon.declara_desglose():
+            pass                      # ya resuelto arriba
+        elif tipo_efectivo is not None:
             guards["aritmetica_base_tipo"] = (
                 "OK", f"sin desglose, pero cuota/base = {tipo_efectivo}% exacto, "
                       f"y ese tipo no se puede fabricar mezclando otros: toda la "
@@ -1132,7 +1202,6 @@ def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
                 f"un 5% clavado), asi que sin el desglose no se puede afirmar la "
                 f"composicion. Hace falta el desglose por tipos")
         else:
-            sin_tramos = ("NO_COMPROBADO", "ningun tramo de IVA declarado y la operacion se declara SUJETA: falta el desglose")
             guards["aritmetica_base_tipo"] = sin_tramos
             guards["suma_tramos"] = sin_tramos
         guards["cuadre_total"] = guard_cuadre_total(base_total or 0.0, 0.0, 0.0, iva_total, irpf or 0.0, total, recargo) \
@@ -1144,7 +1213,7 @@ def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
         guards["cuadre_total"] = sin_dato
     guards["nif_digito_control"] = guard_nif_digito_control(nif)
     # Nivel 1-bis - Forma
-    guards["estructura_reconocida"] = guard_estructura_reconocida(proveedor, num_doc, formato_cache)
+    guards["estructura_reconocida"] = guard_estructura_reconocida(proveedor, num_doc, formato_cache, nif)
     # Nivel 2 - Identidad
     guards["nif_casa_historico"] = guard_nif_casa_historico(nif, maestro_proveedores)
     # Nivel 3 - Anti-duplicacion
@@ -1161,13 +1230,13 @@ def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
         guards["retencion_vs_error"] = sin_dato
         guards["signo_efectivo"] = sin_dato
     # Nacimiento del Dato
-    guards["secuencia_documental_proveedor"] = guard_secuencia_documental_proveedor(proveedor, num_doc, secuencia_cache)
-    guards["importe_atipico"] = guard_importe_atipico(proveedor, total, historico_proveedor)
+    guards["secuencia_documental_proveedor"] = guard_secuencia_documental_proveedor(proveedor, num_doc, secuencia_cache, nif)
+    guards["importe_atipico"] = guard_importe_atipico(proveedor, total, historico_proveedor, nif)
     # Validez Temporal
     guards["fecha_posterior_alta"] = guard_fecha_posterior_alta(fila.get('fecha_expedicion', ''), alta_cliente_anio)
     guards["ejercicio_coherente"] = guard_ejercicio_coherente(fila.get('fecha_expedicion', ''), ejercicio_tanda)
     guards["vencimiento_coherente"] = guard_vencimiento_coherente(
-        fila.get('fecha_expedicion', ''), fila.get('fecha_vencimiento', ''), plazos_cache, proveedor)
+        fila.get('fecha_expedicion', ''), fila.get('fecha_vencimiento', ''), plazos_cache, proveedor, nif)
     # --- Guards que EXISTIAN pero nadie llamaba (cableados el 19-08-2026) ---
     # La bateria adversarial confirmo que estas tres funciones tenian test propio
     # en verde y NUNCA participaban en el veredicto. Un guard que no corre no

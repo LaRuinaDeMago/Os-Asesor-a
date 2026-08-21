@@ -66,15 +66,31 @@ def cargar_diario_y_subcuentas(path_diario, path_subcuentas):
 
 
 def construir_historico_y_secuencia(filas_csv):
+    """Indexa por NIF **y** por nombre, las dos cosas.
+
+    ANADIDO 21-08-2026 (barrido_falsos_verdes.py). Solo se indexaba por nombre, y
+    el nombre no tiene digito de control: "PROVEEDOR PILOTO SL" y "PROVEEDOR
+    PILOTO S.L." son dos proveedores distintos para un diccionario. Cuando la
+    busqueda falla, los guards de historico se declaran NO_APLICA —"primera vez
+    que veo a este proveedor"— y la factura sale VERDE con cuatro protecciones
+    apagadas en silencio, sin distinguirse de un alta de verdad.
+
+    Se guardan las DOS claves a proposito: el motor busca primero por NIF (que si
+    se puede verificar) y cae al nombre si no lo encuentra, asi que las caches que
+    ya estan en el disco del despacho —indexadas por nombre— siguen funcionando.
+    """
     tot, nums = defaultdict(list), defaultdict(list)
     for r in filas_csv:
         try:
             t = float(r.get('total_factura', 0) or 0)
         except ValueError:
             t = 0
-        if t > 0:
-            tot[r['proveedor']].append(t)
-        nums[r['proveedor']].append(r.get('nº_documento', ''))
+        claves = [k for k in ((r.get('nif') or '').strip(), r.get('proveedor')) if k]
+        for clave in claves:
+            if t > 0:
+                tot[clave].append(t)
+            nums[clave].append(r.get('nº_documento', ''))
+
     hist = {p: {'n_facturas_normales': len(v), 'media': round(statistics.mean(v), 2),
                 'desv': round(statistics.stdev(v), 2) if len(v) > 1 else 0}
             for p, v in tot.items()}

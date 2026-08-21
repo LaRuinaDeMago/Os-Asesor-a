@@ -195,7 +195,11 @@ def check_estados_y_cobertura():
                              # --emitir-cartera no escribia nada, nunca: el ultimo
                              # eslabon de "el criterio sale de los diez anos" estaba
                              # roto con las dos puntas hechas.
-                             ("ensayo_retro_semaforo.py", "Ensayo en seco: retro_semaforo + orquestador")):
+                             ("ensayo_retro_semaforo.py", "Ensayo en seco: retro_semaforo + orquestador"),
+                             # No elige los ataques: los enumera. En su primera
+                             # pasada encontro tres defectos que ninguno de los
+                             # 87 ataques escritos a mano habia tocado.
+                             ("barrido_falsos_verdes.py", "Barrido: ningun falso verde sin explicar")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue

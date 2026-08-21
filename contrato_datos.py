@@ -306,6 +306,33 @@ class FacturaCanonica:
                                'cuota': round(d.valor * tipo / 100.0, 2)})
         return salida
 
+    def declara_desglose(self):
+        """.La factura DICE algo sobre su desglose por tipos, aunque sea un cero?
+
+        ANADIDO 21-08-2026 (barrido_falsos_verdes.py). No es lo mismo que
+        `tramos()`, y la diferencia es justo donde se colaba un falso verde:
+
+            base_21 AUSENTE            -> no dice nada. Es la captura de camara.
+            base_21 = 0 con base 1000  -> SI dice algo, y se contradice.
+
+        `tramos()` devuelve [] en los dos casos, porque un cero no es un tramo.
+        Correcto para sumar, y peligroso para decidir: hace que una base_21
+        corrompida a cero sea indistinguible de una factura sin desglose, y por
+        esa puerta el motor absolvia la contradiccion con la comprobacion global.
+
+        Es el MISSING-vs-ZERO de siempre, que este proyecto ya arreglo dos veces
+        (en el motor y en el retro-semaforo) y se habia vuelto a colar aqui.
+        """
+        if isinstance(self.cruda.get('tramos_iva'), (list, tuple)) and self.cruda['tramos_iva']:
+            return True
+        for campo in ('base_10', 'base_4', 'base_21'):
+            d = self.campos.get(campo)
+            # VALUE / ZERO / INVALID = hay algo escrito en ese hueco. MISSING no:
+            # una columna vacia de un CSV no es una afirmacion.
+            if d and d.estado != MISSING:
+                return True
+        return False
+
     # -- integridad ---------------------------------------------------------
     def incidencias(self, campos=CAMPOS_CRITICOS):
         """[(campo, estado)] de los criticos que no son utilizables.
