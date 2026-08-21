@@ -17,7 +17,8 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ✅ Sintaxis de todos los .py
 ✅ Cableado de guards (sin huérfanos): 26 guards, todos consultados
 ✅ Suite de pruebas (test_motor_veredicto.py): 24/24 checks en verde
-✅ Bateria adversarial (test_adversarial.py): 76 en verde, 0 fallan
+✅ Bateria adversarial (test_adversarial.py): 87 en verde, 0 fallan
+✅ Ensayo en seco: retro_semaforo + orquestador + validar_captura
 ✅ Estados: sin ramas muertas ni guards mudos
 ✅ Cobertura: guards probados de verdad — 26/26 (100%)
 ❌ Dependencias: faltan dbfread, anthropic, google-genai   <- NORMAL, son de captura
@@ -49,7 +50,7 @@ un segundo. Está comprobado, no supuesto. Los tres corren ya dentro de
 
 | | |
 |---|---|
-| **Motor** | 26 guards cableados. Los 8 falsos verdes P0 **cerrados**. Resiste 76 ataques + controles positivos. Cobertura útil 26/26 |
+| **Motor** | 26 guards cableados. Los 8 falsos verdes P0 **cerrados**. Resiste 87 ataques + controles positivos. Cobertura útil 26/26 |
 | **Contrato de datos** | `contrato_datos.py`. `MISSING` ≠ `ZERO` ≠ `INVALID`. La ausencia ya no vale 0 |
 | **Barrera de privacidad** | Agujero del `.DAT` **cerrado**: decide por contenido, no por extensión |
 | **Inventario del histórico** | Falta poco. Es el trabajo de hoy |
@@ -232,6 +233,56 @@ cableado — había cambiado su forma.
 > no toca acaba ignorándose, y entonces no avisa cuando sí toca.**
 
 Reescrito sobre AST. La forma deja de importar.
+
+### Y lo más importante que salió de todo esto, para mañana
+
+**Los tres comandos de la sesión LOCAL están ensayados en seco.**
+`ensayo_retro_semaforo.py` fabrica un corpus sintético con la forma exacta de
+ContaPlus (`.DAT` que son ZIP, con `Diario.dbf` dentro, dBase III, cp1252) y
+ejecuta la cadena entera en 0,4 s. Corre dentro de `audit_project.py`.
+
+Hasta ayer **ninguno de los tres se había ejecutado nunca**, ni una vez. En la
+primera ejecución aparecieron tres cosas que habrían quemado la sesión:
+
+1. **`--emitir-cartera` no escribía nada. Nunca.** Aceptaba la ruta, gastaba
+   memoria acumulando líneas, y `construir_mapeo_cartera` no se llamaba desde
+   ahí. El fichero que `orquestador.py` espera en `--cartera-json` **no había
+   forma de producirlo**: la cadena *"el criterio sale de los diez años"* estaba
+   rota en el último eslabón, con las dos puntas hechas y probadas.
+
+2. **`validar_captura_historica.py` mentía de dos formas.** Excel en español
+   exporta con **punto y coma**, y con el separador equivocado `csv.DictReader`
+   no falla: devuelve UNA columna con la línea entera dentro. El script seguía e
+   imprimía *"TASA DE ACIERTO: 0.0%"* y *"FALSOS VERDES: 0"*. Un número que
+   significaba "no he podido leer nada", presentado como medición — y cero
+   falsos verdes **suena a perfecto**. Además solo detectaba solas las dos
+   columnas de veredicto: una cabecera `NIF` en mayúsculas dejaba el campo
+   MISSING y sacaba el 100% en ÁMBAR.
+
+3. **Sin desglose por tipos, TODA factura salía ÁMBAR.** Y una captura de cámara
+   normal no trae desglose: trae base, IVA y total. Las 91 facturas habrían
+   salido las 91 en ÁMBAR y no se habría medido nada.
+
+> El punto 3 es el que más cambia lo de mañana. Ahora una factura con base, IVA
+> y total coherentes **al 21% o al 0%** llega a VERDE. **Solo esos dos**, y no
+> por prudencia: son los únicos tipos que no se pueden fabricar mezclando.
+>
+> Lo aprendí por las malas en el mismo rato: mi primera versión aceptaba
+> cualquier tipo legal, con un razonamiento que parecía sólido y estaba
+> incompleto. La prueba de fuerza bruta que escribí después encontró 16 formas
+> de colarse, y la más realista es una factura de supermercado: **100 € al 0% +
+> 100 € al 10% dan un 5% efectivo clavado**, y el 5% es legal desde 2023.
+> Habría salido VERDE afirmando una composición fiscal falsa.
+
+**Qué esperar mañana con las 91 facturas**, para no confundir un resultado con
+un fallo: si el fichero trae base/IVA/total, las del 21% y del 0% saldrán VERDE
+o ROJO; las de tipos intermedios saldrán **ÁMBAR `[FALTA DATO]`** pidiendo el
+desglose. Eso **no es el motor fallando**: es el motor negándose a afirmar una
+composición que no puede comprobar. Si salen muchas ÁMBAR de esas, lo que dice
+es que **la captura tiene que emitir `tramos_iva`**, que es justo lo que el
+prompt v2 ya pide.
+
+---
 
 ---
 
