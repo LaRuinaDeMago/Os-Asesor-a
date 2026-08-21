@@ -145,36 +145,61 @@ def reconstruir_compra(lineas):
     gastos = [l for l in lineas if l[0].startswith(PREF_GASTO)]
     ivas = [l for l in lineas if l[0] == CTA_IVA_SOPORTADO]
     acree = [l for l in lineas if l[0] in CTAS_ACREEDOR]
-    if not (gastos and ivas and acree):
+    if not (gastos and acree):
         return None
+    if not ivas:
+        # Compra sin linea de IVA. PUEDE ser exenta, no sujeta,
+        # intracomunitaria o con inversion del sujeto pasivo — pero el diario NO
+        # dice cual, y adivinarlo seria inventar la naturaleza. Se marca para
+        # contarla en su propio cubo y que no contamine la tasa de falsos rojos.
+        return "SIN_IVA"
+    
 
     fila = {}
     # Bases por tipo de IVA: cada linea de IVA trae su tipo en el campo IVA y su
     # base imponible en BASEIMPO. Si BASEIMPO viene vacio, se deriva de la cuota.
+    #
+    # AMPLIADO 20-08-2026: antes solo se recogian los tipos 4/10/21 y el resto se
+    # DESCARTABA en silencio, asi que el instrumento tenia exactamente la misma
+    # rigidez que se le acababa de quitar al motor — un 0% o un 5% se perdian y
+    # la factura salia deformada. Ahora se recoge cualquier tipo y se entrega al
+    # motor como tramos_iva, que ya sabe manejarlos.
     por_tipo = defaultdict(float)
     for l in ivas:
         tipo, cuota, base = l[3], l[1], l[5]
         if base <= 0 and tipo > 0:
             base = round(cuota / (tipo / 100.0), 2)
-        if tipo in (4, 10, 21):
-            por_tipo[int(tipo)] += base
+        por_tipo[int(tipo)] += base
+    if por_tipo:
+        fila["tramos_iva"] = [
+            {"tipo": t, "base": round(b, 2), "cuota": round(b * t / 100.0, 2)}
+            for t, b in sorted(por_tipo.items())
+        ]
+    # Se rellenan tambien los campos planos de los tres tipos clasicos, para que
+    # cualquier consumidor antiguo siga funcionando.
     for t in (4, 10, 21):
         if por_tipo.get(t):
             fila[f"base_{t}"] = round(por_tipo[t], 2)
 
+    # Recargo de equivalencia: ContaPlus lo lleva en su propio campo, al lado
+    # del de IVA. Sin recogerlo, base+IVA no cuadra con el total y la factura
+    # salia ROJO siendo correcta.
+    recargo = round(sum(l[8] for l in ivas if len(l) > 8), 2)
+    if recargo > 0:
+        fila["recargo_equivalencia"] = recargo
+
+    # CORREGIDO 20-08-2026: aqui habia un `if iva_total > 0` que DESCARTABA un
+    # IVA de cero legitimo (tipo 0%: pan, leche, fruta) en vez de registrarlo.
+    # Es exactamente el error MISSING-vs-ZERO que este proyecto arreglo en el
+    # motor, cometido de nuevo en el instrumento que lo mide. Un cero calculado
+    # es un DATO; solo se omite el campo cuando no se ha podido calcular.
     base_total = round(sum(por_tipo.values()), 2)
     if base_total <= 0:
         base_total = round(sum(l[1] for l in gastos), 2)
-    if base_total > 0:
-        fila["base_total"] = base_total
+    fila["base_total"] = base_total
 
-    iva_total = round(sum(l[1] for l in ivas), 2)
-    if iva_total > 0:
-        fila["iva_total"] = iva_total
-
-    total = round(sum(l[2] for l in acree), 2)
-    if total > 0:
-        fila["total_factura"] = total
+    fila["iva_total"] = round(sum(l[1] for l in ivas), 2)
+    fila["total_factura"] = round(sum(l[2] for l in acree), 2)
 
     nif = next((l[4] for l in lineas if l[4]), "")
     if nif:
@@ -264,8 +289,9 @@ def main():
     motivos = Counter()
     guards_no_ok = Counter()
     errores = Counter()
-    n_asientos = n_compras = n_reconstruidas = 0
+    n_asientos = n_compras = n_reconstruidas = n_sin_iva = 0
     vistos_dup = set()
+    maestro_acumulado = {}     # crece segun se avanza: ver el comentario del bucle
     detalle_local = []
     nifs_pool = []
     parar = False
@@ -291,6 +317,7 @@ def main():
                     cA, cS = idx.get("ASIEN"), idx.get("SUBCTA")
                     cED, cEH = idx.get("EURODEBE"), idx.get("EUROHABER")
                     cIVA, cNIF = idx.get("IVA"), idx.get("TERNIF")
+                    cREC = idx.get("RECEQUIV")
                     cBASE, cFEC = idx.get("BASEIMPO"), idx.get("FECHA")
                     cDOC = idx.get("DOCUMENTO") or idx.get("FACTURA")
                     if not (cA and cS):
@@ -306,21 +333,42 @@ def main():
                         grupos[int(num(rec, cA))].append((
                             cuenta(rec, cS), num(rec, cED), num(rec, cEH),
                             num(rec, cIVA), txt(rec, cNIF), num(rec, cBASE),
-                            txt(rec, cFEC), txt(rec, cDOC),
+                            txt(rec, cFEC), txt(rec, cDOC), num(rec, cREC),
                         ))
                         del rec
 
-                    for _, lineas in grupos.items():
+                    for _, lineas in sorted(grupos.items()):
                         n_asientos += 1
                         fila = reconstruir_compra(lineas)
                         if fila is None:
+                            continue
+                        if fila == "SIN_IVA":
+                            n_sin_iva += 1
                             continue
                         n_compras += 1
                         if fila.get("nif") and len(nifs_pool) < 500:
                             nifs_pool.append(fila["nif"])
 
-                        maestro = {fila["nif"]: {"titulo": fila.get("proveedor", ""),
-                                                 "cuenta": "400000"}} if fila.get("nif") else {}
+                        # CORREGIDO 20-08-2026 — fallo del instrumento, no del motor.
+                        # Antes se construia aqui un maestro que contenia EXACTAMENTE
+                        # el NIF que se estaba evaluando, asi que
+                        # guard_nif_casa_historico pasaba SIEMPRE y el VERDE salia
+                        # inflado. Era medirse con la respuesta delante.
+                        #
+                        # Ahora el maestro se ACUMULA segun se avanza: la primera
+                        # factura de un proveedor lo encuentra vacio (proveedor
+                        # nuevo, que es lo que pasaria en produccion) y las
+                        # siguientes ya lo tienen. Es tambien la regla contra el
+                        # data leakage que senalo la auditoria: el historico de una
+                        # factura son SOLO los datos anteriores a ella.
+                        #
+                        # APROXIMACION DECLARADA: el orden es el de recorrido
+                        # (contenedores ordenados, asientos por numero), que es
+                        # aproximadamente cronologico pero no exactamente.
+                        maestro = dict(maestro_acumulado)
+                        if fila.get("nif"):
+                            maestro_acumulado[fila["nif"]] = {
+                                "titulo": fila.get("proveedor", ""), "cuenta": "400000"}
                         anio = int(fila["fecha_expedicion"][:4]) if fila.get("fecha_expedicion") else None
 
                         try:
@@ -377,6 +425,9 @@ def main():
     print(f"  asientos leidos          : {n_asientos:,}")
     print(f"  patron de compra         : {n_compras:,} ({pct(n_compras, n_asientos)}%)")
     print(f"  evaluados por el motor   : {n_reconstruidas:,}")
+    print(f"  compras SIN linea de IVA : {n_sin_iva:,}  (exentas / no sujetas /")
+    print(f"                             intracomunitarias / ISP: el diario no dice cual,")
+    print(f"                             asi que NO se evaluan y NO cuentan como falsos rojos)")
     print()
     print("VEREDICTOS (estos asientos SE CONTABILIZARON Y SE PRESENTARON):")
     for v, n in veredictos.most_common():
@@ -419,6 +470,7 @@ def main():
         "version": "retro_semaforo v1 (20-08-2026)",
         "asientos_leidos": n_asientos,
         "patron_compra": n_compras,
+        "compras_sin_linea_iva_no_evaluadas": n_sin_iva,
         "evaluados": n_reconstruidas,
         "veredictos": dict(veredictos),
         "pct_veredictos": {v: pct(n, n_reconstruidas) for v, n in veredictos.items()},
