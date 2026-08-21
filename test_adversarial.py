@@ -418,6 +418,42 @@ comprobar("M", "criterio + falta de dato a la vez -> manda [FALTA DATO]",
           "[FALTA DATO]" in mot, mot[:70], "[FALTA DATO] (primero se consigue el dato)", "P1")
 
 
+print("\n=== FAMILIA N — El criterio sale de los 10 anos: patron de cartera ===")
+# El mapeo por cliente se indexa por CUENTA CONTABLE, que es distinta en cada
+# cliente, asi que no se podia consultar entre clientes. Indexado por NIF si.
+_NIF_CART = "12345678Z"
+def _asiento(a, cta_prov, cta_gasto, nif):
+    return [{'ASIEN': a, 'SUBCTA': cta_prov, 'TERNIF': nif},
+            {'ASIEN': a, 'SUBCTA': cta_gasto, 'TERNIF': nif}]
+_diarios = {'C01': [], 'C02': []}
+for _i in range(25):
+    _diarios['C01'] += _asiento(_i, '410009', '623001', _NIF_CART)
+for _i in range(18):
+    _diarios['C02'] += _asiento(_i, '400031', '623001', _NIF_CART)
+_cartera = m.construir_mapeo_cartera(_diarios)
+
+comprobar("N", "el patron de cartera se indexa por NIF, no por cuenta contable",
+          _NIF_CART in _cartera, f"claves: {list(_cartera)[:3]}", f"{_NIF_CART} presente", "P1")
+comprobar("N", "cuenta la fuerza en CLIENTES distintos, no solo en asientos",
+          _cartera[_NIF_CART]['n_clientes'] == 2,
+          f"n_clientes={_cartera[_NIF_CART]['n_clientes']}", "2", "P1")
+
+_f = {**BASE_FILA, 'nif': _NIF_CART, 'base_21': '100', 'base_total': '100',
+      'iva_total': '21', 'total_factura': '121'}
+_v, _mot, _ = m.evaluar_fila_v4(_f, set(), {}, {}, {}, MAESTRO, 2020,
+                                NIF_TITULAR, 2026, mapeo_cartera=_cartera)
+comprobar("N", "un proveedor nuevo para el cliente llega con EVIDENCIA de cartera",
+          "EVIDENCIA DE CARTERA" in _mot, _mot[:80],
+          "el motivo incluye lo que dice la cartera", "P1")
+comprobar("N", "la evidencia se presenta como HIPOTESIS, nunca como hecho",
+          "hipotesis" in _mot.lower(), _mot[-80:],
+          "el motivo dice explicitamente que es una hipotesis", "P0")
+
+# Un patron NO puede convertir en VERDE lo que necesita criterio.
+comprobar("N", "el patron de cartera NO sube el veredicto a VERDE",
+          _v != "VERDE", f"veredicto={_v}", "AMBAR: sigue decidiendo el humano", "P0")
+
+
 # ---------------------------------------------------------------------------
 print("\n" + "=" * 70)
 fallos = [r for r in resultados if not r[2]]

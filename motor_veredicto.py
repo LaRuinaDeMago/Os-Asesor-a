@@ -564,6 +564,107 @@ GRUPOS_PGC = {
 # todos en memoria para cada factura).
 
 
+def construir_mapeo_cartera(diarios_por_cliente):
+    """El patron de TODA la cartera, indexado por NIF. ANADIDO 20-08-2026.
+
+    EL PROBLEMA QUE RESUELVE. `construir_mapeo_cuenta_gasto` (mas abajo) indexa
+    por CUENTA CONTABLE (400001, 410014...), y esa cuenta es distinta en cada
+    cliente: el mismo proveedor puede ser 410005 en uno y 400012 en otro. Por eso
+    ese mapeo NO se puede consultar entre clientes, y un proveedor nuevo para un
+    cliente era una incognita total aunque llevaras diez anos contabilizandolo en
+    otros veinte.
+
+    Indexando por NIF si se puede. Y con eso, la pregunta "este proveedor es
+    nuevo, .a que cuenta va?" pasa de no tener respuesta a tener una respuesta
+    con evidencia detras.
+
+    QUE DEVUELVE, por NIF:
+        cuenta_gasto   la mas usada en toda la cartera
+        n_clientes     en cuantos clientes DISTINTOS se ha visto asi
+        n_asientos     cuantas veces en total
+        concordancia   que fraccion de las veces fue a esa misma cuenta
+
+    LA FUERZA DE LA SENAL ESTA EN n_clientes, NO EN n_asientos. Un proveedor que
+    va a la 628 en 20 clientes distintos es evidencia fuerte. Uno que aparece 200
+    veces en un solo cliente es UNA decision repetida 200 veces — y si aquella
+    decision estaba mal, el arrastre la ha multiplicado (ver FASE0_RESULTADOS
+    §10.3). No es lo mismo veinte opiniones que una repetida.
+
+    FRONTERA DE DATOS: cruzar la cartera para servir a los propios clientes de la
+    cartera es experiencia profesional sistematizada, y esta expresamente
+    permitido en `.claude/rules/datos.md`. Lo que esta descartado es ceder lo
+    derivado a terceros. La diferencia es quien se beneficia.
+    """
+    from collections import defaultdict
+    conteo = defaultdict(lambda: defaultdict(int))
+    clientes = defaultdict(lambda: defaultdict(set))
+
+    for cliente_id, recs in (diarios_por_cliente or {}).items():
+        por_asiento = defaultdict(list)
+        for r in recs:
+            por_asiento[r.get('ASIEN')].append(r)
+        for _, lineas in por_asiento.items():
+            nif = next((str(l.get('TERNIF', '') or '').strip()
+                        for l in lineas if str(l.get('TERNIF', '') or '').strip()), '')
+            if not nif:
+                continue
+            for l in lineas:
+                cta = str(l.get('SUBCTA', '') or '').strip()
+                if cta.startswith('6'):
+                    conteo[nif][cta[:6]] += 1
+                    clientes[nif][cta[:6]].add(cliente_id)
+
+    salida = {}
+    for nif, cuentas in conteo.items():
+        total = sum(cuentas.values())
+        mejor = max(cuentas, key=lambda c: (len(clientes[nif][c]), cuentas[c]))
+        salida[nif] = {
+            'cuenta_gasto': mejor,
+            'n_clientes': len(clientes[nif][mejor]),
+            'n_asientos': cuentas[mejor],
+            'concordancia': round(cuentas[mejor] / total, 3) if total else 0.0,
+            'cuentas_alternativas': sorted(
+                (c for c in cuentas if c != mejor),
+                key=lambda c: -cuentas[c])[:3],
+        }
+    return salida
+
+
+def guard_patron_cartera(canon, mapeo_cartera, mapeo_cliente):
+    """.Que dice la cartera entera sobre este proveedor? ANADIDO 20-08-2026.
+
+    Este guard NUNCA devuelve OK, y es a proposito. Un patron historico es una
+    HIPOTESIS, no un hecho fiscal — es la invariante del proyecto
+    (`ARQUITECTURA_DATOS.md` §2, `DISENO_APRENDIZAJE.md` §9.1: el historico dice
+    QUE SE HIZO, solo la norma dice QUE ES CORRECTO).
+
+    Lo que hace es TRAER LA EVIDENCIA para que el asesor decida con ella delante
+    en vez de a ciegas. Convierte "proveedor desconocido, decide tu" en
+    "proveedor nuevo para este cliente, pero en la cartera va a 628000 en 18
+    clientes distintos con un 96% de concordancia; decide tu".
+
+    Es exactamente el nivel 2 de `DISENO_APRENDIZAJE.md` §4: razonar CON el
+    asesor, no por el. Y por eso presenta tambien las cuentas alternativas: si
+    solo se ensena la evidencia que apoya la respuesta mas probable, es una
+    recomendacion disfrazada de dato (§4.2).
+    """
+    if not mapeo_cartera:
+        return "NO_APLICA", "sin patron de cartera cargado"
+    nif = canon.texto('nif')
+    if not nif:
+        return "NO_APLICA", "sin NIF con que consultar el patron de cartera"
+    hit = mapeo_cartera.get(nif.strip())
+    if not hit:
+        return "NO_COMPROBADO", "proveedor sin antecedentes en NINGUN cliente de la cartera"
+
+    alt = hit.get('cuentas_alternativas') or []
+    texto_alt = f"; tambien se ha usado {', '.join(alt)}" if alt else "; sin alternativas en el historico"
+    return "NO_COMPROBADO", (
+        f"la cartera dice {hit['cuenta_gasto']} en {hit['n_clientes']} cliente(s) "
+        f"distinto(s), {hit['n_asientos']} asiento(s), concordancia "
+        f"{hit['concordancia']:.0%}{texto_alt}. Es una hipotesis, no un hecho: decide tu")
+
+
 def construir_mapeo_cuenta_gasto(diario_recs):
     """Construye, a partir de un Diario.dbf REAL ya leido (lista de registros dbfread),
     el mapeo empirico proveedor/acreedor (cuenta 400xxx/410xxx) -> cuenta de gasto
@@ -856,7 +957,7 @@ def cargar_cache_json(path):
 def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
                      secuencia_cache, maestro_proveedores, alta_cliente_anio,
                      nif_cliente_titular=None, ejercicio_tanda=None, plazos_cache=None,
-                     mapeo_cuenta_gasto=None):
+                     mapeo_cuenta_gasto=None, mapeo_cartera=None):
     """Version 4: 16 guards. Añade suma_tramos, sentido_compra_venta,
     retencion_vs_error, signo_efectivo, ejercicio_coherente, vencimiento_coherente.
     Todo lo que no tiene dato real detras se declara NO_COMPROBADO/NO_APLICA,
@@ -979,6 +1080,8 @@ def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
     guards["confianza_por_campo"] = guard_confianza_por_campo(canon)
     guards["doble_lectura_total"] = guard_doble_lectura_total(canon)
     guards["triangulacion_identidad"] = guard_triangulacion_identidad(canon, maestro_proveedores)
+    # El patron de TODA la cartera. Nunca da OK: trae evidencia, no concluye.
+    guards["patron_cartera"] = guard_patron_cartera(canon, mapeo_cartera, mapeo_cuenta_gasto)
 
     # Confianza
     guards["confianza_captura"] = guard_confianza_captura(fila)
@@ -1082,6 +1185,11 @@ def calcular_veredicto_v4(guards):
     # (vencimiento no capturado hoy, importe_atipico con n<3) - eso ya esta declarado.
     exentos = {"vencimiento_coherente", "importe_atipico", "secuencia_documental_proveedor",
                "estructura_reconocida",
+               # patron_cartera NUNCA devuelve OK a proposito (un patron es una
+               # hipotesis, no un hecho). Si no estuviera exento, cualquier
+               # factura seria AMBAR para siempre solo por consultarlo. Su valor
+               # esta en el MOTIVO que aporta, no en el veredicto.
+               "patron_cartera",
                # ANADIDO 19-08-2026 al cablear el guard. Mismo motivo declarado que
                # 'vencimiento_coherente': el campo 'categoria_producto' NO lo produce
                # hoy ningun componente (comprobado con grep en todo el repo), asi que
@@ -1105,6 +1213,13 @@ def calcular_veredicto_v4(guards):
         clase = (AMBAR_CRITERIO if all(g in GUARDS_DE_CRITERIO for g in no_comprobados)
                  else AMBAR_FALTA_DATO)
         detalles = "; ".join(f"{g}: {guards[g][1]}" for g in no_comprobados)
+        # Si hay que DECIDIR, se adjunta lo que sepa la cartera. No para decidir
+        # por el asesor: para que decida con la evidencia delante en vez de a
+        # ciegas. Es el nivel 2 de DISENO_APRENDIZAJE.md §4.
+        if clase == AMBAR_CRITERIO:
+            pc = guards.get("patron_cartera", ("NO_APLICA", ""))
+            if pc[0] == "NO_COMPROBADO" and "sin antecedentes" not in pc[1]:
+                detalles += f" || EVIDENCIA DE CARTERA: {pc[1]}"
         return "AMBAR", f"{clase} {detalles}"
 
     # QUE SIGNIFICA ESTE VERDE, dicho en el propio veredicto (20-08-2026).
