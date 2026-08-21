@@ -7,6 +7,60 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 21-08-2026 — Sesión cloud de verificación: qué cambió y qué mide ahora
+
+Un día entero sin tocar datos reales, buscando defectos en vez de añadir
+funciones. Once defectos, y **ninguno estaba dentro de una pieza: todos estaban
+en las costuras** — entre una pieza y la siguiente. Las piezas tenían test
+propio; lo que nadie había ejecutado nunca era la cadena.
+
+### Los defectos, por gravedad
+
+| | Qué pasaba | Dónde |
+|---|---|---|
+| **P0** | El xDiario emitía **asientos DESCUADRADOS** (haber sin debe) para toda factura sin desglose — que desde ese mismo día es el caso normal | `layout_diario_contaplus.py` |
+| **P0** | `guard_cuenta_gasto_coherente` **no comparaba nada**; su rama `FALLO` llevaba semanas siendo código inalcanzable | `motor_veredicto.py` |
+| **P0** | Un desglose contradictorio (`base_21=0` con `base_total=1000`) daba **VERDE**: MISSING vs ZERO otra vez | `contrato_datos.py` |
+| **P0** | La barrera de privacidad **no veía una clave asignada** sin prefijo conocido | `scripts/privacy_scan.py` |
+| **P0** | `--emitir-cartera` **no escribía nada, nunca** | `retro_semaforo.py` |
+| **P1** | Una fecha `15/03/2026` (formato español) daba ÁMBAR en el motor y **reventaba la exportación entera** en el xDiario | tres guards + layout |
+| **P1** | El `€` y las comillas curvas **tumbaban la exportación completa** (latin-1 en vez de cp1252) | `layout_diario_contaplus.py` |
+| **P1** | Cuatro guards se **apagaban en silencio** si el nombre del proveedor cambiaba (las cachés se consultaban por nombre, no por NIF) | `motor_veredicto.py` |
+| **P1** | `validar_captura_historica.py` imprimía *«TASA DE ACIERTO 0.0%, FALSOS VERDES 0»* cuando **no había podido leer el fichero** (separador `;` de Excel) | idem |
+| **P1** | Un ROJO con seis defectos reportaba **uno**: seis vueltas para una factura | `motor_veredicto.py` |
+| **P1** | La clasificación `[CRITERIO]`/`[FALTA DATO]` **no la leía nadie** | (faltaba `cola_revision.py`) |
+
+### Lo que ahora se mide y antes no
+
+- **Cobertura útil de guards: 26/26.** No "están cableados": han llegado a decir
+  que no, al menos una vez, en alguna prueba.
+- **1.786 mutaciones de un solo campo sobre facturas VERDE → 0 escapes sin
+  explicar** (100% sobre lo detectable). Los 2 campos sin redundancia interna —el
+  nº de documento y el nombre— se cuentan aparte y se declaran, no se esconden en
+  el denominador.
+- **El AMBAR del retro-semáforo, desglosado por a qué se debe.** Sobre corpus
+  sintético salía 51,04% ÁMBAR y el atribuible a las facturas era **0,0%**: todo
+  era el instrumento (el diario no trae el NIF del titular, y el maestro se
+  acumula sobre la marcha). Ese matiz decide cómo se lee el primer número real.
+- **Siete auditores**, todos dentro de `audit_project.py`. Los cuatro nuevos
+  encontraron defectos reales en su primera ejecución.
+
+### Lo que se puede hacer en LOCAL que antes no
+
+| | |
+|---|---|
+| `reconstruir_303.py` | Agrega bases y cuotas de IVA por trimestre (casillas 01-09 y 28-29) para cuadrarlas contra el 303 presentado. **La única verdad externa del proyecto**, sin usar hasta hoy |
+| `cola_revision.py` | Convierte el `veredicto.csv` en un plan de trabajo agrupado **por causa**: *«23 facturas: falta el desglose»* es UNA tarea, no 23 |
+| Factura de cámara → VERDE | Antes toda factura sin desglose por tipos era ÁMBAR para siempre. Ahora las del **21% y del 0%** llegan a VERDE — y solo esas dos, porque son los únicos tipos que no se pueden fabricar mezclando (demostrado sobre 400.000 mezclas con aritmética exacta) |
+
+### Lo que sigue sin poder saberse aquí
+
+Ninguna de estas cifras dice nada del mundo real: el corpus es sintético. Lo que
+demuestran es que **la cadena arranca y no miente**. La medición sigue estando en
+el PC de la asesoría, y sigue siendo lo que falta.
+
+---
+
 ## FASE ACTUAL
 FASE 0 — Auditoría de privacidad: CERRADA (31-07-2026).
 FASE 1 — GitHub como columna vertebral del código: CERRADA (31-07-2026, ver
