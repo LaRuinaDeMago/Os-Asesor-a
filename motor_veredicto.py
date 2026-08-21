@@ -1066,9 +1066,75 @@ def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
         guards["suma_tramos"] = no_aplica
         guards["cuadre_total"] = guard_cuadre_total(base_total or 0.0, 0.0, 0.0, iva_total, irpf or 0.0, total, recargo)
     elif datos_integros:
-        sin_tramos = ("NO_COMPROBADO", "ningun tramo de IVA declarado y la operacion se declara SUJETA: falta el desglose")
-        guards["aritmetica_base_tipo"] = sin_tramos
-        guards["suma_tramos"] = sin_tramos
+        # ANADIDO 21-08-2026, y lo destapo el ensayo de la cadena LOCAL: sin
+        # desglose por tipo, TODA factura salia AMBAR. Y una captura de camara
+        # normal trae base, IVA y total — no trae el desglose. Con eso, las 91
+        # facturas de la prueba historica habrian salido las 91 en AMBAR y la
+        # validacion no habria medido nada.
+        #
+        # Pero el desglose no hace falta para comprobar lo que SI se puede
+        # comprobar: si cuota/base da un tipo LEGAL exacto, la aritmetica de la
+        # factura cuadra con un tipo real, y eso es evidencia, no suposicion.
+        #
+        # Lo que NO se hace es dar FALLO cuando no cuadra: una factura de dos
+        # tipos (100 al 21% + 100 al 10%) da un 15,5% efectivo que no es legal y
+        # sin embargo es correcta. Ahi la respuesta honesta es NO_COMPROBADO, que
+        # es justo lo que era antes. Solo se gana el caso que se puede ganar.
+        # SOLO los tipos EXTREMOS, y esto NO es prudencia: es lo unico que se
+        # sostiene. La primera version acepto cualquier tipo legal y una prueba
+        # de fuerza bruta encontro 16 formas de colarse — la mas realista, una
+        # factura de supermercado con 100 EUR al 0% y 100 EUR al 10%, que da un
+        # 5% efectivo CLAVADO, y el 5% es un tipo legal desde 2023. Habria salido
+        # VERDE afirmando una composicion fiscal falsa, y el modelo 303 necesita
+        # las bases POR TIPO.
+        #
+        # Lo que si se sostiene, y se demuestra solo:
+        #   - efectivo 21% (el MAXIMO legal): cualquier mezcla que incluya un
+        #     tipo menor da menos de 21. Llegar a 21 exige que todo este al 21.
+        #   - efectivo 0% (el MINIMO): cualquier tipo positivo suma cuota. Un
+        #     cero exige que no haya nada gravado.
+        # Cualquier tipo INTERMEDIO se puede fabricar mezclando, asi que ahi la
+        # respuesta honesta sigue siendo NO_COMPROBADO.
+        # Y se compara en EUROS, no en puntos de tipo. Comparar tipos con una
+        # tolerancia de 0,02 puntos suena igual y no lo es: en una factura de
+        # 1.000 EUR, 0,02 puntos son 0,20 EUR de cuota — diez veces la tolerancia
+        # contable del motor. Con la comparacion en euros, para colarse haria
+        # falta que la parte mal tipificada moviera la cuota menos de 2 centimos,
+        # o sea unos 18 centimos de base. Se limita solo.
+        TIPOS_SIN_MEZCLA_POSIBLE = (0, 21)
+        tipo_efectivo = None
+        if base_total not in (None, 0) and iva_total is not None:
+            for t in TIPOS_SIN_MEZCLA_POSIBLE:
+                if abs(iva_total - base_total * t / 100.0) <= TOL:
+                    tipo_efectivo = t
+                    break
+        if tipo_efectivo is not None:
+            guards["aritmetica_base_tipo"] = (
+                "OK", f"sin desglose, pero cuota/base = {tipo_efectivo}% exacto, "
+                      f"y ese tipo no se puede fabricar mezclando otros: toda la "
+                      f"base esta al {tipo_efectivo}% y la aritmetica cuadra")
+            # NO_APLICA y no NO_COMPROBADO, y la diferencia importa: no es que no
+            # se haya podido sumar el desglose, es que NO HAY desglose que sumar.
+            #
+            # Y no abre un falso verde PORQUE el tipo es extremo: solo se llega
+            # aqui con un 21% o un 0% efectivos, y ninguno de los dos se puede
+            # fabricar mezclando (ver el razonamiento de arriba). Un tipo
+            # intermedio si se puede, y por eso no entra por esta rama.
+            guards["suma_tramos"] = (
+                "NO_APLICA", "la factura no trae desglose por tipos; no hay nada "
+                             "que sumar y la aritmetica global ya cuadra")
+        elif base_total not in (None, 0) and iva_total is not None:
+            guards["suma_tramos"] = ("NO_COMPROBADO", "sin desglose por tipos y el tipo efectivo no es extremo (0% o 21%): sin el desglose no se puede afirmar la composicion")
+            guards["aritmetica_base_tipo"] = (
+                "NO_COMPROBADO", f"sin desglose y cuota/base = "
+                f"{round(iva_total * 100.0 / base_total, 2)}%: un tipo intermedio "
+                f"se puede fabricar mezclando varios (100 al 0% + 100 al 10% dan "
+                f"un 5% clavado), asi que sin el desglose no se puede afirmar la "
+                f"composicion. Hace falta el desglose por tipos")
+        else:
+            sin_tramos = ("NO_COMPROBADO", "ningun tramo de IVA declarado y la operacion se declara SUJETA: falta el desglose")
+            guards["aritmetica_base_tipo"] = sin_tramos
+            guards["suma_tramos"] = sin_tramos
         guards["cuadre_total"] = guard_cuadre_total(base_total or 0.0, 0.0, 0.0, iva_total, irpf or 0.0, total, recargo) \
             if base_total is not None else sin_tramos
     else:

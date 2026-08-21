@@ -275,6 +275,32 @@ def main():
         comprobar("y declara cuantos proveedores trae ese patron",
                   "Patron de cartera:" in s4, s4[:300])
 
+        # --- El tercer comando de la sesion LOCAL ---------------------------
+        # validar_captura_historica.py es el que puede dar el primer numero sobre
+        # FALSOS VERDES, que es lo unico que el retro-semaforo NO puede medir.
+        # Tampoco se habia ejecutado nunca. Y su gracia es que detecta las
+        # columnas solo: justo la clase de cosa que falla en silencio con un
+        # fichero que no es el que uno imaginaba.
+        csv_hist = os.path.join(tmp, "captura_historica.csv")
+        with open(csv_hist, "w", encoding="utf-8", newline="") as fh:
+            # Cabeceras a proposito NO canonicas: asi se prueba la deteccion.
+            fh.write("NIF;PROVEEDOR;NUM FACTURA;FECHA;BASE;CUOTA IVA;TOTAL;"
+                     "VEREDICTO_ANTIGUO;CORRECTO\n")
+            for k in range(12):
+                base = 100.0 + k
+                fh.write(f"{cif_valido('B', 3000000 + k)};PROV_ENSAYO_{k};"
+                         f"F-2026-{k:03d};2026-03-15;{base:.2f};"
+                         f"{base * 0.21:.2f};{base * 1.21:.2f};VERDE;VERDE\n")
+        r5 = subprocess.run([sys.executable, os.path.join(AQUI, "validar_captura_historica.py"),
+                             csv_hist, "--columna-humano", "CORRECTO",
+                             "--columna-motor", "VEREDICTO_ANTIGUO"],
+                            capture_output=True, text=True, cwd=AQUI)
+        s5 = r5.stdout + r5.stderr
+        comprobar("validar_captura_historica.py corre entero", r5.returncode == 0,
+                  s5[-500:])
+        comprobar("y detecta solo las columnas de un CSV que no es canonico",
+                  "total" in s5.lower() and "nif" in s5.lower(), s5[:400])
+
         print()
         print("  Nota: que aqui salga mucho VERDE no dice NADA del mundo real. Este")
         print("  corpus esta fabricado para cuadrar. Lo que se prueba es que el")

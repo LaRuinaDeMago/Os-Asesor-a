@@ -577,6 +577,78 @@ comprobar("P", "secuencia_documental ya sale con clase, no suelta",
           _m2.startswith(("[CRITERIO]", "[FALTA DATO]")), _m2[:30],
           "[CRITERIO] o [FALTA DATO]", "P1")
 
+
+print("\n=== FAMILIA Q — La factura de camara normal: base, IVA y total, sin desglose ===")
+# Lo destapo el ensayo de la cadena LOCAL el 21-08-2026. Sin desglose por tipos,
+# el motor daba NO_COMPROBADO y TODA factura salia AMBAR. Y una captura de camara
+# corriente no trae desglose: trae base, IVA y total. Con eso, las 91 facturas de
+# la prueba historica habrian salido las 91 en AMBAR y no se habria medido nada.
+#
+# El desglose no hace falta para comprobar lo que SI se puede comprobar.
+_SIN = {k: v for k, v in BASE_FILA.items()}
+
+def _sin_desglose(base, iva, total):
+    return {**_SIN, 'base_total': base, 'iva_total': iva, 'total_factura': total}
+
+# Solo los tipos EXTREMOS abren el VERDE, y no por prudencia: la primera version
+# acepto CUALQUIER tipo legal, y la prueba de fuerza bruta de mas abajo encontro
+# 16 formas de colarse. La mas realista: una factura de supermercado con 100 EUR
+# al 0% y 100 EUR al 10% da un 5% efectivo CLAVADO, y el 5% es legal desde 2023.
+# Habria salido VERDE afirmando una composicion fiscal falsa — y el modelo 303
+# necesita las bases POR TIPO. La prueba caza el fallo que yo mismo introduje.
+for _b, _i, _t, _tipo in (('100', '21', '121', '21%'),
+                          ('1000', '210', '1210', '21%'),
+                          ('50', '0', '50', '0%')):
+    _v, _m2 = evaluar(_sin_desglose(_b, _i, _t))
+    comprobar("Q", f"factura correcta al {_tipo} sin desglose llega a VERDE",
+              _v == "VERDE", f"{_v}: {_m2[:60]}", "VERDE", "P1")
+
+# Los tipos INTERMEDIOS no abren el VERDE aunque sean legales, justamente porque
+# se pueden fabricar mezclando. No es un error de la factura: es que sin el
+# desglose no se puede afirmar la composicion. AMBAR, nunca ROJO.
+for _b, _i, _t, _caso in (('200', '20', '220', '10% legal pero intermedio'),
+                          ('100', '4', '104', '4% legal pero intermedio'),
+                          ('200', '10', '210', '5% que puede ser 0%+10%'),
+                          ('100', '13', '113', '13% que no es legal'),
+                          ('200', '31', '231', 'dos tipos mezclados')):
+    _v, _m2 = evaluar(_sin_desglose(_b, _i, _t))
+    comprobar("Q", f"sin desglose, {_caso} -> AMBAR", _v == "AMBAR", _v, "AMBAR", "P0")
+
+# La demostracion, exhaustiva y no de palabra: ninguna mezcla de dos tipos
+# legales distintos puede dar un 0% ni un 21% efectivos con las dos bases > 0.
+#   21%  es el MAXIMO: cualquier mezcla con un tipo menor da menos de 21.
+#   0%   es el MINIMO: cualquier tipo positivo suma cuota.
+# Se comprueba con aritmetica exacta (Fraction), no en coma flotante, y sobre
+# 200x200 repartos por pareja de tipos: 400.000 mezclas.
+from fractions import Fraction as _F
+_TIPOS = (0, 4, 5, 10, 21)
+_colados = []
+for _i1, _t1 in enumerate(_TIPOS):
+    for _t2 in _TIPOS[_i1 + 1:]:
+        for _b1 in range(1, 201):
+            for _b2 in range(1, 201):
+                if _F(_b1 * _t1 + _b2 * _t2, _b1 + _b2) in (_F(0), _F(21)):
+                    _colados.append((_t1, _b1, _t2, _b2))
+comprobar("Q", "ninguna mezcla de dos tipos finge un 0% ni un 21% (400.000 mezclas)",
+          not _colados, f"{len(_colados)} se colarian", "0", "P0")
+
+# Control positivo de esa misma prueba: con los tipos intermedios incluidos SI
+# aparecen colados. Si no apareciera ninguno, la prueba de arriba no probaria
+# nada (leccion de la FAMILIA G).
+_con_intermedios = [1 for _b1 in range(1, 101) for _b2 in range(1, 101)
+                    if _F(_b1 * 0 + _b2 * 10, _b1 + _b2) == _F(5)]
+comprobar("Q", "control positivo: con tipos intermedios la prueba SI encuentra colados",
+          len(_con_intermedios) > 0, f"{len(_con_intermedios)}", ">0", "P1")
+
+# El limite DECLARADO, que sigue existiendo y conviene tenerlo escrito: un error
+# de escala coherente en los tres campos a la vez (leer 100 donde ponia 1.000,
+# 21 donde ponia 210, 121 donde ponia 1.210) es indistinguible de una factura
+# correcta mas pequena. Ninguna redundancia interna puede cazar eso: haria falta
+# el historico de importes del proveedor, que es otro guard.
+_v, _m2 = evaluar(_sin_desglose('100', '21', '121'))
+comprobar("Q", "LIMITE DECLARADO: un error de escala coherente en los 3 campos pasa",
+          _v == "VERDE", _v, "VERDE (y esta bien que sea asi, ver comentario)", "P1")
+
 # ---------------------------------------------------------------------------
 print("\n" + "=" * 70)
 fallos = [r for r in resultados if not r[2]]

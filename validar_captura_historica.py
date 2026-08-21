@@ -67,6 +67,54 @@ PISTAS_HUMANO = ("humano", "correcto", "real", "revisado", "validado", "diego",
                  "veredicto_final", "ok_asesor", "corregido")
 
 
+#: Como se llama de verdad cada campo en un CSV que no ha hecho este proyecto.
+#: ANADIDO 21-08-2026: el script decia "detecta las columnas solo" y solo lo
+#: hacia con las dos columnas de veredicto. Los campos que el MOTOR consume se
+#: buscaban con su nombre canonico exacto, asi que un fichero con la cabecera
+#: "NIF" —en mayusculas, como lo escribe cualquiera— dejaba el campo MISSING y
+#: sacaba el 100% de las facturas en AMBAR. El numero final no medía el motor:
+#: medía que no se habian encontrado las columnas.
+ALIAS_CAMPOS = {
+    "nif": ("nif", "cif", "nif_proveedor", "nifproveedor", "dni", "nif/cif", "cif/nif"),
+    "proveedor": ("proveedor", "nombre", "razon social", "razón social", "emisor",
+                  "acreedor", "tercero"),
+    "nº_documento": ("nº_documento", "n_documento", "num factura", "nº factura",
+                     "numero factura", "num_factura", "documento", "factura",
+                     "n factura", "nro factura"),
+    "fecha_expedicion": ("fecha_expedicion", "fecha expedicion", "fecha expedición",
+                         "fecha", "fecha factura", "f. factura"),
+    "base_total": ("base_total", "base", "base imponible", "baseimpo", "b.imponible"),
+    "iva_total": ("iva_total", "iva", "cuota iva", "cuota", "importe iva"),
+    "total_factura": ("total_factura", "total", "importe total", "total factura",
+                      "importe", "total_doc"),
+    "irpf": ("irpf", "retencion", "retención", "ret."),
+    "recargo_equivalencia": ("recargo_equivalencia", "recargo", "rec. equiv",
+                             "recequiv", "recargo equivalencia"),
+}
+
+
+def mapear_campos(campos):
+    """Devuelve {columna_del_fichero: campo_del_motor} y los criticos que faltan.
+
+    No renombra a ciegas: si la columna YA se llama como el motor la espera, se
+    respeta y no se toca. Solo traduce lo que haga falta, y lo declara por
+    pantalla para que se vea de donde ha salido cada dato."""
+    bajos = {c: c.lower().strip() for c in campos}
+    traduccion, ya_usados = {}, set()
+    for canonico, alias in ALIAS_CAMPOS.items():
+        if canonico in campos:
+            ya_usados.add(canonico)
+            continue
+        for col, bajo in bajos.items():
+            if col in traduccion or col in ya_usados:
+                continue
+            if bajo in alias:
+                traduccion[col] = canonico
+                ya_usados.add(canonico)
+                break
+    return traduccion
+
+
 def detectar_columna(campos, pistas, excluir=()):
     """Devuelve la primera columna cuyo nombre contenga alguna pista."""
     for c in campos:
@@ -111,13 +159,36 @@ def main():
         print(f"No encuentro el fichero: {args.csv}")
         return 2
 
+    # SEPARADOR — arreglado el 21-08-2026, lo destapo ensayo_retro_semaforo.py.
+    # Excel en espanol exporta con PUNTO Y COMA, no con coma, asi que el fichero
+    # de las 91 facturas tiene todas las papeletas de venir asi. Con el separador
+    # equivocado, csv.DictReader no falla: devuelve UNA columna con la linea
+    # entera dentro, y el script seguia adelante tan tranquilo hasta imprimir
+    # "TASA DE ACIERTO: 0.0%" y "FALSOS VERDES: 0". Un numero que en realidad
+    # significaba "no he podido leer nada", presentado como medicion.
+    #
+    # Es el falso verde por omision de siempre, cometido por el instrumento que
+    # tiene que medirlo. Se elige el separador por el que MAS columnas produce en
+    # la cabecera, que es como lo hace cualquiera a ojo.
     with open(args.csv, encoding="utf-8-sig", newline="") as f:
-        filas = list(csv.DictReader(f))
+        cabecera = f.readline()
+    sep = max((";", ",", "\t", "|"), key=lambda c: cabecera.count(c))
+    if cabecera.count(sep) == 0:
+        sep = ","
+    with open(args.csv, encoding="utf-8-sig", newline="") as f:
+        filas = list(csv.DictReader(f, delimiter=sep))
     if not filas:
         print("El CSV esta vacio.")
         return 2
 
     campos = list(filas[0].keys())
+    if len(campos) < 2:
+        print(f"El fichero se ha leido como UNA sola columna (separador probado: "
+              f"'{sep}'). Eso no es un CSV que este script pueda usar, y seguir "
+              f"daria numeros que solo miden que no se ha leido nada.")
+        print(f"  cabecera encontrada: {cabecera[:120].strip()!r}")
+        print("  Comprobar el separador real del fichero y volver a exportarlo.")
+        return 2
     col_motor = args.columna_motor or detectar_columna(campos, PISTAS_MOTOR)
     col_humano = args.columna_humano or detectar_columna(
         campos, PISTAS_HUMANO, excluir={col_motor} if col_motor else ())
@@ -127,13 +198,21 @@ def main():
     print("VALIDACION CON FACTURAS QUE YA PASARON POR UNA CAMARA")
     print("=" * 68)
     print(f"  filas leidas             : {len(filas)}")
-    print(f"  columnas                 : {len(campos)}")
+    print(f"  columnas                 : {len(campos)}  (separador '{sep}')")
     print(f"  veredicto del motor      : {col_motor or '*** NO ENCONTRADO ***'}")
     print(f"  veredicto humano         : {col_humano or 'no hay (ver mas abajo, sigue habiendo premio)'}")
-    faltan = [c for c in ("nif", "total_factura", "fecha_expedicion") if c not in campos]
+    traduccion = mapear_campos(campos)
+    if traduccion:
+        print("  columnas traducidas al nombre que usa el motor:")
+        for col, canonico in sorted(traduccion.items(), key=lambda kv: kv[1]):
+            print(f"      {col!r:<22} -> {canonico}")
+    disponibles = set(campos) | set(traduccion.values())
+    faltan = [c for c in ("nif", "total_factura", "fecha_expedicion") if c not in disponibles]
     if faltan:
         print(f"  ⚠ campos que el motor necesita y NO estan: {faltan}")
-        print("    (se evaluara igual; el contrato de datos los marcara MISSING)")
+        print("    (se evaluara igual; el contrato de datos los marcara MISSING —")
+        print("     pero OJO: con criticos ausentes, lo que se mida NO mide el")
+        print("     motor, mide que no se han encontrado las columnas)")
     print()
 
     maestro = {}
@@ -157,9 +236,15 @@ def main():
     falsos_verdes_hoy = []
     matriz = defaultdict(Counter)
 
-    for i, fila in enumerate(filas):
-        v_antes = normalizar_veredicto(fila.get(col_motor)) if col_motor else None
-        v_humano = normalizar_veredicto(fila.get(col_humano)) if col_humano else None
+    for i, fila_cruda in enumerate(filas):
+        v_antes = normalizar_veredicto(fila_cruda.get(col_motor)) if col_motor else None
+        v_humano = normalizar_veredicto(fila_cruda.get(col_humano)) if col_humano else None
+        # La traduccion AÑADE la clave canonica, no borra la original: si el
+        # fichero trae algo mas, sigue estando y nadie pierde informacion.
+        fila = dict(fila_cruda)
+        for col, canonico in traduccion.items():
+            if fila.get(col) not in (None, ""):
+                fila[canonico] = fila_cruda[col]
         try:
             v_hoy, motivo, guards = mv.evaluar_fila_v4(
                 fila, vistos, {}, {}, {}, maestro,
@@ -226,12 +311,31 @@ def main():
         print("EL NUMERO QUE DECIDE EL PROYECTO")
         print("=" * 68)
         print(f"  facturas con veredicto humano : {total_juzgadas}")
-        print(f"  >> TASA DE ACIERTO (hoy)      : {pct(aciertos_hoy, total_juzgadas)}%")
-        if aciertos_antes or fallos_antes:
-            print(f"     tasa de acierto (entonces) : {pct(aciertos_antes, aciertos_antes + fallos_antes)}%")
-        print(f"  >> FALSOS VERDES              : {len(falsos_verdes_hoy)}"
-              f"   ({pct(len(falsos_verdes_hoy), total_juzgadas)}%)")
-        print("     (el motor dijo VERDE y el humano dijo que estaba mal)")
+        if total_juzgadas == 0:
+            # ANADIDO 21-08-2026. Antes imprimia "TASA DE ACIERTO: 0.0%" y
+            # "FALSOS VERDES: 0" con cero facturas juzgadas. Los dos numeros son
+            # falsos y ademas tranquilizadores: cero falsos verdes suena a
+            # perfecto y significa que no se ha mirado ni uno. Es exactamente el
+            # OK-por-omision que el motor tiene prohibido, en la herramienta que
+            # deberia detectarlo.
+            print("  >> NO SE PUEDE CALCULAR NINGUNA TASA.")
+            print("     La columna de veredicto humano existe, pero ninguna fila")
+            print("     trae un valor reconocible (VERDE/AMBAR/ROJO, OK/MAL,")
+            print("     BIEN/REVISAR...). Sin eso no hay con que comparar.")
+            print("     CERO no es el resultado: es la ausencia de resultado.")
+        elif faltan:
+            print(f"  >> LA TASA NO SE PUBLICA: faltaban campos criticos {faltan}.")
+            print("     Saldria un numero, y ese numero mediria la lectura del")
+            print("     fichero, no el motor. Publicarlo seria peor que no tenerlo.")
+            print(f"     (para referencia interna: {pct(aciertos_hoy, total_juzgadas)}% "
+                  f"sobre {total_juzgadas} facturas mal leidas)")
+        else:
+            print(f"  >> TASA DE ACIERTO (hoy)      : {pct(aciertos_hoy, total_juzgadas)}%")
+            if aciertos_antes or fallos_antes:
+                print(f"     tasa de acierto (entonces) : {pct(aciertos_antes, aciertos_antes + fallos_antes)}%")
+            print(f"  >> FALSOS VERDES              : {len(falsos_verdes_hoy)}"
+                  f"   ({pct(len(falsos_verdes_hoy), total_juzgadas)}%)")
+            print("     (el motor dijo VERDE y el humano dijo que estaba mal)")
         print("\n  matriz motor(hoy) x humano:")
         print(f"    {'':10}" + "".join(f"{h:>10}" for h in VEREDICTOS))
         for m in VEREDICTOS:
