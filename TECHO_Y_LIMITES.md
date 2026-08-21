@@ -222,3 +222,78 @@ forma— ya existen y son las más diferenciales del proyecto:
 > **El techo de "comprobar la forma" está tocado. El techo de "acertar la
 > decisión contable" está mucho más abajo, y el camino hacia él es el histórico
 > conectado al motor, no más guards aritméticos.**
+
+---
+
+## 📐 DÓNDE ESTÁ EXACTAMENTE EL LÍMITE, Y CÓMO SE ACUERDA
+
+Acordado el 20-08-2026. Esto no describe un estado: es **el criterio con el que
+se decide, caso por caso, qué se automatiza y qué no**. Sin él, la frontera se
+mueve sola con el tiempo y siempre en la misma dirección.
+
+### La regla que sitúa el límite
+
+> **El motor puede alcanzar todo lo que sea VERIFICABLE contra un dato que
+> exista. No puede alcanzar nada que dependa de un hecho del mundo que no está
+> en ningún dato.**
+
+Los cuatro datos contra los que se puede verificar algo son:
+
+1. **La propia factura** (coherencia aritmética, identidad, fechas)
+2. **El histórico del despacho** (a qué cuenta va este proveedor desde hace años)
+3. **La norma codificada** (tipos de IVA, límites de deducibilidad conocidos)
+4. **Los modelos presentados** (lo que se declaró es un hecho, no un criterio)
+
+Y el suelo, que no se mueve:
+
+> Si para decidir hace falta saber **si aquella cena fue de trabajo**, o **si ese
+> ordenador se usa en la empresa o en casa del socio**, no hay dato que lo diga.
+> Ni lo habrá. Eso es humano para siempre, por construcción y no por falta de
+> ingeniería.
+
+### Los tres cubos — cada caso cae en uno y solo uno
+
+| Cubo | Qué es | Quién decide |
+|---|---|---|
+| **1 · AUTOMATIZABLE** | Verificable contra los cuatro datos de arriba | El motor decide; el humano audita por muestreo |
+| **2 · ASISTIDO** | El motor reúne la evidencia y la presenta; no concluye | El humano, con la evidencia delante |
+| **3 · HUMANO PERMANENTE** | Depende de un hecho del mundo que no está en ningún dato | El humano, siempre |
+
+### La disciplina que hace que esto funcione — y es la parte difícil
+
+**El cubo 3 se declara POR ADELANTADO y solo puede CRECER, nunca encoger.**
+
+Un caso sale del cubo 3 únicamente si aparece **evidencia nueva** que lo hace
+verificable —un dato que antes no existía, una fuente nueva—, jamás porque
+convenga, porque haya prisa o porque *"casi siempre acierta"*. Sin esta regla,
+los casos migran del 3 al 1 poco a poco, cada uno con su buena razón, y un día el
+sistema está decidiendo cosas que nadie decidió que decidiera.
+
+Es el mismo principio que ya rige el motor: **un OK que significa "no lo he
+comprobado" está prohibido.** Aquí, un cubo 1 que significa "no me apetecía
+revisarlo" está prohibido igual.
+
+### Cómo se sabe que el techo está alcanzado
+
+Tres condiciones, y las tres son comprobables:
+
+1. **Todo caso que llega se clasifica en uno de los tres cubos sin ambigüedad.**
+   Si hay casos que no se sabe dónde van, la clasificación está incompleta.
+2. **El cubo 3 está CARACTERIZADO, no solo contado.** Hay que poder decir *qué
+   tipos* de caso caen ahí, no cuántos. Un cubo 3 que es un cajón de sastre
+   significa que no se ha entendido el problema.
+3. **La tasa de falsos verdes DENTRO del cubo 1 está medida y por debajo del
+   umbral fijado de antemano.** Es el único número que importa, y solo tiene
+   sentido medirlo sobre el cubo 1: en el 2 y el 3 decide un humano.
+
+> Cuando esas tres se cumplen, el motor está en su techo. Lo que quede fuera del
+> cubo 1 **no es deuda pendiente: es el diseño.**
+
+### Por qué esto no es rendirse
+
+El objetivo nunca fue automatizar el 100%. Es que **lo automatizado sea de fiar
+y que el trabajo humano se concentre donde de verdad hace falta criterio**.
+
+Un sistema que automatiza el 70% con cero falsos verdes vale infinitamente más
+que uno que automatiza el 95% y se equivoca de forma convincente en el resto.
+Y para una asesoría, el segundo es directamente peligroso.

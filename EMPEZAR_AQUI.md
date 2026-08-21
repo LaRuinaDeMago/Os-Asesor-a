@@ -166,6 +166,34 @@ suscripción, nunca la API key. Datos reales = sentado en el PC de la asesoría.
 > 3. ¿El modelo **copia** el valor en `total_factura_2` en vez de dejarlo vacío?
 >    Si lo copia, la comprobación es un espejo y no vale nada.
 
+## 3-quater. 📐 El límite acordado — leer antes de decidir qué automatizar
+
+`TECHO_Y_LIMITES.md`, sección final. En una frase:
+
+> El motor alcanza **todo lo verificable** contra la factura, el histórico, la
+> norma y los modelos presentados. **No alcanza** lo que depende de un hecho del
+> mundo que no está en ningún dato — si aquella cena fue de trabajo, si ese
+> ordenador se usa en la empresa o en casa.
+
+Cada caso cae en **un cubo y solo uno**:
+
+| Cubo | Quién decide |
+|---|---|
+| **1 · AUTOMATIZABLE** — verificable contra un dato | El motor; el humano audita por muestreo |
+| **2 · ASISTIDO** — el motor trae la evidencia, no concluye | El humano, con la evidencia delante |
+| **3 · HUMANO PERMANENTE** — depende de un hecho del mundo | El humano, siempre |
+
+> ⚠️ **El cubo 3 se declara por adelantado y solo puede CRECER.** Un caso sale de
+> ahí únicamente con evidencia nueva, **nunca porque convenga o porque "casi
+> siempre acierta"**. Sin esa regla, los casos migran del 3 al 1 uno a uno, cada
+> uno con su buena razón, y un día el sistema decide cosas que nadie decidió que
+> decidiera.
+
+**El techo está alcanzado cuando:** todo caso se clasifica sin ambigüedad, el
+cubo 3 está *caracterizado* (se sabe qué tipos caen ahí, no solo cuántos), y la
+tasa de falsos verdes **dentro del cubo 1** está medida y bajo el umbral fijado
+de antemano.
+
 ## 4. La decisión que hay que tomar hoy, antes de seguir tocando el motor
 
 **Acordado el 19-08:** primero se cierra bien el motor, después se valida. Decisión
