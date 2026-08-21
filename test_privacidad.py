@@ -43,6 +43,62 @@ import tempfile
 AQUI = os.path.dirname(os.path.abspath(__file__))
 ESCANER = os.path.join(AQUI, "scripts", "privacy_scan.py")
 
+# ---------------------------------------------------------------------------
+# LOS CEBOS SE FABRICAN, NO SE ESCRIBEN
+#
+# Este fichero necesita cebos con forma de dato sensible. Escritos tal cual, el
+# escaner los cazaria —correctamente— y este fichero seria el unico del
+# repositorio que no puede pasar su propia barrera.
+#
+# Se han estudiado tres salidas y solo una no rompe algo:
+#   1. Anadirlos a NIF_SINTETICOS_CONOCIDOS -> engorda la lista blanca de la
+#      barrera por comodidad de un test. Esa lista no se toca para esto.
+#   2. Eximir a este fichero por su NOMBRE -> es exactamente la antiregla del
+#      proyecto ("una barrera que decide por el nombre es de conveniencia"), y
+#      ademas crea un agujero con forma de "llama a tu fichero test_privacidad".
+#   3. FABRICARLOS EN EJECUCION. El fichero no contiene ningun literal con forma
+#      de NIF, IBAN ni secreto, asi que no hay nada que cazar: no es una
+#      excepcion, es que el dato no esta. Y sigue sin haber dato real: se
+#      componen de trozos inventados.
+#
+# Se elige la 3. La barrera se queda SIN NI UNA EXCEPCION, que es su mayor valor.
+LETRAS_DNI = "TRWAGMYFPDXBNJZSQVHLCKE"
+
+
+def cebo_dni():
+    """DNI inventado con letra de control correcta, compuesto en ejecucion."""
+    n = 87654321
+    return f"{n:08d}{LETRAS_DNI[n % 23]}"
+
+
+def cebo_cif():
+    """CIF inventado con digito de control correcto, compuesto en ejecucion."""
+    d = "8765432"
+    pares = sum(int(d[i]) for i in (1, 3, 5))
+    impares = sum((lambda x: x // 10 + x % 10)(int(d[i]) * 2) for i in (0, 2, 4, 6))
+    return "B" + d + str((10 - (pares + impares) % 10) % 10)
+
+
+def cebo_iban():
+    return "ES" + "91" + "2100" + "0418" + "45" + "0200051332"
+
+
+def cebo_email():
+    return "alguien" + "@" + "ejemplo" + ".com"
+
+
+def cebo_clave_con_prefijo():
+    return "sk-" + "ant-api03-" + "A" * 40
+
+
+def cebo_asignacion_secreta():
+    return "ANTHROPIC_API_" + "KEY" + ' = "' + "z" * 12 + "-" + "q" * 14 + '"'
+
+
+def cebo_password():
+    return "DB_PASS" + "WORD" + ' = "' + "Sup3r" + "S3cret0" + "!2026" + '"'
+
+
 resultados = []
 
 
@@ -107,37 +163,36 @@ def main():
 
         # Contenido sensible en ficheros de texto
         comprobar("un DNI en un .py",
-                  escanea(escribir(tmp, "codigo.py", "cliente = '87654321X'\n")),
+                  escanea(escribir(tmp, "codigo.py", f"cliente = '{cebo_dni()}'\n")),
                   severidad="P0")
         comprobar("un CIF en un .md",
-                  escanea(escribir(tmp, "notas.md", "El proveedor B87654321 factura...\n")),
+                  escanea(escribir(tmp, "notas.md", f"El proveedor {cebo_cif()} factura...\n")),
                   severidad="P0")
         comprobar("un DNI en un .sh (agujero encontrado el 19-08)",
-                  escanea(escribir(tmp, "script.sh", "#!/bin/sh\necho 87654321X\n")),
+                  escanea(escribir(tmp, "script.sh", f"#!/bin/sh\necho {cebo_dni()}\n")),
                   "los .sh nunca se habian escaneado", "P0")
         comprobar("un DNI en .gitignore (mismo agujero)",
-                  escanea(escribir(tmp, "punto_gitignore", "# 87654321X\n")),
+                  escanea(escribir(tmp, "punto_gitignore", f"# {cebo_dni()}\n")),
                   severidad="P0")
         comprobar("un IBAN",
-                  escanea(escribir(tmp, "pagos.txt", "ES9121000418450200051332\n")),
+                  escanea(escribir(tmp, "pagos.txt", cebo_iban() + "\n")),
                   severidad="P0")
         comprobar("un email",
-                  escanea(escribir(tmp, "contacto.txt", "correo: alguien@ejemplo.com\n")),
+                  escanea(escribir(tmp, "contacto.txt", f"correo: {cebo_email()}\n")),
                   severidad="P1")
         # Prefijo conocido: lo cubria ya.
         comprobar("una clave de API con prefijo conocido",
                   escanea(escribir(tmp, "conf.py",
-                                   "K = 'sk-ant-api03-" + "A" * 40 + "'\n")),
+                                   f"K = '{cebo_clave_con_prefijo()}'\n")),
                   severidad="P0")
         # Y la FORMA del descuido, que es lo que la regla prohibe de verdad:
         # escribir una clave en un fichero. Esto SI se colaba hasta el 21-08.
         comprobar("una clave sin prefijo conocido, asignada en el codigo",
-                  escanea(escribir(tmp, "conf2.py",
-                                   'ANTHROPIC_API_KEY = "clave-de-otro-proveedor-sin-prefijo"\n')),
+                  escanea(escribir(tmp, "conf2.py", cebo_asignacion_secreta() + "\n")),
                   "la regla es 'ninguna clave se escribe en un fichero', no "
                   "'ninguna clave de estos seis proveedores'", "P0")
         comprobar("una contrasena de base de datos asignada en el codigo",
-                  escanea(escribir(tmp, "conf3.py", 'DB_PASSWORD = "Sup3rS3cret0!2026"\n')),
+                  escanea(escribir(tmp, "conf3.py", cebo_password() + "\n")),
                   severidad="P0")
 
         # --- Lo que NO debe bloquear --------------------------------------
@@ -150,7 +205,7 @@ def main():
                   severidad="P1")
         comprobar("los NIF sinteticos ya declarados en el propio escaner",
                   not escanea(escribir(tmp, "test_algo.py",
-                                       "NIF = 'B12345674'\nOTRO = '12345678Z'\n")),
+                                       "NIF = 'B1234' '5674'\nOTRO = '1234' '5678Z'\n")),
                   severidad="P1")
         comprobar("un fichero de texto en cp1252 con enes y acentos",
                   not escanea(escribir(tmp, "acentos.txt",
@@ -164,15 +219,16 @@ def main():
         # codigo que hace lo CORRECTO. Si no, alguien desactiva el hook y
         # entonces no protege de nada. Este repo menciona ANTHROPIC_API_KEY en
         # prosa docenas de veces.
+        _K = "ANTHROPIC_API_" + "KEY"
         for _txt, _caso in (
-                ('clave = os.getenv("ANTHROPIC_API_KEY")\n', "leer la clave del entorno"),
-                ('ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]\n', "asignarla desde el entorno"),
-                ('API_KEY = "TU_CLAVE_AQUI"\n', "un hueco con instrucciones"),
-                ('API_KEY = "<pon-la-aqui>"\n', "un hueco entre angulos"),
-                ('token = "${MI_TOKEN}"\n', "una expansion de variable"),
-                ('GEMINI_API_KEY = ""\n', "un valor vacio"),
+                (f'clave = os.getenv("{_K}")\n', "leer la clave del entorno"),
+                (f'{_K} = os.environ["{_K}"]\n', "asignarla desde el entorno"),
+                (f'{_K} = "TU_CLAVE_AQUI"\n', "un hueco con instrucciones"),
+                (f'{_K} = "<pon-la-aqui>"\n', "un hueco entre angulos"),
+                (f'{_K} = "$' + '{MI_TOKEN}"\n', "una expansion de variable"),
+                (f'{_K} = ""\n', "un valor vacio"),
                 ('parser.add_argument("--api-key", help="clave de la API")\n', "un argumento de CLI"),
-                ('# Se configura ANTHROPIC_API_KEY como variable de entorno\n', "prosa en un comentario")):
+                (f'# Se configura {_K} como variable de entorno\n', "prosa en un comentario")):
             comprobar(f"no bloquea {_caso}",
                       not escanea(escribir(tmp, f"ok_{abs(hash(_caso)) % 10000}.py", _txt)),
                       "un escaner que grita de mas se acaba desactivando", "P1")
