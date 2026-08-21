@@ -46,6 +46,30 @@ deltas del proyecto, con 91 casos, sin pasar una factura nueva.**
 
 Sería el primer número real, sacado de trabajo ya hecho. Mirar esto antes que nada.
 
+**Y ya está la herramienta esperándolo:**
+
+```bash
+python validar_captura_historica.py "ruta/al/fichero.csv"
+```
+
+No hace falta que el CSV tenga ningún formato concreto: detecta las columnas
+solo y dice lo que ha encontrado antes de calcular nada. Compara **tres cosas**:
+
+| | |
+|---|---|
+| Lo que dijo el motor **entonces** | la columna que ya trae el fichero |
+| Lo que dice el motor **de hoy** | se recalcula ahí mismo |
+| Lo que resultó ser **correcto** | si alguien lo anotó |
+
+- **Si hay veredicto humano** → la tasa de acierto real y el número de falsos
+  verdes, con matriz de confusión. Es *el* número.
+- **Si no lo hay** → sigue habiendo premio: te dice qué facturas cambian de
+  veredicto con el motor nuevo. Eso convierte *"revisar 95"* en *"revisar las 12
+  que han cambiado"*: una tarde en vez de una semana.
+- **En los dos casos** → si el trabajo de estos días ha movido algo o no. Un
+  motor que cambia entero y no mueve ni un caso real no ha mejorado nada, y el
+  script lo dice con esas palabras.
+
 > Es un fichero **local con datos reales**: lo abre Diego, no Claude. A Claude se
 > le pasan recuentos, nunca filas.
 
