@@ -308,7 +308,8 @@ def main():
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
         # Las salidas del script van a su propio directorio, no al temporal.
-        for f in ("retro_semaforo_agregado.json", "retro_semaforo_LOCAL.json"):
+        for f in ("retro_semaforo_agregado.json", "retro_semaforo_LOCAL.json",
+                  "validacion_captura_agregado.json", "validacion_captura_LOCAL.csv"):
             p = os.path.join(AQUI, f)
             if os.path.exists(p):
                 os.remove(p)

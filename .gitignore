@@ -66,3 +66,9 @@ __pycache__/
 # Carpetas de expedientes/datos reales si algún día vuelven a aparecer sueltas.
 02_EXPEDIENTES/
 04_CLIENTE/
+
+# Salidas de medicion: se generan al ejecutar, no se versionan. El agregado se
+# sube A MANO cuando trae un numero real que interesa guardar; lo que no puede
+# pasar es que se cuele el de un ensayo sintetico y se lea como si fuera real.
+retro_semaforo_agregado.json
+validacion_captura_agregado.json
