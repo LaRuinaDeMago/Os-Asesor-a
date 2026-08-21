@@ -210,7 +210,13 @@ def check_estados_y_cobertura():
                              # contabilidad — y se encontro uno de verdad: la
                              # factura de camara generaba un asiento de una sola
                              # linea, descuadrado.
-                             ("ensayo_xdiario.py", "xDiario: ningun asiento descuadrado")):
+                             ("ensayo_xdiario.py", "xDiario: ningun asiento descuadrado"),
+                             # La costura entre lo que la captura PIDE y lo que
+                             # el motor USA. Son dos listas en ficheros distintos
+                             # y nada comprobaba que coincidieran: si dejan de
+                             # hacerlo no salta nada, el campo llega con otro
+                             # nombre y la factura sale AMBAR "por la captura".
+                             ("ensayo_contrato_captura.py", "Captura <-> motor: los campos cuadran")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue
