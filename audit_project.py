@@ -155,6 +155,29 @@ def check_adversarial():
           linea or resultado.stdout[-300:])
 
 
+def check_estados_y_cobertura():
+    """ANADIDO 21-08-2026. La tercera pregunta, la que faltaba.
+
+    check_cableado()  ->  ¿el guard existe y alguien lo llama?
+    cobertura_guards  ->  ¿ha llegado alguna vez a decir que no?
+    audit_estados     ->  ¿lo que dice cambia el veredicto?
+
+    La tercera aparecio por las malas: guard_cuenta_gasto_coherente estaba
+    cableado, su rama FALLO -> AMBAR llevaba semanas escrita en el veredicto, y
+    era inalcanzable porque el guard no comparaba nada. Las otras dos preguntas
+    daban verde. Se cablea aqui para que no dependa de que alguien se acuerde.
+    """
+    for script, etiqueta in (("audit_estados.py", "Estados: sin ramas muertas ni guards mudos"),
+                             ("cobertura_guards.py", "Cobertura: guards probados de verdad")):
+        if not os.path.exists(script):
+            check(etiqueta, False, f"{script} no encontrado")
+            continue
+        r = subprocess.run([sys.executable, script], capture_output=True, text=True)
+        linea = next((l.strip() for l in reversed(r.stdout.splitlines())
+                      if "cobertura util" in l or "✗" in l), "")
+        check(etiqueta, r.returncode == 0, linea or r.stdout.strip().splitlines()[-1:][0] if r.stdout.strip() else "")
+
+
 def check_dependencias():
     if not os.path.exists("requirements.txt"):
         check("requirements.txt", False, "no encontrado")
@@ -198,6 +221,7 @@ if __name__ == "__main__":
     check_dependencias()
     check_tests()
     check_adversarial()
+    check_estados_y_cobertura()
     comparar_con_anterior()
 
     todos_ok = all(c["ok"] for c in RESULTADO["checks"].values())

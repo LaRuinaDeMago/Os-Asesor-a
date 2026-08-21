@@ -1187,8 +1187,25 @@ def _clasificar_ambar(guard):
 
 
 def calcular_veredicto_v4(guards):
-    """Veredicto con los 16 guards. Criticos ampliados con suma_tramos,
-    sentido_compra_venta, signo_efectivo y ejercicio_coherente."""
+    """Veredicto con los 26 guards de hoy. `criticos` es la lista de los que, si
+    dicen FALLO, hacen ROJO sin discusion.
+
+    OJO AL LEER `criticos` (comprobado por audit_estados.py el 21-08-2026): la
+    lista es una ESPECIFICACION, no un retrato de lo que dispara hoy. Dos de sus
+    entradas son inalcanzables a proposito y conviene saberlo antes de confiar en
+    ellas:
+
+      integridad_datos    nunca devuelve FALLO. Un importe ilegible no es un
+                          error contable, es un dato que falta: NO_COMPROBADO
+                          -> AMBAR.
+      nif_casa_historico  nunca devuelve FALLO desde el 20-08-2026. Un proveedor
+                          nuevo es un alta que decidir, no un fallo. El NIF
+                          imposible lo caza nif_digito_control, que si esta vivo
+                          en esta misma lista.
+
+    Se quedan escritas para el dia que esos guards aprendan a decir FALLO, y
+    audit_estados.py avisa si eso pasa (declaracion obsoleta). Lo que no puede
+    ocurrir es que alguien lea la lista y crea que hoy protegen de algo."""
     criticos = ["integridad_datos", "naturaleza_operacion", "recargo_equivalencia",
                 "doble_lectura_total", "triangulacion_identidad",
                 "aritmetica_base_tipo", "suma_tramos", "cuadre_total", "nif_digito_control",
