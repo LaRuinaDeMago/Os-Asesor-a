@@ -347,6 +347,48 @@ comprobar("K", "triangulacion: NIF casa pero el NOMBRE no (el peor caso) -> no V
           v != "VERDE", f"veredicto={v}", "AMBAR o ROJO", "P0")
 
 
+print("\n=== FAMILIA L — El 5 confundido con un 8 (medido, no supuesto) ===")
+# La preocupacion central del titular, convertida en prueba: se coge una factura
+# correcta y se cambia UN digito. Exhaustivo, no muestreado.
+FACT_OCR = {**BASE_FILA, 'nº_documento': 'FAC-2026-0158',
+            'base_21': '458.00', 'base_total': '458.00',
+            'iva_total': '96.18', 'total_factura': '554.18'}
+_colados_euros, _n_euros = [], 0
+for _campo in ('base_21', 'base_total', 'iva_total', 'total_factura'):
+    _orig = FACT_OCR[_campo]
+    _punto = _orig.rfind('.')
+    for _i, _ch in enumerate(_orig):
+        if not _ch.isdigit() or (_punto != -1 and _i > _punto):
+            continue          # solo digitos de EUROS, no de centimos
+        for _nuevo in '0123456789':
+            if _nuevo == _ch:
+                continue
+            _n_euros += 1
+            _f = dict(FACT_OCR)
+            _f[_campo] = _orig[:_i] + _nuevo + _orig[_i + 1:]
+            if evaluar(_f)[0] == "VERDE":
+                _colados_euros.append(f"{_campo}:{_orig}->{_f[_campo]}")
+comprobar("L", f"ningun error de 1 digito en los EUROS se cuela ({_n_euros} mutaciones)",
+          not _colados_euros, f"{len(_colados_euros)} colados: {_colados_euros[:3]}",
+          "0 colados", "P0")
+
+# El NIF esta protegido por su digito de control: un digito cambiado no pasa.
+_colados_nif = 0
+_orig = FACT_OCR['nif']
+for _i, _ch in enumerate(_orig):
+    if not _ch.isdigit():
+        continue
+    for _nuevo in '0123456789':
+        if _nuevo == _ch:
+            continue
+        _f = dict(FACT_OCR)
+        _f['nif'] = _orig[:_i] + _nuevo + _orig[_i + 1:]
+        if evaluar(_f)[0] == "VERDE":
+            _colados_nif += 1
+comprobar("L", "ningun error de 1 digito en el NIF se cuela (checksum)",
+          _colados_nif == 0, f"{_colados_nif} colados", "0 colados", "P0")
+
+
 # ---------------------------------------------------------------------------
 print("\n" + "=" * 70)
 fallos = [r for r in resultados if not r[2]]
