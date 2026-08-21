@@ -59,7 +59,51 @@ UTILIZABLES = (VALUE, ZERO)
 
 #: Campos monetarios que el motor necesita para poder afirmar algo.
 CAMPOS_MONETARIOS = ('base_10', 'base_4', 'base_21', 'base_total',
-                     'iva_total', 'irpf_retencion', 'total_factura')
+                     'iva_total', 'irpf_retencion', 'total_factura',
+                     # anadido 20-08-2026, ver RECARGO_POR_TIPO mas abajo
+                     'recargo_equivalencia')
+
+# ---------------------------------------------------------------------------
+# NATURALEZA DE LA OPERACION (anadido 20-08-2026)
+#
+# EL TECHO QUE CIERRA: el modelo de datos solo sabia representar 4/10/21. Medido
+# el 20-08-2026 contra el motor real, SEIS categorias de facturas perfectamente
+# LEGALES no podian llegar nunca a VERDE — se quedaban en AMBAR para siempre:
+# exentas (art.20 LIVA), intracomunitarias, inversion del sujeto pasivo, tipo 0%
+# (pan, leche, fruta desde 2023), no sujetas, y cualquier tipo distinto de
+# 4/10/21 (el 5% de la electricidad existio en Espana).
+#
+# No era un falso verde —es seguro— pero condenaba esas facturas a revision
+# manual permanente, o sea que ponia un techo a CUANTO se puede automatizar.
+#
+# En todas las de IVA cero el cero es CORRECTO, no un error. Y esa es justo la
+# distincion que el motor no podia hacer: un iva_total=0 podia ser "exenta, y
+# esta bien" o "se les olvido el IVA", y sin la naturaleza declarada no hay
+# forma de saberlo. Por eso la naturaleza se DECLARA en la captura, no se
+# adivina en el guard — mismo criterio que tipo_documento.
+SUJETA = "SUJETA"                                  # el caso normal, con IVA
+EXENTA = "EXENTA"                                  # art. 20 LIVA (medico, educacion, seguro...)
+NO_SUJETA = "NO_SUJETA"                            # fuera del ambito del impuesto
+INTRACOMUNITARIA = "INTRACOMUNITARIA"              # el IVA lo autorrepercute el destinatario
+INVERSION_SUJETO_PASIVO = "INVERSION_SUJETO_PASIVO"  # art. 84.Uno.2 LIVA
+
+#: Naturalezas en las que un IVA de 0 es lo CORRECTO, no un descuadre.
+SIN_IVA_REPERCUTIDO = (EXENTA, NO_SUJETA, INTRACOMUNITARIA, INVERSION_SUJETO_PASIVO)
+
+NATURALEZAS = (SUJETA,) + SIN_IVA_REPERCUTIDO
+
+#: Tipos de IVA espanoles vigentes o historicos. El 0% existe desde 2023 (pan,
+#: leche, fruta) y el 5% se aplico a la electricidad: no son casos raros.
+TIPOS_IVA_CONOCIDOS = (0, 4, 5, 10, 21)
+
+#: RECARGO DE EQUIVALENCIA (art. 154 LIVA). Regimen OBLIGATORIO para el comercio
+#: minorista persona fisica, o sea muy comun en una cartera con 19 autonomos.
+#: El proveedor repercute IVA *y ademas* el recargo, asi que:
+#:      total = base + IVA + RECARGO
+#: Sin contemplarlo, base+IVA nunca cuadra con el total y la factura sale ROJO
+#: siendo perfectamente correcta. ContaPlus ya lo tiene en cuenta: el diario
+#: lleva un campo RECEQUIV al lado del de IVA.
+RECARGO_POR_TIPO = {21: 5.2, 10: 1.4, 5: 0.62, 4: 0.5}
 
 #: Campos sin los cuales NINGUN veredicto positivo es defendible.
 CAMPOS_CRITICOS = ('nif', 'fecha_expedicion', 'nº_documento',
@@ -207,6 +251,56 @@ class FacturaCanonica:
     def fecha(self, campo):
         d = self.campos.get(campo)
         return d.valor if (d and d.estado == VALUE) else None
+
+    # -- naturaleza y tramos de IVA (20-08-2026) ---------------------------
+    def naturaleza(self):
+        """SUJETA / EXENTA / NO_SUJETA / INTRACOMUNITARIA / INVERSION_SUJETO_PASIVO.
+
+        Si no viene declarada se asume SUJETA, que es el caso normal. Si viene
+        pero no se reconoce, se devuelve tal cual para que el guard la rechace:
+        una naturaleza inventada NO puede pasar por la de por defecto.
+        """
+        v = (self.cruda.get('naturaleza_operacion') or '').strip().upper()
+        return v if v else SUJETA
+
+    def tramos(self):
+        """Lista [{'tipo': n, 'base': x, 'cuota': y}], de cualquier tipo de IVA.
+
+        Acepta las dos formas y por eso no rompe nada de lo anterior:
+          - NUEVA: 'tramos_iva': [{'tipo':21,'base':100,'cuota':21}, ...]
+          - LEGADA: los campos planos base_10 / base_4 / base_21
+
+        Devuelve [] si no hay ninguno declarado — que no es lo mismo que un
+        tramo a cero, y el motor los distingue.
+        """
+        crudos = self.cruda.get('tramos_iva')
+        salida = []
+        if isinstance(crudos, (list, tuple)):
+            for t in crudos:
+                if not isinstance(t, dict):
+                    continue
+                tipo = parse_numero(t.get('tipo'))
+                base = parse_numero(t.get('base'))
+                if not (tipo.utilizable and base.utilizable):
+                    continue
+                cuota = parse_numero(t.get('cuota'))
+                salida.append({
+                    'tipo': tipo.valor,
+                    'base': base.valor,
+                    # Si no declaran cuota se deriva del tipo. No es inventar:
+                    # es la definicion del impuesto.
+                    'cuota': cuota.valor if cuota.utilizable
+                             else round(base.valor * tipo.valor / 100.0, 2),
+                })
+            if salida:
+                return salida
+
+        for tipo, campo in ((10, 'base_10'), (4, 'base_4'), (21, 'base_21')):
+            d = self.campos.get(campo)
+            if d and d.estado == VALUE and d.valor:      # ZERO no es un tramo
+                salida.append({'tipo': float(tipo), 'base': d.valor,
+                               'cuota': round(d.valor * tipo / 100.0, 2)})
+        return salida
 
     # -- integridad ---------------------------------------------------------
     def incidencias(self, campos=CAMPOS_CRITICOS):

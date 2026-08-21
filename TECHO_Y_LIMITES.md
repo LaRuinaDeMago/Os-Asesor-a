@@ -1,3 +1,22 @@
+> ## ✅ CERRADO EL 20-08-2026 — §1 ya no describe el estado actual
+>
+> El modelo de datos fiscal **se ha ampliado** y las facturas que abajo se
+> declaran imposibles **ahora pueden llegar a VERDE**. Lo que sigue se conserva
+> como registro de cómo era y por qué se cambió, no como estado.
+>
+> **Lo que ahora sí se representa:**
+> `naturaleza_operacion` (SUJETA · EXENTA · NO_SUJETA · INTRACOMUNITARIA ·
+> INVERSION_SUJETO_PASIVO), `tramos_iva` con **cualquier** tipo (0, 4, 5, 10, 21)
+> y **recargo de equivalencia** (5,2 · 1,4 · 0,62 · 0,5).
+>
+> Verificado en `test_adversarial.py` familia J: **10 categorías de facturas
+> legales que antes eran AMBAR o ROJO permanente ahora dan VERDE**, y las cuatro
+> formas de abusar de esa apertura siguen dando ROJO.
+>
+> **Lo que NO cambia:** declarar una naturaleza no es una puerta trasera. Una
+> exenta que repercute IVA es ROJO; una naturaleza inventada es ROJO; un recargo
+> que no corresponde a los tramos es ROJO.
+
 # El techo — qué hay por encima de lo que hay hoy
 
 Escrito el 20-08-2026, con el motor en 21/21 de regresión y 25/25 de ataque.

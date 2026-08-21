@@ -58,8 +58,12 @@ def guard_aritmetica_base_tipo(base_10, base_4, base_21, iva_total):
     return "FALLO", f"iva_calc={calc} decl={iva_total} DESCUADRE"
 
 
-def guard_cuadre_total(base_10, base_4, base_21, iva_total, irpf, total_decl):
-    calc = round(base_10 + base_4 + base_21 + iva_total + irpf, 2)
+def guard_cuadre_total(base_10, base_4, base_21, iva_total, irpf, total_decl, recargo=0.0):
+    # recargo anadido 20-08-2026: en regimen de recargo de equivalencia el total
+    # es base + IVA + RECARGO. Sin el, una factura correcta de un minorista
+    # persona fisica salia ROJO por descuadre. Por defecto 0, asi que no cambia
+    # nada para las facturas normales ni para quien llame con 6 argumentos.
+    calc = round(base_10 + base_4 + base_21 + iva_total + irpf + (recargo or 0.0), 2)
     if abs(calc - total_decl) < TOL:
         return "OK", f"total_calc={calc}"
     return "FALLO", f"total_calc={calc} decl={total_decl} DESCUADRE"
@@ -72,6 +76,97 @@ def guard_nif_digito_control(nif):
     if ok:
         return "OK", f"{tipo} valido"
     return "FALLO", f"{tipo} invalido: {detalle}"
+
+
+def guard_recargo_equivalencia(canon, tramos):
+    """¿El recargo declarado es el que le toca a esos tramos? (art. 154 LIVA)
+
+    ANADIDO 20-08-2026. El recargo de equivalencia es OBLIGATORIO para el
+    comercio minorista persona fisica — con 19 autonomos en cartera, no es un
+    caso raro. El proveedor repercute IVA *y ademas* recargo, asi que
+    total = base + IVA + RECARGO, y sin contemplarlo una factura correcta salia
+    ROJO porque base+IVA no cuadraba con el total.
+
+    NO_APLICA si no se declara recargo, que es la inmensa mayoria de facturas.
+    """
+    rec = canon.num('recargo_equivalencia')
+    if rec is None or abs(rec) < TOL:
+        return "NO_APLICA", "sin recargo de equivalencia declarado"
+    if not tramos:
+        return "NO_COMPROBADO", "hay recargo declarado pero no hay tramos con que comprobar el porcentaje"
+    esperado = round(sum(
+        t['base'] * contrato_datos.RECARGO_POR_TIPO.get(int(t['tipo']), 0) / 100.0
+        for t in tramos), 2)
+    if esperado == 0:
+        return "NO_COMPROBADO", "hay recargo declarado pero ningun tramo tiene recargo asociado en la tabla"
+    if abs(esperado - rec) < TOL:
+        return "OK", f"recargo de equivalencia {rec} coincide con el que corresponde a los tramos"
+    return "FALLO", f"recargo declarado {rec} pero a esos tramos les corresponde {esperado}"
+
+
+def guard_naturaleza_operacion(canon):
+    """Guard nuevo (20-08-2026): ¿es coherente el IVA con la naturaleza declarada?
+
+    CIERRA EL TECHO MEDIDO ESE DIA: seis categorias de facturas LEGALES no podian
+    llegar nunca a VERDE porque el modelo solo sabia 4/10/21. En una exenta, una
+    intracomunitaria o una con inversion del sujeto pasivo, el IVA de la factura
+    es CERO Y ESO ES LO CORRECTO. Sin la naturaleza declarada, el motor no podia
+    distinguir "exenta, y bien" de "se les olvido el IVA".
+
+    Por eso la naturaleza se DECLARA en la captura, igual que tipo_documento: no
+    se adivina aqui. Si no viene, se asume SUJETA, que es el caso normal.
+    """
+    nat = canon.naturaleza()
+    if nat not in contrato_datos.NATURALEZAS:
+        return "FALLO", f"naturaleza de operacion no reconocida: '{nat}' (esperado uno de {contrato_datos.NATURALEZAS})"
+
+    iva = canon.num('iva_total')
+    if nat in contrato_datos.SIN_IVA_REPERCUTIDO:
+        if iva is None:
+            return "NO_COMPROBADO", f"operacion {nat} pero no hay iva_total legible con que confirmar que es cero"
+        if abs(iva) < TOL:
+            return "OK", f"operacion {nat}: IVA cero repercutido, que es lo correcto en este regimen"
+        return "FALLO", f"operacion declarada {nat} pero la factura repercute IVA ({iva}): se contradicen"
+
+    return "OK", "operacion sujeta a IVA por el regimen general"
+
+
+def guard_suma_tramos_general(tramos, base_total):
+    """La suma de las bases de los tramos tiene que dar la base total.
+    Version general de guard_suma_tramos, para cualquier numero de tramos."""
+    if not tramos:
+        return "NO_COMPROBADO", "sin tramos que sumar"
+    if base_total is None:
+        return "NO_COMPROBADO", "base_total sin dato utilizable"
+    suma = round(sum(t['base'] for t in tramos), 2)
+    if abs(suma - base_total) < TOL:
+        return "OK", f"suma de {len(tramos)} tramo(s) = {suma} = base_total"
+    return "FALLO", f"la suma de los tramos ({suma}) no coincide con base_total ({base_total})"
+
+
+def guard_aritmetica_tramos(tramos, iva_total):
+    """Version general de guard_aritmetica_base_tipo: cualquier tipo de IVA.
+
+    La antigua solo sabia 4/10/21 y estaba cableada a tres parametros, asi que
+    un 0% o un 5% (que existio en Espana para la electricidad) no se podian ni
+    representar. Esta recorre los tramos que vengan, sean los que sean.
+    La antigua se conserva y sigue funcionando: hay tests que la llaman.
+    """
+    if not tramos:
+        return "NO_COMPROBADO", "ningun tramo de IVA declarado: no hay desglose con que contrastar el IVA total"
+    if iva_total is None:
+        return "NO_COMPROBADO", "iva_total sin dato utilizable"
+    desconocidos = [t['tipo'] for t in tramos
+                    if int(t['tipo']) not in contrato_datos.TIPOS_IVA_CONOCIDOS]
+    calc = round(sum(t['cuota'] for t in tramos), 2)
+    if abs(calc - iva_total) >= TOL:
+        detalle = ", ".join(f"{t['tipo']:.0f}%={t['base']}" for t in tramos)
+        return "FALLO", f"iva_calc={calc} decl={iva_total} DESCUADRE (tramos: {detalle})"
+    if desconocidos:
+        # Cuadra, pero con un tipo que no esta en la tabla: no se da por bueno
+        # en silencio. Puede ser un tipo nuevo o una lectura mal hecha.
+        return "NO_COMPROBADO", f"la aritmetica cuadra pero hay tipos de IVA fuera de la tabla conocida: {desconocidos}"
+    return "OK", f"iva_calc={calc} decl={iva_total} sobre {len(tramos)} tramo(s)"
 
 
 def guard_integridad_datos(canon):
@@ -233,12 +328,15 @@ def guard_suma_tramos(base_10, base_4, base_21, base_total_decl):
 RETENCIONES_TIPICAS = [1, 2, 7, 15, 19, 21]
 
 
-def guard_retencion_vs_error(base_total, iva_total, irpf, total_decl, tipo_documento=None):
+def guard_retencion_vs_error(base_total, iva_total, irpf, total_decl, tipo_documento=None, recargo=0.0):
     """Guard #10 spec: si base+IVA != total, comprobar si la diferencia es un %
     tipico de retencion ANTES de marcar error. Si tipo_documento=ARRENDAMIENTO
     (u otro tipo con retencion tipica conocida, ej. profesional), el motivo
     incluye el concepto real, no solo el numero de porcentaje."""
-    esperado_sin_retencion = round(base_total + iva_total, 2)
+    # recargo anadido 20-08-2026: sin el, en regimen de recargo de equivalencia
+    # base+IVA no cuadra con el total y este guard lo interpretaba como una
+    # retencion fantasma del 5,2%. Por defecto 0: nada cambia en el caso normal.
+    esperado_sin_retencion = round(base_total + iva_total + (recargo or 0.0), 2)
     diferencia = round(esperado_sin_retencion - total_decl, 2)
     if abs(diferencia) < TOL:
         return "NO_APLICA", "base+IVA = total, no hay retencion que evaluar"
@@ -699,17 +797,33 @@ def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
     # AUDITORIA PROPIA 19-08-2026: antes esto daba FALLO -> ROJO en una factura
     # perfectamente coherente (base_total=100, iva=21, total=121) solo porque la
     # captura no habia desglosado el tramo. Falso rojo.
-    hay_tramos = any(canon.campos[c].utilizable for c in ('base_10', 'base_4', 'base_21'))
-    if datos_integros and hay_tramos:
-        guards["aritmetica_base_tipo"] = guard_aritmetica_base_tipo(base_10 or 0.0, base_4 or 0.0, base_21 or 0.0, iva_total)
-        guards["suma_tramos"] = guard_suma_tramos(base_10 or 0.0, base_4 or 0.0, base_21 or 0.0, base_total)
-        guards["cuadre_total"] = guard_cuadre_total(base_10 or 0.0, base_4 or 0.0, base_21 or 0.0, iva_total, irpf or 0.0, total)
+    # NATURALEZA: decide si esta factura necesita tramos de IVA o no. Sin esto,
+    # una exenta o una intracomunitaria no podian llegar nunca a VERDE (medido
+    # el 20-08-2026: seis categorias legales condenadas a AMBAR permanente).
+    guards["naturaleza_operacion"] = guard_naturaleza_operacion(canon)
+    naturaleza = canon.naturaleza()
+    tramos = canon.tramos()
+    recargo = canon.num('recargo_equivalencia') or 0.0
+    guards["recargo_equivalencia"] = guard_recargo_equivalencia(canon, tramos)
+    sin_iva_por_regimen = naturaleza in contrato_datos.SIN_IVA_REPERCUTIDO
+
+    if datos_integros and tramos:
+        guards["aritmetica_base_tipo"] = guard_aritmetica_tramos(tramos, iva_total)
+        guards["suma_tramos"] = guard_suma_tramos(base_10 or 0.0, base_4 or 0.0, base_21 or 0.0, base_total) \
+            if not canon.cruda.get('tramos_iva') else guard_suma_tramos_general(tramos, base_total)
+        guards["cuadre_total"] = guard_cuadre_total(base_total or 0.0, 0.0, 0.0, iva_total, irpf or 0.0, total, recargo)
+    elif datos_integros and sin_iva_por_regimen:
+        # Exenta / no sujeta / intracomunitaria / ISP: NO hay tramos que desglosar,
+        # y eso es lo correcto. Lo que si se comprueba es que base = total.
+        no_aplica = ("NO_APLICA", f"operacion {naturaleza}: no hay tramos de IVA que desglosar, es lo correcto")
+        guards["aritmetica_base_tipo"] = no_aplica
+        guards["suma_tramos"] = no_aplica
+        guards["cuadre_total"] = guard_cuadre_total(base_total or 0.0, 0.0, 0.0, iva_total, irpf or 0.0, total, recargo)
     elif datos_integros:
-        sin_tramos = ("NO_COMPROBADO", "ningun tramo de IVA declarado: no hay desglose con que contrastar el IVA total")
+        sin_tramos = ("NO_COMPROBADO", "ningun tramo de IVA declarado y la operacion se declara SUJETA: falta el desglose")
         guards["aritmetica_base_tipo"] = sin_tramos
         guards["suma_tramos"] = sin_tramos
-        # El cuadre total SI se puede comprobar sin desglose: base + IVA - IRPF = total.
-        guards["cuadre_total"] = guard_cuadre_total(base_total or 0.0, 0.0, 0.0, iva_total, irpf or 0.0, total) \
+        guards["cuadre_total"] = guard_cuadre_total(base_total or 0.0, 0.0, 0.0, iva_total, irpf or 0.0, total, recargo) \
             if base_total is not None else sin_tramos
     else:
         sin_dato = ("NO_COMPROBADO", "no ejecutado: faltan campos criticos (ver integridad_datos)")
@@ -728,7 +842,7 @@ def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
     if datos_integros:
         guards["retencion_vs_error"] = guard_retencion_vs_error(
             base_total or ((base_10 or 0.0) + (base_4 or 0.0) + (base_21 or 0.0)),
-            iva_total, irpf, total, canon.texto('tipo_documento') or None)
+            iva_total, irpf, total, canon.texto('tipo_documento') or None, recargo)
         guards["signo_efectivo"] = guard_signo_efectivo(
             num_doc, motivo, base_total, total, canon.texto('tipo_documento') or None)
     else:
@@ -768,7 +882,7 @@ def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
 def calcular_veredicto_v4(guards):
     """Veredicto con los 16 guards. Criticos ampliados con suma_tramos,
     sentido_compra_venta, signo_efectivo y ejercicio_coherente."""
-    criticos = ["integridad_datos",
+    criticos = ["integridad_datos", "naturaleza_operacion", "recargo_equivalencia",
                 "aritmetica_base_tipo", "suma_tramos", "cuadre_total", "nif_digito_control",
                 "nif_casa_historico", "anti_duplicado", "fecha_posterior_alta",
                 "sentido_compra_venta", "signo_efectivo", "ejercicio_coherente",

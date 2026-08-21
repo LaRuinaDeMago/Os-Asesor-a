@@ -232,33 +232,74 @@ comprobar("I", "importes ilegibles -> AMBAR (revision), no ROJO (error)",
 
 
 # ---------------------------------------------------------------------------
-print("\n=== TECHO CONOCIDO — facturas LEGALES que el motor todavia rechaza ===")
-# Estos casos NO son fallos del motor: son el limite del MODELO DE DATOS, que
-# solo sabe representar 4/10/21 (ver TECHO_Y_LIMITES.md §1). No cuentan como
-# fallo de la suite porque no se ha declarado todavia que se soporten. Se
-# imprimen y se cuentan en cada ejecucion a proposito, para que el techo este
-# delante de los ojos y no se olvide.
-TECHO = [
-    ("exenta art.20 (medico, seguro, alquiler vivienda)",
-     {**BASE_FILA, 'base_total': '100', 'iva_total': '0', 'total_factura': '100'}),
-    ("intracomunitaria (inversion del sujeto pasivo)",
-     {**BASE_FILA, 'nif': 'DE123456789', 'base_total': '100', 'iva_total': '0',
-      'total_factura': '100'}),
-    ("tipo 0%",
-     {**BASE_FILA, 'base_total': '100', 'iva_total': '0', 'total_factura': '100',
-      'base_21': '0'}),
-    ("recargo de equivalencia 5,2% (comun en autonomos de comercio)",
-     {**BASE_FILA, 'base_21': '100', 'base_total': '100', 'iva_total': '21',
-      'total_factura': '126.20'}),
-]
-n_techo = 0
-for nombre, f in TECHO:
-    v, _ = evaluar(f)
-    if v == "ROJO":
-        n_techo += 1
-    print(f"  [{'TECHO' if v == 'ROJO' else 'ambar'}] {nombre} -> {v}")
-print(f"  {n_techo} de {len(TECHO)} facturas legales dan ROJO. Es el modelo de")
-print("  datos, no el motor. Ver TECHO_Y_LIMITES.md §1 antes de tocar nada.")
+print("\n=== FAMILIA J — El techo fiscal: facturas LEGALES que deben poder ser VERDE ===")
+# Medido el 20-08-2026: seis categorias de facturas perfectamente legales no
+# podian llegar NUNCA a VERDE porque el modelo de datos solo sabia 4/10/21.
+# No era un falso verde (es seguro), pero condenaba esas facturas a revision
+# manual permanente: un techo a CUANTO se puede automatizar.
+for nombre, extra in (
+    ("exenta art.20 LIVA", {'base_total': '1000', 'iva_total': '0', 'total_factura': '1000',
+                            'naturaleza_operacion': 'EXENTA'}),
+    ("intracomunitaria", {'base_total': '500', 'iva_total': '0', 'total_factura': '500',
+                          'naturaleza_operacion': 'INTRACOMUNITARIA'}),
+    ("inversion del sujeto pasivo", {'base_total': '2000', 'iva_total': '0', 'total_factura': '2000',
+                                     'naturaleza_operacion': 'INVERSION_SUJETO_PASIVO'}),
+    ("no sujeta", {'base_total': '300', 'iva_total': '0', 'total_factura': '300',
+                   'naturaleza_operacion': 'NO_SUJETA'}),
+    ("tipo 0% (pan, leche, fruta)", {'base_total': '80', 'iva_total': '0', 'total_factura': '80',
+                                     'tramos_iva': [{'tipo': 0, 'base': 80, 'cuota': 0}]}),
+    ("tipo 5% (electricidad)", {'base_total': '100', 'iva_total': '5', 'total_factura': '105',
+                                'tramos_iva': [{'tipo': 5, 'base': 100, 'cuota': 5}]}),
+    ("multi-tramo 21+10+4", {'base_total': '160', 'iva_total': '26.4', 'total_factura': '186.4',
+                             'tramos_iva': [{'tipo': 21, 'base': 100, 'cuota': 21},
+                                            {'tipo': 10, 'base': 50, 'cuota': 5},
+                                            {'tipo': 4, 'base': 10, 'cuota': 0.4}]}),
+):
+    v, mot = evaluar({**BASE_FILA, **extra})
+    comprobar("J", f"{nombre} PUEDE llegar a VERDE",
+              v == "VERDE", f"veredicto={v} ({mot})", "VERDE", "P1")
+
+# RECARGO DE EQUIVALENCIA (art. 154 LIVA): obligatorio para el comercio
+# minorista persona fisica. Con 19 autonomos en cartera no es un caso raro, y
+# antes salia ROJO SIEMPRE porque base+IVA no cuadraba con el total.
+for nombre, extra in (
+    ("recargo 5,2% (sobre tipo 21%)", {'base_21': '100', 'base_total': '100', 'iva_total': '21',
+                                       'recargo_equivalencia': '5.2', 'total_factura': '126.20'}),
+    ("recargo 1,4% (sobre tipo 10%)", {'base_10': '100', 'base_total': '100', 'iva_total': '10',
+                                       'recargo_equivalencia': '1.4', 'total_factura': '111.40'}),
+    ("recargo 0,5% (sobre tipo 4%)", {'base_4': '100', 'base_total': '100', 'iva_total': '4',
+                                      'recargo_equivalencia': '0.5', 'total_factura': '104.50'}),
+):
+    v, mot = evaluar({**BASE_FILA, **extra})
+    comprobar("J", f"{nombre} PUEDE llegar a VERDE",
+              v == "VERDE", f"veredicto={v} ({mot})", "VERDE", "P1")
+
+v, _ = evaluar({**BASE_FILA, 'base_21': '100', 'base_total': '100', 'iva_total': '21',
+                'recargo_equivalencia': '99', 'total_factura': '220'})
+comprobar("J", "recargo inventado -> ROJO (no es puerta trasera)",
+          v == "ROJO", f"veredicto={v}", "ROJO", "P0")
+
+v, _ = evaluar({**BASE_FILA, 'base_21': '100', 'base_total': '100', 'iva_total': '21',
+                'recargo_equivalencia': '1.4', 'total_factura': '122.40'})
+comprobar("J", "recargo del tipo que no toca (1,4 sobre 21%) -> ROJO",
+          v == "ROJO", f"veredicto={v}", "ROJO", "P0")
+
+# Y lo que la apertura NO puede haber roto: declarar una naturaleza no es una
+# puerta trasera para saltarse las comprobaciones.
+v, _ = evaluar({**BASE_FILA, 'base_total': '1000', 'iva_total': '210',
+                'total_factura': '1210', 'naturaleza_operacion': 'EXENTA'})
+comprobar("J", "exenta que SI repercute IVA -> ROJO (se contradice)",
+          v == "ROJO", f"veredicto={v}", "ROJO", "P0")
+
+v, _ = evaluar({**BASE_FILA, 'base_total': '100', 'iva_total': '21',
+                'total_factura': '121', 'naturaleza_operacion': 'LOQUESEA'})
+comprobar("J", "naturaleza inventada -> ROJO, nunca pasa por la de por defecto",
+          v == "ROJO", f"veredicto={v}", "ROJO", "P0")
+
+v, _ = evaluar({**BASE_FILA, 'base_total': '999', 'iva_total': '21', 'total_factura': '1020',
+                'tramos_iva': [{'tipo': 21, 'base': 100, 'cuota': 21}]})
+comprobar("J", "tramos que no suman la base total -> ROJO",
+          v == "ROJO", f"veredicto={v}", "ROJO", "P0")
 
 
 # ---------------------------------------------------------------------------
