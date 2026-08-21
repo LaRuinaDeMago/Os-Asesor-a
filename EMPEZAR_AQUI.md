@@ -1,4 +1,4 @@
-# EMPEZAR AQUÍ — 20-08-2026
+# EMPEZAR AQUÍ — 21-08-2026
 
 Punto de entrada único. Corto a propósito: `PROJECT_STATUS.md` tiene 700 líneas y
 sirve para consultar, no para arrancar. Esto sirve para arrancar.
@@ -15,11 +15,33 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 
 ```
 ✅ Sintaxis de todos los .py
-✅ Cableado de guards (sin huérfanos): 25 guards, todos consultados
-✅ Suite de pruebas (test_motor_veredicto.py): 21/21 checks en verde
-✅ Bateria adversarial (test_adversarial.py): 48 en verde, 0 fallan
+✅ Cableado de guards (sin huérfanos): 26 guards, todos consultados
+✅ Suite de pruebas (test_motor_veredicto.py): 24/24 checks en verde
+✅ Bateria adversarial (test_adversarial.py): 76 en verde, 0 fallan
+✅ Estados: sin ramas muertas ni guards mudos
+✅ Cobertura: guards probados de verdad — 26/26 (100%)
 ❌ Dependencias: faltan dbfread, anthropic, google-genai   <- NORMAL, son de captura
+❌ guard_g7_ledger.py sin conectar                          <- NORMAL, es de cripto
 ```
+
+### Los tres auditores, y por qué hacen falta los tres
+
+Cada uno tapa un agujero que los otros dos no ven. No es redundancia:
+
+| | pregunta | agujero que caza |
+|---|---|---|
+| `audit_project.py` | ¿el guard existe y alguien lo llama? | **huérfano** |
+| `cobertura_guards.py` | ¿ha llegado alguna vez a decir que no? | **nunca probado** |
+| `audit_estados.py` | ¿lo que dice cambia el veredicto? | **mudo / rama muerta** |
+
+La tercera se escribió el 21-08 después de encontrar a mano, tras semanas,
+que `guard_cuenta_gasto_coherente` estaba cableado, tenía su rama
+`FALLO -> AMBAR` escrita en el veredicto desde el primer día, y **no comparaba
+nada**: la rama era inalcanzable. Las otras dos preguntas daban verde.
+
+Con el bug reintroducido a propósito, `audit_estados.py` lo señala en menos de
+un segundo. Está comprobado, no supuesto. Los tres corren ya dentro de
+`audit_project.py`, así que basta el primer comando.
 
 ---
 
@@ -27,7 +49,7 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 
 | | |
 |---|---|
-| **Motor** | 25 guards cableados. Los 8 falsos verdes P0 **cerrados**. Resiste 48 ataques + controles positivos |
+| **Motor** | 26 guards cableados. Los 8 falsos verdes P0 **cerrados**. Resiste 76 ataques + controles positivos. Cobertura útil 26/26 |
 | **Contrato de datos** | `contrato_datos.py`. `MISSING` ≠ `ZERO` ≠ `INVALID`. La ausencia ya no vale 0 |
 | **Barrera de privacidad** | Agujero del `.DAT` **cerrado**: decide por contenido, no por extensión |
 | **Inventario del histórico** | Falta poco. Es el trabajo de hoy |
@@ -165,6 +187,53 @@ suscripción, nunca la API key. Datos reales = sentado en el PC de la asesoría.
 > 2. ¿En qué fracción de facturas aparece el total **dos veces** de verdad?
 > 3. ¿El modelo **copia** el valor en `total_factura_2` en vez de dejarlo vacío?
 >    Si lo copia, la comprobación es un espejo y no vale nada.
+
+## 3-quinquies. 🔧 Lo que se cerró el 21-08 sin tocar el PC de la asesoría
+
+Tres cosas, y las tres eran defectos reales del motor, no pulido:
+
+**1. El guard de la cuenta de gasto no comparaba nada.** `guard_cuenta_gasto_
+coherente` recibía solo la cuenta del proveedor, miraba si había patrón histórico
+y devolvía `OK`. Su rama `FALLO -> AMBAR` llevaba semanas escrita en el veredicto
+y era **código inalcanzable**. El guard que el propio proyecto describe como *"la
+cuenta no casa con lo que dice el histórico"* era incapaz de detectar que no
+casaba. Ahora compara por **grupo del PGC** (3 dígitos: 629000 y 629001 son la
+misma decisión con distinto detalle; 600 y 621 no) y exige **3 asientos mínimo**
+antes de acusar — "unánime" sobre un solo asiento es una anécdota, no diez años
+de criterio.
+
+> Y lo que más importa de este caso: **no lo tapaba la falta de test, lo tapaba
+> el test**. Se conformaba con *"distinto de OK"*, y `NO_APLICA` es distinto de
+> `OK`. Es exactamente el fallo de método que la FAMILIA G existe para cazar,
+> cometido dentro de la propia suite.
+
+**2. El motivo decía una cosa de seis.** Una factura con seis defectos reales
+—NIF imposible, IVA que no es el 21%, total que no cuadra, fecha anterior al
+alta, ejercicio equivocado, diferencia que no es ninguna retención— devolvía **un
+solo motivo**. Arreglas ese, vuelves a pasar el motor, aparece el siguiente:
+seis vueltas para una factura. Ahora salen todos, con el titular intacto para no
+romper a quien lo lea. **Esto se nota directamente en la cola de revisión de las
+91 facturas.**
+
+**3. `secuencia_documental` era el único ÁMBAR sin etiqueta.** Salía sin
+`[CRITERIO]` ni `[FALTA DATO]`, así que la cola no sabía en qué montón ponerlo.
+
+### Y una lección de método que vale más que los tres arreglos
+
+Al reestructurar los ÁMBAR en una tabla, `check_cableado` declaró **siete
+huérfanos que no lo eran**: buscaba `guards.get("X"` con una expresión regular,
+así que solo veía el cableado escrito de *una forma*. No había cambiado el
+cableado — había cambiado su forma.
+
+> Es la misma lección que `.claude/rules/datos.md` deja escrita sobre el escáner
+> de privacidad (*"una barrera que decide por el **nombre** es de conveniencia;
+> la que decide por el **contenido** es la real"*), pagada al revés: allí dejaba
+> pasar lo peligroso, aquí acusaba a lo inocente. **Un auditor que grita cuando
+> no toca acaba ignorándose, y entonces no avisa cuando sí toca.**
+
+Reescrito sobre AST. La forma deja de importar.
+
+---
 
 ## 3-quater. 📐 El límite acordado — leer antes de decidir qué automatizar
 
