@@ -199,7 +199,12 @@ def check_estados_y_cobertura():
                              # No elige los ataques: los enumera. En su primera
                              # pasada encontro tres defectos que ninguno de los
                              # 87 ataques escritos a mano habia tocado.
-                             ("barrido_falsos_verdes.py", "Barrido: ningun falso verde sin explicar")):
+                             ("barrido_falsos_verdes.py", "Barrido: ningun falso verde sin explicar"),
+                             # La barrera mas importante del proyecto no tenia
+                             # ni una prueba, y ya fallo una vez de la peor
+                             # forma posible: declarando limpio lo que no habia
+                             # mirado. Aquella comprobacion a mano corre sola.
+                             ("test_privacidad.py", "Barrera de privacidad: bloquea lo que debe")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue

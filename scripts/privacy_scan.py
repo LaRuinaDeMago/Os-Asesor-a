@@ -80,6 +80,77 @@ PATRON_SECRETO = re.compile(
     r'|ghp_[A-Za-z0-9]{20,}|AKIA[A-Z0-9]{12,}|xox[baprs]-[A-Za-z0-9-]{10,})\b'
 )
 
+# ---------------------------------------------------------------------------
+# La ASIGNACION, no solo el prefijo (anadido 21-08-2026, test_privacidad.py)
+#
+# Los prefijos de arriba cubren a Anthropic y a Google, que son los dos que
+# nombra `.claude/rules/seguridad.md`, y se ha comprobado que funcionan. Lo que
+# no cubren es la FORMA del descuido, que es lo que la regla prohibe de verdad:
+# escribir una clave dentro de un fichero. Una clave con otro formato, recortada
+# o de un proveedor nuevo pasaba sin mas.
+#
+# Se mira la forma COMPLETA —nombre de variable que huele a secreto MAS un valor
+# literal entre comillas— y no cada mitad por su cuenta. El motivo esta escrito
+# unos parrafos mas arriba y sigue valiendo: un escaner que grita demasiado deja
+# de mirarse. En concreto:
+#   - el nombre SUELTO no basta. Este repositorio menciona ANTHROPIC_API_KEY en
+#     prosa docenas de veces (`.claude/rules/datos.md` entero va de eso), y
+#     bloquear la documentacion seria la forma mas rapida de que alguien acabe
+#     desactivando el hook.
+#   - leer la variable del entorno (os.environ[...], os.getenv(...)) es
+#     exactamente lo que la regla MANDA hacer. No se toca.
+#   - los huecos evidentes (TU_CLAVE, xxx, <pon-la-aqui>, cadena vacia) no son un
+#     secreto: son la instruccion de donde ponerlo.
+PATRON_ASIGNACION_SECRETO = re.compile(
+    r'[A-Za-z_][A-Za-z0-9_]*'
+    r'(?:API_?KEY|SECRET|TOKEN|PASSWD|PASSWORD|CREDENTIAL)'
+    r'[A-Za-z0-9_]*'
+    r'\s*[:=]\s*'
+    r'(?P<comilla>["\'])(?P<valor>[^"\']{8,})(?P=comilla)',
+    re.IGNORECASE,
+)
+
+#: Valores que son un HUECO, no un secreto. Dos formas, y se separan a proposito.
+#:
+#: ESTRUCTURAL: la forma ya dice que no hay nada dentro —una lectura del entorno,
+#: una expansion de variable, unos angulos—. Puede ser larga sin sospecha.
+PLACEHOLDER_ESTRUCTURAL = re.compile(
+    r'\A(?:\s*|<[^>]*>|\{[^}]*\}|\$\{?[A-Za-z_][^\s]*'
+    r'|os\.environ.*|os\.getenv.*|process\.env.*)\Z',
+    re.IGNORECASE,
+)
+
+#: POR PALABRA: TU_CLAVE_AQUI, xxxx, ejemplo. Aqui SI hace falta un tope de
+#: longitud, y lo pide un caso concreto: la primera version aceptaba cualquier
+#: cadena que EMPEZARA por clave/key/token, asi que una clave larga cuyo valor
+#: empezara por la palabra "clave" se declaraba hueco y pasaba. Un hueco es corto
+#: por naturaleza; un secreto, no. 24 caracteres separan las dos cosas con
+#: holgura por los dos lados.
+#:
+#: (Y este comentario ha tenido que reescribirse SIN el ejemplo literal, porque
+#: el propio escaner lo cazaba. Es correcto que lo cazara: escribir una clave en
+#: un comentario tambien es escribirla en un fichero. Antes de anadir una
+#: excepcion para comentarios —que seria abrir un agujero con forma de "ponla en
+#: un comentario"— se cambia el comentario.)
+LARGO_MAXIMO_PLACEHOLDER = 24
+PLACEHOLDER_PALABRA = re.compile(
+    r'\A(?:x+|\.+|-+'
+    r'|(?:tu|su|your|my|mi)[-_ ]?(?:clave|key|token|api)[-_a-z0-9]*'
+    r'|(?:pon|poner|reemplaza|replace|insert|cambia)[-_ ][-_a-z0-9]*'
+    r'|(?:clave|key|token|secret|password|placeholder|ejemplo|example|dummy'
+    r'|fake|sample|none|null|test)[-_a-z0-9]*'
+    r')\Z',
+    re.IGNORECASE,
+)
+
+
+def es_hueco(valor):
+    """.Ese literal es un HUECO donde poner la clave, o es la clave?"""
+    if PLACEHOLDER_ESTRUCTURAL.match(valor):
+        return True
+    return (len(valor) <= LARGO_MAXIMO_PLACEHOLDER
+            and bool(PLACEHOLDER_PALABRA.match(valor)))
+
 # NIF/DNI/CIF inventados a propósito (algunos con checksum matemáticamente
 # válido, fabricados en esta sesión; otros ya existían en el test file como
 # marcadores obvios de prueba, ej. "PROVEEDOR FALSO SL" / "OTRO PROVEEDOR").
@@ -191,6 +262,11 @@ def escanear_archivo(path: Path, denylist_local):
             hallazgos.append((i, 'posible email'))
         if PATRON_SECRETO.search(linea):
             hallazgos.append((i, 'posible secreto/API key'))
+        else:
+            m2 = PATRON_ASIGNACION_SECRETO.search(linea)
+            if m2 and not es_hueco(m2.group('valor')):
+                hallazgos.append((i, 'clave/secreto asignado en el codigo — '
+                                     'va en variable de entorno, nunca en un fichero'))
         for palabra in denylist_local:
             if palabra.lower() in linea.lower():
                 hallazgos.append((i, 'coincidencia con denylist local'))
