@@ -71,6 +71,9 @@ import zipfile
 from collections import Counter, defaultdict
 
 import motor_veredicto as mv
+# Una sola definicion de 'que guard causo este veredicto', compartida
+# con la cola de revision. Dos copias divergen y una acaba mintiendo.
+from cola_revision import causas_de
 
 TOL = 0.02
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -81,6 +84,27 @@ SALIDA_LOCAL = os.path.join(AQUI, "retro_semaforo_LOCAL.json")
 PREF_GASTO = "6"
 CTA_IVA_SOPORTADO = "472"
 CTAS_ACREEDOR = ("400", "401", "410", "411")
+
+#: AMBAR que NO son de la factura, sino del INSTRUMENTO. Anadido 21-08-2026 tras
+#: ver que la mitad del corpus salia AMBAR por dos causas que no tienen nada que
+#: ver con la calidad de la factura:
+#:
+#:   sentido_compra_venta   necesita el NIF del cliente titular para decidir si
+#:                          el emisor es el propio cliente (venta) o un proveedor
+#:                          (gasto). El diario NO lo contiene: el titular no es
+#:                          contraparte de si mismo. Aqui es NO_COMPROBADO
+#:                          siempre, para todas las filas, por construccion.
+#:
+#:   nif_casa_historico     la PRIMERA factura de cada proveedor lo encuentra
+#:                          fuera del maestro, porque el maestro se acumula sobre
+#:                          la marcha (y eso esta bien: es lo que evita medirse
+#:                          con la respuesta delante). En produccion ese AMBAR es
+#:                          legitimo —un alta que decidir— pero aqui su volumen
+#:                          depende del ORDEN de recorrido, no de las facturas.
+#:
+#: No se ocultan ni se descuentan en silencio: se cuentan aparte y se dicen. Un
+#: 51% de AMBAR que en realidad es un 4% es tan enganoso como un falso verde.
+AMBAR_DEL_INSTRUMENTO = {"sentido_compra_venta", "nif_casa_historico"}
 
 
 # --------------------------------------------------------------------------
@@ -293,6 +317,8 @@ def main():
     veredictos = Counter()
     motivos = Counter()
     guards_no_ok = Counter()
+    ambar_instrumento = Counter()
+    ambar_factura = Counter()
     errores = Counter()
     n_asientos = n_compras = n_reconstruidas = n_sin_iva = 0
     vistos_dup = set()
@@ -403,8 +429,25 @@ def main():
                         veredictos[v] += 1
                         motivos[motivo.split(":")[0][:60]] += 1
                         for g, (estado, _) in guards.items():
-                            if estado not in ("OK", "NO_APLICA"):
+                            if estado not in ("OK", "NO_APLICA", "ALTA"):
                                 guards_no_ok[f"{g}={estado}"] += 1
+                        if v == "AMBAR":
+                            # Las causas se sacan del MOTIVO, no de la lista de
+                            # guards no benignos. Parece lo mismo y no lo es: hay
+                            # guards que estan en NO_COMPROBADO de forma
+                            # estructural y el veredicto los declara EXENTOS, asi
+                            # que no han causado nada. La primera version de este
+                            # recuento los contaba, y atribuia el AMBAR a
+                            # importe_atipico y tipo_producto_iva_semantico —los
+                            # dos exentos— en vez de a lo que de verdad lo causo.
+                            # El motivo es lo que el propio veredicto declara.
+                            causas = causas_de(motivo)
+                            propias = [c for c in causas
+                                       if c not in AMBAR_DEL_INSTRUMENTO]
+                            if causas and not propias:
+                                ambar_instrumento["+".join(sorted(causas))] += 1
+                            else:
+                                ambar_factura["; ".join(sorted(propias))[:70]] += 1
                         # El detalle LOCAL guarda el veredicto y el motivo, nunca
                         # el NIF ni los importes: ni siquiera el fichero local
                         # necesita la identidad para que Diego revise casos.
@@ -450,6 +493,28 @@ def main():
     print("VEREDICTOS (estos asientos SE CONTABILIZARON Y SE PRESENTARON):")
     for v, n in veredictos.most_common():
         print(f"    {v:<8} {n:>8,}   {pct(n, n_reconstruidas):>6}%")
+    n_ambar = veredictos.get("AMBAR", 0)
+    n_inst = sum(ambar_instrumento.values())
+    n_fact = sum(ambar_factura.values())
+    if n_ambar:
+        print()
+        print("DE QUE SON LOS AMBAR — no todos hablan de la factura:")
+        print(f"    del INSTRUMENTO  {n_inst:>8,}   {pct(n_inst, n_reconstruidas):>6}%"
+              f"   (no dependen de la factura)")
+        for k, n in ambar_instrumento.most_common(4):
+            print(f"        {k:<44} {n:>8,}")
+        print(f"    de la FACTURA    {n_fact:>8,}   {pct(n_fact, n_reconstruidas):>6}%"
+              f"   <-- ESTE es el numero util")
+        for k, n in ambar_factura.most_common(6):
+            print(f"        {k[:44]:<44} {n:>8,}")
+        print()
+        print("    Los del instrumento son sentido_compra_venta (el diario no trae")
+        print("    el NIF del titular, asi que NUNCA se puede decidir) y el proveedor")
+        print("    visto por primera vez (el maestro se acumula sobre la marcha, que")
+        print("    es lo que evita medirse con la respuesta delante). Se cuentan")
+        print("    aparte, no se descuentan en silencio: un 51% de AMBAR que en")
+        print("    realidad es un 4% engana igual que un falso verde.")
+
     rojos = veredictos.get("ROJO", 0)
     print()
     print(f"  >> TASA DE FALSOS ROJOS (candidatos): {pct(rojos, n_reconstruidas)}%")
@@ -494,6 +559,8 @@ def main():
         "pct_veredictos": {v: pct(n, n_reconstruidas) for v, n in veredictos.items()},
         "pct_falsos_rojos_candidatos": pct(rojos, n_reconstruidas),
         "guards_no_ok": dict(guards_no_ok.most_common(25)),
+        "ambar_del_instrumento": dict(ambar_instrumento.most_common(10)),
+        "ambar_de_la_factura": dict(ambar_factura.most_common(15)),
         "motivos": dict(motivos.most_common(20)),
         "errores_por_tipo": dict(errores),
         "nota": ("Mide falsos ROJOS y ruido sobre datos reales. NO mide falsos "

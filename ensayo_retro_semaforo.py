@@ -228,6 +228,13 @@ def main():
                   "3 contenedores encontrados" in salida, salida[:200])
         comprobar("reconstruye asientos y llama al motor",
                   "VERDE" in salida or "AMBAR" in salida, salida[-400:])
+        # Sin esto, el numero de manana engana: en el retro, la MITAD de los
+        # AMBAR no habla de la factura, sino del instrumento (el diario no trae
+        # el NIF del titular, y el maestro se acumula sobre la marcha). Un 51%
+        # de AMBAR que en realidad es un 4% se lee como "el motor molesta".
+        comprobar("separa el AMBAR del instrumento del AMBAR de la factura",
+                  "del INSTRUMENTO" in salida and "de la FACTURA" in salida,
+                  salida[-600:])
         comprobar("no acumula excepciones del motor",
                   "motor:" not in salida, salida[-400:])
 
