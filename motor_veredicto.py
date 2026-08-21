@@ -707,20 +707,65 @@ def construir_mapeo_cuenta_gasto(diario_recs):
             'cuenta_gasto': cuenta_mas_usada,
             'grupo_pgc': GRUPOS_PGC.get(cuenta_mas_usada[:3], 'grupo no catalogado'),
             'confianza': 'ALTA' if n_esta == n_total else f'MEDIA ({n_esta}/{n_total} asientos)',
+            # ANADIDO 21-08-2026: 'ALTA' significaba "unanime", y unanime sobre UN
+            # solo asiento no es historico, es una anecdota. Sin este contador el
+            # guard no podia distinguir un patron de diez anos de una casualidad.
+            'n_asientos': n_total,
+            'n_esta': n_esta,
         }
     return mapeo
 
 
-def guard_cuenta_gasto_coherente(cuenta_proveedor, mapeo_cuenta_gasto):
-    """Guard complementario a Nivel 4: ¿existe un patron historico de a que cuenta
-    de gasto (grupo 6xx) va este proveedor/acreedor? NO_APLICA si es la primera
-    vez que se ve esa cuenta (no hay con que contrastar) - AQUI es donde debe
-    entrar la verificacion del asesor, y esa verificacion es la que se aprende
-    (ver aprender_cuenta_gasto mas abajo), no se vuelve a preguntar."""
+#: Cuantos asientos hacen falta para que "lo de siempre" sea un patron y no una
+#: anecdota. Tres es el minimo con el que una mayoria significa algo; por debajo,
+#: el guard informa pero no acusa.
+MIN_ASIENTOS_PATRON_GASTO = 3
+
+
+def guard_cuenta_gasto_coherente(cuenta_proveedor, mapeo_cuenta_gasto,
+                                 cuenta_gasto_propuesta=None):
+    """Guard complementario a Nivel 4: la cuenta de gasto que se propone para esta
+    factura, ¿casa con la que el despacho lleva anos usando para este proveedor?
+
+    CORREGIDO 21-08-2026 (auditoria de cobertura, cobertura_guards.py). Hasta hoy
+    este guard NO comparaba nada: recibia solo la cuenta del proveedor, miraba si
+    habia patron historico y devolvia OK. Su rama FALLO -> AMBAR estaba cableada
+    en el veredicto desde el principio y era CODIGO MUERTO: inalcanzable. Es decir,
+    el guard que el propio proyecto describe como "la cuenta no casa con lo que
+    dice el historico" era literalmente incapaz de detectar que no casaba.
+
+    Lo destapo la cobertura, no un test: la suite pasaba en verde porque la
+    prueba se conformaba con "distinto de OK", y NO_APLICA es distinto de OK.
+
+    Ahora compara de verdad, y lo hace por GRUPO del PGC (tres primeros digitos),
+    no por subcuenta exacta: 629000 y 629001 son la misma decision contable con
+    distinto detalle; 600 y 621 no lo son. Solo lo del segundo tipo es senal.
+
+    Devuelve FALLO -> AMBAR [CRITERIO], nunca ROJO: cambiar de cuenta puede ser
+    perfectamente correcto (el proveedor de material que un dia te alquila algo).
+    No es un error, es una decision que mira una persona."""
     if not cuenta_proveedor or cuenta_proveedor not in mapeo_cuenta_gasto:
         return "NO_APLICA", "sin historico de cuenta de gasto para este proveedor/acreedor - requiere verificacion del asesor"
     entry = mapeo_cuenta_gasto[cuenta_proveedor]
-    return "OK", f"cuenta de gasto habitual: {entry['cuenta_gasto']} ({entry['grupo_pgc']}), confianza {entry['confianza']}"
+    habitual = entry.get('cuenta_gasto') or ''
+    if not cuenta_gasto_propuesta:
+        # NO es OK: no se ha comprobado nada, no hay cuenta que contrastar. Decir
+        # OK aqui seria el falso verde por omision que este motor tiene prohibido.
+        return ("NO_APLICA", f"no se propone cuenta de gasto para esta factura; "
+                             f"la habitual del historico es {habitual} ({entry.get('grupo_pgc')})")
+    propuesta = str(cuenta_gasto_propuesta).strip()
+    if propuesta[:3] == habitual[:3]:
+        return "OK", f"cuenta {propuesta} del mismo grupo que la habitual {habitual} ({entry.get('grupo_pgc')})"
+
+    n = entry.get('n_asientos', 0)
+    confirmada = str(entry.get('confianza', '')).startswith('CONFIRMADA')
+    if n < MIN_ASIENTOS_PATRON_GASTO and not confirmada:
+        return ("NO_APLICA", f"cuenta {propuesta} distinta de la habitual {habitual}, "
+                             f"pero el historico son solo {n} asiento(s): insuficiente "
+                             f"para llamarlo patron")
+    return ("FALLO", f"cuenta {propuesta} ({GRUPOS_PGC.get(propuesta[:3], 'grupo no catalogado')}) "
+                     f"no casa con la habitual de este proveedor: {habitual} "
+                     f"({entry.get('grupo_pgc')}), {n} asientos, confianza {entry.get('confianza')}")
 
 
 def aprender_cuenta_gasto(mapeo_cuenta_gasto, cuenta_proveedor, cuenta_gasto_confirmada,
@@ -1067,7 +1112,8 @@ def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
     # funcion: si el dato no viene, el guard se declara NO_APLICA - nunca OK.
     guards["cuenta_gasto_coherente"] = guard_cuenta_gasto_coherente(
         canon.texto('cuenta_proveedor') or fila.get('cuenta_proveedor'),
-        mapeo_cuenta_gasto or {})
+        mapeo_cuenta_gasto or {},
+        canon.texto('cuenta_debe') or fila.get('cuenta_debe'))
     guards["tipo_producto_iva_semantico"] = guard_tipo_producto_iva_semantico(
         fila.get('categoria_producto'), fila.get('tipo_iva_declarado'))
     guards["tipo_operacion_especial"] = guard_tipo_operacion_especial(

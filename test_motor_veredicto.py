@@ -56,16 +56,30 @@ check(guard_signo_efectivo("11501", "", 202.67, 240.80, None)[0] == "NO_APLICA",
       "Caso piloto 11501 NO marca FALLO (regresion del falso positivo ya corregido)")
 
 print("\n=== Nivel PGC: cuenta_gasto (caso real anonimizado) ===")
-mapeo_test = {"410014": {"cuenta_gasto": "621000", "grupo_pgc": "Arrendamientos y cánones", "confianza": "ALTA"}}
-check(guard_cuenta_gasto_coherente("410014", mapeo_test)[0] == "OK", "Proveedor piloto -> 621000")
-check(guard_cuenta_gasto_coherente("999999", mapeo_test)[0] == "NO_APLICA", "Proveedor nuevo -> NO_APLICA")
+# ACTUALIZADO 21-08-2026. Estas dos comprobaciones esperaban OK llamando al guard
+# SIN cuenta propuesta, y por eso el guard podia limitarse a mirar si existia
+# patron historico sin comparar nunca nada. El test estaba fijando el falso verde,
+# no cazandolo. Ahora se le pasa la cuenta que se propone para la factura, que es
+# el dato sobre el que el guard tiene que pronunciarse.
+mapeo_test = {"410014": {"cuenta_gasto": "621000", "grupo_pgc": "Arrendamientos y cánones",
+                         "confianza": "ALTA", "n_asientos": 47, "n_esta": 47}}
+check(guard_cuenta_gasto_coherente("410014", mapeo_test, "621000")[0] == "OK", "Proveedor piloto -> 621000")
+check(guard_cuenta_gasto_coherente("410014", mapeo_test, "600000")[0] == "FALLO",
+      "Proveedor piloto contabilizado a 600000 -> FALLO (no casa con 47 asientos)")
+check(guard_cuenta_gasto_coherente("410014", mapeo_test)[0] == "NO_APLICA",
+      "Sin cuenta propuesta no hay nada que comparar -> NO_APLICA, nunca OK")
+check(guard_cuenta_gasto_coherente("999999", mapeo_test, "621000")[0] == "NO_APLICA", "Proveedor nuevo -> NO_APLICA")
 
 print("\n=== Aprendizaje: ciclo NO_APLICA -> decision asesor -> persistencia ===")
 mapeo2 = {}
-antes = guard_cuenta_gasto_coherente("410099", mapeo2)
+antes = guard_cuenta_gasto_coherente("410099", mapeo2, "625000")
 mapeo2 = aprender_cuenta_gasto(mapeo2, "410099", "625000")
-despues = guard_cuenta_gasto_coherente("410099", mapeo2)
+despues = guard_cuenta_gasto_coherente("410099", mapeo2, "625000")
 check(antes[0] == "NO_APLICA" and despues[0] == "OK", "Ciclo de aprendizaje completo")
+# Y lo que el ciclo de aprendizaje tiene que servir PARA: una vez el asesor lo
+# decide una vez, la siguiente factura a otra cuenta se frena. Antes no podia.
+check(guard_cuenta_gasto_coherente("410099", mapeo2, "600000")[0] == "FALLO",
+      "Lo confirmado por el asesor SI frena la siguiente factura que se desvia")
 
 print("\n=== IVA semantico (tabla oficial 2026) ===")
 check(guard_tipo_producto_iva_semantico("aceite de oliva", 4)[0] == "OK", "Aceite oliva 4% correcto")

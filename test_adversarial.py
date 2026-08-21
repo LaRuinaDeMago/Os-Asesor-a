@@ -454,6 +454,87 @@ comprobar("N", "el patron de cartera NO sube el veredicto a VERDE",
           _v != "VERDE", f"veredicto={_v}", "AMBAR: sigue decidiendo el humano", "P0")
 
 
+print("\n=== FAMILIA O — Los guards que nunca habian saltado (cobertura) ===")
+# cobertura_guards.py destapo que 5 guards estaban CABLEADOS pero jamas habian
+# llegado a un estado util en ninguna suite: la suite pasaba, el auditor daba
+# verde, y nadie habia comprobado nunca que supieran decir FALLO cuando toca.
+# "Cableado" no es "probado".
+BASE_O = {**BASE_FILA, 'base_21': '100', 'base_total': '100',
+          'iva_total': '21', 'total_factura': '121'}
+
+def _ev(fila, **kw):
+    v, mot, g = m.evaluar_fila_v4(fila, set(), kw.pop('hist', {}), kw.pop('fmt', {}),
+                                  kw.pop('sec', {}), MAESTRO, 2020, NIF_TITULAR,
+                                  2026, **kw)
+    return v, mot, g
+
+# 1 — confianza_captura: la captura declara DUDA
+_v, _m2, _g = _ev({**BASE_O, 'verificacion': 'DUDA'})
+comprobar("O", "confianza_captura baja el veredicto cuando la captura duda",
+          _g['confianza_captura'][0] == "BAJA" and _v == "AMBAR",
+          f"{_g['confianza_captura'][0]} / {_v}", "BAJA / AMBAR", "P1")
+
+# 2 — cuenta_gasto_coherente. La primera version de esta prueba se conformaba
+# con "distinto de OK" y pasaba en verde con NO_APLICA, tapando que la rama FALLO
+# del guard era codigo muerto: no comparaba nada. Es el mismo fallo de metodo que
+# caza la FAMILIA G. Ahora se le exige el FALLO concreto.
+_mapeo = {'400001': {'cuenta_gasto': '621000', 'grupo_pgc': 'Arrendamientos',
+                     'confianza': 'ALTA', 'n_asientos': 47, 'n_esta': 47}}
+_v, _m2, _g = _ev({**BASE_O, 'cuenta_proveedor': '400001', 'cuenta_debe': '600000'},
+                  mapeo_cuenta_gasto=_mapeo)
+comprobar("O", "cuenta_gasto_coherente FALLA si la cuenta no casa con 10 anos",
+          _g['cuenta_gasto_coherente'][0] == "FALLO" and _v == "AMBAR",
+          f"{_g['cuenta_gasto_coherente'][0]} / {_v}", "FALLO / AMBAR", "P1")
+comprobar("O", "y ese desvio de cuenta es [CRITERIO], no un error de dato",
+          "[CRITERIO]" in _m2, _m2[:70], "[CRITERIO]", "P1")
+
+# 2-bis — misma decision contable, distinto detalle: NO es senal
+_v, _m2, _g = _ev({**BASE_O, 'cuenta_proveedor': '400001', 'cuenta_debe': '621001'},
+                  mapeo_cuenta_gasto=_mapeo)
+comprobar("O", "621001 vs 621000 no salta: mismo grupo del PGC, mismo criterio",
+          _g['cuenta_gasto_coherente'][0] == "OK",
+          _g['cuenta_gasto_coherente'][0], "OK", "P1")
+
+# 2-ter — control negativo: un solo asiento no es un patron, es una anecdota
+_flojo = {'400001': {'cuenta_gasto': '621000', 'grupo_pgc': 'Arrendamientos',
+                     'confianza': 'ALTA', 'n_asientos': 1, 'n_esta': 1}}
+_v, _m2, _g = _ev({**BASE_O, 'cuenta_proveedor': '400001', 'cuenta_debe': '600000'},
+                  mapeo_cuenta_gasto=_flojo)
+comprobar("O", "un historico de 1 asiento NO acusa a la factura nueva",
+          _g['cuenta_gasto_coherente'][0] == "NO_APLICA",
+          _g['cuenta_gasto_coherente'][0], "NO_APLICA", "P1")
+
+# 2-quater — sin cuenta propuesta no hay nada que comparar, y eso NO es OK
+_v, _m2, _g = _ev({**BASE_O, 'cuenta_proveedor': '400001'}, mapeo_cuenta_gasto=_mapeo)
+comprobar("O", "sin cuenta propuesta el guard NO dice OK (falso verde por omision)",
+          _g['cuenta_gasto_coherente'][0] == "NO_APLICA",
+          _g['cuenta_gasto_coherente'][0], "NO_APLICA", "P1")
+
+# 3 — estructura_reconocida: el formato del numero no casa con el del proveedor
+_fmt = {'PROVEEDOR PILOTO SL': {
+    'ejemplos': ['FAC-2026-001', 'FAC-2026-002', 'FAC-2025-317'],
+    'n_facturas_vistas': 40}}
+_v, _m2, _g = _ev({**BASE_O, 'nº_documento': 'XX/9999'}, fmt=_fmt)
+comprobar("O", "estructura_reconocida salta con un formato de numero distinto",
+          _g['estructura_reconocida'][0] != "NO_APLICA",
+          _g['estructura_reconocida'][0], "distinto de NO_APLICA", "P1")
+
+# 4 — secuencia_documental_proveedor: numero muy fuera de la serie
+_sec = {'PROVEEDOR PILOTO SL': {'numeros_vistos': [str(n) for n in range(1000, 1040)]}}
+_v, _m2, _g = _ev({**BASE_O, 'nº_documento': '999999'}, sec=_sec)
+comprobar("O", "secuencia_documental salta con un numero fuera de serie",
+          _g['secuencia_documental_proveedor'][0] != "NO_APLICA",
+          _g['secuencia_documental_proveedor'][0], "distinto de NO_APLICA", "P1")
+
+# 5 — tipo_operacion_especial: cuenta del grupo 2 (inmovilizado)
+_v, _m2, _g = _ev({**BASE_O, 'cuenta_debe': '218000', 'concepto': 'compra furgoneta'})
+comprobar("O", "tipo_operacion_especial frena un inmovilizado a AMBAR",
+          _g['tipo_operacion_especial'][0] == "AMBAR" and _v == "AMBAR",
+          f"{_g['tipo_operacion_especial'][0]} / {_v}", "AMBAR / AMBAR", "P1")
+comprobar("O", "y ese AMBAR se etiqueta [CRITERIO], no [FALTA DATO]",
+          "[CRITERIO]" in _m2, _m2[:70], "[CRITERIO]", "P1")
+
+
 # ---------------------------------------------------------------------------
 print("\n" + "=" * 70)
 fallos = [r for r in resultados if not r[2]]

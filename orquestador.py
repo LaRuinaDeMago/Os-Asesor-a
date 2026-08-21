@@ -103,6 +103,11 @@ def main():
                         'factura la emitio el propio cliente (venta) en vez de un '
                         'proveedor (gasto): se declara NO_COMPROBADO, nunca OK.')
     parser.add_argument('--salida', default='veredicto_salida.csv')
+    parser.add_argument('--cartera-json', help='Patron de cartera (NIF -> cuenta de gasto '
+                        'mas usada en TODA la cartera), emitido por '
+                        'retro_semaforo.py --emitir-cartera. Cierra el circuito: sin el, '
+                        'un proveedor nuevo para este cliente es una incognita aunque lleves '
+                        'diez anos contabilizandolo en otros veinte.')
     parser.add_argument('--xdiario', help='Ruta del xDiario.txt importable a ContaPlus. '
                         'OPT-IN: solo se genera si se pide. Incluye unicamente las '
                         'facturas VERDE con cuenta de proveedor resuelta en el maestro; '
@@ -110,6 +115,14 @@ def main():
     args = parser.parse_args()
 
     config = cargar_config(args.config)
+
+    mapeo_cartera = {}
+    if args.cartera_json and os.path.exists(args.cartera_json):
+        mapeo_cartera = cargar_cache_json(args.cartera_json)
+        fuertes = sum(1 for d in mapeo_cartera.values()
+                      if isinstance(d, dict) and d.get('n_clientes', 0) >= 2)
+        print(f"Patron de cartera: {len(mapeo_cartera)} proveedores, "
+              f"{fuertes} vistos en 2+ clientes (senal fuerte)")
 
     from motor_veredicto import construir_mapeo_cuenta_gasto
     mapeo_gasto = {}
@@ -151,7 +164,7 @@ def main():
         veredicto, motivo, guards = evaluar_fila_v4(
             fila, vistos_duplicado, hist_importes, formato_cache, secuencia_final,
             maestro, alta_cliente_anio, args.nif_titular, ejercicio_tanda, {},
-            mapeo_cuenta_gasto=mapeo_gasto)
+            mapeo_cuenta_gasto=mapeo_gasto, mapeo_cartera=mapeo_cartera)
         conteo[veredicto] += 1
         fila_salida = dict(fila)
         fila_salida['VEREDICTO'] = veredicto

@@ -270,6 +270,11 @@ def main():
                     help="Parar tras N asientos (0 = todos). Util para una primera pasada")
     ap.add_argument("--semilla", type=int, default=20260820,
                     help="Semilla del generador, para que la inyeccion sea reproducible")
+    ap.add_argument("--emitir-cartera", metavar="RUTA",
+                    help="Ademas de medir, emite el PATRON DE CARTERA (NIF -> cuenta de "
+                         "gasto mas usada en toda la cartera) al fichero indicado. "
+                         "Aprovecha que esta pasada ya recorre el corpus entero. "
+                         "El fichero lleva NIF reales: usar un nombre con _LOCAL.")
     args = ap.parse_args()
 
     raiz = os.path.abspath(args.carpeta)
@@ -292,6 +297,9 @@ def main():
     n_asientos = n_compras = n_reconstruidas = n_sin_iva = 0
     vistos_dup = set()
     maestro_acumulado = {}     # crece segun se avanza: ver el comentario del bucle
+    # Para el patron de cartera: lineas por cliente, indexadas por contenedor.
+    # Solo se acumula si se ha pedido, para no gastar memoria de balde.
+    lineas_cartera = defaultdict(list) if args.emitir_cartera else None
     detalle_local = []
     nifs_pool = []
     parar = False
@@ -337,6 +345,16 @@ def main():
                         ))
                         del rec
 
+                    if lineas_cartera is not None:
+                        # La clave de cliente es la CARPETA del contenedor: dentro
+                        # de una copia, un codigo de empresa es un cliente. Es la
+                        # regla dura verificada en FASE0_RESULTADOS §12.
+                        cliente_id = os.path.basename(os.path.dirname(ruta)) + "/" + \
+                                     os.path.basename(ruta)[:7]
+                        for _a, _ls in grupos.items():
+                            for _l in _ls:
+                                lineas_cartera[cliente_id].append(
+                                    {'ASIEN': _a, 'SUBCTA': _l[0], 'TERNIF': _l[4]})
                     for _, lineas in sorted(grupos.items()):
                         n_asientos += 1
                         fila = reconstruir_compra(lineas)
