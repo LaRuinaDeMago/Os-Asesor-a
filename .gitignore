@@ -75,3 +75,4 @@ validacion_captura_agregado.json
 
 # Salida del agregador de IVA por trimestre (mismo criterio que las demas)
 reconstruccion_303_agregado.json
+cola_revision_agregado.json

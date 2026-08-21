@@ -321,6 +321,55 @@ def main():
         comprobar("y detecta solo las columnas de un CSV que no es canonico",
                   "total" in s5.lower() and "nif" in s5.lower(), s5[:400])
 
+        # --- La cola de revision -------------------------------------------
+        # Convierte el veredicto.csv del orquestador en un plan de trabajo
+        # agrupado por CAUSA. Cierra el circuito de la clasificacion de AMBAR,
+        # que el motor producia desde el 20-08 y no leia nadie.
+        csv_ver = os.path.join(tmp, "veredicto_cola.csv")
+        with open(csv_ver, "w", encoding="utf-8", newline="") as fh:
+            fh.write("nif,proveedor,total_factura,VEREDICTO,MOTIVO\n")
+            # Tres causas distintas y una repetida muchas veces: lo que se quiere
+            # ver es que la repetida sale la PRIMERA, porque arreglarla una vez
+            # quita mas facturas de la cola que arreglar la grave que sale una.
+            for _ in range(7):
+                fh.write('X,P,121.00,AMBAR,"[FALTA DATO] aritmetica_base_tipo: falta el desglose"\n')
+            fh.write('X,P,121.00,AMBAR,"[CRITERIO] nif_casa_historico: proveedor NUEVO"\n')
+            fh.write('X,P,121.00,AMBAR,"[CRITERIO] tipo_operacion_especial: inmovilizado"\n')
+            fh.write('X,P,121.00,ROJO,"nif_digito_control: CIF invalido | y 1 mas: cuadre_total: DESCUADRE"\n')
+            fh.write('X,P,121.00,VERDE,"coherencia formal verificada"\n')
+        det = os.path.join(tmp, "cola_LOCAL.csv")
+        r7 = subprocess.run([sys.executable, os.path.join(AQUI, "cola_revision.py"),
+                             csv_ver, "--detalle", det],
+                            capture_output=True, text=True, cwd=AQUI)
+        s7 = r7.stdout + r7.stderr
+        comprobar("cola_revision.py corre entero", r7.returncode == 0, s7[-400:])
+        comprobar("separa los tres montones de trabajo",
+                  "CORREGIR" in s7 and "BUSCAR o VERIFICAR" in s7 and "DECIDIR" in s7,
+                  s7[:400])
+        comprobar("traduce la causa a lo que hay que HACER, no al nombre del guard",
+                  "Conseguir el DESGLOSE" in s7, s7[:400])
+        # Los tres montones van en orden fijo (son tres trabajos distintos), asi
+        # que la pregunta practica —.por cual empiezo?— la contesta la cabecera
+        # "EMPIEZA POR AQUI", que mira las tres a la vez.
+        _cab = s7.split("EMPIEZA POR AQUI")[1][:400] if "EMPIEZA POR AQUI" in s7 else ""
+        comprobar("dice por que accion empezar: la que mas facturas desbloquea",
+                  "7 facturas" in _cab and "DESGLOSE" in _cab,
+                  (_cab.strip()[:120] or "no hay cabecera")
+                  + "   (esperado: la causa que sale 7 veces)")
+        comprobar("y avisa de que esas 7 son UNA tarea, no siete",
+                  "es UNA" in _cab, _cab[:120])
+        comprobar("un ROJO con dos causas cuenta las DOS",
+                  "nif_digito_control" in s7 and "cuadre_total" in s7, s7[:600])
+        comprobar("escribe el detalle _LOCAL", os.path.exists(det))
+        if os.path.exists(det):
+            import json as _j2
+            with open(os.path.join(AQUI, "cola_revision_agregado.json"), encoding="utf-8") as fh:
+                _ag = _j2.load(fh)
+            _texto = _j2.dumps(_ag)
+            comprobar("el agregado NO lleva motivos (los motivos llevan importes)",
+                      "DESCUADRE" not in _texto and "121" not in _texto,
+                      _texto[:200] + "   (esperado: solo recuentos y guards)")
+
         # --- El cuadre contra la unica verdad externa ---------------------
         # reconstruir_303.py agrega bases y cuotas de IVA por trimestre, que es
         # el contenido de las casillas que Diego puede comparar con el 303 ya
@@ -367,7 +416,7 @@ def main():
         # Las salidas del script van a su propio directorio, no al temporal.
         for f in ("retro_semaforo_agregado.json", "retro_semaforo_LOCAL.json",
                   "validacion_captura_agregado.json", "validacion_captura_LOCAL.csv",
-                  "reconstruccion_303_agregado.json"):
+                  "reconstruccion_303_agregado.json", "cola_revision_agregado.json"):
             p = os.path.join(AQUI, f)
             if os.path.exists(p):
                 os.remove(p)
