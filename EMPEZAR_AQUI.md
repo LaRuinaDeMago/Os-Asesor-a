@@ -25,24 +25,38 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ❌ guard_g7_ledger.py sin conectar                          <- NORMAL, es de cripto
 ```
 
-### Los tres auditores, y por qué hacen falta los tres
+### Los siete auditores, y por qué hacen falta los siete
 
-Cada uno tapa un agujero que los otros dos no ven. No es redundancia:
+Cada uno tapa un agujero que los demás no ven. No es redundancia:
 
 | | pregunta | agujero que caza |
 |---|---|---|
 | `audit_project.py` | ¿el guard existe y alguien lo llama? | **huérfano** |
 | `cobertura_guards.py` | ¿ha llegado alguna vez a decir que no? | **nunca probado** |
 | `audit_estados.py` | ¿lo que dice cambia el veredicto? | **mudo / rama muerta** |
+| `barrido_falsos_verdes.py` | ¿sobrevive algún VERDE a romperle un campo? | **falso verde que nadie imaginó** |
+| `ensayo_retro_semaforo.py` | ¿los comandos de la sesión LOCAL arrancan? | **sesión perdida** |
+| `ensayo_xdiario.py` | ¿el fichero que entra en ContaPlus cuadra? | **asiento descuadrado** |
+| `test_privacidad.py` | ¿la barrera bloquea lo que dice bloquear? | **dato de cliente subido** |
 
-La tercera se escribió el 21-08 después de encontrar a mano, tras semanas,
-que `guard_cuenta_gasto_coherente` estaba cableado, tenía su rama
-`FALLO -> AMBAR` escrita en el veredicto desde el primer día, y **no comparaba
-nada**: la rama era inalcanzable. Las otras dos preguntas daban verde.
+Los siete corren dentro de `audit_project.py`: basta el primer comando.
 
-Con el bug reintroducido a propósito, `audit_estados.py` lo señala en menos de
-un segundo. Está comprobado, no supuesto. Los tres corren ya dentro de
-`audit_project.py`, así que basta el primer comando.
+`audit_estados.py` se escribió tras encontrar a mano, después de semanas, que
+`guard_cuenta_gasto_coherente` estaba cableado, tenía su rama `FALLO -> AMBAR`
+escrita en el veredicto desde el primer día, y **no comparaba nada**: la rama era
+inalcanzable. Las otras dos preguntas daban verde. Con el bug reintroducido a
+propósito, lo señala en menos de un segundo.
+
+> **Los cuatro últimos son del 21-08 y los cuatro encontraron defectos reales en
+> su PRIMERA ejecución.** Ninguno era teórico: `--emitir-cartera` no escribía
+> nada nunca, el xDiario emitía asientos descuadrados, la barrera de privacidad
+> no veía una clave asignada en el código, y el barrido destapó tres agujeros que
+> los 108 ataques escritos a mano no habían tocado.
+>
+> La lección práctica, por si sirve para lo que venga: **casi todo lo que se
+> encontró estaba en las costuras** —entre una pieza y la siguiente—, no dentro
+> de las piezas. Las piezas estaban bien probadas. Lo que nadie había ejecutado
+> era la cadena.
 
 ---
 
@@ -129,6 +143,63 @@ demuestran que el mecanismo funciona.
 
 > **Lo ejecuta Diego.** Salida agregada = recuentos, se puede subir.
 > `retro_semaforo_LOCAL.json` se queda en el disco y Claude no lo abre.
+
+### 🧾 A-ter — Cuadrar contra el 303 presentado (la ÚNICA verdad externa)
+
+```bash
+python reconstruir_303.py "RUTA_DEL_CORPUS" --detalle 303_LOCAL.json
+```
+
+Todo lo demás del proyecto se valida **contra sí mismo**: la aritmética de la
+factura contra la factura, el patrón del proveedor contra el histórico. Es
+coherencia interna, y su techo lleva escrito desde el principio en
+`DISENO_APRENDIZAJE.md` §1: *el histórico dice lo que se hizo, no lo que era
+correcto*.
+
+Hay **una sola excepción**: los 303 presentados. Los presentó el despacho, los
+aceptó Hacienda y llevan diez años en pie. Es un **hecho externo**, no un criterio.
+
+**Lo que el script NO hace, y hay que tenerlo claro antes de mirar un número:**
+no reconstruye un 303. Un 303 lleva prorrata, bienes de inversión,
+intracomunitarias, ISP y compensación de cuotas, y nada de eso se deduce de las
+cuentas de IVA. Decir «reconstruye el 303» sería vender precisión inexistente.
+
+**Lo que sí hace:** agrega por cliente y trimestre las **bases y cuotas por
+tipo**, separando repercutido (477) de soportado (472) — el contenido de las
+casillas **01-09 y 28-29**.
+
+> Si esas casillas cuadran con el 303 presentado durante cuarenta trimestres, lo
+> que queda validado no es una factura: es **la cadena entera de lectura** contra
+> algo que Hacienda ya dio por bueno.
+
+**La segunda mitad del trabajo es humana y no tiene atajo:** abrir el 303
+presentado de un trimestre y comparar las casillas con el `_LOCAL`. Lo único que
+sube después es el recuento de cuántos cuadran — y ese recuento se le puede
+enseñar a cualquiera sin enseñar un dato de cliente.
+
+### 📑 A-quater — La cola de revisión (convierte «91 facturas» en «una tarde»)
+
+```bash
+python cola_revision.py veredicto.csv --detalle cola_LOCAL.csv
+```
+
+Toma la salida del orquestador y la agrupa **por causa, no por factura**:
+
+```
+EMPIEZA POR AQUI — la accion que mas facturas quita de la cola:
+    23 facturas  ·  Conseguir el DESGLOSE por tipos de IVA de la factura
+    No son 23 tareas: es UNA. Se arregla una vez y se repasan.
+```
+
+Tres montones, porque son **tres trabajos distintos** que no se hacen
+entremezclados: **CORREGIR** (ROJO), **BUSCAR/VERIFICAR** (`[FALTA DATO]`) y
+**DECIDIR** (`[CRITERIO]`). Y las 26 causas están traducidas a lo que hay que
+hacer — *«aritmetica_base_tipo»* no le dice a nadie qué tiene que hacer.
+
+> Los `[CRITERIO]` van aparte por algo que no es comodidad: **son las etiquetas
+> que más valen del proyecto.** Son justo los casos donde el motor no puede
+> decidir, así que aprender de ellas es lo único que mueve la frontera de lo
+> automatizable. Perdidas dentro de un montón de «revisar», no se aprenden.
 
 ### 📋 B — Terminar el inventario (el trabajo principal de hoy)
 
