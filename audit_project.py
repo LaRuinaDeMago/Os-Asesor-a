@@ -204,7 +204,13 @@ def check_estados_y_cobertura():
                              # ni una prueba, y ya fallo una vez de la peor
                              # forma posible: declarando limpio lo que no habia
                              # mirado. Aquella comprobacion a mano corre sola.
-                             ("test_privacidad.py", "Barrera de privacidad: bloquea lo que debe")):
+                             ("test_privacidad.py", "Barrera de privacidad: bloquea lo que debe"),
+                             # El ultimo paso: el fichero que entra en ContaPlus.
+                             # Un fallo aqui no cuesta tiempo, cuesta
+                             # contabilidad — y se encontro uno de verdad: la
+                             # factura de camara generaba un asiento de una sola
+                             # linea, descuadrado.
+                             ("ensayo_xdiario.py", "xDiario: ningun asiento descuadrado")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue

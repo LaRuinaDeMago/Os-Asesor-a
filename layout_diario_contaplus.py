@@ -98,7 +98,11 @@ def leer_ascii_completo(path):
     return registros
 
 
-CUENTA_IVA_SOPORTADO = {10: "472010", 4: "472004", 21: "472021"}
+#: AMPLIADO 21-08-2026: faltaban el 5% y el 0%, que existen desde 2023 y que el
+#: motor ya sabe validar. Sin ellos, una factura legitima a esos tipos reventaba
+#: aqui con un KeyError, en el ultimo paso de todos.
+CUENTA_IVA_SOPORTADO = {0: "472000", 4: "472004", 5: "472005",
+                        10: "472010", 21: "472021"}
 
 
 def generar_asiento_desde_factura(fila_veredicto, asien, cuenta_debe, cuenta_haber_proveedor):
@@ -109,16 +113,50 @@ def generar_asiento_desde_factura(fila_veredicto, asien, cuenta_debe, cuenta_hab
 
     Devuelve una lista de dicts, uno por linea del asiento, listos para
     construir_linea(). NO escribe nada todavia - eso es escribir_xdiario()."""
-    fecha = fila_veredicto['fecha_expedicion'].replace('-', '')
-    fecha_date = __import__('datetime').datetime.strptime(fila_veredicto['fecha_expedicion'], '%Y-%m-%d').date()
+    # CORREGIDO 21-08-2026 (ensayo_xdiario.py). Aqui habia un strptime con el
+    # formato ISO fijo, el MISMO fallo que se acababa de corregir en los tres
+    # guards de fecha del motor: con '15/03/2026' —el formato normal en Espana—
+    # saltaba ValueError, y como nadie lo capturaba se llevaba por delante la
+    # exportacion ENTERA, no una factura. Se entra por el contrato, que acepta
+    # los cuatro formatos desde el primer dia.
+    import contrato_datos
+    _f = contrato_datos.parse_fecha(fila_veredicto.get('fecha_expedicion'))
+    if _f.estado != contrato_datos.VALUE:
+        raise ValueError("fecha de expedicion no interpretable")
+    fecha_date = _f.valor
     concepto = f"Fra {fila_veredicto.get('nº_documento','')}"[:25]
     nif = fila_veredicto.get('nif', '')
     proveedor = fila_veredicto.get('proveedor', '')
 
     lineas = []
     total_base = 0.0
-    for tipo, campo in [(10, 'base_10'), (4, 'base_4'), (21, 'base_21')]:
-        base = float(fila_veredicto.get(campo, 0) or 0)
+    tramos = [(tipo, float(fila_veredicto.get(campo, 0) or 0))
+              for tipo, campo in ((10, 'base_10'), (4, 'base_4'), (21, 'base_21'))]
+    # ANADIDO 21-08-2026, y era el defecto mas peligroso de todo el dia: una
+    # factura de captura de camara —base, IVA y total, SIN desglose por tipos—
+    # no entraba en este bucle, asi que el asiento salia con UNA sola linea: el
+    # haber del proveedor, y cero en el debe. Un asiento descuadrado entrando en
+    # la contabilidad real de un cliente.
+    #
+    # Y desde el 21-08 esa factura ya puede ser VERDE, asi que el caso paso de
+    # imposible a ser el NORMAL. Se deduce el tramo del mismo sitio del que lo
+    # deduce el motor: cuota/base, y solo si cae clavado en un tipo legal. Si no
+    # se puede deducir, no se emite un asiento roto — se levanta y quien llama lo
+    # cuenta. Inventar un tramo seria peor que no exportar la factura.
+    if not any(b for _t, b in tramos):
+        base_total = float(fila_veredicto.get('base_total', 0) or 0)
+        iva_total = float(fila_veredicto.get('iva_total', 0) or 0)
+        deducido = None
+        if base_total:
+            for tipo in sorted(CUENTA_IVA_SOPORTADO):
+                if abs(iva_total - base_total * tipo / 100.0) <= 0.02:
+                    deducido = tipo
+                    break
+        if deducido is None:
+            raise ValueError("sin desglose por tipos y el tipo efectivo no es "
+                             "deducible: no se puede generar un asiento cuadrado")
+        tramos = [(deducido, base_total)]
+    for tipo, base in tramos:
         if base == 0:
             continue
         total_base += base
@@ -166,12 +204,34 @@ def escribir_xdiario(facturas_verdes, path_salida, asien_inicial=1):
     si no coincide con la numeracion real de la empresa."""
     lineas_texto = []
     asien = asien_inicial
+    descartadas = {}
     for fila in facturas_verdes:
-        cuenta_debe = fila.get('cuenta_debe') or '600000'  # fallback si no hay mapeo, marcar para revisar
+        # CORREGIDO 21-08-2026: aqui habia un `or '600000'`, con el comentario
+        # "fallback si no hay mapeo, marcar para revisar". No marcaba nada: metia
+        # el gasto en Compras de mercaderias y seguia. Es inventarse una cuenta
+        # contable, justo lo que el orquestador declara que no hace dos lineas
+        # mas abajo con la del proveedor. Ahora se descarta y se cuenta.
+        cuenta_debe = fila.get('cuenta_debe')
         cuenta_haber = fila.get('cuenta_haber')
-        if not cuenta_haber:
-            continue  # sin cuenta de proveedor real no se genera el asiento - no se inventa
-        apuntes = generar_asiento_desde_factura(fila, asien, cuenta_debe, cuenta_haber)
+        if not cuenta_haber or not cuenta_debe:
+            que = 'sin cuenta de proveedor' if not cuenta_haber else 'sin cuenta de gasto'
+            descartadas[que] = descartadas.get(que, 0) + 1
+            continue
+        try:
+            apuntes = generar_asiento_desde_factura(fila, asien, cuenta_debe, cuenta_haber)
+        except (ValueError, KeyError, TypeError) as e:
+            # Una factura mala no puede llevarse por delante la tanda entera.
+            descartadas[type(e).__name__] = descartadas.get(type(e).__name__, 0) + 1
+            continue
+        # LA INVARIANTE DEL ULTIMO PASO, y no estaba: un asiento que no cuadra no
+        # se escribe. Es el equivalente contable de "nunca OK por omision" — mas
+        # vale una factura sin exportar que un descuadre entrando en los libros
+        # de un cliente, que ademas hay que ir a buscar a mano despues.
+        debe = round(sum(float(a.get('EURODEBE', 0) or 0) for a in apuntes), 2)
+        haber = round(sum(float(a.get('EUROHABER', 0) or 0) for a in apuntes), 2)
+        if abs(debe - haber) > 0.01:
+            descartadas['asiento descuadrado'] = descartadas.get('asiento descuadrado', 0) + 1
+            continue
         for apunte in apuntes:
             lineas_texto.append(construir_linea(apunte))
         asien += 1
@@ -179,6 +239,10 @@ def escribir_xdiario(facturas_verdes, path_salida, asien_inicial=1):
     with open(path_salida, 'wb') as f:
         for linea in lineas_texto:
             f.write((linea + "\r\n").encode("latin1"))
+    if descartadas:
+        print("  xDiario — facturas NO exportadas (no se inventa nada):")
+        for motivo, n in sorted(descartadas.items()):
+            print(f"      {n:>5}  {motivo}")
     return len(lineas_texto), asien - asien_inicial
 
 
