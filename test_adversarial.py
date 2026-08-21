@@ -389,6 +389,35 @@ comprobar("L", "ningun error de 1 digito en el NIF se cuela (checksum)",
           _colados_nif == 0, f"{_colados_nif} colados", "0 colados", "P0")
 
 
+print("\n=== FAMILIA M — Las dos clases de AMBAR y el proveedor nuevo ===")
+BASE_M = {**BASE_FILA, 'base_21': '100', 'base_total': '100',
+          'iva_total': '21', 'total_factura': '121'}
+
+# Un proveedor NUEVO daba ROJO: factura impecable de alguien con quien no se
+# habia trabajado. La auditoria lo senalo en la ronda 2 y llevaba abierto desde
+# entonces. Que sea DESCONOCIDO no es que sea INVALIDO.
+v, mot = evaluar({**BASE_M, 'nif': '12345678Z'})
+comprobar("M", "proveedor nuevo con NIF valido NO es ROJO",
+          v == "AMBAR", f"veredicto={v} ({mot[:70]})", "AMBAR", "P0")
+comprobar("M", "proveedor nuevo se etiqueta [CRITERIO], no [FALTA DATO]",
+          "[CRITERIO]" in mot, mot[:70], "[CRITERIO]", "P1")
+
+# Lo invalido lo sigue cazando otro guard, y sigue siendo ROJO.
+v, _ = evaluar({**BASE_M, 'nif': '12345678Y'})
+comprobar("M", "NIF con checksum invalido sigue dando ROJO",
+          v == "ROJO", f"veredicto={v}", "ROJO", "P0")
+
+# Un dato ilegible es trabajo de BUSCAR, no de DECIDIR.
+v, mot = evaluar({**BASE_M, 'base_total': 'abc', 'iva_total': 'abc', 'total_factura': 'abc'})
+comprobar("M", "importes ilegibles se etiquetan [FALTA DATO]",
+          "[FALTA DATO]" in mot, mot[:70], "[FALTA DATO]", "P1")
+
+# Regla de mezcla: si falta un dato Y ademas hay que decidir, manda el dato.
+v, mot = evaluar({**BASE_M, 'nif': '12345678Z', 'fecha_expedicion': ''})
+comprobar("M", "criterio + falta de dato a la vez -> manda [FALTA DATO]",
+          "[FALTA DATO]" in mot, mot[:70], "[FALTA DATO] (primero se consigue el dato)", "P1")
+
+
 # ---------------------------------------------------------------------------
 print("\n" + "=" * 70)
 fallos = [r for r in resultados if not r[2]]

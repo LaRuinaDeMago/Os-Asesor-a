@@ -367,7 +367,7 @@ def calcular_veredicto(guards: dict):
     if no_comprobados:
         return "AMBAR", f"NO_COMPROBADO: {', '.join(no_comprobados)}"
     if confianza != "ALTA":
-        return "AMBAR", f"confianza_captura={confianza}"
+        return "AMBAR", f"{AMBAR_FALTA_DATO} confianza_captura={confianza}"
 
     return "VERDE", "todos los guards OK/NO_APLICA, confianza ALTA"
 
@@ -782,7 +782,19 @@ def guard_nif_casa_historico(nif, maestro_proveedores):
         return "NO_COMPROBADO", "sin NIF capturado, no se puede buscar en el maestro"
     if nif.strip() in maestro_proveedores:
         return "OK", f"NIF encontrado en maestro: {maestro_proveedores[nif.strip()].get('titulo','')}"
-    return "FALLO", "NIF no encontrado en el maestro de proveedores del cliente"
+    # CORREGIDO 20-08-2026. Antes esto era FALLO, y como el guard es critico, una
+    # factura PERFECTAMENTE CORRECTA de un proveedor nuevo salia ROJO. Medido:
+    # NIF valido, aritmetica impecable, proveedor con el que no se habia
+    # trabajado -> ROJO. La auditoria externa lo senalo en la ronda 2 y llevaba
+    # abierto desde entonces.
+    #
+    # Que un proveedor sea DESCONOCIDO no es lo mismo que que sea INVALIDO. Lo
+    # invalido lo caza guard_nif_digito_control, que es otro guard y sigue
+    # dando ROJO. Esto es un caso de "requiere criterio": hay que darlo de alta
+    # o decidir, no hay ningun error que corregir.
+    return ("NO_COMPROBADO",
+            "proveedor NUEVO: el NIF es valido pero no esta en el maestro del "
+            "cliente. No es un error, es un alta que decidir")
 
 
 def guard_secuencia_documental_proveedor(proveedor, nº_documento, secuencia_cache):
@@ -975,6 +987,56 @@ def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
     return veredicto, motivo_v, guards
 
 
+
+# ---------------------------------------------------------------------------
+# LAS DOS CLASES DE AMBAR (20-08-2026)
+#
+# Idea del titular, y le faltaba al motor. Hasta hoy todos los AMBAR eran
+# iguales, y no lo son: significan trabajos DISTINTOS para el asesor.
+#
+#   [FALTA DATO]  algo no se ha podido comprobar o se contradice.
+#                 El asesor va a BUSCAR o a VERIFICAR. Es un problema de datos.
+#
+#   [CRITERIO]    todo cuadra, y ademas hace falta una DECISION que el motor no
+#                 puede tomar: si ese IVA es deducible al 50 o al 100, si esto
+#                 es inmovilizado, si este proveedor nuevo se da de alta, si el
+#                 que siempre fue proveedor ahora es cliente.
+#                 El asesor va a DECIDIR. Es trabajo profesional, no un fallo.
+#
+# POR QUE IMPORTA SEPARARLOS, y no es cosmetico:
+#   1. La cola de revision se ordena por tipo de trabajo, no por orden de
+#      llegada. Buscar un dato y aplicar criterio no se hacen igual ni seguidos.
+#   2. Las decisiones de [CRITERIO] son las ETIQUETAS QUE MAS VALEN: son
+#      justo los casos donde el motor no puede decidir, asi que aprender de
+#      ellas es lo unico que mueve la frontera de lo automatizable.
+#   3. Da la METRICA de si el aprendizaje funciona: el % de [CRITERIO] debe
+#      BAJAR con el tiempo segun se registran decisiones. El de [FALTA DATO]
+#      depende de la calidad de captura, que es otra cosa.
+#
+# Se implementa como prefijo del motivo para no romper a nadie: el veredicto
+# sigue siendo "AMBAR" y quien no mire el prefijo funciona igual que antes.
+AMBAR_CRITERIO = "[CRITERIO]"
+AMBAR_FALTA_DATO = "[FALTA DATO]"
+
+#: Guards cuyo AMBAR significa "decide tu", no "falta un dato".
+GUARDS_DE_CRITERIO = frozenset({
+    "tipo_operacion_especial",     # inmovilizado, intracomunitaria, amortizacion
+    "cuenta_gasto_coherente",      # la cuenta no casa con lo que dice el historico
+    "nif_casa_historico",          # proveedor nuevo: hay que darlo de alta
+    # Su NO_COMPROBADO tiene la MISMA causa: no conoce al emisor, asi que no
+    # puede decir si es compra o venta. Es exactamente el caso que planteo el
+    # titular — "el que siempre fue proveedor ahora es cliente" — y lo decide
+    # una persona, no un guard. Si ademas faltara el NIF, integridad_datos
+    # saltaria como FALTA DATO y la regla de mezcla se quedaria con esa, que es
+    # lo correcto: primero se consigue el dato.
+    "sentido_compra_venta",
+})
+
+
+def _clasificar_ambar(guard):
+    return AMBAR_CRITERIO if guard in GUARDS_DE_CRITERIO else AMBAR_FALTA_DATO
+
+
 def calcular_veredicto_v4(guards):
     """Veredicto con los 16 guards. Criticos ampliados con suma_tramos,
     sentido_compra_venta, signo_efectivo y ejercicio_coherente."""
@@ -989,13 +1051,13 @@ def calcular_veredicto_v4(guards):
             return "ROJO", f"{g}: {guards[g][1]}"
 
     if guards.get("importe_atipico", ("OK", ""))[0] == "FALLO":
-        return "AMBAR", f"importe_atipico: {guards['importe_atipico'][1]}"
+        return "AMBAR", f"{_clasificar_ambar('importe_atipico')} importe_atipico: {guards['importe_atipico'][1]}"
     if guards.get("estructura_reconocida", ("OK", ""))[0] == "FALLO":
-        return "AMBAR", f"estructura_reconocida: {guards['estructura_reconocida'][1]}"
+        return "AMBAR", f"{_clasificar_ambar('estructura_reconocida')} estructura_reconocida: {guards['estructura_reconocida'][1]}"
     if guards.get("secuencia_documental_proveedor", ("OK", ""))[0] == "FALLO":
         return "AMBAR", f"secuencia_documental: {guards['secuencia_documental_proveedor'][1]}"
     if guards.get("vencimiento_coherente", ("OK", ""))[0] == "FALLO":
-        return "AMBAR", f"vencimiento_coherente: {guards['vencimiento_coherente'][1]}"
+        return "AMBAR", f"{_clasificar_ambar('vencimiento_coherente')} vencimiento_coherente: {guards['vencimiento_coherente'][1]}"
 
     # Guards cableados el 19-08-2026. Un tipo de IVA que contradice la tabla
     # oficial es un error de hecho -> ROJO. Una operacion especial detectada o
@@ -1003,17 +1065,17 @@ def calcular_veredicto_v4(guards):
     if guards.get("tipo_producto_iva_semantico", ("NO_APLICA", ""))[0] == "FALLO":
         return "ROJO", f"tipo_producto_iva_semantico: {guards['tipo_producto_iva_semantico'][1]}"
     if guards.get("tipo_operacion_especial", ("NO_APLICA", ""))[0] == "AMBAR":
-        return "AMBAR", f"tipo_operacion_especial: {guards['tipo_operacion_especial'][1]}"
+        return "AMBAR", f"{_clasificar_ambar('tipo_operacion_especial')} tipo_operacion_especial: {guards['tipo_operacion_especial'][1]}"
     if guards.get("cuenta_gasto_coherente", ("NO_APLICA", ""))[0] == "FALLO":
-        return "AMBAR", f"cuenta_gasto_coherente: {guards['cuenta_gasto_coherente'][1]}"
+        return "AMBAR", f"{_clasificar_ambar('cuenta_gasto_coherente')} cuenta_gasto_coherente: {guards['cuenta_gasto_coherente'][1]}"
     # La confianza por campo solo puede BAJAR el veredicto, nunca subirlo: lo que
     # el modelo declare sobre si mismo no es evidencia independiente.
     if guards.get("confianza_por_campo", ("NO_APLICA", ""))[0] == "NO_COMPROBADO":
-        return "AMBAR", f"confianza_por_campo: {guards['confianza_por_campo'][1]}"
+        return "AMBAR", f"{_clasificar_ambar('confianza_por_campo')} confianza_por_campo: {guards['confianza_por_campo'][1]}"
 
     confianza = guards.get("confianza_captura", ("ALTA", ""))[0]
     if confianza != "ALTA":
-        return "AMBAR", f"confianza_captura={confianza}"
+        return "AMBAR", f"{AMBAR_FALTA_DATO} confianza_captura={confianza}"
 
     # NO_COMPROBADO en guards que SI deberian haber corrido baja a AMBAR.
     # Se excluyen los que son NO_COMPROBADO por falta estructural de dato
@@ -1038,7 +1100,12 @@ def calcular_veredicto_v4(guards):
     # que nadie lo hubiera declarado. Ahora SI escala a AMBAR si es NO_COMPROBADO.
     no_comprobados = [g for g, (e, _) in guards.items() if e == "NO_COMPROBADO" and g not in exentos]
     if no_comprobados:
-        return "AMBAR", f"NO_COMPROBADO: {', '.join(no_comprobados)}"
+        # Si TODOS los que faltan son de criterio, es trabajo profesional, no un
+        # problema de datos. Si hay mezcla, manda el dato: primero se consigue.
+        clase = (AMBAR_CRITERIO if all(g in GUARDS_DE_CRITERIO for g in no_comprobados)
+                 else AMBAR_FALTA_DATO)
+        detalles = "; ".join(f"{g}: {guards[g][1]}" for g in no_comprobados)
+        return "AMBAR", f"{clase} {detalles}"
 
     # QUE SIGNIFICA ESTE VERDE, dicho en el propio veredicto (20-08-2026).
     #
