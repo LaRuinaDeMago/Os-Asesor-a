@@ -514,6 +514,41 @@ def main():
     with open(SALIDA_LOCAL, "w", encoding="utf-8") as f:
         json.dump(detalle_local, f, ensure_ascii=False, indent=2)
 
+    # --- El patron de cartera -------------------------------------------
+    # CORREGIDO 21-08-2026, y lo destapo ensayo_retro_semaforo.py en su primera
+    # ejecucion: --emitir-cartera aceptaba la ruta, gastaba memoria acumulando
+    # lineas... y NO ESCRIBIA NADA. Nunca. construir_mapeo_cartera no se llamaba
+    # desde aqui, asi que el fichero que orquestador.py espera en --cartera-json
+    # no habia forma de producirlo. La cadena entera —"el criterio sale de los
+    # diez anos"— estaba rota en el ultimo eslabon, con las dos puntas hechas.
+    if args.emitir_cartera and lineas_cartera is not None:
+        try:
+            mapeo_cartera = mv.construir_mapeo_cartera(dict(lineas_cartera))
+        except Exception as e:
+            errores["cartera:" + type(e).__name__] += 1
+            mapeo_cartera = {}
+        ruta_cartera = os.path.abspath(args.emitir_cartera)
+        with open(ruta_cartera, "w", encoding="utf-8") as f:
+            json.dump(mapeo_cartera, f, ensure_ascii=False, indent=2)
+        fuertes = sum(1 for d in mapeo_cartera.values() if d.get("n_clientes", 0) >= 2)
+        if args.limite:
+            print()
+            print("    ⚠️  --limite CORTA tambien el patron de cartera. La parada")
+            print("        ocurre a mitad del recorrido, asi que este fichero solo")
+            print("        ha visto los primeros contenedores: n_clientes sale bajo")
+            print("        y la senal fuerte no aparece. Sirve para ensayar el")
+            print("        circuito, NO para usarlo. El patron de verdad se emite")
+            print("        en una pasada SIN --limite.")
+        print()
+        print("PATRON DE CARTERA (indexado por NIF, cruza los clientes entre si):")
+        print(f"    proveedores distintos          : {len(mapeo_cartera):,}")
+        print(f"    vistos en 2+ clientes (fuerte) : {fuertes:,}")
+        print(f"    escrito en                     : {ruta_cartera}")
+        if "_LOCAL" not in os.path.basename(ruta_cartera):
+            print("    ⚠️  ESTE FICHERO LLEVA NIF REALES y su nombre no dice _LOCAL.")
+            print("        Renombrarlo antes de nada: .gitignore protege *_LOCAL.*,")
+            print("        y con otro nombre puede acabar en un commit.")
+
     print()
     print(f"Agregado (se puede subir)  : {SALIDA_AGREGADA}")
     print(f"Detalle (NO sube, _LOCAL)  : {SALIDA_LOCAL}")

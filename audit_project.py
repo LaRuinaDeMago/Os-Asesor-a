@@ -189,7 +189,13 @@ def check_estados_y_cobertura():
     daban verde. Se cablea aqui para que no dependa de que alguien se acuerde.
     """
     for script, etiqueta in (("audit_estados.py", "Estados: sin ramas muertas ni guards mudos"),
-                             ("cobertura_guards.py", "Cobertura: guards probados de verdad")):
+                             ("cobertura_guards.py", "Cobertura: guards probados de verdad"),
+                             # Ensayo en seco de la cadena que se ejecuta en LOCAL.
+                             # Corre en 0,4 s y en su PRIMERA ejecucion destapo que
+                             # --emitir-cartera no escribia nada, nunca: el ultimo
+                             # eslabon de "el criterio sale de los diez anos" estaba
+                             # roto con las dos puntas hechas.
+                             ("ensayo_retro_semaforo.py", "Ensayo en seco: retro_semaforo + orquestador")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue
