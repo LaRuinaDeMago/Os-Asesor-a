@@ -37,29 +37,50 @@ def check_sintaxis():
 
 
 def check_cableado():
-    """Verifica que todos los guards asignados en evaluar_fila_v4 se consultan
-    de verdad en calcular_veredicto_v4 - el tipo de bug real que ya encontramos
-    una vez esta noche (funciones huerfanas, guards fantasma)."""
+    """Verifica que todos los guards asignados en evaluar_fila_v4 se consultan de
+    verdad en calcular_veredicto_v4 — el bug de los guards fantasma.
+
+    REESCRITO 21-08-2026. La version anterior buscaba `guards.get("X"` con una
+    expresion regular, asi que solo veia el cableado escrito de UNA forma. En
+    cuanto los AMBAR con rama dedicada pasaron de ocho `if` seguidos a una tabla
+    de pares (guard, estado), declaro siete huerfanos que no lo eran: no habia
+    cambiado el cableado, habia cambiado su forma.
+
+    Es el mismo error que ya esta documentado en .claude/rules/datos.md sobre el
+    escaner de privacidad —decidir por el NOMBRE en vez de por el CONTENIDO— y
+    aqui se paga igual de caro, pero al reves: alli dejaba pasar lo peligroso,
+    aqui acusa a lo inocente. Un auditor que grita cuando no toca acaba
+    ignorandose, y entonces no avisa cuando si toca.
+
+    Ahora recorre el AST y da por consultado cualquier guard cuyo nombre aparezca
+    como literal de cadena dentro de calcular_veredicto_v4, venga en una lista,
+    en una tabla, en un `if` o en un set. La forma deja de importar.
+
+    Que esto sea mas laxo no afloja la red: audit_estados.py comprueba lo mismo
+    por la via dura —moviendo el guard de estado y mirando si el veredicto se
+    entera— y ahi no vale mencionar un nombre, hay que reaccionar a el."""
     if not os.path.exists("motor_veredicto.py"):
         check("Cableado de guards", False, "motor_veredicto.py no encontrado")
         return
-    import re
-    codigo = open("motor_veredicto.py", encoding="utf-8").read()
-    m = re.search(r'def evaluar_fila_v4.*?(?=\ndef |\Z)', codigo, re.DOTALL)
-    if not m:
-        check("Cableado de guards", False, "no se encontró evaluar_fila_v4")
+    arbol = ast.parse(open("motor_veredicto.py", encoding="utf-8").read())
+    funcs = {n.name: n for n in ast.walk(arbol) if isinstance(n, ast.FunctionDef)}
+    if "evaluar_fila_v4" not in funcs or "calcular_veredicto_v4" not in funcs:
+        check("Cableado de guards", False, "no se encontró evaluar_fila_v4 / calcular_veredicto_v4")
         return
-    asignados = set(re.findall(r'guards\["(\w+)"\]', m.group()))
-    m2 = re.search(r'def calcular_veredicto_v4.*?(?=\ndef |\Z)', codigo, re.DOTALL)
-    cv = m2.group() if m2 else ""
-    crit_match = re.search(r'criticos = \[(.*?)\]', cv, re.DOTALL)
-    crit = set(re.findall(r'"(\w+)"', crit_match.group(1))) if crit_match else set()
-    sueltas = set(re.findall(r'guards\.get\("(\w+)"', cv)) - crit
-    consultados = crit | sueltas
-    huerfanos = asignados - consultados
+
+    asignados = set()
+    for nodo in ast.walk(funcs["evaluar_fila_v4"]):
+        if (isinstance(nodo, ast.Subscript) and isinstance(nodo.value, ast.Name)
+                and nodo.value.id == "guards" and isinstance(nodo.slice, ast.Constant)
+                and isinstance(nodo.slice.value, str)):
+            asignados.add(nodo.slice.value)
+
+    citados = {n.value for n in ast.walk(funcs["calcular_veredicto_v4"])
+               if isinstance(n, ast.Constant) and isinstance(n.value, str)}
+    huerfanos = asignados - citados
     check("Cableado de guards (sin huérfanos)", len(huerfanos) == 0,
           f"{len(asignados)} guards, todos consultados" if not huerfanos
-          else f"HUÉRFANOS: {huerfanos}")
+          else f"HUÉRFANOS: {sorted(huerfanos)}")
 
 
 def check_modulos_huerfanos():

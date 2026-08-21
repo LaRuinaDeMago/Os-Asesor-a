@@ -1212,32 +1212,56 @@ def calcular_veredicto_v4(guards):
                 "nif_casa_historico", "anti_duplicado", "fecha_posterior_alta",
                 "sentido_compra_venta", "signo_efectivo", "ejercicio_coherente",
                 "retencion_vs_error"]
-    for g in criticos:
-        if guards.get(g, ("NO_COMPROBADO", ""))[0] == "FALLO":
-            return "ROJO", f"{g}: {guards[g][1]}"
+    # ANADIDO 21-08-2026 (medido, no supuesto). Una factura con seis defectos
+    # reales devolvia UN motivo: el primero de la lista. Quien revisa a mano
+    # arregla ese, vuelve a pasar el motor, y aparece el siguiente. Seis vueltas
+    # para una factura. El AMBAR ya juntaba todos sus NO_COMPROBADO; el ROJO no,
+    # y la asimetria no tenia razon de ser.
+    #
+    # El titular del motivo NO cambia —sigue siendo el primer critico, tal cual,
+    # para no romper a nadie que lo lea—; los demas se declaran detras.
+    fallos = [g for g in criticos if guards.get(g, ("NO_COMPROBADO", ""))[0] == "FALLO"]
+    if fallos:
+        cabeza = fallos[0]
+        motivo = f"{cabeza}: {guards[cabeza][1]}"
+        if len(fallos) > 1:
+            resto = "; ".join(f"{g}: {guards[g][1]}" for g in fallos[1:])
+            motivo += f" | y {len(fallos)-1} mas: {resto}"
+        return "ROJO", motivo
 
-    if guards.get("importe_atipico", ("OK", ""))[0] == "FALLO":
-        return "AMBAR", f"{_clasificar_ambar('importe_atipico')} importe_atipico: {guards['importe_atipico'][1]}"
-    if guards.get("estructura_reconocida", ("OK", ""))[0] == "FALLO":
-        return "AMBAR", f"{_clasificar_ambar('estructura_reconocida')} estructura_reconocida: {guards['estructura_reconocida'][1]}"
-    if guards.get("secuencia_documental_proveedor", ("OK", ""))[0] == "FALLO":
-        return "AMBAR", f"secuencia_documental: {guards['secuencia_documental_proveedor'][1]}"
-    if guards.get("vencimiento_coherente", ("OK", ""))[0] == "FALLO":
-        return "AMBAR", f"{_clasificar_ambar('vencimiento_coherente')} vencimiento_coherente: {guards['vencimiento_coherente'][1]}"
-
-    # Guards cableados el 19-08-2026. Un tipo de IVA que contradice la tabla
-    # oficial es un error de hecho -> ROJO. Una operacion especial detectada o
-    # una cuenta de gasto que no casa con el historico son señales -> AMBAR.
+    # Un tipo de IVA que contradice la tabla oficial es un error de hecho -> ROJO,
+    # asi que va antes que cualquier AMBAR (cableado el 19-08-2026).
     if guards.get("tipo_producto_iva_semantico", ("NO_APLICA", ""))[0] == "FALLO":
         return "ROJO", f"tipo_producto_iva_semantico: {guards['tipo_producto_iva_semantico'][1]}"
-    if guards.get("tipo_operacion_especial", ("NO_APLICA", ""))[0] == "AMBAR":
-        return "AMBAR", f"{_clasificar_ambar('tipo_operacion_especial')} tipo_operacion_especial: {guards['tipo_operacion_especial'][1]}"
-    if guards.get("cuenta_gasto_coherente", ("NO_APLICA", ""))[0] == "FALLO":
-        return "AMBAR", f"{_clasificar_ambar('cuenta_gasto_coherente')} cuenta_gasto_coherente: {guards['cuenta_gasto_coherente'][1]}"
-    # La confianza por campo solo puede BAJAR el veredicto, nunca subirlo: lo que
-    # el modelo declare sobre si mismo no es evidencia independiente.
-    if guards.get("confianza_por_campo", ("NO_APLICA", ""))[0] == "NO_COMPROBADO":
-        return "AMBAR", f"{_clasificar_ambar('confianza_por_campo')} confianza_por_campo: {guards['confianza_por_campo'][1]}"
+
+    # Los AMBAR con rama dedicada, en una tabla y no en ocho `if` seguidos. Antes
+    # devolvia el PRIMERO que saltara, con el mismo problema que el ROJO: una
+    # factura con dos senales enseñaba una. La tabla ademas hace visible el
+    # estado que dispara cada uno, que no era el mismo en todos y estaba disperso.
+    #
+    # De paso se arregla una inconsistencia real: secuencia_documental_proveedor
+    # era el UNICO AMBAR que salia sin etiqueta [CRITERIO]/[FALTA DATO], asi que
+    # la cola de revision no sabia en que monton ponerlo.
+    AMBAR_DEDICADOS = (
+        ("importe_atipico", "FALLO"),
+        ("estructura_reconocida", "FALLO"),
+        ("secuencia_documental_proveedor", "FALLO"),
+        ("vencimiento_coherente", "FALLO"),
+        ("tipo_operacion_especial", "AMBAR"),
+        ("cuenta_gasto_coherente", "FALLO"),
+        # La confianza por campo solo puede BAJAR el veredicto, nunca subirlo: lo
+        # que el modelo declare sobre si mismo no es evidencia independiente.
+        ("confianza_por_campo", "NO_COMPROBADO"),
+    )
+    saltan = [g for g, esperado in AMBAR_DEDICADOS
+              if guards.get(g, ("NO_APLICA", ""))[0] == esperado]
+    if saltan:
+        # La clase la manda el DATO: si algo falta, primero se consigue. Es la
+        # misma regla de mezcla que ya usa el barrido de NO_COMPROBADO.
+        clase = (AMBAR_CRITERIO if all(g in GUARDS_DE_CRITERIO for g in saltan)
+                 else AMBAR_FALTA_DATO)
+        detalles = "; ".join(f"{g}: {guards[g][1]}" for g in saltan)
+        return "AMBAR", f"{clase} {detalles}"
 
     confianza = guards.get("confianza_captura", ("ALTA", ""))[0]
     if confianza != "ALTA":

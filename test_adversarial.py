@@ -535,6 +535,48 @@ comprobar("O", "y ese AMBAR se etiqueta [CRITERIO], no [FALTA DATO]",
           "[CRITERIO]" in _m2, _m2[:70], "[CRITERIO]", "P1")
 
 
+
+print("\n=== FAMILIA P — El motivo dice TODO lo que esta mal, no lo primero ===")
+# Medido el 21-08-2026: una factura con seis defectos reales devolvia UN motivo.
+# Quien revisa a mano arregla ese, vuelve a pasar el motor, y aparece el
+# siguiente. Seis vueltas para una factura, y el AMBAR ya juntaba todos sus
+# NO_COMPROBADO desde el principio: la asimetria no tenia razon de ser.
+_seis = {'nif': 'B12345678',            # checksum invalido (inventado)
+         'proveedor': 'PROVEEDOR PILOTO SL',
+         'nº_documento': 'F1',
+         'fecha_expedicion': '2019-03-15',   # antes del alta Y de otro ejercicio
+         'base_total': '100', 'base_21': '100',
+         'iva_total': '50',                  # no es el 21% de 100
+         'total_factura': '999',             # no es base+iva
+         'verificacion': 'OK'}
+_v, _m2, _g = m.evaluar_fila_v4(_seis, set(), {}, {}, {}, MAESTRO, 2020, None, 2026)
+_rotos = [n for n, (e, _) in _g.items() if e == "FALLO"]
+comprobar("P", "seis defectos a la vez siguen dando ROJO", _v == "ROJO", _v, "ROJO", "P0")
+comprobar("P", "el motivo los nombra TODOS, no solo el primero",
+          all(n in _m2 for n in _rotos),
+          f"{sum(n in _m2 for n in _rotos)}/{len(_rotos)} nombrados",
+          f"{len(_rotos)}/{len(_rotos)}", "P1")
+comprobar("P", "y el titular del motivo no cambia (nadie que lo lea se rompe)",
+          _m2.startswith("aritmetica_base_tipo:"), _m2[:30], "aritmetica_base_tipo:", "P1")
+
+# Lo mismo en AMBAR: dos senales dedicadas a la vez tienen que salir las dos.
+_fmt_p = {'PROVEEDOR PILOTO SL': {'ejemplos': ['FAC-2026-001', 'FAC-2026-002'],
+                                  'n_facturas_vistas': 40}}
+_v, _m2, _g = _ev({**BASE_O, 'nº_documento': 'XX/9999', 'cuenta_debe': '218000',
+                   'concepto': 'compra furgoneta'}, fmt=_fmt_p)
+comprobar("P", "dos senales AMBAR a la vez se declaran las dos",
+          "estructura_reconocida" in _m2 and "tipo_operacion_especial" in _m2,
+          _m2[:90], "las dos nombradas", "P1")
+comprobar("P", "mezcla de dato y criterio -> manda [FALTA DATO], primero el dato",
+          "[FALTA DATO]" in _m2, _m2[:40], "[FALTA DATO]", "P1")
+
+# Y la etiqueta que faltaba: secuencia_documental era el UNICO AMBAR sin clase.
+_sec_p = {'PROVEEDOR PILOTO SL': {'numeros_vistos': [str(n) for n in range(1000, 1040)]}}
+_v, _m2, _g = _ev({**BASE_O, 'nº_documento': '999999'}, sec=_sec_p)
+comprobar("P", "secuencia_documental ya sale con clase, no suelta",
+          _m2.startswith(("[CRITERIO]", "[FALTA DATO]")), _m2[:30],
+          "[CRITERIO] o [FALTA DATO]", "P1")
+
 # ---------------------------------------------------------------------------
 print("\n" + "=" * 70)
 fallos = [r for r in resultados if not r[2]]
