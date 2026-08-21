@@ -65,7 +65,7 @@ def leer_ascii_completo(path):
     registros = []
     with open(path, 'rb') as f:
         data = f.read()
-    lineas = data.decode('latin1').split('\r\n')
+    lineas = data.decode(CODIFICACION, errors='replace').split('\r\n')
     for linea in lineas:
         linea = linea.replace('\x1a', '').rstrip()  # caracter EOF de DOS, aparece en la ultima linea real
         if not linea.strip():
@@ -238,12 +238,48 @@ def escribir_xdiario(facturas_verdes, path_salida, asien_inicial=1):
 
     with open(path_salida, 'wb') as f:
         for linea in lineas_texto:
-            f.write((linea + "\r\n").encode("latin1"))
+            f.write((linea + "\r\n").encode(CODIFICACION, errors="replace"))
     if descartadas:
         print("  xDiario — facturas NO exportadas (no se inventa nada):")
         for motivo, n in sorted(descartadas.items()):
             print(f"      {n:>5}  {motivo}")
     return len(lineas_texto), asien - asien_inicial
+
+
+#: Codificacion del fichero. ContaPlus corre en Windows y escribe cp1252, que es
+#: latin-1 MAS el tramo 0x80-0x9F: el euro, las comillas tipograficas y las rayas.
+#: Se leia y escribia en latin-1, y por eso un nombre de proveedor con un "€" o
+#: unas comillas curvas —lo que produce Word, Excel y cualquier transcripcion por
+#: IA— reventaba con UnicodeEncodeError y se llevaba por delante la EXPORTACION
+#: ENTERA, no una factura. Encontrado el 21-08-2026 probando nombres realistas.
+CODIFICACION = "cp1252"
+
+#: Lo que cp1252 tampoco tiene y aun asi puede llegar de una captura por IA.
+#: Se sustituye por su equivalente de una sola posicion, para no mover el ancho
+#: fijo del registro, que es lo unico que ContaPlus no perdona.
+EQUIVALENCIAS_ASCII = {
+    '\u2018': "'", '\u2019': "'", '\u201a': "'", '\u201b': "'",
+    '\u201c': '"', '\u201d': '"', '\u201e': '"',
+    '\u2013': '-', '\u2014': '-', '\u2212': '-', '\u00ad': '-',
+    '\u00a0': ' ', '\u2007': ' ', '\u202f': ' ',
+    '\u2026': '.', '\u2022': '.', '\u00b7': '.',
+}
+
+
+def normalizar_texto(s):
+    """Deja un texto que cp1252 pueda escribir, SIN cambiar su longitud.
+
+    El ancho fijo es lo unico que ContaPlus no perdona: si una linea mide un byte
+    de mas o de menos, el fichero entero deja de ser importable. Por eso cada
+    sustitucion es de UNA posicion por UNA posicion, nunca "—" -> "--".
+
+    Lo que no tenga equivalente se convierte en '?'. Es feo a proposito: se ve en
+    el concepto y avisa de que ahi hubo algo raro. Y solo puede pasar en campos
+    de TEXTO — ningun importe, cuenta ni fecha pasa por aqui."""
+    if not s:
+        return s
+    s = ''.join(EQUIVALENCIAS_ASCII.get(c, c) for c in str(s))
+    return s.encode(CODIFICACION, errors='replace').decode(CODIFICACION)
 
 
 def formatear_campo(valor, ancho, tipo, dec):
@@ -258,8 +294,9 @@ def formatear_campo(valor, ancho, tipo, dec):
         return valor.strftime("%Y%m%d")
     if tipo == "L":
         return (" " if valor is None else ("T" if valor else "F")).ljust(ancho)[:ancho]
-    # C
-    return ("" if valor is None else str(valor)).ljust(ancho)[:ancho]
+    # C — se normaliza ANTES de rellenar, para que el ancho lo calcule sobre el
+    # texto que de verdad se va a escribir.
+    return normalizar_texto("" if valor is None else str(valor)).ljust(ancho)[:ancho]
 
 
 def construir_linea(apunte: dict) -> str:

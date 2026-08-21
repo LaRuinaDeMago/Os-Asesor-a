@@ -178,6 +178,31 @@ def main():
         comprobar("ningun asiento de la tanda sale descuadrado", not descuadrados,
                   f"descuadrados: {descuadrados}", "ninguno", "P0")
 
+        # --- 4-bis. codificacion ------------------------------------------
+        # ContaPlus corre en Windows y escribe cp1252, no latin-1. Se escribia y
+        # leia en latin-1, asi que un nombre con "€" o con comillas curvas —lo
+        # que produce Word, Excel y cualquier transcripcion por IA— reventaba con
+        # UnicodeEncodeError y se llevaba la EXPORTACION ENTERA, no una factura.
+        print("\nCODIFICACION (nombres reales de proveedor, no de laboratorio):")
+        for _caso, _nombre in (("ene y acentos", "MU\u00d1OZ Y ASOCIADOS S.L."),
+                               ("el simbolo del euro", "SUMINISTROS \u20ac GLOBAL"),
+                               ("comillas tipograficas", "GESTORIA \u201cEL FARO\u201d"),
+                               ("raya larga", "SERVICIOS \u2014 INTEGRALES"),
+                               ("caracteres imposibles", "PROVEEDOR \u682a\u5f0f\u4f1a\u793e")):
+            _f = factura(nº_documento='FC', proveedor=_nombre, base_21='100.00',
+                         base_total='100.00', iva_total='21.00', total_factura='121.00')
+            try:
+                _p, _nl, _na, _regs = escribir_y_leer(tmp, [_f], "cod.txt")
+                _ok = _na == 1
+            except Exception as e:
+                _ok, _na = False, type(e).__name__
+            comprobar(f"un proveedor con {_caso} se exporta", _ok, str(_na), "1 asiento", "P0")
+            if _ok:
+                _crudo = open(_p, 'rb').read().decode('cp1252', errors='replace')
+                _anchos = {len(l) for l in _crudo.split('\r\n') if l.strip()}
+                comprobar(f"   ...y la linea sigue midiendo {ANCHO_LINEA}",
+                          _anchos == {ANCHO_LINEA}, str(_anchos), f"{{{ANCHO_LINEA}}}", "P0")
+
         # --- 5. la doble comprobacion, y el control positivo -------------
         print("\nEL ULTIMO PASO NO SE FIA DEL MOTOR, COMPRUEBA POR SU CUENTA:")
         rota = factura(nº_documento='F9', base_21='1000.00', base_total='1000.00',
