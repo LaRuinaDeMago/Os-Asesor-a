@@ -43,6 +43,7 @@ al terminar: ningun .DAT toca este repositorio, ni por accidente.
 
 Uso:  python3 ensayo_retro_semaforo.py
 """
+import json
 import os
 import random
 import shutil
@@ -327,6 +328,60 @@ def main():
                   s5[-500:])
         comprobar("y detecta solo las columnas de un CSV que no es canonico",
                   "total" in s5.lower() and "nif" in s5.lower(), s5[:400])
+
+        # --- El comando completo: CSV -> veredicto -> xDiario ---------------
+        # ensayo_xdiario.py prueba escribir_xdiario() directamente. Lo que NO
+        # estaba probado es el camino real: el orquestador resolviendo las
+        # cuentas contra el maestro y llamando despues a la exportacion. Es la
+        # unica forma de saber si --xdiario funciona tal y como se teclea.
+        maestro_json = os.path.join(tmp, "maestro.json")
+        nif_prov = cif_valido("B", 4100001)
+        with open(maestro_json, "w", encoding="utf-8") as fh:
+            json.dump({nif_prov: {"titulo": "PROVEEDOR ENSAYO", "cuenta": "400001"}}, fh)
+        csv_x = os.path.join(tmp, "facturas_x.csv")
+        with open(csv_x, "w", encoding="utf-8", newline="") as fh:
+            fh.write("nif,proveedor,nº_documento,fecha_expedicion,base_total,"
+                     "base_21,iva_total,total_factura,verificacion,cuenta_debe\n")
+            fh.write(f"{nif_prov},PROVEEDOR ENSAYO,FX-001,2026-03-15,"
+                     f"100.00,100.00,21.00,121.00,OK,600000\n")
+        xdiario = os.path.join(tmp, "xDiario.txt")
+        # Con configuracion: sin 'alta_cliente_anio' TODAS las facturas salen
+        # AMBAR y no se exporta nada. Es correcto y el orquestador ahora lo
+        # avisa, pero para probar la exportacion hace falta la config puesta.
+        cfg = os.path.join(tmp, "config_ensayo.json")
+        with open(cfg, "w", encoding="utf-8") as fh:
+            json.dump({"alta_cliente_anio": 2015, "ejercicio_tanda": 2026}, fh)
+        r8 = subprocess.run([sys.executable, os.path.join(AQUI, "orquestador.py"),
+                             "--facturas", csv_x, "--maestro-json", maestro_json,
+                             "--salida", os.path.join(tmp, "ver_x.csv"),
+                             "--xdiario", xdiario, "--config", cfg],
+                            capture_output=True, text=True, cwd=AQUI)
+        s8 = r8.stdout + r8.stderr
+        comprobar("orquestador --xdiario corre entero", r8.returncode == 0, s8[-500:])
+        comprobar("y escribe el fichero que ContaPlus importa",
+                  os.path.exists(xdiario) and os.path.getsize(xdiario) > 0,
+                  f"existe={os.path.exists(xdiario)}")
+        if os.path.exists(xdiario) and os.path.getsize(xdiario) > 0:
+            from layout_diario_contaplus import ANCHO_LINEA, leer_ascii_completo
+            regs_x = leer_ascii_completo(xdiario)
+            debe = round(sum(r.get('EURODEBE') or 0 for r in regs_x), 2)
+            haber = round(sum(r.get('EUROHABER') or 0 for r in regs_x), 2)
+            comprobar("el asiento que sale del orquestador CUADRA",
+                      abs(debe - haber) < 0.01, f"debe={debe} haber={haber}")
+            comprobar("la cuenta de proveedor sale del maestro, no inventada",
+                      any(r['SUBCTA'].strip() == '400001' for r in regs_x),
+                      [r['SUBCTA'].strip() for r in regs_x])
+
+        # Y sin configuracion: TODAS AMBAR, nada exportable, y el orquestador lo
+        # DICE. El comportamiento es correcto; lo que faltaba era decirlo.
+        r8b = subprocess.run([sys.executable, os.path.join(AQUI, "orquestador.py"),
+                              "--facturas", csv_x, "--maestro-json", maestro_json,
+                              "--salida", os.path.join(tmp, "ver_x2.csv"),
+                              "--config", os.path.join(tmp, "no_existe.json")],
+                             capture_output=True, text=True, cwd=AQUI)
+        comprobar("sin alta_cliente_anio, AVISA de que todo saldra AMBAR",
+                  "alta_cliente_anio" in (r8b.stdout + r8b.stderr),
+                  (r8b.stdout + r8b.stderr)[:300])
 
         # --- La cola de revision -------------------------------------------
         # Convierte el veredicto.csv del orquestador en un plan de trabajo

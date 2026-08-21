@@ -172,6 +172,19 @@ def main():
 
     alta_cliente_anio = config.get('alta_cliente_anio')
     ejercicio_tanda = config.get('ejercicio_tanda')
+    # ANADIDO 21-08-2026 (ensayo de la cadena completa). Sin alta_cliente_anio,
+    # guard_fecha_posterior_alta es NO_COMPROBADO en TODAS las filas y por tanto
+    # TODAS salen AMBAR, y nada llega al xDiario. El comportamiento es correcto
+    # —no se sabe la fecha de alta, no se puede comprobar— pero visto desde fuera
+    # parece que el motor no funciona. Se dice antes de procesar, no despues.
+    if alta_cliente_anio is None:
+        print("AVISO: falta 'alta_cliente_anio' en la configuracion. Sin ese dato,")
+        print("       fecha_posterior_alta no puede comprobar nada y TODAS las")
+        print("       facturas saldran AMBAR. No es un fallo del motor: es que")
+        print("       falta un dato de configuracion del cliente.")
+    if ejercicio_tanda is None:
+        print("AVISO: falta 'ejercicio_tanda'. ejercicio_coherente quedara en")
+        print("       NO_APLICA: no se detectara una factura de otro ejercicio.")
 
     vistos_duplicado = set()
     resultados = []

@@ -25,7 +25,7 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ❌ guard_g7_ledger.py sin conectar                          <- NORMAL, es de cripto
 ```
 
-### Los siete auditores, y por qué hacen falta los siete
+### Los ocho auditores, y por qué hacen falta los ocho
 
 Cada uno tapa un agujero que los demás no ven. No es redundancia:
 
@@ -38,8 +38,9 @@ Cada uno tapa un agujero que los demás no ven. No es redundancia:
 | `ensayo_retro_semaforo.py` | ¿los comandos de la sesión LOCAL arrancan? | **sesión perdida** |
 | `ensayo_xdiario.py` | ¿el fichero que entra en ContaPlus cuadra? | **asiento descuadrado** |
 | `test_privacidad.py` | ¿la barrera bloquea lo que dice bloquear? | **dato de cliente subido** |
+| `ensayo_contrato_captura.py` | ¿la captura pide lo que el motor usa? | **campo que llega con otro nombre** |
 
-Los siete corren dentro de `audit_project.py`: basta el primer comando.
+Los ocho corren dentro de `audit_project.py`: basta el primer comando.
 
 `audit_estados.py` se escribió tras encontrar a mano, después de semanas, que
 `guard_cuenta_gasto_coherente` estaba cableado, tenía su rama `FALLO -> AMBAR`
@@ -47,7 +48,7 @@ escrita en el veredicto desde el primer día, y **no comparaba nada**: la rama e
 inalcanzable. Las otras dos preguntas daban verde. Con el bug reintroducido a
 propósito, lo señala en menos de un segundo.
 
-> **Los cuatro últimos son del 21-08 y los cuatro encontraron defectos reales en
+> **Los cinco últimos son del 21-08 y los cinco encontraron defectos reales en
 > su PRIMERA ejecución.** Ninguno era teórico: `--emitir-cartera` no escribía
 > nada nunca, el xDiario emitía asientos descuadrados, la barrera de privacidad
 > no veía una clave asignada en el código, y el barrido destapó tres agujeros que
