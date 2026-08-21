@@ -157,6 +157,26 @@ def generar_corpus(raiz, n_clientes=3, asientos_por_cliente=40, semilla=21082026
             filas.append({**comun, "SUBCTA": "400000", "EURODEBE": 0,
                           "EUROHABER": total, "IVA": 0, "BASEIMPO": 0,
                           "RECEQUIV": 0})
+            # Una VENTA cada cuatro asientos. Hace falta para que el corpus
+            # ejercite tambien el IVA repercutido (477): sin ventas,
+            # reconstruir_303.py solo veria la mitad del modelo y el ensayo
+            # daria verde sin haber probado ese lado.
+            if i % 4 == 0:
+                asien += 1
+                total_asientos += 1
+                comun_v = {"ASIEN": asien, "TERNIF": nif, "FECHA": fecha,
+                           "DOCUMENTO": "V" + doc[1:]}
+                base_v = round(base * 1.4, 2)
+                cuota_v = round(base_v * 21 / 100.0, 2)
+                filas.append({**comun_v, "SUBCTA": "430000",
+                              "EURODEBE": round(base_v + cuota_v, 2), "EUROHABER": 0,
+                              "IVA": 0, "BASEIMPO": 0, "RECEQUIV": 0})
+                filas.append({**comun_v, "SUBCTA": "700000", "EURODEBE": 0,
+                              "EUROHABER": base_v, "IVA": 0, "BASEIMPO": 0,
+                              "RECEQUIV": 0})
+                filas.append({**comun_v, "SUBCTA": "477021", "EURODEBE": 0,
+                              "EUROHABER": cuota_v, "IVA": 21, "BASEIMPO": base_v,
+                              "RECEQUIV": 0})
         dbf = os.path.join(carpeta, "Diario.dbf")
         escribir_dbf(dbf, filas)
         # El contenedor: un ZIP con extension .DAT, igual que ContaPlus
@@ -301,6 +321,43 @@ def main():
         comprobar("y detecta solo las columnas de un CSV que no es canonico",
                   "total" in s5.lower() and "nif" in s5.lower(), s5[:400])
 
+        # --- El cuadre contra la unica verdad externa ---------------------
+        # reconstruir_303.py agrega bases y cuotas de IVA por trimestre, que es
+        # el contenido de las casillas que Diego puede comparar con el 303 ya
+        # presentado. Tampoco se habia ejecutado nunca.
+        detalle = os.path.join(tmp, "303_LOCAL.json")
+        r6 = subprocess.run([sys.executable, os.path.join(AQUI, "reconstruir_303.py"),
+                             tmp, "--detalle", detalle],
+                            capture_output=True, text=True, cwd=AQUI)
+        s6 = r6.stdout + r6.stderr
+        comprobar("reconstruir_303.py corre entero", r6.returncode == 0, s6[-500:])
+        comprobar("agrega los DOS lados: IVA soportado (472) y repercutido (477)",
+                  "deducible 21%" in s6 and "devengado 21%" in s6, s6[:600])
+        comprobar("escribe el detalle por trimestre", os.path.exists(detalle),
+                  detalle)
+        if os.path.exists(detalle):
+            import json as _j
+            with open(detalle, encoding="utf-8") as fh:
+                d303 = _j.load(fh)
+            trimestres = [t for c in d303.values() for t in c]
+            comprobar("hay trimestres reconstruidos, no un {} vacio",
+                      len(trimestres) > 0, f"{len(trimestres)} trimestres")
+            # La comprobacion que de verdad importa: que las cuotas agregadas
+            # cuadren con las bases al tipo declarado. Si no cuadran aqui, con un
+            # corpus fabricado para cuadrar, no cuadraran nunca con uno real.
+            descuadres = []
+            for cli, tris in d303.items():
+                for tri, lados in tris.items():
+                    for lado, celdas in lados.items():
+                        for tipo, v in celdas.items():
+                            if not tipo.isdigit():
+                                continue
+                            esperada = round(v["base"] * int(tipo) / 100.0, 2)
+                            if abs(esperada - v["cuota"]) > 0.05:
+                                descuadres.append((tri, lado, tipo, v["cuota"], esperada))
+            comprobar("cada celda cuadra: base x tipo = cuota agregada",
+                      not descuadres, f"{len(descuadres)} celdas descuadran: {descuadres[:3]}")
+
         print()
         print("  Nota: que aqui salga mucho VERDE no dice NADA del mundo real. Este")
         print("  corpus esta fabricado para cuadrar. Lo que se prueba es que el")
@@ -309,7 +366,8 @@ def main():
         shutil.rmtree(tmp, ignore_errors=True)
         # Las salidas del script van a su propio directorio, no al temporal.
         for f in ("retro_semaforo_agregado.json", "retro_semaforo_LOCAL.json",
-                  "validacion_captura_agregado.json", "validacion_captura_LOCAL.csv"):
+                  "validacion_captura_agregado.json", "validacion_captura_LOCAL.csv",
+                  "reconstruccion_303_agregado.json"):
             p = os.path.join(AQUI, f)
             if os.path.exists(p):
                 os.remove(p)
