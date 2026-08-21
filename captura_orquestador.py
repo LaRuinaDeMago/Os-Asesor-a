@@ -43,12 +43,45 @@ un objeto JSON con estos campos exactos, sin texto adicional antes ni despues:
   "irpf_retencion": "retencion de IRPF si aparece, en NEGATIVO si existe, 0 si no aplica",
   "total_factura": "importe total de la factura, como numero (negativo si es un abono)",
   "verificacion": "OK si estas seguro de la lectura, DUDA si algun caracter critico (NIF o importe) era ambiguo",
-  "tipo_documento": "FACTURA_NORMAL, ABONO, o ARRENDAMIENTO segun lo que indique el documento"
+  "tipo_documento": "FACTURA_NORMAL, ABONO, o ARRENDAMIENTO segun lo que indique el documento",
+
+  "naturaleza_operacion": "SUJETA si la factura repercute IVA normal. EXENTA si dice exenta o cita el art. 20 LIVA. NO_SUJETA si lo indica. INTRACOMUNITARIA si es una operacion intracomunitaria sin IVA. INVERSION_SUJETO_PASIVO si menciona inversion del sujeto pasivo o el art. 84. Si no hay ninguna indicacion, SUJETA",
+  "tramos_iva": "lista de los tramos tal como aparecen: [{\"tipo\": 21, \"base\": 100.0, \"cuota\": 21.0}]. Incluye CUALQUIER tipo que veas (0, 4, 5, 10, 21), no solo los tres habituales. Lista vacia si no hay desglose",
+  "recargo_equivalencia": "importe del recargo de equivalencia si la factura lo desglosa, 0 si no aparece",
+
+  "total_factura_2": "el importe total leido de una SEGUNDA ubicacion del documento distinta de la anterior (la casilla de 'total a pagar', el pie, el recuadro de pago). Si el total solo aparece una vez en todo el documento, deja este campo vacio - NO copies el mismo valor",
+  "nif_margen": "NIF del emisor leido de OTRA ubicacion distinta de la cabecera (pie de pagina, lateral, sello). Vacio si solo aparece una vez - NO copies el de cabecera",
+  "nombre_margen": "razon social del emisor leida de esa segunda ubicacion. Vacio si solo aparece una vez",
+
+  "confianza_campos": "objeto con la confianza de CADA campo critico por separado: {\"nif\": \"ALTA\", \"fecha_expedicion\": \"ALTA\", \"n\u00ba_documento\": \"ALTA\", \"base_total\": \"ALTA\", \"iva_total\": \"ALTA\", \"total_factura\": \"ALTA\"}. Usa ALTA solo si el campo se lee sin ninguna ambiguedad; MEDIA si es legible pero con dudas; BAJA si has tenido que inferirlo"
 }
 
 IMPORTANTE: si algun campo no se puede leer con seguridad, pon el valor mas
 probable Y marca "verificacion": "DUDA" - nunca inventes un valor sin
-declarar la duda. No expliques tu razonamiento, solo el JSON."""
+declarar la duda. No expliques tu razonamiento, solo el JSON.
+
+CRITICO para los tres campos de SEGUNDA LECTURA (total_factura_2, nif_margen,
+nombre_margen): su valor esta en que sean una lectura INDEPENDIENTE de otro
+sitio del papel. Si copias ahi el mismo valor que ya pusiste arriba, destruyes
+la comprobacion entera y es peor que dejarlo vacio. Vacio es una respuesta
+correcta y esperada: muchas facturas solo traen el dato una vez."""
+
+# ------------------------------------------------------------------------
+# NOTA DE ESTADO (20-08-2026) — el prompt de arriba es la v2 y NO se ha
+# probado nunca contra una factura real, porque hasta hoy no habia forma de
+# hacerlo (falta el DPA). Los campos anadidos son ADITIVOS: si el modelo no los
+# devuelve, el contrato los marca MISSING y los tres guards que los consumen se
+# declaran NO_APLICA, o sea que el comportamiento es identico al de la v1.
+#
+# QUE HAY QUE COMPROBAR EN LA PRIMERA CAPTURA REAL, en este orden:
+#   1. Que los campos de SIEMPRE se siguen leyendo igual de bien. Pedir mas
+#      campos puede diluir la atencion del modelo sobre los que ya funcionaban:
+#      eso se llama dilucion de prompt y es el riesgo real de este cambio.
+#   2. En que FRACCION de facturas reales aparece de verdad el total dos veces.
+#      Si es baja, la doble lectura protege menos de lo que promete.
+#   3. Si el modelo copia el mismo valor en total_factura_2 en vez de dejarlo
+#      vacio. Si lo hace, la comprobacion es un espejo y no vale nada.
+# ------------------------------------------------------------------------
 
 
 def leer_factura_gemini(path_imagen, modelo="gemini-3.1-flash-lite"):

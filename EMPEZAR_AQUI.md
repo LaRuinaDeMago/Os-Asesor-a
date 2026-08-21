@@ -118,6 +118,29 @@ suscripción, nunca la API key. Datos reales = sentado en el PC de la asesoría.
 
 ---
 
+## 3-ter. ✅ Los cuatro puntos del techo: CERRADOS (20-08-2026)
+
+| # | Punto | Estado |
+|---|---|---|
+| 1 | Triangulación de identidad (NIF del margen) | ✅ construida y cableada |
+| 2 | Doble lectura de importes (total desde dos sitios) | ✅ construida y cableada |
+| 3 | Confianza por campo | ✅ construida y cableada |
+| 4 | Modelo de datos fiscal rígido (solo 4/10/21) | ✅ ampliado |
+
+`test_adversarial.py`: **48/48 en verde**, familias J y K.
+
+> ⚠️ **PERO el prompt v2 NO se ha probado nunca contra una factura real.** Los
+> campos nuevos son aditivos —si el modelo no los devuelve, los guards son
+> `NO_APLICA` y todo se comporta como antes— pero pedir más campos puede diluir
+> la atención del modelo sobre los que ya funcionaban.
+>
+> **Las tres comprobaciones de la primera captura real** están escritas en la
+> cabecera de `captura_orquestador.py`, justo debajo del prompt:
+> 1. ¿Los campos de siempre se siguen leyendo igual de bien?
+> 2. ¿En qué fracción de facturas aparece el total **dos veces** de verdad?
+> 3. ¿El modelo **copia** el valor en `total_factura_2` en vez de dejarlo vacío?
+>    Si lo copia, la comprobación es un espejo y no vale nada.
+
 ## 3-bis. 🔴 Antes de dar el motor por cerrado: lee `TECHO_Y_LIMITES.md`
 
 Medido el 20-08-2026: **tres de cada cuatro tipos de factura legal que se

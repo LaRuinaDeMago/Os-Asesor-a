@@ -78,6 +78,94 @@ def guard_nif_digito_control(nif):
     return "FALLO", f"{tipo} invalido: {detalle}"
 
 
+def guard_confianza_por_campo(canon):
+    """Confianza CAMPO A CAMPO, no de la factura entera.
+
+    ANADIDO 20-08-2026 — cierra el punto 3 de los cuatro del techo.
+    Antes la confianza era global: una factura con el NIF, la fecha y el total
+    perfectamente legibles pero una base dudosa bajaba ENTERA a BAJA, y una con
+    todo dudoso menos un campo subia entera. Demasiado grueso para escalar.
+
+    Ahora, si la captura declara `confianza_campos`, se mira campo por campo y
+    solo importan los CRITICOS. Si no lo declara —que es lo que pasa hoy— este
+    guard es NO_APLICA y manda el global de siempre: no rompe nada.
+
+    OJO CON EL LIMITE, que esta medido en este proyecto: lo que el modelo diga
+    de su propia confianza NO es evidencia independiente (ver
+    DISENO_APRENDIZAJE.md §7.1). Esto sirve para BAJAR el veredicto, nunca para
+    subirlo: una confianza ALTA declarada por el modelo no prueba nada.
+    """
+    conf = canon.cruda.get('confianza_campos')
+    if not isinstance(conf, dict) or not conf:
+        return "NO_APLICA", "la captura no declara confianza por campo; manda la confianza global"
+
+    flojos = []
+    for campo in contrato_datos.CAMPOS_CRITICOS:
+        nivel = str(conf.get(campo, '')).strip().upper()
+        if nivel and nivel not in ("ALTA", "OK"):
+            flojos.append(f"{campo}={nivel}")
+    if flojos:
+        return "NO_COMPROBADO", f"campos criticos con confianza insuficiente: {', '.join(flojos)}"
+    return "OK", "todos los campos criticos declarados con confianza alta"
+
+
+def guard_doble_lectura_total(canon):
+    """El total leido de DOS sitios del documento tiene que coincidir.
+
+    ANADIDO 20-08-2026 — cierra el punto 2 de los cuatro del techo.
+    Es el mismo principio que ya usa triangulacion_identidad_v0 para el NIF
+    (cabecera contra margen), aplicado a los importes, que era donde NO habia
+    ninguna evidencia independiente: su unica defensa era la coherencia
+    aritmetica interna, que por definicion no ve el error COHERENTE (el modelo
+    lee un ticket con dos totales y coge el que no es).
+
+    Dos sitios del mismo papel, no dos llamadas al modelo: sale gratis.
+    NO_APLICA si la captura no lo declara.
+    """
+    segundo = canon.num('total_factura_2')
+    if segundo is None:
+        return "NO_APLICA", "la captura no declara un segundo total con que contrastar"
+    primero = canon.num('total_factura')
+    if primero is None:
+        return "NO_COMPROBADO", "hay segundo total pero el principal no es legible"
+    if abs(primero - segundo) < TOL:
+        return "OK", "el total leido de dos ubicaciones del documento coincide"
+    return "FALLO", f"el total difiere entre las dos ubicaciones leidas: {primero} vs {segundo}"
+
+
+def guard_triangulacion_identidad(canon, maestro_proveedores):
+    """Cruza NIF de cabecera, NIF de margen, histórico y nombre.
+
+    ANADIDO 20-08-2026 — cierra el punto 1 de los cuatro del techo. La funcion
+    triangula() existia desde julio con test propio y NADIE la llamaba: estaba
+    huerfana porque el prompt de captura no pedia el NIF del margen. Ahora si.
+
+    Ataca el peor error posible: un NIF mal leido que da checksum valido Y
+    resulta ser el de OTRO proveedor real. Ese error no lo ve ninguna
+    comprobacion aritmetica, porque no hay nada aritmetico que falle.
+    """
+    nif_margen = canon.texto('nif_margen')
+    nombre_margen = canon.texto('nombre_margen')
+    if not (nif_margen or nombre_margen):
+        return "NO_APLICA", "la captura no declara datos del margen con que triangular"
+    try:
+        from triangulacion_identidad_v0 import triangula
+    except ImportError:
+        return "NO_COMPROBADO", "modulo de triangulacion no disponible"
+
+    r = triangula(canon.texto('nif'), canon.texto('proveedor'),
+                  nombre_margen, nif_margen, maestro_proveedores or {})
+    v = r.get('veredicto')
+    motivos = "; ".join(r.get('motivos', [])) or v
+    if v == 'RECHAZO':
+        return "FALLO", f"triangulacion RECHAZO: {motivos}"
+    if v == 'ALERTA':
+        return "NO_COMPROBADO", f"triangulacion ALERTA: {motivos}"
+    if v == 'ALTA':
+        return "NO_APLICA", f"proveedor nuevo, no esta en el historico: {motivos}"
+    return "OK", "identidad triangulada: cabecera, margen, historico y nombre concuerdan"
+
+
 def guard_recargo_equivalencia(canon, tramos):
     """¿El recargo declarado es el que le toca a esos tramos? (art. 154 LIVA)
 
@@ -872,6 +960,14 @@ def evaluar_fila_v4(fila, vistos_duplicado, historico_proveedor, formato_cache,
     guards["tipo_operacion_especial"] = guard_tipo_operacion_especial(
         fila.get('concepto', '') or motivo, fila.get('cuenta_debe'), nif)
 
+    # --- Los tres puntos del techo que dependian del prompt (20-08-2026) ---
+    # Los tres son NO_APLICA mientras la captura no emita los campos nuevos, asi
+    # que no cambian el comportamiento de nada existente. Se activan solos en
+    # cuanto el prompt v2 esta en uso.
+    guards["confianza_por_campo"] = guard_confianza_por_campo(canon)
+    guards["doble_lectura_total"] = guard_doble_lectura_total(canon)
+    guards["triangulacion_identidad"] = guard_triangulacion_identidad(canon, maestro_proveedores)
+
     # Confianza
     guards["confianza_captura"] = guard_confianza_captura(fila)
 
@@ -883,6 +979,7 @@ def calcular_veredicto_v4(guards):
     """Veredicto con los 16 guards. Criticos ampliados con suma_tramos,
     sentido_compra_venta, signo_efectivo y ejercicio_coherente."""
     criticos = ["integridad_datos", "naturaleza_operacion", "recargo_equivalencia",
+                "doble_lectura_total", "triangulacion_identidad",
                 "aritmetica_base_tipo", "suma_tramos", "cuadre_total", "nif_digito_control",
                 "nif_casa_historico", "anti_duplicado", "fecha_posterior_alta",
                 "sentido_compra_venta", "signo_efectivo", "ejercicio_coherente",
@@ -909,6 +1006,10 @@ def calcular_veredicto_v4(guards):
         return "AMBAR", f"tipo_operacion_especial: {guards['tipo_operacion_especial'][1]}"
     if guards.get("cuenta_gasto_coherente", ("NO_APLICA", ""))[0] == "FALLO":
         return "AMBAR", f"cuenta_gasto_coherente: {guards['cuenta_gasto_coherente'][1]}"
+    # La confianza por campo solo puede BAJAR el veredicto, nunca subirlo: lo que
+    # el modelo declare sobre si mismo no es evidencia independiente.
+    if guards.get("confianza_por_campo", ("NO_APLICA", ""))[0] == "NO_COMPROBADO":
+        return "AMBAR", f"confianza_por_campo: {guards['confianza_por_campo'][1]}"
 
     confianza = guards.get("confianza_captura", ("ALTA", ""))[0]
     if confianza != "ALTA":

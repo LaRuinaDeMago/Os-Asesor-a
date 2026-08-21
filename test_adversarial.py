@@ -302,6 +302,51 @@ comprobar("J", "tramos que no suman la base total -> ROJO",
           v == "ROJO", f"veredicto={v}", "ROJO", "P0")
 
 
+print("\n=== FAMILIA K — Los tres puntos del techo que dependian del prompt ===")
+# Cerrados el 20-08-2026. Los tres son NO_APLICA mientras la captura no emita
+# los campos nuevos, asi que no cambian nada de lo existente; se activan solos
+# en cuanto el prompt v2 este en uso.
+BUENA_K = {**BASE_FILA, 'base_21': '100', 'base_total': '100',
+           'iva_total': '21', 'total_factura': '121'}
+
+# 1 — DOBLE LECTURA DEL TOTAL. Ataca el error COHERENTE: el modelo lee un
+# ticket con dos totales y coge el que no es. La aritmetica cuadra igual.
+v, _ = evaluar({**BUENA_K, 'total_factura_2': '121'})
+comprobar("K", "doble lectura: los dos totales coinciden -> VERDE",
+          v == "VERDE", f"veredicto={v}", "VERDE", "P1")
+v, _ = evaluar({**BUENA_K, 'total_factura_2': '999'})
+comprobar("K", "doble lectura: los totales DIFIEREN -> ROJO",
+          v == "ROJO", f"veredicto={v}", "ROJO", "P0")
+v, _ = evaluar(BUENA_K)
+comprobar("K", "sin segundo total, el comportamiento no cambia -> VERDE",
+          v == "VERDE", f"veredicto={v}", "VERDE", "P0")
+
+# 2 — CONFIANZA POR CAMPO. Solo puede BAJAR el veredicto: lo que el modelo diga
+# de si mismo no es evidencia independiente.
+v, _ = evaluar({**BUENA_K, 'confianza_campos': {'nif': 'ALTA', 'base_total': 'BAJA'}})
+comprobar("K", "confianza por campo: un critico flojo -> AMBAR",
+          v == "AMBAR", f"veredicto={v}", "AMBAR", "P1")
+v, _ = evaluar({**BUENA_K, 'confianza_campos': {
+    'nif': 'ALTA', 'fecha_expedicion': 'ALTA', 'nº_documento': 'ALTA',
+    'base_total': 'ALTA', 'iva_total': 'ALTA', 'total_factura': 'ALTA'}})
+comprobar("K", "confianza por campo: todos los criticos altos -> VERDE",
+          v == "VERDE", f"veredicto={v}", "VERDE", "P1")
+
+# 3 — TRIANGULACION DE IDENTIDAD. El peor error posible: un NIF mal leido que da
+# checksum valido Y resulta ser el de OTRO proveedor real. No hay nada
+# aritmetico que falle, asi que ningun guard de calculo lo puede ver.
+v, _ = evaluar({**BUENA_K, 'nif_margen': NIF_OK, 'nombre_margen': 'PROVEEDOR PILOTO SL'})
+comprobar("K", "triangulacion: cabecera y margen concuerdan -> VERDE",
+          v == "VERDE", f"veredicto={v}", "VERDE", "P1")
+v, _ = evaluar({**BUENA_K, 'nif_margen': 'B12345678', 'nombre_margen': 'PROVEEDOR PILOTO SL'})
+comprobar("K", "triangulacion: el margen dice OTRO NIF -> no puede ser VERDE",
+          v != "VERDE", f"veredicto={v}", "AMBAR o ROJO", "P0")
+v, _ = evaluar({**BUENA_K, 'proveedor': 'EMPRESA DISTINTA SA',
+                'nif_margen': NIF_OK, 'nombre_margen': 'EMPRESA DISTINTA SA'})
+comprobar("K", "triangulacion: NIF casa pero el NOMBRE no (el peor caso) -> no VERDE",
+          v != "VERDE", f"veredicto={v}", "AMBAR o ROJO", "P0")
+
+
 # ---------------------------------------------------------------------------
 print("\n" + "=" * 70)
 fallos = [r for r in resultados if not r[2]]

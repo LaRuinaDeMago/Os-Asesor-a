@@ -61,7 +61,9 @@ UTILIZABLES = (VALUE, ZERO)
 CAMPOS_MONETARIOS = ('base_10', 'base_4', 'base_21', 'base_total',
                      'iva_total', 'irpf_retencion', 'total_factura',
                      # anadido 20-08-2026, ver RECARGO_POR_TIPO mas abajo
-                     'recargo_equivalencia')
+                     'recargo_equivalencia',
+                     # segunda lectura del total, desde otra ubicacion del papel
+                     'total_factura_2')
 
 # ---------------------------------------------------------------------------
 # NATURALEZA DE LA OPERACION (anadido 20-08-2026)
@@ -227,7 +229,9 @@ class FacturaCanonica:
         self.campos['fecha_expedicion'] = parse_fecha(self.cruda.get('fecha_expedicion'))
         self.campos['fecha_vencimiento'] = parse_fecha(self.cruda.get('fecha_vencimiento'))
         for c in ('nif', 'proveedor', 'nº_documento', 'tipo_documento',
-                  'verificacion', 'motivo_semaforo'):
+                  'verificacion', 'motivo_semaforo',
+                  # datos del margen, para la triangulacion de identidad
+                  'nif_margen', 'nombre_margen'):
             self.campos[c] = parse_texto(self.cruda.get(c))
 
     # -- acceso comodo ------------------------------------------------------
