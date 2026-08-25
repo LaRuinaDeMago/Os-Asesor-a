@@ -25,7 +25,7 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ❌ guard_g7_ledger.py sin conectar                          <- NORMAL, es de cripto
 ```
 
-### Los ocho auditores, y por qué hacen falta los ocho
+### Los nueve auditores, y por qué hacen falta los nueve
 
 Cada uno tapa un agujero que los demás no ven. No es redundancia:
 
@@ -39,8 +39,9 @@ Cada uno tapa un agujero que los demás no ven. No es redundancia:
 | `ensayo_xdiario.py` | ¿el fichero que entra en ContaPlus cuadra? | **asiento descuadrado** |
 | `test_privacidad.py` | ¿la barrera bloquea lo que dice bloquear? | **dato de cliente subido** |
 | `ensayo_contrato_captura.py` | ¿la captura pide lo que el motor usa? | **campo que llega con otro nombre** |
+| `ensayo_corpus_roto.py` | ¿un fichero corrupto para la medición? | **cuelgue y cifras contaminadas** |
 
-Los ocho corren dentro de `audit_project.py`: basta el primer comando.
+Los nueve corren dentro de `audit_project.py`: basta el primer comando.
 
 `audit_estados.py` se escribió tras encontrar a mano, después de semanas, que
 `guard_cuenta_gasto_coherente` estaba cableado, tenía su rama `FALLO -> AMBAR`
@@ -144,6 +145,30 @@ demuestran que el mecanismo funciona.
 
 > **Lo ejecuta Diego.** Salida agregada = recuentos, se puede subir.
 > `retro_semaforo_LOCAL.json` se queda en el disco y Claude no lo abre.
+
+### ⏱️ Cuánto tarda cada cosa — medido a escala real (21-08-2026)
+
+Sobre un corpus fabricado del tamaño del real (**1.287 contenedores, 344.916
+asientos, 275.418 evaluados**). Sirve para saber si es un café o una tarde:
+
+| Comando | Tiempo | Memoria pico |
+|---|---|---|
+| `retro_semaforo.py` (pasada completa) | **55 s** | 258 MB |
+| `retro_semaforo.py --emitir-cartera` | **63 s** | **713 MB** ← el más pesado |
+| `reconstruir_303.py` | **5 s** | bajo |
+
+> **Antes de hoy, la primera pasada tardaba más de 15 minutos y hubo que
+> cortarla sin que terminara.** La causa era una línea que copiaba el maestro de
+> proveedores entero en cada fila — cuadrático. Ya no.
+>
+> Todos imprimen **avance cada 5%**. No es cosmética: hoy se arregló también un
+> cuelgue por cabecera corrupta, y un script callado un minuto se parece
+> demasiado a uno colgado. Si ves avanzar el contador, está trabajando.
+
+**Aviso sobre la cifra:** el corpus medido tiene el mismo *número* de asientos
+que el real pero registros más cortos (10 campos frente a 91), así que en el PC
+de la asesoría habrá más lectura de disco. El trabajo de CPU, que es lo que se
+arregló, es el mismo.
 
 ### 🧾 A-ter — Cuadrar contra el 303 presentado (la ÚNICA verdad externa)
 
