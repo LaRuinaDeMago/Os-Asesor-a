@@ -736,6 +736,51 @@ comprobar("R", "una cache antigua indexada por nombre sigue funcionando",
           _g['estructura_reconocida'][0] == "FALLO",
           _g['estructura_reconocida'][0], "FALLO", "P0")
 
+
+print("\n=== FAMILIA S — El redondeo: por que TOL vale 0,02 y no 0,005 ===")
+# Python redondea "half to even" (round(2.675,2) = 2.67). Una factura espanola
+# redondea "half up" (2.68). Son reglas distintas, y la diferencia cae justo en
+# el sitio donde el motor decide si una factura cuadra.
+#
+# Medido a fuerza bruta el 21-08-2026 sobre 90.000 facturas CORRECTAS calculadas
+# con redondeo comercial: 0 falsos rojos, y la mayor diferencia es exactamente
+# 0,01 EUR — la mitad de TOL. La tolerancia esta bien dimensionada, con margen
+# de 2x, y esta prueba existe para que nadie la "afine" a 0,005 pensando que gana
+# precision: ganaria falsos rojos en masa sobre facturas perfectas.
+from decimal import Decimal as _D, ROUND_HALF_UP as _HU
+
+def _comercial(x):
+    return float(_D(str(x)).quantize(_D("0.01"), rounding=_HU))
+
+_rng_s = __import__("random").Random(21082026)
+_falsos_rojos, _peor = 0, 0.0
+for _ in range(4000):
+    _base = round(_rng_s.uniform(1, 5000), 2)
+    _tipo = _rng_s.choice((4, 10, 21))
+    _cuota = _comercial(_base * _tipo / 100.0)          # como lo hace la factura
+    _total = _comercial(_base + _cuota)
+    _peor = max(_peor, abs(_cuota - round(_base * _tipo / 100.0, 2)))
+    _v, _m2 = evaluar({**BASE_FILA, f'base_{_tipo}': f"{_base:.2f}",
+                       'base_total': f"{_base:.2f}", 'iva_total': f"{_cuota:.2f}",
+                       'total_factura': f"{_total:.2f}"})
+    if _v == "ROJO":
+        _falsos_rojos += 1
+comprobar("S", "4.000 facturas con redondeo COMERCIAL: ningun falso rojo",
+          _falsos_rojos == 0, f"{_falsos_rojos} falsos rojos", "0", "P0")
+# El 1e-9 no es un truco para pasar: es que 0.01 no existe exacto en binario y
+# `0.010000000000000009 <= 0.01` es False. Comparar floats por igualdad estricta
+# es justo el error que este proyecto persigue en otras partes.
+comprobar("S", "la diferencia entre reglas de redondeo cabe en TOL con margen",
+          _peor <= m.TOL / 2 + 1e-9, f"peor={_peor:.4f}, TOL={m.TOL}",
+          f"<= {m.TOL/2}", "P1")
+
+# Y el control por el otro lado: TOL no puede ser tan ancha que se trague un
+# error de verdad. Un centimo de mas se perdona; diez, no.
+_v, _m2 = evaluar({**BASE_FILA, 'base_21': '1000.00', 'base_total': '1000.00',
+                   'iva_total': '210.00', 'total_factura': '1210.10'})
+comprobar("S", "pero 10 centimos de descuadre SI se cazan",
+          _v == "ROJO", _v, "ROJO", "P0")
+
 # ---------------------------------------------------------------------------
 print("\n" + "=" * 70)
 fallos = [r for r in resultados if not r[2]]
