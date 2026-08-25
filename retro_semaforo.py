@@ -365,9 +365,17 @@ def main():
     det_veredictos = Counter()
     det_por_tipo = defaultdict(Counter)
 
-    for ruta in dats:
+    # Indicador de avance. No es cosmetica: acabamos de arreglar un CUELGUE por
+    # cabecera corrupta, asi que un script que no dice nada durante un minuto y
+    # un script colgado se parecen demasiado. Quien lo ejecuta tiene que poder
+    # distinguirlos sin esperar a ver si termina.
+    paso_aviso = max(1, len(dats) // 20)
+    for n_cont, ruta in enumerate(dats, start=1):
         if parar:
             break
+        if n_cont % paso_aviso == 0 or n_cont == len(dats):
+            print(f"  ... {n_cont}/{len(dats)} contenedores  "
+                  f"({n_asientos:,} asientos leidos)", flush=True)
         try:
             if not zipfile.is_zipfile(ruta):
                 continue
@@ -448,21 +456,51 @@ def main():
                         # APROXIMACION DECLARADA: el orden es el de recorrido
                         # (contenedores ordenados, asientos por numero), que es
                         # aproximadamente cronologico pero no exactamente.
-                        maestro = dict(maestro_acumulado)
-                        if fila.get("nif"):
-                            maestro_acumulado[fila["nif"]] = {
-                                "titulo": fila.get("proveedor", ""), "cuenta": "400000"}
+                        # CORREGIDO 21-08-2026 (medicion a escala real). Aqui
+                        # habia `maestro = dict(maestro_acumulado)`: una COPIA
+                        # COMPLETA del maestro por cada fila. Con 220.000 filas y
+                        # un maestro que crece a decenas de miles de proveedores,
+                        # eso es cuadratico — cientos de millones de copias de
+                        # entrada — y era el 96% del tiempo de ejecucion.
+                        #
+                        # La copia existia para que la factura no se viera a si
+                        # misma en el maestro. Eso no necesita copiar nada: basta
+                        # con INSERTAR DESPUES de evaluar. Mismo resultado exacto
+                        # —64.200 filas evaluadas antes y despues— sin copia.
+                        #
+                        # MEDIDO sobre un corpus del tamano del real (1.287
+                        # contenedores, 344.916 asientos, 275.418 evaluados):
+                        #     antes:   mas de 15 minutos, cortado sin terminar
+                        #     despues: 55 segundos, 258 MB de memoria pico
+                        # En 300 contenedores la mejora es de 35,2 s a 12,5 s; el
+                        # salto crece con el corpus porque el termino cuadratico
+                        # es el que manda cuando el maestro se hace grande.
+                        #
+                        # (El corpus de la medicion tiene el mismo NUMERO de
+                        # asientos que el real pero registros mas cortos —10
+                        # campos frente a 91—, asi que en el PC de la asesoria
+                        # habra mas lectura de disco. El trabajo de CPU, que es lo
+                        # que se ha arreglado aqui, es el mismo.)
                         anio = int(fila["fecha_expedicion"][:4]) if fila.get("fecha_expedicion") else None
 
                         try:
                             v, motivo, guards = mv.evaluar_fila_v4(
-                                fila, vistos_dup, {}, {}, {}, maestro,
+                                fila, vistos_dup, {}, {}, {}, maestro_acumulado,
                                 alta_cliente_anio=1990,
                                 nif_cliente_titular=None,
                                 ejercicio_tanda=anio)
                         except Exception as e:
                             errores["motor:" + type(e).__name__] += 1
                             continue
+                        finally:
+                            # DESPUES de evaluar, pase lo que pase: la siguiente
+                            # factura de este proveedor ya lo encontrara. En el
+                            # `finally` a proposito, para que una fila que revienta
+                            # no rompa la acumulacion del historico.
+                            if fila.get("nif"):
+                                maestro_acumulado.setdefault(fila["nif"], {
+                                    "titulo": fila.get("proveedor", ""),
+                                    "cuenta": "400000"})
 
                         n_reconstruidas += 1
                         veredictos[v] += 1

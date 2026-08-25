@@ -160,10 +160,15 @@ def numeros_de(salida):
     """Extrae las cifras del informe para poder compararlas."""
     fuera = {}
     for linea in salida.splitlines():
+        # Solo las lineas del INFORME, que empiezan por la etiqueta. Las de avance
+        # ("... 5/7 contenedores (120 asientos leidos)") tambien contienen el
+        # texto y colaban aqui: el helper reventaba con IndexError en cuanto se
+        # anadio el indicador de progreso.
+        limpia = linea.strip()
         for clave, etiqueta in (("asientos leidos", "asientos"),
                                 ("evaluados por el motor", "evaluados")):
-            if clave in linea:
-                fuera[etiqueta] = int(linea.split(":")[1].strip().replace(",", ""))
+            if limpia.startswith(clave) and ":" in limpia:
+                fuera[etiqueta] = int(limpia.split(":")[1].strip().replace(",", ""))
         if linea.strip().startswith(("VERDE", "AMBAR", "ROJO")):
             partes = linea.split()
             if len(partes) >= 2:
