@@ -522,6 +522,7 @@ sujeto pasivo (1.104, ver arreglo 9).
 | 8 | Cuota por tipo dejó de derivarse de la base reescalada del 7; se suma directa (nunca falta, a diferencia de la base) | `retro_semaforo.py` | `aritmetica_base_tipo` FALLO 983 → 0 |
 | 9 | Retención de IRPF (cuenta 475) e inversión del sujeto pasivo (cuenta 477) sin capturar | `retro_semaforo.py` | `cuadre_total` FALLO 2.228 → 805 |
 | 10 | `nif_check.py`: NIE validado con el algoritmo de CIF (misma forma, checksum distinto); NIF-IVA extranjero sin rama; campo de 1-2 caracteres tratado como NIF inválido en vez de sin dato | `nif_check.py` | `nif_digito_control` FALLO 513 → 94 |
+| 11 | `nif_check.py`: NIF/CIF de longitud 8 (falta solo el dígito de control) tratado como inválido en vez de sin dato suficiente para verificar | `nif_check.py` | `nif_digito_control` FALLO 94 → 60; ROJO 3,15% → 3,03% |
 
 Cada arreglo verificado por separado contra el corpus real antes de darlo por
 bueno (nunca solo contra el corpus sintético del ensayo en seco), y los arreglos
@@ -531,12 +532,12 @@ veces por auto-revisión antes de pasárselo a Diego, no por él.
 
 ### El resultado final de la sesión
 
-| | RUN 4 (tras arreglo 3) | RUN 10 (tras arreglo 10) |
-|---|---|---|
-| VERDE | 49,19% | **87,71%** |
-| ROJO | 45,97% | **3,15%** |
-| AMBAR | 4,84% | 9,15% |
-| Tasa de detección (`--inyectar`) | — | 78,99% (100% en 4 de 5 tipos de error; el punto débil declarado es `nif_de_otro`, 0,4% — un NIF ajeno pero con checksum válido no tiene por qué distinguirse sin el patrón de cartera) |
+| | RUN 4 (tras arreglo 3) | RUN 10 (tras arreglo 10) | RUN 11 (tras arreglo 11) |
+|---|---|---|---|
+| VERDE | 49,19% | 87,71% | **87,71%** |
+| ROJO | 45,97% | 3,15% | **3,03%** |
+| AMBAR | 4,84% | 9,15% | 9,26% |
+| Tasa de detección (`--inyectar`) | — | 78,99% | 78,99% (100% en 4 de 5 tipos de error; el punto débil declarado es `nif_de_otro`, 0,4% — un NIF ajeno pero con checksum válido no tiene por qué distinguirse sin el patrón de cartera) |
 
 ### La predicción de `TECHO_Y_LIMITES.md`, confirmada
 
@@ -558,9 +559,46 @@ delante.
   tiene un patrón dominante tras separar retención e ISP (prefijos de cuenta
   residuales, ninguno por encima del 2%). Puede ser ruido real de captura
   histórica (tecleo) más que un defecto del instrumento.
-- `nif_digito_control`, 94 casos (0,3%): 46 CIF con checksum genuinamente
-  incorrecto + 48 valores cortos sin patrón reconocible. Misma lectura: parece
-  señal real, no instrumento.
+- `nif_digito_control`, 60 casos tras el arreglo 11 (0,2%): 46 CIF con
+  checksum genuinamente incorrecto (verificado contra fuentes externas antes
+  de tocar código — sin evidencia de bug, no se cambia nada) + 14 valores
+  cortos sin patrón reconocible (longitud 7 y 10, y 2 de longitud 8 que no
+  encajaban en ninguna forma). Misma lectura que el resto: parece señal real
+  del histórico, no ceguera del instrumento.
+
+### 14-bis. El 303 presentado: identidad de cliente corregida, cuadre pendiente
+
+**`reconstruir_303.py` tenía el mismo bug de deduplicación que el primero de
+retro-semáforo**, en un script distinto: sin deduplicar entre copias de
+seguridad, cada apunte de IVA se contaba una vez por copia en la que
+aparecía. Corregido con la misma técnica (huella por registro): apuntes de
+IVA agregados 242.617 → **88.932** (153.685 duplicados, 63,3% exacto — la
+misma cifra que ya se conocía para el corpus entero, por una vía
+totalmente distinta).
+
+**Identidad de cliente: 507 → 24.** `clave_cliente()` usaba carpeta+código,
+y el código de una misma empresa cambia entre copias de distintos años —
+la carpeta de nivel 1 (una por cliente, confirmado por Diego y verificado
+sin ver ningún nombre real: `diag_profundidad_carpetas.py` midió 28
+carpetas de nivel 1, cerca de las 33 empresas reales conocidas) es la
+identidad fiable. Con el cambio: 24 clientes, 138 trimestres, apuntes de
+IVA idénticos antes y después (88.932 = 88.932) — confirma que
+deduplicación e identidad de cliente son correcciones independientes.
+
+**Intento de automatizar la lectura de los 303 ya presentados (PDF con
+texto seleccionable, en `\\PC01\Documentos`): fase 1 prometedora, fase 2
+falló.** `reconocer_303_pdf.py` (solo cuenta patrones, nunca extrae):
+1.168 PDF del modelo 303 de 14.386 totales, "Casilla NN" presente en el
+98-99% de los documentos. `extraer_303_pdf.py` (extrae el número más
+cercano a cada etiqueta y se auto-valida por consistencia interna —
+base≥cuota, tipo efectivo legal — sin que ningún valor salga nunca del
+script): **1,2% de consistencia**, prácticamente ruido. La proximidad en
+texto plano no localiza el valor correcto en un formulario tabular.
+Decisión: no seguir invirtiendo en el extractor sin tener antes el número
+real (comparación manual de una muestra de trimestres) — construir mejor
+tubería alrededor de un objetivo aún no confirmado sería trabajo
+prematuro. **Pendiente: la muestra manual, y decidir después si merece la
+pena un extractor consciente de tabla/posición.**
 
 ### Lo que esta sección NO responde
 

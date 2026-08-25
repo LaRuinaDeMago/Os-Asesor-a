@@ -71,6 +71,50 @@ cifra**, al de antes de fusionar — la prueba de que la fusión no perdió ni
 añadió nada por accidente. Rama `claude/github-retomada-o4zyic` empujada a
 GitHub, sincronizada.
 
+### Después de la fusión: el 303, la identidad de cliente, y el residuo de NIF
+
+**El 303 fragmentaba clientes: 507 → 24.** `reconstruir_303.py` no
+deduplicaba nada entre copias de seguridad (mismo bug de origen que el
+primero de `retro_semaforo.py`: 63,3% de apuntes inflados, cifra exacta
+otra vez) y usaba carpeta+código como identidad de cliente, cuando el
+código lo reasigna ContaPlus en cada copia — Diego confirmó que organiza
+una carpeta por cliente de verdad, y `diag_profundidad_carpetas.py` (solo
+cuenta carpetas, ningún nombre real) lo confirmó: 28 carpetas de nivel 1,
+casi las 33 empresas reales. `clave_cliente()` pasó a usar solo esa
+carpeta. Resultado: 24 clientes, 88.932 apuntes de IVA (idéntico antes y
+después del cambio de identidad — las dos correcciones no se pisan).
+
+**Undécimo arreglo: NIF/CIF incompleto (falta el dígito de control) →
+SIN_DATO, no FALLO.** De los 94 residuales de `nif_digito_control`, 34 de
+36 casos de longitud 8 eran un CIF o DNI real al que le faltaba
+exactamente el último carácter — mismo principio que el campo de 1-2
+caracteres del décimo arreglo, un escalón más arriba. Verificado contra
+fuentes externas antes de tocar nada más (los 46 CIF con checksum
+genuinamente incorrecto: sin evidencia de bug, se dejan como están).
+`ROJO` 3,15% → **3,03%**.
+
+**Exploración: automatizar el cuadre del 303 leyendo los PDF ya
+presentados.** Diego confirmó que vive en `\\PC01\Documentos`, con
+"prácticamente todos los datos de la asesoría" — nunca navegada ni
+listada directamente; solo scripts que Diego ejecuta y que devuelven
+agregados. Los PDF llevan texto seleccionable de verdad, así que en
+principio no hace falta DPA (extracción mecánica, no lectura semántica).
+Fase 1 (`reconocer_303_pdf.py`, solo cuenta patrones): 1.168 PDF del 303
+de 14.386 totales, etiquetas "Casilla NN" en el 98-99% — señal muy limpia.
+Fase 2a (`extraer_303_pdf.py`, extrae y se auto-valida por consistencia
+interna, nunca deja ver un valor): **falló, 1,2% de consistencia** — la
+proximidad en texto plano no basta para un formulario tabular. Se decidió
+NO seguir invirtiendo en el extractor antes de tener el número real:
+la vía barata (comparar 5-10 trimestres a mano contra `303_LOCAL.json`)
+va primero, seguido de decidir si merece la pena un extractor consciente
+de tabla/posición. **Pendiente de retomar mañana.**
+
+`requirements.txt` actualizado con `pdfplumber` (usado por las dos
+fases de arriba). Verificación final de cierre: `test_motor_veredicto.py`
+33/33, `test_adversarial.py` 111/111, `ensayo_retro_semaforo.py` 34/34,
+`ensayo_corpus_roto.py` 15/15, escáner de privacidad sobre el repositorio
+COMPLETO (no solo lo tocado hoy) — sin hallazgos.
+
 ## 21-08-2026 — Sesión cloud de verificación: qué cambió y qué mide ahora
 
 Un día entero sin tocar datos reales, buscando defectos en vez de añadir

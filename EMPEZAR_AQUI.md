@@ -16,7 +16,7 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ```
 ✅ Sintaxis de todos los .py
 ✅ Cableado de guards (sin huérfanos): 26 guards, todos consultados
-✅ Suite de pruebas (test_motor_veredicto.py): 30/30 checks en verde
+✅ Suite de pruebas (test_motor_veredicto.py): 33/33 checks en verde
 ✅ Bateria adversarial (test_adversarial.py): 111 en verde, 0 fallan
 ✅ Ensayo en seco: retro_semaforo + orquestador + validar_captura
 ✅ Estados: sin ramas muertas ni guards mudos
@@ -34,22 +34,41 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ### ✅ El paso 3.1 de abajo (retro-semáforo) YA SE HIZO — 25-08-2026
 
 **No lo repitas desde cero: lee el resultado primero.** El corpus real ya se
-pasó por el motor, diez veces, con diez arreglos reales encontrados por el
-camino. Resultado final: **VERDE 87,71% · ROJO 3,15% · AMBAR 9,15%**, sobre
-30.013 asientos evaluados. Detalle completo, arreglo por arreglo, en
-`FASE0_RESULTADOS.md` §14 — ese archivo manda sobre cualquier número de aquí.
+pasó por el motor, once arreglos reales encontrados por el camino (diez el
+25-08 más uno de auto-revisión). Resultado final: **VERDE 87,71% · ROJO
+3,03% · AMBAR 9,26%**, sobre 30.013 asientos evaluados. Detalle completo,
+arreglo por arreglo, en `FASE0_RESULTADOS.md` §14 — ese archivo manda sobre
+cualquier número de aquí.
 
 **Por el umbral ya acordado en `SIGUIENTES_PASOS.md` §4 (fijado ANTES de ver
-el número): ROJO 3,15% < 5% = "Verde. Se pasa a la 3.2 sin tocar el motor."**
-El siguiente paso, según el propio plan del proyecto, no es seguir buscando
-defectos en el retro-semáforo — es la sección **A** de más abajo (las 91
-facturas fotografiadas), que es lo único que puede medir falsos verdes.
+el número): ROJO 3,03% < 5% = "Verde. Se pasa al siguiente paso sin tocar el
+motor."** Cerrado, no toca seguir picando en el retro-semáforo.
 
 Sigue abierto, y no es urgente: `cuadre_total`/`retencion_vs_error` (~800
-casos, 2,7%) y `nif_digito_control` (94 casos, 0,3%) sin patrón dominante ya
-identificable — parece señal real del histórico, no ceguera del instrumento,
-pero no está descartado del todo. Ver `FASE0_RESULTADOS.md` §14 para el
-desglose.
+casos, 2,7%) y `nif_digito_control` (60 casos tras el arreglo 11, 0,2%) sin
+patrón dominante ya identificable — parece señal real del histórico, no
+ceguera del instrumento, pero no está descartado del todo. Ver
+`FASE0_RESULTADOS.md` §14 para el desglose.
+
+> ⚠️ **La sección A de más abajo (91 facturas fotografiadas) está BLOQUEADA,
+> no es el siguiente paso.** No existe el CSV con el veredicto histórico
+> anotado — solo las fotos — y sacar un veredicto de una foto exige que un
+> modelo la LEA, que es la puerta de la API/DPA (`.claude/rules/datos.md`),
+> deliberadamente cerrada por ahora. **El siguiente paso real es la sección
+> A-ter (cuadre contra el 303 presentado)**, que no necesita fotos ni API:
+>
+> - Identidad de cliente ya arreglada (507→24, ver §14-bis de
+>   `FASE0_RESULTADOS.md`) y `303_LOCAL.json` listo para comparar.
+> - Se intentó automatizar leyendo los PDF ya presentados
+>   (`\\PC01\Documentos`, texto seleccionable, sin necesitar DPA) — la fase
+>   de reconocimiento fue limpia (98-99% de las etiquetas de casilla
+>   presentes) pero la extracción real falló (1,2% de consistencia interna).
+>   Aparcado sin seguir invirtiendo hasta tener el número real.
+> - **Pendiente para la próxima sesión:** comparar a mano 5-10 trimestres de
+>   `303_LOCAL.json` contra los 303 ya localizados. 20-30 minutos, cero
+>   riesgo de ingeniería, contesta la pregunta real antes de decidir si vale
+>   la pena un extractor mejor (consciente de tabla/posición, no de
+>   proximidad en texto plano).
 
 ### Los nueve auditores, y por qué hacen falta los nueve
 

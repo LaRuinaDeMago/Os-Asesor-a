@@ -1,3 +1,4 @@
 dbfread>=2.0.7
 anthropic>=0.40.0  # para captura_orquestador.py --proveedor claude
 google-genai>=0.3.0  # para captura_orquestador.py --proveedor gemini
+pdfplumber>=0.11.0  # para reconocer_303_pdf.py / extraer_303_pdf.py (lectura de texto de PDF)
