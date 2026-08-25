@@ -110,12 +110,36 @@ AMBAR_DEL_INSTRUMENTO = {"sentido_compra_venta", "nif_casa_historico"}
 # --------------------------------------------------------------------------
 # Lectura de dBase (misma tecnica que los fase0_*.py: solo cabecera + registros)
 # --------------------------------------------------------------------------
+#: Tope de registros por fichero. Un Diario.dbf del despacho tiene decenas de
+#: miles; diez millones es imposible y significa que se esta leyendo basura.
+#: Es una red, no un limite de negocio: si salta, el fichero esta corrupto.
+MAX_REGISTROS_POR_FICHERO = 10_000_000
+
+
 def parse_cabecera(stream):
+    """Cabecera dBase III -> (longitud de registro, campos).
+
+    ENDURECIDA 21-08-2026, y el motivo no es teorico: si `len_reg` sale 0 —lo que
+    pasa con una cabecera corrupta o truncada— el bucle de lectura de mas abajo
+    NO TERMINA NUNCA. `fh.read(0)` devuelve b'' indefinidamente y la condicion de
+    salida `len(rec) < len_reg` es `0 < 0`, o sea False, para siempre.
+
+    Comprobado: 100.000 vueltas sin salir. Con 1.287 contenedores, UNO corrupto
+    se lleva la sesion entera — y encima parece que el script sigue trabajando,
+    que es la peor forma de fallar: no da error, no acaba, y nadie sabe por que.
+
+    Ahora una cabecera imposible levanta ValueError, que el bucle de contenedores
+    ya captura y CUENTA por tipo. Un fichero roto deja de parar la medicion y
+    pasa a ser una linea en el informe, que es lo que debe ser."""
     cab = stream.read(32)
     if len(cab) < 32:
         raise ValueError("cabecera corta")
     len_cab = struct.unpack("<H", cab[8:10])[0]
     len_reg = struct.unpack("<H", cab[10:12])[0]
+    if len_reg < 2:
+        raise ValueError("longitud de registro imposible")
+    if len_cab < 33:
+        raise ValueError("longitud de cabecera imposible")
     campos, pos = [], 1
     leidos = 32
     while leidos < len_cab - 1:
@@ -129,6 +153,14 @@ def parse_cabecera(stream):
                        "tipo": chr(d[11])})
         pos += tam
     stream.read(max(0, len_cab - leidos))
+    if not campos:
+        raise ValueError("cabecera sin campos")
+    # La suma de anchos + 1 (marca de borrado) tiene que dar la longitud de
+    # registro. Si no, la cabecera dice una cosa y los datos son otra, y leer
+    # por posiciones daria valores de campos equivocados SIN dar error: importes
+    # de una columna leidos como si fueran de otra. Es peor que no leer nada.
+    if pos != len_reg:
+        raise ValueError(f"cabecera incoherente: suma de anchos {pos} != registro {len_reg}")
     return len_reg, campos
 
 
@@ -358,10 +390,17 @@ def main():
                         continue
 
                     grupos = defaultdict(list)
+                    leidos_aqui = 0
                     while True:
                         rec = fh.read(len_reg)
                         if len(rec) < len_reg or rec[:1] == b"\x1a":
                             break
+                        leidos_aqui += 1
+                        if leidos_aqui > MAX_REGISTROS_POR_FICHERO:
+                            # Segunda red. parse_cabecera ya deberia haber parado
+                            # esto, pero un bucle que no termina es el fallo mas
+                            # caro de todos: no da error y no acaba nunca.
+                            raise ValueError("demasiados registros: fichero corrupto")
                         if rec[:1] == b"*":
                             continue
                         grupos[int(num(rec, cA))].append((

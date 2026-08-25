@@ -216,7 +216,11 @@ def check_estados_y_cobertura():
                              # y nada comprobaba que coincidieran: si dejan de
                              # hacerlo no salta nada, el campo llega con otro
                              # nombre y la factura sale AMBAR "por la captura".
-                             ("ensayo_contrato_captura.py", "Captura <-> motor: los campos cuadran")):
+                             ("ensayo_contrato_captura.py", "Captura <-> motor: los campos cuadran"),
+                             # Un fichero corrupto entre 1.287 no puede parar la
+                             # medicion. Y colgaba: cabecera con len_reg=0 ->
+                             # bucle infinito, sin error y sin acabar.
+                             ("ensayo_corpus_roto.py", "Corpus roto: no cuelga ni contamina")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue

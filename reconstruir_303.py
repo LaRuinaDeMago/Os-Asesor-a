@@ -65,7 +65,8 @@ import os
 import zipfile
 from collections import Counter, defaultdict
 
-from retro_semaforo import cuenta, num, parse_cabecera, txt
+from retro_semaforo import (MAX_REGISTROS_POR_FICHERO, cuenta, num,
+                            parse_cabecera, txt)
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 SALIDA_AGREGADA = os.path.join(AQUI, "reconstruccion_303_agregado.json")
@@ -119,10 +120,17 @@ def acumular(ruta, acumulado, incidencias):
                 incidencias["Diario.dbf sin SUBCTA o FECHA"] += 1
                 return
             cliente = clave_cliente(ruta)
+            # La misma red que en retro_semaforo: parse_cabecera ya rechaza una
+            # longitud de registro imposible, pero un bucle que no termina es el
+            # fallo mas caro que hay —no da error y no acaba— y merece dos capas.
+            leidos_aqui = 0
             while True:
                 rec = fh.read(len_reg)
                 if len(rec) < len_reg or rec[:1] == b"\x1a":
                     break
+                leidos_aqui += 1
+                if leidos_aqui > MAX_REGISTROS_POR_FICHERO:
+                    raise ValueError("demasiados registros: fichero corrupto")
                 if rec[:1] == b"*":            # registro borrado en dBase
                     continue
                 pref = cuenta(rec, cS)
