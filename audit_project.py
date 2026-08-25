@@ -15,6 +15,14 @@ import json
 import os
 from datetime import datetime
 
+# Sin esto, una consola de Windows en cp1252 revienta con UnicodeEncodeError en
+# el primer ✅/❌ y la auditoría no llega a imprimir ni un resultado. Mismo
+# patrón que ya usa scripts/privacy_scan.py. hasattr() porque sys.stdout no
+# siempre es un TextIOWrapper real (p.ej. bajo pytest o si algo lo redirige a
+# un StringIO, que no tiene .reconfigure() — ver test_motor_veredicto.py).
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 RESULTADO = {"fecha": datetime.now().isoformat(timespec="seconds"), "checks": {}}
 
 

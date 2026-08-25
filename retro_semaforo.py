@@ -67,10 +67,20 @@ import json
 import os
 import random
 import struct
+import sys
 import zipfile
 from collections import Counter, defaultdict
 
+# Sin esto, una consola de Windows en cp1252 revienta al imprimir el aviso de
+# ⚠️  --limite / el de privacidad. Mismo patron que scripts/privacy_scan.py.
+# hasattr() porque reconstruir_303.py IMPORTA este modulo (from retro_semaforo
+# import ...), y sys.stdout no siempre es un TextIOWrapper real en ese momento
+# (ver test_motor_veredicto.py: StringIO no tiene .reconfigure()).
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 import motor_veredicto as mv
+import contrato_datos
 # Una sola definicion de 'que guard causo este veredicto', compartida
 # con la cola de revision. Dos copias divergen y una acaba mintiendo.
 from cola_revision import causas_de
@@ -116,19 +126,37 @@ def parse_cabecera(stream):
         raise ValueError("cabecera corta")
     len_cab = struct.unpack("<H", cab[8:10])[0]
     len_reg = struct.unpack("<H", cab[10:12])[0]
-    campos, pos = [], 1
-    leidos = 32
-    while leidos < len_cab - 1:
-        d = stream.read(32)
-        if len(d) < 32 or d[:1] == b"\r":
+    # BUG REAL cazado el 25-08-2026, no teorico: la version anterior leia los
+    # descriptores de campo de 32 en 32 bytes y paraba por CONTADOR
+    # (leidos < len_cab - 1). Los ficheros reales de ContaPlus llevan un byte
+    # de relleno extra tras el terminador (0x0D) que esa cuenta no preveia: al
+    # detectar el terminador, el bloque de 32 bytes que lo contenia YA se habia
+    # consumido del stream, y la limpieza final leia de mas encima. El cursor
+    # quedaba 32 bytes dentro del primer registro real, y ese desplazamiento
+    # se arrastraba a TODOS los registros siguientes. Con eso, lo que el script
+    # creia que era SUBCTA (byte 15) caia en mitad de PTADEBE (byte 47) — casi
+    # siempre a cero. Resultado antes del fix: 1.326 asientos leidos sobre un
+    # corpus que fase0_asientos.py habia medido esta misma manana en 275.566,
+    # 0% de patron de compra cuando el dato real es 47,81%.
+    #
+    # El arreglo: leer de UN GOLPE exactamente `len_cab - 32` bytes. Asi el
+    # cursor del stream queda en `len_cab` SIEMPRE, sin importar donde caiga el
+    # terminador dentro de ese bloque ni cuanto relleno haya. Es la misma
+    # tecnica ya probada todo el dia en los fase0_*.py contra este mismo
+    # corpus real. No fallaba porque adivinara bien las cabeceras: fallaba
+    # porque nunca dependia de adivinarlas.
+    resto = stream.read(len_cab - 32)
+    campos, off, pos = [], 0, 1
+    while off + 32 <= len(resto):
+        if resto[off] == 0x0D:
             break
-        leidos += 32
+        d = resto[off:off + 32]
         nombre = d[:11].split(b"\x00")[0].decode("cp1252", "replace").strip()
         tam = d[16]
         campos.append({"nombre": nombre, "pos": pos, "tam": tam,
                        "tipo": chr(d[11])})
         pos += tam
-    stream.read(max(0, len_cab - leidos))
+        off += 32
     return len_reg, campos
 
 
@@ -156,6 +184,45 @@ def cuenta(rec, c):
     return txt(rec, c)[:3]
 
 
+def numero_documento(rec, cNFACTICK, cDOCUMENTO, cFACTURA):
+    """Numero de documento/factura de una linea, probando varios campos.
+
+    BUG REAL cazado el 25-08-2026 (diag_campos_criticos.py): la version
+    anterior resolvia el campo con `idx.get("DOCUMENTO") or idx.get("FACTURA")`
+    UNA VEZ POR CONTENEDOR. Pero `.get()` sobre el diccionario de esquema
+    devuelve el DESCRIPTOR del campo, que existe siempre (los 91 campos estan
+    en las 1.287 copias) — asi que ese `or` nunca caia al segundo candidato,
+    aunque el primero estuviera vacio en la practica. Con eso, y con DOCUMENTO
+    relleno solo el 0,05% de las veces, nº_documento (uno de los seis
+    CAMPOS_CRITICOS) faltaba en el 99,94% de los asientos de compra reales, y
+    eso tumbaba datos_integros en cascada: aritmetica_base_tipo, cuadre_total
+    y suma_tramos salian NO_COMPROBADO no porque la factura fuera dudosa, sino
+    porque el reconstructor nunca encontraba el numero.
+
+    Medido el mismo dia sobre 154.130 lineas de IVA soportado (472): DOCUMENTO
+    0,05%, FACTURA 0,07% (numerico, cero no cuenta como relleno), NFACTICK
+    99,98%. Nadie miraba NFACTICK.
+
+    Se prueba POR LINEA, no una vez por contenedor: el campo que trae el dato
+    puede variar entre lineas del mismo asiento. NFACTICK y FACTURA son
+    numericos: cero significa vacio, igual que en cualquier otro campo del
+    proyecto — nunca se trata un cero como si fuera el numero de documento.
+    """
+    if cNFACTICK:
+        v = num(rec, cNFACTICK)
+        if v != 0.0:
+            return str(int(v)) if v == int(v) else str(v)
+    if cDOCUMENTO:
+        t = txt(rec, cDOCUMENTO)
+        if t:
+            return t
+    if cFACTURA:
+        v = num(rec, cFACTURA)
+        if v != 0.0:
+            return str(int(v)) if v == int(v) else str(v)
+    return ""
+
+
 # --------------------------------------------------------------------------
 # Reconstruccion: asiento contable -> fila que el motor entiende
 # --------------------------------------------------------------------------
@@ -177,7 +244,26 @@ def reconstruir_compra(lineas):
         # dice cual, y adivinarlo seria inventar la naturaleza. Se marca para
         # contarla en su propio cubo y que no contamine la tasa de falsos rojos.
         return "SIN_IVA"
-    
+
+    # NOVENO ARREGLO del dia (25-08-2026), encontrado con diag_retencion.py
+    # tras revisar por que cuadre_total seguia siendo el mayor bloque de ROJO.
+    # Inversion del sujeto pasivo (ISP): ademas del 472 (IVA soportado,
+    # deducible), el asiento lleva una linea en 477 (Hacienda Publica, IVA
+    # repercutido) — el comprador se autorrepercute el IVA que el proveedor NO
+    # le ha cobrado (construccion en subcontrata, ciertos residuos/metales,
+    # telefonos/microprocesadores, algunas operaciones intracomunitarias...).
+    # El total de la factura, en estos casos, NO INCLUYE el IVA por diseno: no
+    # es una compra descuadrada, es una factura de otra forma que el patron de
+    # tres cuentas de este reconstructor no representa.
+    #
+    # Medido: 644 de los 2.228 cuadre_total=FALLO (29,0%) llevan una linea 477
+    # cuyo HABER explica la diferencia al centimo en el 99,7% de los casos
+    # (desvio mediano 0.0 — por el DEBE no explica nada, mediana 96,85 EUR).
+    # Disjunto de la retencion (475): solo 2 asientos llevan ambas. Se cuenta
+    # aparte, igual que SIN_IVA — el diario dice lo que se contabilizo, no
+    # puede fingir el total que la factura de verdad llevaba escrito.
+    if any(l[0].startswith("477") for l in lineas):
+        return "ISP"
 
     fila = {}
     # Bases por tipo de IVA: cada linea de IVA trae su tipo en el campo IVA y su
@@ -189,15 +275,100 @@ def reconstruir_compra(lineas):
     # la factura salia deformada. Ahora se recoge cualquier tipo y se entrega al
     # motor como tramos_iva, que ya sabe manejarlos.
     por_tipo = defaultdict(float)
+    if len(ivas) == 1:
+        # UN SOLO TIPO DE IVA (el caso dominante: 37.798 de 47.048 compras son
+        # asi). La base es la suma de lo llevado a la cuenta de gasto — SIN
+        # ninguna division de por medio.
+        #
+        # BUG REAL cazado el 25-08-2026, no preventivo: guard_retencion_vs_error
+        # fallaba al 41,9% sobre datos reales. Investigado hasta el final:
+        # sobre 38.527 asientos simples de 3 lineas, el propio asiento cuadra
+        # DEBE=HABER al 100% -- pero derivar la base como cuota/tipo (la unica
+        # via cuando BASEIMPO esta vacio, que es el 99,2% de las veces) solo
+        # coincidia con lo que de verdad se llevo a la cuenta de gasto en el
+        # 58,69% de los casos. Diferencia mediana: 0,01 EUR -- el redondeo de
+        # invertir por division lo que ContaPlus obtuvo por multiplicacion al
+        # contabilizar. El asiento estaba bien; el instrumento lo desconfiaba
+        # por un centimo que el ni siquiera necesitaba inventar.
+        #
+        # BASEIMPO sigue teniendo prioridad cuando esta genuinamente relleno
+        # (es el dato mas directo que existe), pero eso es solo el 0,78% de
+        # las lineas — la practica totalidad de los casos pasa por el gasto.
+        tipo = int(ivas[0][3])
+        base_directa = ivas[0][5]
+        base = base_directa if base_directa > 0 else round(sum(l[1] for l in gastos), 2)
+        por_tipo[tipo] += base
+    else:
+        # Varios tipos de IVA en el mismo asiento: no hay forma directa de
+        # saber que parte del gasto corresponde a cada tipo por separado, asi
+        # que se deriva la PROPORCION por la via de siempre (cuota/tipo) y
+        # LUEGO se reescala el conjunto para que la suma cuadre EXACTA con
+        # base_total (que ya es exacto, viene del gasto, ver mas abajo).
+        #
+        # SEPTIMO ARREglo del dia (25-08-2026), consecuencia directa del
+        # sexto: al hacer base_total exacto sin tocar este reparto por tipo,
+        # suma_tramos paso a comparar una fuente exacta contra una con el
+        # ruido de siempre — y se convirtio en el guard que mas ROJO causaba,
+        # un fallo NUEVO introducido al arreglar el anterior sin revisar esta
+        # consecuencia. Sin el reescalado, cuadre_total y suma_tramos se
+        # contradicen entre si sobre el MISMO asiento: uno exige que la base
+        # sea la del gasto, el otro que sume lo que dice cada linea de IVA.
+        # No pueden ser ciertas las dos con dos fuentes distintas.
+        #
+        # El reparto POR TIPO sigue siendo una estimacion (no hay atribucion
+        # exacta sin mas informacion) pero la SUMA ya no lo es: se ajusta el
+        # tramo mayor con el resto del redondeo para que sea exacta, no solo
+        # aproximada.
+        derivado = {}
+        for l in ivas:
+            tipo, cuota, base = l[3], l[1], l[5]
+            if base <= 0 and tipo > 0:
+                base = round(cuota / (tipo / 100.0), 2)
+            derivado[int(tipo)] = derivado.get(int(tipo), 0.0) + base
+        suma_derivada = sum(derivado.values())
+        gasto_total_bruto = round(sum(l[1] for l in gastos), 2)
+        if suma_derivada > 0 and gasto_total_bruto > 0:
+            factor = gasto_total_bruto / suma_derivada
+            for t, b in derivado.items():
+                por_tipo[t] = round(b * factor, 2)
+            diff = round(gasto_total_bruto - sum(por_tipo.values()), 2)
+            if diff:
+                t_mayor = max(por_tipo, key=por_tipo.get)
+                por_tipo[t_mayor] = round(por_tipo[t_mayor] + diff, 2)
+        else:
+            por_tipo.update(derivado)
+
+    # CUOTA por tipo: NUNCA derivada de la base, a diferencia de esta. La
+    # cuota de cada linea de IVA (EURODEBE de la cuenta 472) es un dato
+    # DIRECTO y siempre presente -- no como BASEIMPO, que falta el 99,2% de
+    # las veces y obliga a estimar la base. No hay nada que estimar aqui:
+    # se suma tal cual, agrupado por tipo.
+    #
+    # OCTAVO ARREGLO del dia (25-08-2026), encontrado por auto-revision tras
+    # el septimo: antes esta misma cuota se recalculaba como `base * tipo/100`
+    # usando la base YA REESCALADA por el arreglo 7 para cuadrar con
+    # base_total -- una base pensada para cuadrar SUMA_TRAMOS, reutilizada
+    # para alimentar el guard de CUOTA (aritmetica_base_tipo), que compara
+    # contra iva_total, una tercera cifra exacta distinta de base_total.
+    # Mismo patron que el septimo arreglo, un nivel mas abajo: dos guards
+    # exigiendole cifras distintas a una unica fuente derivada, y solo una
+    # de las dos podia cuadrar. Medido con diag_aritmetica_tipo.py sobre el
+    # corpus real: aritmetica_base_tipo=FALLO subia con el numero de tramos
+    # (1 tramo 1,69%, 2 tramos 12,84%, 3 tramos 27,17%, 4 tramos 95,83%,
+    # 5 tramos 100%) -- la misma firma que tenia suma_tramos antes del
+    # septimo arreglo. Al sumar la cuota real en vez de derivarla, ambos
+    # guards pueden cuadrar a la vez porque cada uno compara contra la
+    # cifra de la que de verdad viene: base contra base_total, cuota contra
+    # iva_total.
+    cuota_por_tipo = defaultdict(float)
     for l in ivas:
-        tipo, cuota, base = l[3], l[1], l[5]
-        if base <= 0 and tipo > 0:
-            base = round(cuota / (tipo / 100.0), 2)
-        por_tipo[int(tipo)] += base
+        cuota_por_tipo[int(l[3])] += l[1]
+
     if por_tipo:
         fila["tramos_iva"] = [
-            {"tipo": t, "base": round(b, 2), "cuota": round(b * t / 100.0, 2)}
-            for t, b in sorted(por_tipo.items())
+            {"tipo": t, "base": round(por_tipo.get(t, 0.0), 2),
+             "cuota": round(cuota_por_tipo.get(t, 0.0), 2)}
+            for t in sorted(set(por_tipo) | set(cuota_por_tipo))
         ]
     # Se rellenan tambien los campos planos de los tres tipos clasicos, para que
     # cualquier consumidor antiguo siga funcionando.
@@ -212,14 +383,45 @@ def reconstruir_compra(lineas):
     if recargo > 0:
         fila["recargo_equivalencia"] = recargo
 
+    # Retencion de IRPF (mismo arreglo del 25-08-2026 que ISP, mas arriba).
+    # La cuenta 475xxx (Hacienda Publica, acreedora por conceptos fiscales)
+    # recoge lo retenido a un proveedor con retencion (servicios
+    # profesionales, alquileres de local...). Sin capturarla, irpf_retencion
+    # nunca se rellena, "irpf or 0.0" cae siempre a 0.0 en el motor, y
+    # cuadre_total exige base+iva=total en facturas donde eso NUNCA fue
+    # cierto por diseno: el total pagado es neto de retencion.
+    #
+    # Medido: 784 de los 2.228 cuadre_total=FALLO (35,2%) llevan una linea
+    # 475 cuyo HABER explica la diferencia al centimo en el 99,1% de los
+    # casos (desvio mediano 0.0). CONVENCION DEL CONTRATO (ver
+    # motor_veredicto.py linea 24): irpf_retencion se guarda en NEGATIVO.
+    retenciones = [l for l in lineas if l[0].startswith("475")]
+    if retenciones:
+        fila["irpf_retencion"] = -round(sum(l[2] for l in retenciones), 2)
+
     # CORREGIDO 20-08-2026: aqui habia un `if iva_total > 0` que DESCARTABA un
     # IVA de cero legitimo (tipo 0%: pan, leche, fruta) en vez de registrarlo.
     # Es exactamente el error MISSING-vs-ZERO que este proyecto arreglo en el
     # motor, cometido de nuevo en el instrumento que lo mide. Un cero calculado
     # es un DATO; solo se omite el campo cuando no se ha podido calcular.
-    base_total = round(sum(por_tipo.values()), 2)
+    # BASE_TOTAL: SIEMPRE la suma de lo llevado a la cuenta de gasto, NUNCA
+    # derivada de las lineas de IVA. Sexto arreglo del dia (25-08-2026),
+    # extiende el del punto anterior a CUALQUIER numero de tipos de IVA en el
+    # mismo asiento — antes solo se corregia el caso de un tipo unico y el de
+    # 2+ tipos seguia con el ruido viejo. Medido tras el primer arreglo:
+    # con 1 tipo, 8,0% de FALLO (residuo plausible); con 2 tipos, 65,5%; con
+    # 3, 84,3%; con 4+, 100,0% — la misma derivacion por cuota/tipo, sin
+    # cerrar del todo.
+    #
+    # La suma de gasto NO NECESITA saber que porcion corresponde a que tipo:
+    # por partida doble, gasto(DEBE) + iva(DEBE) = acreedor(HABER) siempre,
+    # asi que la suma TOTAL de gasto es la base total sea cual sea el reparto
+    # entre tipos. Ese reparto (por_tipo, mas arriba) sigue haciendo falta
+    # para el desglose fiscal tramos_iva —ahi si hace falta derivar, porque
+    # no hay otra fuente por tipo— pero ya no decide base_total.
+    base_total = round(sum(l[1] for l in gastos), 2)
     if base_total <= 0:
-        base_total = round(sum(l[1] for l in gastos), 2)
+        base_total = round(sum(por_tipo.values()), 2)
     fila["base_total"] = base_total
 
     fila["iva_total"] = round(sum(l[1] for l in ivas), 2)
@@ -320,8 +522,51 @@ def main():
     ambar_instrumento = Counter()
     ambar_factura = Counter()
     errores = Counter()
-    n_asientos = n_compras = n_reconstruidas = n_sin_iva = 0
+    n_asientos = n_compras = n_reconstruidas = n_sin_iva = n_isp = 0
     vistos_dup = set()
+    # DEDUPLICACION ENTRE COPIAS DE SEGURIDAD (25-08-2026, bug real, no
+    # preventivo). Una copia de ContaPlus contiene el HISTORICO COMPLETO hasta
+    # esa fecha, asi que el mismo asiento aparece en todas las copias
+    # posteriores. Medido esta misma manana con fase0_asientos.py sobre este
+    # mismo corpus: 275.566 asientos totales, 101.122 UNICOS (factor 2,73x).
+    #
+    # Sin esto, guard_anti_duplicado (que compara NIF+documento+fecha+total,
+    # ver contrato_datos.clave_documental) marca FALLO cada vez que vuelve a
+    # ver el MISMO asiento en la siguiente copia — no porque este duplicado de
+    # verdad, sino porque el corpus lo repite. La primera ejecucion contra el
+    # corpus real dio 77,36% de ROJO, con anti_duplicado=FALLO en el 76,7% de
+    # los casos: casi calcaba la tasa de duplicacion ya conocida, no la
+    # calidad de las facturas. Es la misma trampa de "medir frecuencia de
+    # copia de seguridad, no practica contable" que FASE0_RESULTADOS.md avisa
+    # desde el primer dia — caida aqui, en otra fase del proyecto.
+    #
+    # vistos_contenido es DISTINTO de vistos_dup a proposito: este filtra
+    # ANTES de llegar al motor (repeticion de copia, no error); vistos_dup
+    # sigue siendo del guard, y ahora si detecta duplicados REALES dentro del
+    # conjunto ya deduplicado (la misma factura tecleada dos veces de verdad).
+    vistos_contenido = set()
+    n_duplicados_entre_copias = 0
+
+    # SEGUNDA CAPA, mas fina (25-08-2026, bug real). La huella de bytes de
+    # arriba coincidia exacta con fase0_asientos.py (101.122 unicos) y aun asi
+    # anti_duplicado=FALLO seguia siendo el guard que mas ROJO causaba
+    # (16.383, el 75,8% del ROJO total). Investigado hasta el final: de esos
+    # 16.383, el 94,9% son la MISMA factura en OTRA carpeta de backup, con la
+    # MISMA cuenta contable (99,5%) y el MISMO importe (99,8%) — no cambia
+    # nada que importe, cambia algun campo tecnico (posiblemente CTIMESTAMP)
+    # que la huella de bytes SI ve pero que no tiene ningun significado
+    # contable. anti_duplicado estaba acertando; lo que fallaba era no
+    # filtrar ANTES estas repeticiones, igual que ya se filtran las
+    # byte-identicas.
+    #
+    # Se deduplica por la MISMA clave que ya usa el guard (NIF+documento+
+    # fecha+total, ver contrato_datos.clave_documental) — la clave semantica
+    # de "es esta la misma factura", no la clave byte a byte de "es este el
+    # mismo registro". Con esto, anti_duplicado solo puede disparar sobre lo
+    # que de verdad es nuevo para el: una factura tecleada dos veces DE
+    # VERDAD, que es exactamente para lo que existe.
+    vistos_clave_documental = set()
+    n_duplicados_semanticos = 0
     maestro_acumulado = {}     # crece segun se avanza: ver el comentario del bucle
     # Para el patron de cartera: lineas por cliente, indexadas por contenedor.
     # Solo se acumula si se ha pedido, para no gastar memoria de balde.
@@ -353,7 +598,11 @@ def main():
                     cIVA, cNIF = idx.get("IVA"), idx.get("TERNIF")
                     cREC = idx.get("RECEQUIV")
                     cBASE, cFEC = idx.get("BASEIMPO"), idx.get("FECHA")
-                    cDOC = idx.get("DOCUMENTO") or idx.get("FACTURA")
+                    # Tres candidatos, probados POR LINEA (ver numero_documento):
+                    # nunca "el primero que exista en el esquema", que era el bug.
+                    cNFACTICK = idx.get("NFACTICK")
+                    cDOCUMENTO = idx.get("DOCUMENTO")
+                    cFACTURA = idx.get("FACTURA")
                     if not (cA and cS):
                         continue
 
@@ -364,10 +613,17 @@ def main():
                             break
                         if rec[:1] == b"*":
                             continue
+                        # Huella de la LINEA (bytes crudos, misma tecnica que
+                        # fase0_asientos.py). Se usa solo para deduplicar
+                        # asientos entre copias; nunca se publica el hash.
+                        h_linea = hashlib.blake2b(rec, digest_size=8).digest()
                         grupos[int(num(rec, cA))].append((
                             cuenta(rec, cS), num(rec, cED), num(rec, cEH),
                             num(rec, cIVA), txt(rec, cNIF), num(rec, cBASE),
-                            txt(rec, cFEC), txt(rec, cDOC), num(rec, cREC),
+                            txt(rec, cFEC),
+                            numero_documento(rec, cNFACTICK, cDOCUMENTO, cFACTURA),
+                            num(rec, cREC),
+                            h_linea,
                         ))
                         del rec
 
@@ -382,6 +638,19 @@ def main():
                                 lineas_cartera[cliente_id].append(
                                     {'ASIEN': _a, 'SUBCTA': _l[0], 'TERNIF': _l[4]})
                     for _, lineas in sorted(grupos.items()):
+                        # Huella del ASIENTO completo: hash de las huellas de
+                        # sus lineas, ordenadas para que el orden de lectura
+                        # no importe. Si ya se ha visto este contenido exacto
+                        # en una copia anterior, es la MISMA factura repetida
+                        # por solaparse los backups, no un asiento nuevo.
+                        huella = hashlib.blake2b(
+                            b"".join(sorted(l[9] for l in lineas)),
+                            digest_size=16).digest()
+                        if huella in vistos_contenido:
+                            n_duplicados_entre_copias += 1
+                            continue
+                        vistos_contenido.add(huella)
+
                         n_asientos += 1
                         fila = reconstruir_compra(lineas)
                         if fila is None:
@@ -389,7 +658,22 @@ def main():
                         if fila == "SIN_IVA":
                             n_sin_iva += 1
                             continue
+                        if fila == "ISP":
+                            n_isp += 1
+                            continue
                         n_compras += 1
+
+                        # Filtro semantico: misma factura, otra copia (ver el
+                        # comentario largo mas arriba). Se calcula la clave
+                        # ANTES de gastar un ciclo del motor en ella.
+                        clave_doc = contrato_datos.canonizar(fila).clave_documental()
+                        clave_h = hashlib.blake2b(
+                            repr(clave_doc).encode("utf-8"), digest_size=12).digest()
+                        if clave_h in vistos_clave_documental:
+                            n_duplicados_semanticos += 1
+                            continue
+                        vistos_clave_documental.add(clave_h)
+
                         if fila.get("nif") and len(nifs_pool) < 500:
                             nifs_pool.append(fila["nif"])
 
@@ -480,15 +764,25 @@ def main():
     def pct(n, d):
         return round(n * 100.0 / d, 2) if d else 0.0
 
+    total_visto = n_asientos + n_duplicados_entre_copias
     print("=" * 66)
     print("RETRO-SEMAFORO — el motor sobre contabilidad YA CONTABILIZADA")
     print("=" * 66)
-    print(f"  asientos leidos          : {n_asientos:,}")
+    print(f"  asientos vistos (con duplicados entre copias) : {total_visto:,}")
+    print(f"  duplicados entre copias (mismo asiento, otra copia de seguridad)"
+          f" : {n_duplicados_entre_copias:,} ({pct(n_duplicados_entre_copias, total_visto)}%)")
+    print(f"  asientos UNICOS evaluados (deduplicados)       : {n_asientos:,}")
     print(f"  patron de compra         : {n_compras:,} ({pct(n_compras, n_asientos)}%)")
+    print(f"  duplicados semanticos (misma factura, otra copia, campo tecnico"
+          f" distinto) : {n_duplicados_semanticos:,} ({pct(n_duplicados_semanticos, n_compras)}%)")
     print(f"  evaluados por el motor   : {n_reconstruidas:,}")
     print(f"  compras SIN linea de IVA : {n_sin_iva:,}  (exentas / no sujetas /")
-    print(f"                             intracomunitarias / ISP: el diario no dice cual,")
+    print(f"                             intracomunitarias: el diario no dice cual,")
     print(f"                             asi que NO se evaluan y NO cuentan como falsos rojos)")
+    print(f"  compras con INVERSION DEL SUJETO PASIVO (472+477 a la vez): {n_isp:,}")
+    print(f"                             el proveedor no cobra IVA, el comprador se lo")
+    print(f"                             autorrepercute: el total no incluye IVA por diseno,")
+    print(f"                             asi que tampoco se evaluan ni cuentan como falsos rojos)")
     print()
     print("VEREDICTOS (estos asientos SE CONTABILIZARON Y SE PRESENTARON):")
     for v, n in veredictos.most_common():
@@ -550,10 +844,16 @@ def main():
             print(f"    {k:<40} {n:>6,}")
 
     agregado = {
-        "version": "retro_semaforo v1 (20-08-2026)",
+        "version": "retro_semaforo v2 (25-08-2026, deduplicado entre copias)",
+        "asientos_vistos_con_duplicados": total_visto,
+        "duplicados_entre_copias": n_duplicados_entre_copias,
+        "pct_duplicados_entre_copias": pct(n_duplicados_entre_copias, total_visto),
         "asientos_leidos": n_asientos,
         "patron_compra": n_compras,
+        "duplicados_semanticos": n_duplicados_semanticos,
+        "pct_duplicados_semanticos": pct(n_duplicados_semanticos, n_compras),
         "compras_sin_linea_iva_no_evaluadas": n_sin_iva,
+        "compras_isp_no_evaluadas": n_isp,
         "evaluados": n_reconstruidas,
         "veredictos": dict(veredictos),
         "pct_veredictos": {v: pct(n, n_reconstruidas) for v, n in veredictos.items()},

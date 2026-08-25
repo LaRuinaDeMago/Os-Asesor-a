@@ -492,6 +492,85 @@ no. Los `.cat` están sin determinar y por eso se miran.
 
 ---
 
+## 14. El motor sobre el histórico real: retro-semáforo (25-08-2026)
+
+**Qué mide y qué no.** `retro_semaforo.py` reconstruye cada asiento de compra ya
+contabilizado y lo pasa por el motor real (`evaluar_fila_v4`). Como esos asientos
+**ya se presentaron**, un ROJO aquí es candidato a **falso rojo** (el motor
+molestaría con una factura que en su día se dio por buena). **No mide falsos
+verdes** — que se contabilizara así demuestra que se hizo así, no que fuera
+correcto (ver §1 de `DISENO_APRENDIZAJE.md`). Es la métrica de "¿el motor
+molesta?", no la de "¿el motor se fía de más de la cuenta?".
+
+**Base de esta sección**, distinta de la de §6 (que usaba "campos suficientes"
+como criterio): 275.566 asientos vistos → 101.122 únicos tras deduplicar copias
+de seguridad solapadas → 45.944 con patrón de compra (gasto+IVA+acreedor) → 30.013
+evaluados por el motor tras excluir exentas/no-sujetas (452) e inversión del
+sujeto pasivo (1.104, ver arreglo 9).
+
+### Progresión de la sesión (25-08-2026), diez arreglos, cero cambios en `motor_veredicto.py`
+
+| # | Arreglo | Dónde | Medido |
+|---|---|---|---|
+| 1 | Cabecera del `.DAT`: el parser se desplazaba 32 bytes por un byte de relleno no previsto | `retro_semaforo.py` | 1.326 asientos leídos → 275.566 |
+| 2 | Deduplicación entre copias de seguridad (cada copia repite el histórico completo) | `retro_semaforo.py` | ROJO 77,36% → dominado por `anti_duplicado` |
+| 3 | `nº_documento`: el `or` entre candidatos nunca caía al segundo (`.get()` de esquema, no de dato) | `retro_semaforo.py` | presencia 0,06% → 100% |
+| 4 | Base de compras de un solo tipo de IVA: derivarla de cuota/tipo metía ruido de redondeo que no hacía falta | `retro_semaforo.py` | `retencion_vs_error` FALLO 41,9% → 8,0% residual |
+| 5 | Deduplicación semántica (misma factura, otra copia, campo técnico distinto) | `retro_semaforo.py` | `anti_duplicado` FALLO 16.383 → 0 |
+| 6 | `base_total` generalizado a cualquier número de tipos de IVA (antes solo el caso de 1 tipo) | `retro_semaforo.py` | `cuadre_total` FALLO 6.458 → 4.298 |
+| 7 | Reescalado del reparto por tipo para que sume exacto con `base_total` (consecuencia directa del 6, no revisada al hacerlo) | `retro_semaforo.py` | `suma_tramos` FALLO 2.171 → 32 |
+| 8 | Cuota por tipo dejó de derivarse de la base reescalada del 7; se suma directa (nunca falta, a diferencia de la base) | `retro_semaforo.py` | `aritmetica_base_tipo` FALLO 983 → 0 |
+| 9 | Retención de IRPF (cuenta 475) e inversión del sujeto pasivo (cuenta 477) sin capturar | `retro_semaforo.py` | `cuadre_total` FALLO 2.228 → 805 |
+| 10 | `nif_check.py`: NIE validado con el algoritmo de CIF (misma forma, checksum distinto); NIF-IVA extranjero sin rama; campo de 1-2 caracteres tratado como NIF inválido en vez de sin dato | `nif_check.py` | `nif_digito_control` FALLO 513 → 94 |
+
+Cada arreglo verificado por separado contra el corpus real antes de darlo por
+bueno (nunca solo contra el corpus sintético del ensayo en seco), y los arreglos
+6→7→8 son el mismo patrón repetido dos veces: **corregir una fuente sin revisar
+qué otro guard consumía la fuente vieja crea un fallo nuevo.** Cazado las dos
+veces por auto-revisión antes de pasárselo a Diego, no por él.
+
+### El resultado final de la sesión
+
+| | RUN 4 (tras arreglo 3) | RUN 10 (tras arreglo 10) |
+|---|---|---|
+| VERDE | 49,19% | **87,71%** |
+| ROJO | 45,97% | **3,15%** |
+| AMBAR | 4,84% | 9,15% |
+| Tasa de detección (`--inyectar`) | — | 78,99% (100% en 4 de 5 tipos de error; el punto débil declarado es `nif_de_otro`, 0,4% — un NIF ajeno pero con checksum válido no tiene por qué distinguirse sin el patrón de cartera) |
+
+### La predicción de `TECHO_Y_LIMITES.md`, confirmada
+
+Escrito el 20-08-2026, cinco días antes de esta sesión:
+
+> *"Si al desglosar los ROJO por motivo dominan `cuadre_total`, `suma_tramos` y
+> `nif_digito_control`, el problema no es el motor: es el modelo de datos
+> fiscal."*
+
+Se cumplió exactamente. **Ninguno de los diez arreglos tocó `motor_veredicto.py`.**
+Los diez estaban en cómo `retro_semaforo.py` traduce un asiento contable real al
+contrato que el motor espera — el mismo síntoma que el documento ya había
+reproducido a mano con cinco facturas de laboratorio antes de tener el histórico
+delante.
+
+### Lo que queda sin explicar (abierto, no urgente)
+
+- `cuadre_total`/`retencion_vs_error`, ~800 casos (2,7% de los evaluados): ya no
+  tiene un patrón dominante tras separar retención e ISP (prefijos de cuenta
+  residuales, ninguno por encima del 2%). Puede ser ruido real de captura
+  histórica (tecleo) más que un defecto del instrumento.
+- `nif_digito_control`, 94 casos (0,3%): 46 CIF con checksum genuinamente
+  incorrecto + 48 valores cortos sin patrón reconocible. Misma lectura: parece
+  señal real, no instrumento.
+
+### Lo que esta sección NO responde
+
+Sigue sin tocar el **Punto 1** (§ siguiente): la consistencia por par
+cliente-tercero. Retro-semáforo mide si el motor **molesta** con el histórico
+(falsos rojos) y si **detecta** errores inyectados; no mide si las cuentas
+elegidas en su día eran las correctas. Son preguntas independientes.
+
+---
+
 ## Actualización del registro de supuestos
 
 | # | Estado anterior | Estado ahora |
@@ -502,6 +581,7 @@ no. Los `.cat` están sin determinar y por eso se miran.
 | **S18** — Remote Control hereda el volumen | ☐ sin verificar | ✅ **confirmado por fuente oficial**: sí, acceso completo al sistema de ficheros local. Además, Remote Control **no arranca con `ANTHROPIC_API_KEY` puesta** — control estructural, no procedimental |
 | **§3.6c p.8** — codificación CP850 | dado por hecho | ❌ **falso**: es cp1252 |
 | **§11.2** — OneDrive | ☐ sin comprobar | ✅ **limpio**: Escritorio y Documentos sin redirigir, OneDrive no corriendo, ni Dropbox/Drive/iCloud |
+| **Falsos rojos del motor sobre histórico real** | ☐ sin medir | ✅ **medido 25-08-2026** (§14): 3,15% tras diez arreglos, ninguno en `motor_veredicto.py` |
 
 ---
 

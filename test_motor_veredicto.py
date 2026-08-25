@@ -9,6 +9,23 @@ Ejecutar con: python3 -m pytest test_motor_veredicto.py -v
 (o simplemente: python3 test_motor_veredicto.py  - corre sin pytest tambien)
 """
 
+import sys
+
+# Sin esto, una consola de Windows en cp1252 revienta al imprimir el banner
+# final (✅/❌), DESPUES de que las 24 comprobaciones ya hayan corrido y
+# pasado — un test que revienta al anunciar que paso se lee como que fallo,
+# que es exactamente la trampa MISSING/ZERO que este proyecto existe para
+# cazar. Mismo patron que scripts/privacy_scan.py.
+#
+# hasattr() es imprescindible aqui y no en todas partes: cobertura_guards.py
+# IMPORTA este modulo con sys.stdout redirigido a un io.StringIO (para leerlo
+# en silencio), y StringIO no tiene .reconfigure() — solo los flujos de
+# consola reales. Sin el hasattr, ese caso concreto revienta con
+# AttributeError. Lo mismo puede pasar bajo pytest, que tambien captura la
+# salida con su propio objeto.
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 from motor_veredicto import (
     guard_aritmetica_base_tipo, guard_cuadre_total, guard_nif_digito_control,
     guard_suma_tramos, guard_retencion_vs_error, guard_signo_efectivo,
@@ -44,6 +61,24 @@ print("\n=== Nivel 1: NIF checksum (reales, anonimizados con checksum valido inv
 check(valida_nif("B12345674")[0] == True, "Proveedor piloto NIF valido")
 check(valida_nif("12345678Z")[0] == True, "DNI piloto valido")
 check(valida_nif("12345678Y")[0] == False, "NIF con letra incorrecta detectado (Z real vs Y puesta a proposito)")
+
+print("\n=== Nivel 1: NIE y NIF-IVA UE (arreglo 25-08-2026, ver diag_nif.py) ===")
+# Antes de este arreglo, un NIE caia en la rama de CIF (misma forma
+# estructural: letra + 7 digitos + control) y se validaba con el algoritmo
+# equivocado. NIE valido inventado, checksum matematicamente correcto
+# (X -> 0, 01234567 % 23 = 19 -> letra 'L').
+check(valida_nif("X1234567L")[0] == True, "NIE valido reconocido con su propio algoritmo")
+check(valida_nif("X1234567M")[0] == False, "NIE con letra incorrecta detectado (L real vs M puesta a proposito)")
+# NIF-IVA extranjero: formato reconocido, digito de control NO verificable
+# sin VIES -> NO_COMPROBADO, nunca OK ni FALLO (ok=None).
+check(valida_nif("DE123456789")[0] is None, "NIF-IVA UE: formato reconocido, NO_COMPROBADO (no OK ni FALLO)")
+check(valida_nif("DE123456789")[1] == "NIF_IVA_UE", "NIF-IVA UE clasificado como tal")
+# Campo con contenido pero demasiado corto para ser cualquier formato real
+# (caso real anonimizado: 196 asientos con TERNIF de 1 caracter en el corpus,
+# con la linea de acreedor tambien vacia -- dato nunca capturado, no un NIF
+# invalido). SIN_DATO -> NO_COMPROBADO, no FALLO.
+check(valida_nif("1")[0] is None, "Campo de 1 caracter: SIN_DATO, no FALLO (dato nunca capturado)")
+check(valida_nif("1")[1] == "SIN_DATO", "Campo de 1 caracter clasificado como SIN_DATO")
 
 print("\n=== Nivel 4: retencion_vs_error (caso real anonimizado) ===")
 # base 661.15, iva 138.84, irpf -125.62, total 674.37 -> retencion 19%

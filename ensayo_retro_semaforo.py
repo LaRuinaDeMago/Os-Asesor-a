@@ -53,6 +53,14 @@ import sys
 import tempfile
 import zipfile
 
+# Sin esto, una consola de Windows en cp1252 revienta al imprimir el detalle
+# capturado de un hijo que a su vez avisa con ⚠️ (retro_semaforo.py --limite,
+# los avisos de privacidad). Mismo patron que scripts/privacy_scan.py.
+# hasattr() porque sys.stdout no siempre es un TextIOWrapper real (ver
+# test_motor_veredicto.py: StringIO no tiene .reconfigure()).
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 AQUI = os.path.dirname(os.path.abspath(__file__))
 
 # --- NIF inventados con checksum valido -------------------------------------
@@ -91,7 +99,14 @@ def escribir_dbf(ruta, filas):
     cab[0] = 0x03
     cab[1:4] = bytes((26, 8, 21))           # fecha de creacion, irrelevante
     struct.pack_into("<I", cab, 4, len(filas))
-    struct.pack_into("<H", cab, 8, 32 + 32 * len(CAMPOS) + 1)
+    # +1 SOBRE el terminador (25-08-2026): los ficheros REALES de ContaPlus
+    # llevan un byte de relleno extra ahi que la version anterior de este
+    # generador no reproducia. Por eso el ensayo dio verde durante dias
+    # mientras retro_semaforo.py tenia un bug que desplazaba 32 bytes CADA
+    # registro leido contra el corpus real (ver el comentario de
+    # retro_semaforo.parse_cabecera). Sin este byte aqui, el ensayo vuelve a
+    # quedar ciego si alguien reintroduce esa clase de fallo.
+    struct.pack_into("<H", cab, 8, 32 + 32 * len(CAMPOS) + 1 + 1)
     struct.pack_into("<H", cab, 10, len_reg)
     with open(ruta, "wb") as f:
         f.write(cab)
@@ -103,6 +118,7 @@ def escribir_dbf(ruta, filas):
             d[17] = 2 if tipo == "N" else 0
             f.write(d)
         f.write(b"\x0d")
+        f.write(b"\x00")   # el byte de relleno real que ContaPlus si lleva
         for fila in filas:
             f.write(b" ")
             for nombre, tipo, tam in CAMPOS:
@@ -221,7 +237,8 @@ def main():
                   len(dats) == 3)
 
         r = subprocess.run([sys.executable, os.path.join(AQUI, "retro_semaforo.py"), tmp],
-                           capture_output=True, text=True, cwd=AQUI)
+                           capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", cwd=AQUI)
         salida = r.stdout + r.stderr
         comprobar("retro_semaforo.py termina sin reventar", r.returncode == 0,
                   salida[-500:])
@@ -240,7 +257,8 @@ def main():
                   "motor:" not in salida, salida[-400:])
 
         r2 = subprocess.run([sys.executable, os.path.join(AQUI, "retro_semaforo.py"),
-                             tmp, "--inyectar"], capture_output=True, text=True, cwd=AQUI)
+                             tmp, "--inyectar"], capture_output=True, text=True,
+                            encoding="utf-8", errors="replace", cwd=AQUI)
         salida2 = r2.stdout + r2.stderr
         comprobar("el modo --inyectar tambien corre entero", r2.returncode == 0,
                   salida2[-500:])
@@ -254,7 +272,8 @@ def main():
         # clientes no existiria. El script ya lo avisa; aqui se hace bien.
         r3 = subprocess.run([sys.executable, os.path.join(AQUI, "retro_semaforo.py"),
                              tmp, "--emitir-cartera", cartera],
-                            capture_output=True, text=True, cwd=AQUI)
+                            capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", cwd=AQUI)
         comprobar("--emitir-cartera corre y escribe el fichero",
                   r3.returncode == 0 and os.path.exists(cartera),
                   (r3.stdout + r3.stderr)[-400:])
@@ -262,7 +281,8 @@ def main():
         r3b = subprocess.run([sys.executable, os.path.join(AQUI, "retro_semaforo.py"),
                               tmp, "--limite", "20", "--emitir-cartera",
                               os.path.join(tmp, "cartera_corta_LOCAL.json")],
-                             capture_output=True, text=True, cwd=AQUI)
+                             capture_output=True, text=True, encoding="utf-8",
+                             errors="replace", cwd=AQUI)
         comprobar("--limite corre y AVISA de que trunca el patron de cartera",
                   r3b.returncode == 0 and "CORTA tambien el patron" in (r3b.stdout + r3b.stderr),
                   (r3b.stdout + r3b.stderr)[-300:])
@@ -296,7 +316,8 @@ def main():
         r4 = subprocess.run([sys.executable, os.path.join(AQUI, "orquestador.py"),
                              "--facturas", csv_fact, "--cartera-json", cartera,
                              "--salida", salida_csv, "--config", os.path.join(tmp, "no_existe.json")],
-                            capture_output=True, text=True, cwd=AQUI)
+                            capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", cwd=AQUI)
         s4 = r4.stdout + r4.stderr
         comprobar("orquestador.py consume el fichero de cartera y termina",
                   r4.returncode == 0 and os.path.exists(salida_csv), s4[-500:])
@@ -322,7 +343,8 @@ def main():
         r5 = subprocess.run([sys.executable, os.path.join(AQUI, "validar_captura_historica.py"),
                              csv_hist, "--columna-humano", "CORRECTO",
                              "--columna-motor", "VEREDICTO_ANTIGUO"],
-                            capture_output=True, text=True, cwd=AQUI)
+                            capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", cwd=AQUI)
         s5 = r5.stdout + r5.stderr
         comprobar("validar_captura_historica.py corre entero", r5.returncode == 0,
                   s5[-500:])
@@ -355,7 +377,8 @@ def main():
                              "--facturas", csv_x, "--maestro-json", maestro_json,
                              "--salida", os.path.join(tmp, "ver_x.csv"),
                              "--xdiario", xdiario, "--config", cfg],
-                            capture_output=True, text=True, cwd=AQUI)
+                            capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", cwd=AQUI)
         s8 = r8.stdout + r8.stderr
         comprobar("orquestador --xdiario corre entero", r8.returncode == 0, s8[-500:])
         comprobar("y escribe el fichero que ContaPlus importa",
@@ -378,7 +401,8 @@ def main():
                               "--facturas", csv_x, "--maestro-json", maestro_json,
                               "--salida", os.path.join(tmp, "ver_x2.csv"),
                               "--config", os.path.join(tmp, "no_existe.json")],
-                             capture_output=True, text=True, cwd=AQUI)
+                             capture_output=True, text=True, encoding="utf-8",
+                             errors="replace", cwd=AQUI)
         comprobar("sin alta_cliente_anio, AVISA de que todo saldra AMBAR",
                   "alta_cliente_anio" in (r8b.stdout + r8b.stderr),
                   (r8b.stdout + r8b.stderr)[:300])
@@ -402,7 +426,8 @@ def main():
         det = os.path.join(tmp, "cola_LOCAL.csv")
         r7 = subprocess.run([sys.executable, os.path.join(AQUI, "cola_revision.py"),
                              csv_ver, "--detalle", det],
-                            capture_output=True, text=True, cwd=AQUI)
+                            capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", cwd=AQUI)
         s7 = r7.stdout + r7.stderr
         comprobar("cola_revision.py corre entero", r7.returncode == 0, s7[-400:])
         comprobar("separa los tres montones de trabajo",
@@ -439,7 +464,8 @@ def main():
         detalle = os.path.join(tmp, "303_LOCAL.json")
         r6 = subprocess.run([sys.executable, os.path.join(AQUI, "reconstruir_303.py"),
                              tmp, "--detalle", detalle],
-                            capture_output=True, text=True, cwd=AQUI)
+                            capture_output=True, text=True, encoding="utf-8",
+                            errors="replace", cwd=AQUI)
         s6 = r6.stdout + r6.stderr
         comprobar("reconstruir_303.py corre entero", r6.returncode == 0, s6[-500:])
         comprobar("agrega los DOS lados: IVA soportado (472) y repercutido (477)",

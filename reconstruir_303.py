@@ -62,8 +62,16 @@ Uso:
 import argparse
 import json
 import os
+import sys
 import zipfile
 from collections import Counter, defaultdict
+
+# Sin esto, una consola de Windows en cp1252 revienta al imprimir el aviso de
+# privacidad (⚠️). Mismo patron que scripts/privacy_scan.py. hasattr() porque
+# sys.stdout no siempre es un TextIOWrapper real (ver test_motor_veredicto.py:
+# StringIO no tiene .reconfigure()).
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from retro_semaforo import cuenta, num, parse_cabecera, txt
 

@@ -30,6 +30,13 @@ import contextlib
 import sys
 from collections import defaultdict
 
+# Sin esto, una consola de Windows en cp1252 revienta al imprimir ✔/✗. Mismo
+# patron que scripts/privacy_scan.py. hasattr() porque, mas abajo, este mismo
+# script redirige sys.stdout a un io.StringIO durante los imports de las
+# suites — StringIO no tiene .reconfigure() (ver test_motor_veredicto.py).
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 import motor_veredicto as mv
 
 #: Estados BENIGNOS: "he mirado y no hay nada que decir". Cualquier otro estado

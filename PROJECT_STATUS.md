@@ -7,6 +7,42 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 25-08-2026 — Retro-semáforo contra el corpus real: diez arreglos, ROJO 45,97%→3,15%
+
+**Números completos y tabla de los diez arreglos en `FASE0_RESULTADOS.md` §14
+— ese archivo manda, esto es el resumen.**
+
+Diego pidió correr `retro_semaforo.py` (mide falsos rojos: asientos ya
+contabilizados y presentados que el motor marcaría ROJO hoy) contra el corpus
+real completo. Cada ejecución destapó un defecto nuevo en cómo el asiento
+contable se traduce al contrato del motor — nunca en el motor mismo — y se
+arregló, verificó y volvió a correr, diez veces seguidas:
+
+```
+RUN 4  (tras arreglo 3)   VERDE 49,19%   ROJO 45,97%   AMBAR 4,84%
+RUN 10 (tras arreglo 10)  VERDE 87,71%   ROJO  3,15%   AMBAR 9,15%
+```
+
+**Confirma, con datos reales, lo que `TECHO_Y_LIMITES.md` predijo el
+20-08-2026** sin tenerlos delante: *"si dominan `cuadre_total`, `suma_tramos` y
+`nif_digito_control`, el problema no es el motor: es el modelo de datos
+fiscal."* Los diez arreglos están en `retro_semaforo.py` y `nif_check.py` —
+deduplicación entre copias de seguridad, cabecera del `.DAT`, número de
+documento, derivación de base y cuota, retención de IRPF, inversión del sujeto
+pasivo, NIE y NIF-IVA extranjero. **Ninguno tocó `motor_veredicto.py`.**
+
+Verificación de cierre antes de dar la sesión por buena: `test_motor_veredicto.py`
+(30/30, 6 tests nuevos), `test_adversarial.py` (108/108), cobertura de guards
+(26/26), escáner de privacidad (`scripts/privacy_scan.py`) ejecutado sobre
+los 16 archivos tocados —y confirmado con un control positivo real que sí lo
+detecta, no solo "sin hallazgos" a ciegas—, y el diff completo de los ocho
+archivos modificados releído línea a línea.
+
+Queda abierto y caracterizado, no urgente: ~800 casos de `cuadre_total` sin
+patrón dominante ya identificable, y 94 de `nif_digito_control` (46 CIF con
+checksum real, 48 sin patrón). Lectura de ambos: parece señal real del
+histórico, no ceguera del instrumento — pero no está descartado del todo.
+
 ## 21-08-2026 — Sesión cloud de verificación: qué cambió y qué mide ahora
 
 Un día entero sin tocar datos reales, buscando defectos en vez de añadir
