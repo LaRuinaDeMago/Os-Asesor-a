@@ -15,6 +15,27 @@ def valida_nif(nif):
     # hay NIF que evaluar.
     if len(nif) <= 2:
         return (None, "SIN_DATO", "el campo tiene contenido pero es demasiado corto para ser un NIF/CIF/NIE real")
+    # NIF/CIF INCOMPLETO, no invalido (25-08-2026, ver diag_nif_otro_residual.py,
+    # caso real anonimizado). Una cadena de longitud 8 con la FORMA exacta de
+    # un DNI o un CIF a los que les falta solo el ULTIMO caracter -- el propio
+    # digito de control -- no es un NIF que este mal: es un NIF al que le
+    # falta precisamente el unico caracter que permite comprobarlo. Declararlo
+    # FALLO ("esta mal") inventa un error que no se puede demostrar; es el
+    # mismo principio que el campo de 1-2 caracteres de arriba, un escalon mas
+    # arriba en longitud.
+    #
+    # Medido sobre el residuo "OTRO" de nif_digito_control: de 36 casos de
+    # longitud 8, 34 (94%) tenian esta forma exacta -- 26 letra+7digitos (CIF
+    # sin su digito de control) y 8 todo-digitos (DNI sin su letra de
+    # control). Solo 2 no encajaban en ninguna de las dos formas y se quedan
+    # fuera de este arreglo, sin inventarles una explicacion.
+    if len(nif) == 8:
+        if nif.isdigit():
+            return (None, "SIN_DATO",
+                    "8 digitos: forma de DNI al que le falta la letra de control, no verificable")
+        if nif[0].isalpha() and nif[1:8].isdigit():
+            return (None, "SIN_DATO",
+                    "letra+7 digitos: forma de CIF al que le falta el digito de control, no verificable")
     letras_dni = "TRWAGMYFPDXBNJZSQVHLCKE"
     if len(nif) == 9 and nif[:8].isdigit() and nif[8].isalpha():
         num = int(nif[:8])

@@ -79,6 +79,16 @@ check(valida_nif("DE123456789")[1] == "NIF_IVA_UE", "NIF-IVA UE clasificado como
 # invalido). SIN_DATO -> NO_COMPROBADO, no FALLO.
 check(valida_nif("1")[0] is None, "Campo de 1 caracter: SIN_DATO, no FALLO (dato nunca capturado)")
 check(valida_nif("1")[1] == "SIN_DATO", "Campo de 1 caracter clasificado como SIN_DATO")
+# NIF/CIF incompleto (arreglo 25-08-2026, ver diag_nif_otro_residual.py):
+# longitud 8 con forma de DNI o CIF a los que falta solo el ultimo caracter
+# (el digito de control) -> SIN_DATO, no FALLO: no hay forma de comprobarlo,
+# no es que este mal.
+check(valida_nif("12345678")[0] is None, "8 digitos (DNI sin letra): SIN_DATO, no FALLO")
+check(valida_nif("B1234567")[0] is None, "letra+7 digitos (CIF sin control): SIN_DATO, no FALLO")
+# Control: 7 digitos NO encaja en esta forma (falta demasiado, no solo el
+# digito de control) y sigue cayendo en DESCONOCIDO -> FALLO, sin ampliarse
+# de mas.
+check(valida_nif("1234567")[0] == False, "7 digitos sigue siendo FALLO (no se ha ampliado de mas)")
 
 print("\n=== Nivel 4: retencion_vs_error (caso real anonimizado) ===")
 # base 661.15, iva 138.84, irpf -125.62, total 674.37 -> retencion 19%
