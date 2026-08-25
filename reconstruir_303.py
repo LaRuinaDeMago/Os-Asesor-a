@@ -105,9 +105,33 @@ def trimestre_de(fecha_aaaammdd):
 
 
 def clave_cliente(ruta):
-    """Igual que en retro_semaforo: la carpeta del contenedor identifica al
-    cliente, y los siete primeros caracteres del nombre, al ejercicio."""
-    return os.path.basename(os.path.dirname(ruta)) + "/" + os.path.basename(ruta)[:7]
+    """El cliente es la carpeta de NIVEL 1 bajo la raiz del corpus -- la que
+    Diego organizo el uno por cliente, con todas sus copias de ContaPlus a
+    lo largo de los anios dentro.
+
+    CORREGIDO 25-08-2026 (ver diag_profundidad_carpetas.py y
+    diag_verificar_carpeta_cliente.py). La version anterior usaba la carpeta
+    INMEDIATA del contenedor mas los 7 primeros caracteres del nombre del
+    fichero (el "codigo" que ContaPlus le pone a cada copia de seguridad).
+    Eso fragmentaba: measured 977 "clientes" cuando solo hay 33 reales, uno
+    por cada codigo distinto que ContaPlus asigna en cada copia -- el mismo
+    cliente puede tener 15-40 codigos distintos a lo largo de una decada de
+    copias, todos dentro de SU MISMA carpeta.
+
+    Verificado antes de cambiarlo: la carpeta de nivel 1 da 28 carpetas
+    distintas (el numero real conocido es 33), y dentro de cada una, el
+    codigo mejor conectado con los demas de la misma carpeta contiene el
+    90-100% de sus contrapartes en el resto -- coherente con "misma empresa,
+    copias distintas", no con dos empresas compartiendo carpeta. Solo el
+    codigo PEOR conectado de cada carpeta suele salir a cero, compatible con
+    plantillas casi vacias o un asiento de apertura suelto, no con una
+    segunda empresa real escondida.
+
+    LO QUE ESTO NO CIERRA DEL TODO: no hay garantia formal de que ninguna de
+    las 28 carpetas mezcle dos empresas reales. Si al comparar un trimestre
+    contra el 303 presentado el numero no cuadra sin explicacion, esa
+    carpeta concreta es la primera sospechosa a revisar."""
+    return os.path.basename(os.path.dirname(ruta))
 
 
 def acumular(ruta, acumulado, incidencias, vistos_contenido):
