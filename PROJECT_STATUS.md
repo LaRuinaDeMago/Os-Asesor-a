@@ -32,16 +32,44 @@ documento, derivación de base y cuota, retención de IRPF, inversión del sujet
 pasivo, NIE y NIF-IVA extranjero. **Ninguno tocó `motor_veredicto.py`.**
 
 Verificación de cierre antes de dar la sesión por buena: `test_motor_veredicto.py`
-(30/30, 6 tests nuevos), `test_adversarial.py` (108/108), cobertura de guards
-(26/26), escáner de privacidad (`scripts/privacy_scan.py`) ejecutado sobre
-los 16 archivos tocados —y confirmado con un control positivo real que sí lo
-detecta, no solo "sin hallazgos" a ciegas—, y el diff completo de los ocho
-archivos modificados releído línea a línea.
+(30/30, 6 tests nuevos), `test_adversarial.py` (108/108 en ese momento — ver
+nota de fusión abajo, ahora 111/111), cobertura de guards (26/26), escáner de
+privacidad (`scripts/privacy_scan.py`) ejecutado sobre los 16 archivos
+tocados —y confirmado con un control positivo real que sí lo detecta, no solo
+"sin hallazgos" a ciegas—, y el diff completo de los ocho archivos
+modificados releído línea a línea.
 
 Queda abierto y caracterizado, no urgente: ~800 casos de `cuadre_total` sin
 patrón dominante ya identificable, y 94 de `nif_digito_control` (46 CIF con
 checksum real, 48 sin patrón). Lectura de ambos: parece señal real del
 histórico, no ceguera del instrumento — pero no está descartado del todo.
+
+### Fusión con un hilo paralelo (mismo día): robustez y rendimiento
+
+Al ir a subir el commit de arriba, la rama había divergido: otra sesión había
+corregido en paralelo, sobre la misma base, que un `.DAT` con cabecera
+corrupta colgaba `retro_semaforo.py` para siempre (bucle sin condición de
+salida) y que el maestro de proveedores se copiaba entero en cada fila
+(cuadrático — 15+ minutos → 55 segundos al arreglarlo). Cambios
+complementarios a los diez de arriba, no alternativos, pero con conflicto real
+en `parse_cabecera()`: la rama de robustez añadió validaciones sobre el
+algoritmo de lectura VIEJO, que esta misma sesión ya había diagnosticado y
+corregido. Resuelto a mano conservando el algoritmo corregido y añadiéndole
+las validaciones nuevas encima.
+
+**El auto-merge de git dejó, por su cuenta, una referencia suelta** a una
+variable (`maestro`) que el arreglo de rendimiento había eliminado —dentro de
+un `except` que la habría tragado en silencio, así que cada factura inyectada
+con `--inyectar` habría fallado sin avisar—. Encontrado y corregido en la
+revisión posterior al merge, no antes: el propio git no lo marcó como
+conflicto porque ninguna de las dos ramas había tocado esa línea en concreto.
+
+Verificado tras la fusión: `test_adversarial.py` 111/111 (incluye FAMILIA S,
+nueva, sobre por qué `TOL=0,02`), `ensayo_corpus_roto.py` 15/15 (nuevo), y una
+ejecución completa contra el corpus real con resultado **idéntico, cifra por
+cifra**, al de antes de fusionar — la prueba de que la fusión no perdió ni
+añadió nada por accidente. Rama `claude/github-retomada-o4zyic` empujada a
+GitHub, sincronizada.
 
 ## 21-08-2026 — Sesión cloud de verificación: qué cambió y qué mide ahora
 

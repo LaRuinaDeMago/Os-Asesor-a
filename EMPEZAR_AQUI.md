@@ -16,14 +16,40 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ```
 ✅ Sintaxis de todos los .py
 ✅ Cableado de guards (sin huérfanos): 26 guards, todos consultados
-✅ Suite de pruebas (test_motor_veredicto.py): 24/24 checks en verde
-✅ Bateria adversarial (test_adversarial.py): 87 en verde, 0 fallan
+✅ Suite de pruebas (test_motor_veredicto.py): 30/30 checks en verde
+✅ Bateria adversarial (test_adversarial.py): 111 en verde, 0 fallan
 ✅ Ensayo en seco: retro_semaforo + orquestador + validar_captura
 ✅ Estados: sin ramas muertas ni guards mudos
 ✅ Cobertura: guards probados de verdad — 26/26 (100%)
+✅ Corpus roto: no cuelga ni contamina
 ❌ Dependencias: faltan dbfread, anthropic, google-genai   <- NORMAL, son de captura
 ❌ guard_g7_ledger.py sin conectar                          <- NORMAL, es de cripto
 ```
+
+> **Números actualizados el 25-08-2026.** Si tu `audit_project.py` da otros
+> números de test, no asumas que algo se rompió: mandan los tests que corren
+> delante de ti, no esta plantilla — puede quedarse desfasada según se añaden
+> pruebas.
+
+### ✅ El paso 3.1 de abajo (retro-semáforo) YA SE HIZO — 25-08-2026
+
+**No lo repitas desde cero: lee el resultado primero.** El corpus real ya se
+pasó por el motor, diez veces, con diez arreglos reales encontrados por el
+camino. Resultado final: **VERDE 87,71% · ROJO 3,15% · AMBAR 9,15%**, sobre
+30.013 asientos evaluados. Detalle completo, arreglo por arreglo, en
+`FASE0_RESULTADOS.md` §14 — ese archivo manda sobre cualquier número de aquí.
+
+**Por el umbral ya acordado en `SIGUIENTES_PASOS.md` §4 (fijado ANTES de ver
+el número): ROJO 3,15% < 5% = "Verde. Se pasa a la 3.2 sin tocar el motor."**
+El siguiente paso, según el propio plan del proyecto, no es seguir buscando
+defectos en el retro-semáforo — es la sección **A** de más abajo (las 91
+facturas fotografiadas), que es lo único que puede medir falsos verdes.
+
+Sigue abierto, y no es urgente: `cuadre_total`/`retencion_vs_error` (~800
+casos, 2,7%) y `nif_digito_control` (94 casos, 0,3%) sin patrón dominante ya
+identificable — parece señal real del histórico, no ceguera del instrumento,
+pero no está descartado del todo. Ver `FASE0_RESULTADOS.md` §14 para el
+desglose.
 
 ### Los nueve auditores, y por qué hacen falta los nueve
 
