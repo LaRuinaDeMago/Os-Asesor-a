@@ -60,6 +60,7 @@ Uso:
     python reconstruir_303.py "RUTA_DEL_CORPUS" --detalle 303_LOCAL.json
 """
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -109,9 +110,25 @@ def clave_cliente(ruta):
     return os.path.basename(os.path.dirname(ruta)) + "/" + os.path.basename(ruta)[:7]
 
 
-def acumular(ruta, acumulado, incidencias):
+def acumular(ruta, acumulado, incidencias, vistos_contenido):
     """Suma las bases y cuotas de IVA de un contenedor. No devuelve nada del
-    contenido: escribe en las estructuras que recibe."""
+    contenido: escribe en las estructuras que recibe.
+
+    BUG REAL cazado el 25-08-2026, no preventivo: este script no deduplicaba
+    NADA entre copias de seguridad. Cada copia de ContaPlus contiene el
+    HISTORICO COMPLETO hasta esa fecha (mismo hallazgo que en
+    retro_semaforo.py esta manana: 63,3% de los asientos son la misma
+    factura repetida en la siguiente copia), asi que cada apunte de IVA se
+    sumaba una vez por cada copia de seguridad en la que aparece -- las
+    bases y cuotas agregadas salian infladas por el mismo factor, no solo
+    repartidas en demasiados "clientes". Comparar esas cifras contra un 303
+    real nunca habria cuadrado, y no por ningun error contable de verdad.
+
+    `vistos_contenido` es del RUN ENTERO, no del contenedor: por eso viaja
+    como parametro en vez de crearse aqui dentro. Se deduplica por LINEA
+    (huella de los 954 bytes del registro), mas simple que el enlace por
+    ASIENTO que usa retro_semaforo.py -- esta agregacion no necesita saber
+    a que asiento pertenece cada apunte de IVA, solo sumarlo una vez."""
     with zipfile.ZipFile(ruta) as z:
         nombre = next((i.filename for i in z.infolist()
                        if not i.is_dir()
@@ -144,6 +161,11 @@ def acumular(ruta, acumulado, incidencias):
                 pref = cuenta(rec, cS)
                 if pref not in (PREF_REPERCUTIDO, PREF_SOPORTADO):
                     continue
+                huella = hashlib.blake2b(rec, digest_size=8).digest()
+                if huella in vistos_contenido:
+                    incidencias["duplicado entre copias de seguridad"] += 1
+                    continue
+                vistos_contenido.add(huella)
                 tri = trimestre_de(txt(rec, cFEC))
                 if tri is None:
                     incidencias["apunte de IVA con fecha inutilizable"] += 1
@@ -208,12 +230,13 @@ def main():
 
     acumulado = nuevo_acumulado()
     incidencias = Counter()
+    vistos_contenido = set()
     for ruta in dats:
         try:
             if not zipfile.is_zipfile(ruta):
                 incidencias["fichero .DAT que no es un contenedor"] += 1
                 continue
-            acumular(ruta, acumulado, incidencias)
+            acumular(ruta, acumulado, incidencias, vistos_contenido)
         except Exception as e:
             # Por TIPO de excepcion, nunca el mensaje: los mensajes arrastran datos.
             incidencias["contenedor:" + type(e).__name__] += 1
