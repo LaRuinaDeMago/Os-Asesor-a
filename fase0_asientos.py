@@ -12,7 +12,21 @@ Este script agrupa por ASIENTO y mide:
   1. .Que porcentaje de asientos tiene el patron completo compra/venta?
   2. De esos, .cuantos traen NIF de contraparte y tipo de IVA?
   3. .Se puede DERIVAR la base?  (base + cuota == total, y base*tipo == cuota)
-     Eso resolveria que BASEIMPO este vacio al 0,78%.
+     Eso resolveria que BASEIMPO solo venga RELLENO en el 0,78% de las lineas
+     (o sea: viene inutilizable el 99,2% de las veces — la frase anterior
+     decia "vacio al 0,78%" y se leia justo al reves).
+
+     CONFIRMADO EL 26-08-2026 con diag_baseimpo.py, sobre 44.522 apuntes de
+     IVA del corpus real: 44.243 (99,4%) traen un CERO LITERAL, no un campo
+     vacio. Legible, y aun asi no es una base. Las 279 que si traen cifra no
+     tienen tipo de IVA con el que contrastarlas. Medicion independiente que
+     coincide con el 0,78% de entonces.
+
+     POR QUE IMPORTA MAS DE LO QUE PARECE: reconstruir_303.py se escribio el
+     21-08 SIN esta alternativa (usaba BASEIMPO en bruto), asi que llevaba
+     desde entonces sumando ceros y llamandolos base imponible. Se encontro
+     el 26-08 y sigue pendiente de arreglar. retro_semaforo.py si la tiene,
+     en reconstruir_compra(), y por eso sus cifras son validas.
   4. .Cuantos asientos UNICOS hay, descontando duplicacion entre copias?
 
 REGLA DURA: lee filas, solo incrementa contadores. Ningun valor se guarda ni

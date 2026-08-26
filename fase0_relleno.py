@@ -46,7 +46,27 @@ CLAVE = ["TERNIF", "TERNOM", "BASEIMPO", "IVA", "TIPOOPE", "CONCEPTO",
          "DOCUMENTO", "EURODEBE", "EUROHABER", "RECTIFICA", "LCRITCAJA",
          "LRECT349", "LARREND347", "METAL", "NIRPF", "TBIENTRAN"]
 
-# Combinacion minima para reconstruir la entrada del motor
+# Combinacion minima para reconstruir la entrada del motor, MEDIDA POR LINEA.
+#
+# ⚠️ ESTA MEDICION DA ~0% Y ESE NUMERO NO SIGNIFICA LO QUE PARECE. Se conserva
+# tal cual porque es el dato en bruto, pero la conclusion correcta esta en
+# FASE0_RESULTADOS.md (seccion "Error metodologico corregido"):
+#
+#   - Es la PREGUNTA equivocada. En ContaPlus una factura se reparte entre
+#     varias lineas del MISMO asiento (6xx la base, 472 la cuota y el tipo,
+#     400 la contraparte), asi que NINGUNA linea puede traer los cinco campos.
+#     La unidad de analisis es el ASIENTO. Medido bien: 68,26%.
+#
+#   - Ademas exige BASEIMPO, que el motor NO necesita: `reconstruir_compra()`
+#     en retro_semaforo.py deriva la base de las lineas de gasto cuando
+#     BASEIMPO no sirve, que es casi siempre. Medido el 26-08-2026 con
+#     diag_baseimpo.py sobre 44.522 apuntes de IVA: el 99,4% son un CERO
+#     literal.
+#
+# O sea: un 0% aqui NO dice que el historico sea inservible. Dice que esta
+# metrica mira donde no hay que mirar. Se deja porque el recuento por campo
+# (mas arriba) si vale, y porque borrar el numero seria esconder de donde
+# salio la correccion.
 MINIMO_MOTOR = ["TERNIF", "BASEIMPO", "IVA", "SUBCTA", "FECHA"]
 
 
@@ -259,6 +279,12 @@ def main():
     r = salida["lineas_reconstruibles_por_el_motor"]
     print(f"RECONSTRUIBLES POR EL MOTOR: {r['n']:,}  ({r['pct_sobre_vivas']}% de las vivas)")
     print(f"   exigiendo: {', '.join(MINIMO_MOTOR)}")
+    print("   ⚠️  MEDIDO POR LINEA, y por eso sale ~0%. NO significa que el")
+    print("       historico sea inservible: una factura se reparte entre VARIAS")
+    print("       lineas del mismo asiento, asi que ninguna linea puede traer")
+    print("       los cinco campos. Por ASIENTO el resultado real es 68,26%.")
+    print("       Ademas exige BASEIMPO, que el motor no necesita (lo deriva del")
+    print("       gasto). Ver FASE0_RESULTADOS.md, 'Error metodologico corregido'.")
     print("")
     t = salida["test_encoding"]
     print(f"TEST_ENCODING -> {t['veredicto']}")
