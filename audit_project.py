@@ -146,8 +146,23 @@ def check_tests():
     if not os.path.exists("test_motor_veredicto.py"):
         check("Suite de pruebas", False, "test_motor_veredicto.py no encontrado")
         return
+    # BUG REAL cazado el 26-08-2026 al ejecutar por primera vez este auditor en
+    # el PC de la asesoria (Windows, consola cp1252) en vez de en Cloud (UTF-8).
+    # `text=True` sin `encoding` decodifica la salida del proceso hijo con la
+    # codificacion del SISTEMA. Los scripts hijos imprimen UTF-8 (⚠️, acentos),
+    # asi que en cp1252 el hilo lector muere con UnicodeDecodeError, `stdout`
+    # se queda en None y el auditor entero revienta con AttributeError.
+    #
+    # Lo grave no es el fallo: es DONDE estaba. audit_project.py es el primer
+    # comando que EMPEZAR_AQUI.md manda ejecutar, y en la unica maquina donde
+    # importa de verdad no llegaba al final. Verde en Cloud, roto en el PC real
+    # — la misma familia de "costura" que los dos bugs del 26-08: la pieza de
+    # despues no entendia el formato que la de antes si emitia.
+    #
+    # Los tres subprocess.run de este fichero llevan ya encoding explicito.
     resultado = subprocess.run([sys.executable, "test_motor_veredicto.py"],
-                                capture_output=True, text=True)
+                                capture_output=True, text=True,
+                                encoding="utf-8", errors="replace")
     ok = "TODAS LAS PRUEBAS PASAN" in resultado.stdout
     # CORREGIDO 19-08-2026 (auditoria externa): aqui habia un "21/21 OK" escrito
     # a mano como cadena. No contaba nada: si se anadia o quitaba un check,
@@ -181,7 +196,8 @@ def check_adversarial():
         check("Bateria adversarial", False, "test_adversarial.py no encontrado")
         return
     resultado = subprocess.run([sys.executable, "test_adversarial.py"],
-                                capture_output=True, text=True)
+                                capture_output=True, text=True,
+                                encoding="utf-8", errors="replace")
     ok = resultado.returncode == 0
     linea = next((l for l in resultado.stdout.splitlines() if l.startswith("Pruebas:")), "")
     check("Bateria adversarial (test_adversarial.py)", ok,
@@ -238,14 +254,25 @@ def check_estados_y_cobertura():
                              # Un fichero corrupto entre 1.287 no puede parar la
                              # medicion. Y colgaba: cabecera con len_reg=0 ->
                              # bucle infinito, sin error y sin acabar.
-                             ("ensayo_corpus_roto.py", "Corpus roto: no cuelga ni contamina")):
+                             ("ensayo_corpus_roto.py", "Corpus roto: no cuelga ni contamina"),
+                             # cruzar_303_importes.py solo puede ejecutarse de
+                             # verdad contra el archivo real del despacho, en la
+                             # maquina del titular. Sin ensayo, llegaria a su
+                             # unica ejecucion real sin haberse ejecutado nunca
+                             # — la situacion exacta que el 21-08 produjo tres
+                             # defectos en la primera pasada de los comandos
+                             # LOCAL. Aqui se prueba la logica del cruce con
+                             # importes inventados, sin abrir un solo PDF.
+                             ("ensayo_cruce_303.py", "Cruce 303: identifica sin inventar")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue
-        r = subprocess.run([sys.executable, script], capture_output=True, text=True)
-        linea = next((l.strip() for l in reversed(r.stdout.splitlines())
+        r = subprocess.run([sys.executable, script], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace")
+        salida = r.stdout or ""
+        linea = next((l.strip() for l in reversed(salida.splitlines())
                       if "cobertura util" in l or "✗" in l), "")
-        check(etiqueta, r.returncode == 0, linea or r.stdout.strip().splitlines()[-1:][0] if r.stdout.strip() else "")
+        check(etiqueta, r.returncode == 0, linea or salida.strip().splitlines()[-1:][0] if salida.strip() else "")
 
 
 def check_dependencias():

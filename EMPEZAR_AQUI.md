@@ -28,8 +28,15 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ✅ xDiario: ningun asiento descuadrado
 ✅ Captura <-> motor: los campos cuadran
 ✅ Corpus roto: no cuelga ni contamina
-❌ Dependencias: faltan dbfread, anthropic, google-genai, pdfplumber   <- NORMAL, son de captura
+✅ Cruce 303: identifica sin inventar                     <- 11º auditor, 26-08
+❌ Dependencias: faltan anthropic, google-genai   <- NORMAL, son de captura
 ```
+
+> ⚠️ **Si `audit_project.py` muere con `UnicodeDecodeError` a mitad de la
+> lista, tu copia es anterior al 26-08-2026.** Los tres `subprocess.run` no
+> declaraban `encoding`, así que en una consola de Windows (cp1252) el
+> auditor reventaba al leer la salida UTF-8 de los scripts hijos. Pasaba en
+> el PC de la asesoría y no en Cloud. Ya está arreglado: haz `git pull`.
 
 > **Números actualizados el 26-08-2026 (cierre de sesión, tras la mega-auditoría
 > propia).** Si tu `audit_project.py` da otros números de test, no asumas que
@@ -78,27 +85,41 @@ patrón dominante ya identificable — parece señal real del histórico, no
 ceguera del instrumento, pero no está descartado del todo. Ver
 `FASE0_RESULTADOS.md` §14 para el desglose.
 
-> ⚠️ **La sección A de más abajo (91 facturas fotografiadas) está BLOQUEADA,
-> no es el siguiente paso.** No existe el CSV con el veredicto histórico
-> anotado — solo las fotos — y sacar un veredicto de una foto exige que un
-> modelo la LEA, que es la puerta de la API/DPA (`.claude/rules/datos.md`),
-> deliberadamente cerrada por ahora. **El siguiente paso real es la sección
-> A-ter (cuadre contra el 303 presentado)**, que no necesita fotos ni API:
+> 🛑 **ANULADO EL 26-08-2026 EN SESIÓN LOCAL. NO EMPIECES POR AQUÍ.**
+> Lo que decía este bloque —"comparar a mano 5-10 trimestres de
+> `303_LOCAL.json` contra los 303 presentados"— **no se puede hacer, y no
+> por falta de tiempo: `303_LOCAL.json` no describe ninguna contabilidad.**
 >
-> - Identidad de cliente ya arreglada (507→24, ver §14-bis de
->   `FASE0_RESULTADOS.md`) y `303_LOCAL.json` listo para comparar.
-> - Se intentó automatizar leyendo los PDF ya presentados
->   (`\\PC01\Documentos`, texto seleccionable, sin necesitar DPA) — la fase
->   de reconocimiento fue limpia (98-99% de las etiquetas de casilla
->   presentes) pero la extracción real falló (1,2% de consistencia interna).
->   Aparcado sin seguir invirtiendo hasta tener el número real.
-> - **Pendiente para la próxima sesión:** comparar a mano 5-10 trimestres de
->   `303_LOCAL.json` contra los 303 ya localizados. 20-30 minutos, cero
->   riesgo de ingeniería, contesta la pregunta real antes de decidir si vale
->   la pena un extractor mejor (consciente de tabla/posición, no de
->   proximidad en texto plano).
+> Medido el 26-08 con `diag_baseimpo.py` sobre el corpus real (44.522
+> apuntes de IVA): el campo `BASEIMPO` es un **cero literal en el 99,4%**
+> de los apuntes, y `reconstruir_303.py` lo suma tal cual y llama "base
+> imponible" al resultado. Las bases de ese fichero son ficticias. El cruce
+> automático contra los 1.043 modelos 303 del archivo dio **0 cubos casados
+> de 24**, y el diagnóstico por tolerancias demostró que no era un problema
+> de redondeo (aflojar a céntimos no movía el 4,0%). Detalle completo en
+> `PROJECT_STATUS.md`, entrada del 26-08 (sesión LOCAL).
+>
+> **`retro_semaforo.py` NO está afectado** y el 87,71% VERDE sigue en pie:
+> `reconstruir_compra()` ya deriva la base del gasto cuando `BASEIMPO` no
+> sirve. El fallo es de propagación — `reconstruir_303.py` se escribió el
+> 21-08, el hallazgo sobre `BASEIMPO` es del 25-08, y nadie revisó la pieza
+> hermana.
+>
+> ### 👉 EL SIGUIENTE PASO REAL: arreglar `reconstruir_303.py`
+>
+> Que derive la base **del asiento**, igual que `retro_semaforo.
+> reconstruir_compra()` (ver `retro_semaforo.py:336`). Hoy procesa línea a
+> línea mirando solo 472/477; necesita **agrupar por `ASIEN`** y leer las
+> líneas de contrapartida (6xx compras, 7xx ventas). Viable y medido: el
+> **98,6%** de los asientos tienen esa línea.
+>
+> Hasta que eso esté hecho y `303_LOCAL.json` regenerado, **ningún cuadre
+> contra el 303 puede funcionar** — ni a mano ni automático. Las
+> herramientas del cruce ya están construidas y probadas
+> (`cruzar_303_importes.py` + `ensayo_cruce_303.py`, y `cuadre_303_ficha.py`
+> para la vía manual): esperan un `303_LOCAL.json` que valga.
 
-### Los nueve auditores, y por qué hacen falta los nueve
+### Los once auditores, y por qué hacen falta los once
 
 Cada uno tapa un agujero que los demás no ven. No es redundancia:
 
@@ -113,8 +134,10 @@ Cada uno tapa un agujero que los demás no ven. No es redundancia:
 | `test_privacidad.py` | ¿la barrera bloquea lo que dice bloquear? | **dato de cliente subido** |
 | `ensayo_contrato_captura.py` | ¿la captura pide lo que el motor usa? | **campo que llega con otro nombre** |
 | `ensayo_corpus_roto.py` | ¿un fichero corrupto para la medición? | **cuelgue y cifras contaminadas** |
+| `ensayo_orquestador.py` | ¿el histórico pierde facturas por el formato? | **guard alimentado en vacío** |
+| `ensayo_cruce_303.py` | ¿el cruce inventa una correspondencia? | **cliente identificado por azar** |
 
-Los nueve corren dentro de `audit_project.py`: basta el primer comando.
+Los once corren dentro de `audit_project.py`: basta el primer comando.
 
 `audit_estados.py` se escribió tras encontrar a mano, después de semanas, que
 `guard_cuenta_gasto_coherente` estaba cableado, tenía su rama `FALLO -> AMBAR`

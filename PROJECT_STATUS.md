@@ -7,6 +7,161 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 26-08-2026 (sesión LOCAL, primera ejecución en el PC de la asesoría) — `reconstruir_303.py` lleva desde el 21-08 sumando ceros y llamándolos base imponible
+
+**Primera sesión ejecutada en el PC real del despacho, no en Cloud.** Ese cambio
+de entorno, por sí solo, destapó un bug que cinco rondas de auditoría externa y
+una mega-auditoría propia no habían visto — y tirando de ese hilo apareció el
+defecto que invalidaba por completo el cuadre contra el 303.
+
+### 1. `audit_project.py` se rompía a la mitad en Windows. El primer comando del proyecto.
+
+`EMPEZAR_AQUI.md` manda ejecutar `python audit_project.py` antes de leer nada.
+En el PC de la asesoría **no llegaba al final**: moría con `UnicodeDecodeError`
+y arrastraba un `AttributeError`.
+
+Causa: los tres `subprocess.run(..., text=True)` del fichero **no declaraban
+`encoding`**, así que Python decodificaba la salida de los procesos hijos con la
+codificación del sistema (cp1252 en Windows). Los scripts hijos imprimen UTF-8
+(`⚠️`, acentos) → el hilo lector muere → `stdout` se queda en `None` →
+`r.stdout.splitlines()` revienta.
+
+Verificado que era preexistente, no introducido hoy: se sacó del directorio el
+fichero nuevo de la sesión y el fallo se reprodujo igual. **Verde en Cloud
+(UTF-8), roto en la única máquina donde importa.** Arreglado: `encoding="utf-8",
+errors="replace"` en los tres, más guarda `salida = r.stdout or ""`.
+
+### 2. El cruce contra los 303 presentados: construido, medido, y NEGATIVO — por nuestra culpa
+
+Se construyó `cruzar_303_importes.py` con una idea que sigue siendo buena: en vez
+de leer las casillas del PDF (lo que falló en `extraer_303_pdf.py`, 1,2% de
+consistencia por la rejilla aplanada), **buscar en el PDF los importes que ya
+tenemos**. Buscar una cadena en un texto es robusto; asociar etiqueta con número
+en una rejilla aplanada, no. Y resolvía dos cosas a la vez: identificar de qué
+cliente es cada contabilidad Y validar la reconstrucción.
+
+**Ejecutado contra el archivo real (`\\PC01\Documentos`): 1.043 modelos 303
+localizados, 1.034 leídos con texto, 52 carpetas de cliente, y CERO cubos
+casados de 24.**
+
+Antes de concluir nada se midió el porqué, con tolerancias crecientes:
+
+| tolerancia | solape |
+|---|---|
+| exacto | 4,0% |
+| ±0,02 | **4,0%** |
+| ±1,00 | 4,6% |
+| ±0,1% | 7,9% |
+| ±1% | 19,2% |
+| ±5% (control) | 44,1% |
+
+**Aflojar a céntimos no mejora nada** (4,0% → 4,0%), lo que descarta el redondeo;
+y el crecimiento posterior es el que produce el azar al ensanchar la ventana. El
+nivel del 5% está puesto como control absurdamente flojo a propósito.
+
+### 3. La causa: `BASEIMPO` es un cero literal en el 99,4% de los apuntes de IVA
+
+Error de método propio, y se anota como tal: **se cruzó contra los PDF dando por
+bueno `303_LOCAL.json`, que nunca se había verificado.** `extraer_303_pdf.py` sí
+se auto-validaba por consistencia interna antes de publicar un número; aquí se
+saltó ese paso.
+
+`diag_coherencia_303.py` (nuevo) lo midió sin tocar un solo PDF: de 787 celdas,
+**536 (68%) tenían cuota pero no base**, y las pocas bases existentes eran de
+orden 10⁷–10⁸ — decenas y cientos de millones, imposibles para esta cartera. Las
+cuotas, en cambio, sanas (10³–10⁴).
+
+`diag_baseimpo.py` (nuevo) lo confirmó sobre el corpus real, 150 contenedores
+repartidos entre 28 carpetas, **44.522 apuntes de IVA examinados**:
+
+| | |
+|---|---|
+| `BASEIMPO` = **cero literal** | **44.243 (99,4%)** |
+| cifra con contenido | 279 (0,6%) |
+| de esas 279, con tipo de IVA con el que contrastarlas | **0** |
+| asientos con línea 6xx/7xx de la que derivar la base | 43.899 (**98,6%**) |
+
+Las 279 con contenido **no tienen tipo de IVA**: no son bases de factura, son
+otra cosa (probablemente regularizaciones trimestrales). **`BASEIMPO` no contiene
+la base imponible en este ContaPlus. Nunca.**
+
+> **El cruce contra el 303 nunca falló. Le estábamos dando ceros.** El 4% de
+> solape, que aflojar a céntimos no cambiara nada y que el máximo alcanzado
+> fueran 2 importes se explican los tres con eso, de una vez.
+
+### 4. Lo que NO está afectado, verificado antes de alarmar
+
+**`retro_semaforo.py` está bien, y el 87,71% VERDE sobre 30.013 asientos sigue en
+pie.** `reconstruir_compra()` (línea 336) ya cae al gasto cuando `BASEIMPO` no
+sirve:
+
+```python
+base = base_directa if base_directa > 0 else round(sum(l[1] for l in gastos), 2)
+```
+
+Y el proyecto **ya lo había medido el 25-08-2026** (comentario en
+`retro_semaforo.py:320-333`): *"la única vía cuando BASEIMPO está vacío, que es
+el 99,2% de las veces"*. La medición de hoy, con otro script y otro método, da
+**99,4%** — confirmación independiente del mismo hecho.
+
+**El fallo es de propagación, no de conocimiento:** `reconstruir_303.py` se
+escribió el **21-08** (`0d4f6e3`); el hallazgo sobre `BASEIMPO` es del **25-08**;
+nadie volvió a revisar la pieza hermana. Es exactamente la misma familia que los
+dos bugs documentados más abajo (`layout_diario_contaplus.py` y `orquestador.py`
+usando `float()` mientras el motor usaba el parser del contrato): **el arreglo se
+aplica en una pieza y no en su hermana.**
+
+### 5. Tres defectos más, encontrados por el camino
+
+- **Patrón numérico roto, heredado de `extraer_303_pdf.py`.** `-?\d{1,3}(?:\.\d{3})*,\d{2}`
+  exige el punto de millar. Con `12345,67` **no falla: devuelve `345,67`** — un
+  número distinto, en silencio. Medido en el archivo real: **el 47% de los
+  importes vienen sin separador de millar**, así que casi la mitad se leían mal.
+  Candidato serio a explicar parte del 1,2% que se atribuyó entero a la rejilla.
+  Arreglado y con prueba de regresión propia.
+- **Muestreo por orden, tres veces el mismo error.** `--limite N` cogía los N
+  primeros de una lista ordenada, que son las primeras carpetas por orden
+  alfabético: la prueba de 150 PDF cubrió **7 carpetas frente a 24 cubos**, así
+  que el cero era inevitable por construcción. Corregido en los tres sitios
+  (`cuadre_303_ficha.py`, `cruzar_303_importes.py`, `diag_baseimpo.py`): ahora se
+  reparte entre carpetas.
+- **Un informe con todo a cero es un falso verde.** `diag_baseimpo.py` recibió
+  una ruta inexistente (el literal `RUTA_DEL_CORPUS`), encontró 0 contenedores y
+  **emitió el informe completo con todo a cero**, como si hubiera medido. Es el
+  mismo fallo que el escáner de privacidad cometió una vez. Ahora sale con
+  código 2 y explica por qué. Y su propio primer informe decía
+  **`numero legible: 100,0%`** cuando el 99,4% de esos números eran el cero:
+  corregido para separar `CERO literal` de `cifra CON CONTENIDO`, que es
+  precisamente la distinción `MISSING ≠ ZERO` de `contrato_datos.py`.
+
+### 6. Ficheros nuevos y estado de verificación
+
+| Fichero | Qué es | Verificación |
+|---|---|---|
+| `cruzar_303_importes.py` | Cruce contabilidad ↔ 303 por importes | ensayo propio, 16/16 |
+| `ensayo_cruce_303.py` | Ensayo en seco del cruce, sin abrir un PDF | **10º auditor**, en verde |
+| `diag_coherencia_303.py` | ¿Es coherente consigo mismo lo reconstruido? | probado en sano y en roto |
+| `diag_baseimpo.py` | ¿Viene relleno `BASEIMPO` de verdad? | probado contra corpus sintético |
+| `cuadre_303_ficha.py` | Ficha para el cuadre manual (vía alternativa) | probado con datos ficticios |
+
+`audit_project.py` pasa de 10 a **11 auditores**. Escáner de privacidad sobre
+**108 ficheros: sin hallazgos**. 36/36, 112/112, cobertura 26/26.
+
+### 7. PENDIENTE, y es lo primero de la próxima sesión
+
+**Arreglar `reconstruir_303.py` para que derive la base del asiento**, como ya
+hace `retro_semaforo.reconstruir_compra()`. No es trivial: hoy procesa línea a
+línea mirando solo 472/477, y necesita **agrupar por `ASIEN`** y leer las líneas
+de contrapartida (6xx compras, 7xx ventas). Viable: el 98,6% de los asientos las
+tienen. Hasta que eso esté, `303_LOCAL.json` **no describe ninguna contabilidad**
+y ningún cuadre contra el 303 puede funcionar.
+
+Cabo suelto menor, anotado: de 150 contenedores, **95 (63%) no tienen
+`Diario.dbf` dentro**. Puede ser normal (copias parciales), pero conviene
+explicarlo antes de fiarse de cualquier recuento sobre "el corpus completo".
+
+---
+
 ## 26-08-2026 (cierre real de sesión) — `master` estaba congelado desde el primer commit: fusionado. Reinterpreta las 5 rondas de auditoría externa
 
 **Este es probablemente el hallazgo más importante de toda la sesión, y corrige

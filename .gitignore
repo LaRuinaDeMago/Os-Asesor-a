@@ -76,3 +76,8 @@ validacion_captura_agregado.json
 # Salida del agregador de IVA por trimestre (mismo criterio que las demas)
 reconstruccion_303_agregado.json
 cola_revision_agregado.json
+# Salida del cruce contabilidad <-> 303 presentados (26-08-2026). Son solo
+# recuentos y se puede compartir, pero es el resultado de UNA ejecucion contra
+# el archivo real: no describe el codigo, describe una medicion concreta. Mismo
+# criterio que los demas agregados.
+cruce_303_agregado.json
