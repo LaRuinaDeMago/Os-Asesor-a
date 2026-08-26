@@ -9,9 +9,9 @@ transformación intermedia.
 
 REQUIERE: GEMINI_API_KEY (por defecto) o ANTHROPIC_API_KEY (--proveedor claude),
 de una cuenta con DPA (no Free/Pro de consumo - ver la decision de
-infraestructura documentada en README.md). Esta clave NUNCA se pega en un
-chat - se configura en el propio entorno donde corra esto (Claude Code,
-tu ordenador), nunca en una conversacion.
+infraestructura documentada en .claude/rules/datos.md). Esta clave NUNCA se
+pega en un chat - se configura en el propio entorno donde corra esto (Claude
+Code, tu ordenador), nunca en una conversacion.
 
 Uso:
     export GEMINI_API_KEY="tu-clave-real"     # proveedor por defecto
@@ -238,7 +238,22 @@ def procesar_carpeta(carpeta, path_salida, proveedor="gemini"):
             print(f"  ERROR: {nombre} -> {e}")
 
     if filas:
-        campos = list(filas[0].keys())
+        # CORREGIDO 26-08-2026 (auditoria propia). Usaba solo las claves de la
+        # PRIMERA factura como cabecera. El modelo no siempre devuelve el
+        # mismo conjunto de claves (un campo opcional que unas veces omite y
+        # otras no, ej. tramos_iva o confianza_campos): en cuanto una factura
+        # posterior traia una clave que la primera no tenia, csv.DictWriter
+        # reventaba con ValueError y se perdia el CSV de TODA la carpeta -
+        # incluidas las facturas ya leidas bien. Union de claves de todas las
+        # filas, en orden de aparicion, para que una factura distinta no se
+        # lleve por delante a las demas.
+        campos = []
+        vistos = set()
+        for fila in filas:
+            for clave in fila.keys():
+                if clave not in vistos:
+                    vistos.add(clave)
+                    campos.append(clave)
         with open(path_salida, "w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=campos)
             w.writeheader()

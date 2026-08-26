@@ -7,6 +7,101 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 26-08-2026 (cierre de sesión) — Mega-auditoría propia: todo lo que las 5 rondas externas no tocaron
+
+Tras cinco rondas de auditoría externa centradas casi enteramente en
+`motor_veredicto.py`, Diego pidió una auditoría propia de **todo lo demás**:
+`contrato_datos.py`, `nif_check.py`, `orquestador.py`, `captura_orquestador.py`,
+`layout_diario_contaplus.py`, la barrera de privacidad, el `.gitignore`, la
+GitHub Action, y la coherencia entre documentación y código. Objetivo:
+dejarlo todo verificado y limpio para continuar en LOCAL sin perder nada.
+
+### 🔴 Dos hallazgos reales, nuevos, y de la misma familia — arreglados
+
+**Ningún caso de las cinco auditorías externas los vio**, porque los cinco se
+quedaron dentro de `motor_veredicto.py` y estos dos viven justo en la
+costura de después: el motor da VERDE, y el paso siguiente no sabe leer lo
+que el motor sí sabe leer.
+
+1. **`layout_diario_contaplus.py::generar_asiento_desde_factura()` no
+   entendía el formato español.** Usaba `float()` a pelo sobre `base_10`,
+   `base_4`, `base_21`, `base_total`, `iva_total`, `total_factura`,
+   `irpf_retencion` — los mismos campos que `contrato_datos.parse_numero()`
+   sí sabe leer en formato español (`'132,90'`), y que por eso el motor SÍ da
+   VERDE (`test_adversarial.py` FAMILIA G ya lo prueba con `'1.328,90'`).
+   **Reproducido antes de arreglar nada:** una factura VERDE con importes en
+   coma decimal reventaba con `ValueError` en el ÚLTIMO paso — el objetivo
+   declarado del producto, *"foto de la factura → motor → fichero
+   importable → ContaPlus"* — y `escribir_xdiario()` la descartaba en
+   silencio, contada solo como `"1 ValueError"` sin más explicación.
+   `ensayo_xdiario.py` no lo cazaba porque solo probaba el formato español en
+   la FECHA (ya arreglado el 21-08), nunca en los importes.
+
+   Arreglado: nueva función `_num()` dentro de `generar_asiento_desde_factura`
+   que usa `contrato_datos.parse_numero()`. Nuevo caso en `ensayo_xdiario.py`
+   ("importes en formato español"), que pasó de 6 a 7 facturas buenas — se
+   corrigió también un conteo `== 6` escrito a mano que se habría
+   desincronizado (`len(casos)` ahora). 31/31 en verde.
+
+2. **`orquestador.py::construir_historico_y_secuencia()` perdía en silencio
+   toda factura con importes en formato español.** Mismo patrón: `float()` a
+   pelo con un `except ValueError: t = 0`, y como `if t > 0` es la condición
+   para entrar en el histórico, ninguna factura con `'132,90'` llegaba nunca
+   a alimentar `guard_importe_atipico` ni `guard_secuencia_documental_
+   proveedor` para ese proveedor. **Reproducido:** tres facturas reales con
+   totales en coma decimal producían un histórico `{}`, vacío. No rompía
+   nada de forma visible — simplemente apagaba dos guards en silencio para
+   cualquier proveedor cuyas facturas vinieran así, exactamente el patrón
+   "protección apagada sin que nadie lo note" que este proyecto ya cerró dos
+   veces antes (nombre vs. NIF en las cuatro cachés, 21-08-2026).
+
+   Arreglado con `contrato_datos.parse_numero()`. **`orquestador.py` no tenía
+   ningún ensayo propio** — creado `ensayo_orquestador.py` (5 pruebas: el bug
+   reproducido, que el formato inglés no se rompe, y que un total ausente/
+   ilegible no cuenta como cero) y cableado en `audit_project.py` como
+   décimo auditor.
+
+### 🟡 Un tercer hallazgo real, de robustez, arreglado
+
+**`captura_orquestador.py::procesar_carpeta()` usaba las claves de la
+PRIMERA foto leída como cabecera del CSV de salida.** Si una foto posterior
+devuelve un JSON con una clave que la primera no tenía (plausible: el modelo
+no siempre incluye las mismas claves opcionales, ej. `tramos_iva` o
+`confianza_campos`), `csv.DictWriter` revienta con `ValueError` y se pierde
+el CSV de **toda la carpeta**, incluidas las fotos ya leídas bien.
+Reproducido con un caso mínimo. Arreglado: cabecera = unión de las claves de
+TODAS las filas, en orden de aparición — no requiere adivinar qué campo
+concreto lo dispararía, defiende contra cualquiera.
+
+### 🟢 Verificado en profundidad, sin defecto: `contrato_datos.py` y `nif_check.py`
+
+Los dos ficheros que sostienen la frontera de datos y la identidad fiscal se
+leyeron completos y se probaron con una batería de casos límite manual
+(formatos numéricos mixtos y con miles: `'1.234.567,89'`, NIE, NIF-IVA UE,
+cadenas de longitud 1/8/9 con formas ambiguas). Los dos se comportan
+exactamente como documentan. Es la primera vez que se auditan a este nivel de
+detalle — las cinco rondas externas nunca los tocaron.
+
+### 🟠 Dos inconsistencias documentales cerradas (no afectan al motor)
+
+- `CLAUDE.md` y `captura_orquestador.py` referenciaban un `README.md` que
+  **nunca ha existido en este repositorio** (confirmado también por la
+  primera auditoría externa). `CLAUDE.md` corregido para reflejar la
+  práctica real (docstring, no catálogo aparte); `captura_orquestador.py`
+  apunta ahora a `.claude/rules/datos.md`, donde sí vive esa decisión.
+
+### Verificación de cierre de la mega-auditoría
+
+`test_motor_veredicto.py` 36/36, `test_adversarial.py` 112/112,
+`test_privacidad.py` 30/30, `ensayo_xdiario.py` 31/31, `ensayo_orquestador.py`
+5/5 (nuevo), y los 10 auditores de `audit_project.py` en verde (antes 9) salvo
+las dependencias de captura (normal en Cloud). Escáner de privacidad sobre
+los 102 ficheros del repositorio: sin hallazgos.
+
+**Lo que NO se tocó, deliberadamente:** ningún dato real, ningún script de
+Fase 0 que exige el corpus local, ninguna decisión de producto. Todo lo de
+esta entrada es código y tests, verificable por cualquiera que clone el repo.
+
 ## 26-08-2026 (noche, quinta ronda) — Quinta auditoría externa (ChatGPT): mismo patrón, un hallazgo demostrado falso con cifras propias del repo
 
 Verificada por ejecución, misma disciplina. **Repite, palabra por palabra en

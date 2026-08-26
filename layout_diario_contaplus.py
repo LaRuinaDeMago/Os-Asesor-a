@@ -128,9 +128,28 @@ def generar_asiento_desde_factura(fila_veredicto, asien, cuenta_debe, cuenta_hab
     nif = fila_veredicto.get('nif', '')
     proveedor = fila_veredicto.get('proveedor', '')
 
+    def _num(x):
+        """Como float(), pero acepta el formato espanol ('132,90') igual que
+        contrato_datos.parse_numero() - que es quien ya decidio que esta
+        factura era VERDE.
+
+        CORREGIDO 26-08-2026 (auditoria propia). Antes esta funcion hacia
+        float(x) a pelo sobre los mismos campos que el motor lee en formato
+        espanol (ver test_adversarial.py FAMILIA G, '1.328,90' -> VERDE). Una
+        factura VERDE con importes en formato espanol pasaba el motor entero
+        y reventaba aqui con ValueError, en el ULTIMO paso -> ContaPlus. El
+        try/except de escribir_xdiario() la descartaba en silencio como un
+        'ValueError' generico, sin que nadie viera nunca la causa real: el
+        objetivo declarado del producto ('foto de la factura -> motor ->
+        fichero importable -> ContaPlus') se rompia justo en el ultimo tramo,
+        y ningun ensayo lo cazaba porque ensayo_xdiario.py solo probaba el
+        formato espanol en la FECHA, no en los importes."""
+        d = contrato_datos.parse_numero(x)
+        return d.valor if d.utilizable else 0.0
+
     lineas = []
     total_base = 0.0
-    tramos = [(tipo, float(fila_veredicto.get(campo, 0) or 0))
+    tramos = [(tipo, _num(fila_veredicto.get(campo, 0)))
               for tipo, campo in ((10, 'base_10'), (4, 'base_4'), (21, 'base_21'))]
     # ANADIDO 21-08-2026, y era el defecto mas peligroso de todo el dia: una
     # factura de captura de camara —base, IVA y total, SIN desglose por tipos—
@@ -144,8 +163,8 @@ def generar_asiento_desde_factura(fila_veredicto, asien, cuenta_debe, cuenta_hab
     # se puede deducir, no se emite un asiento roto — se levanta y quien llama lo
     # cuenta. Inventar un tramo seria peor que no exportar la factura.
     if not any(b for _t, b in tramos):
-        base_total = float(fila_veredicto.get('base_total', 0) or 0)
-        iva_total = float(fila_veredicto.get('iva_total', 0) or 0)
+        base_total = _num(fila_veredicto.get('base_total', 0))
+        iva_total = _num(fila_veredicto.get('iva_total', 0))
         deducido = None
         if base_total:
             for tipo in sorted(CUENTA_IVA_SOPORTADO):
@@ -171,8 +190,11 @@ def generar_asiento_desde_factura(fila_veredicto, asien, cuenta_debe, cuenta_hab
                         "TERIDNIF": 1, "TERNIF": nif, "TERNOM": proveedor[:40],
                         "OPBIENES": 1, "TIPOFAC": "R", "TIPOIVA": "O"})
 
-    total_factura = float(fila_veredicto['total_factura'])
-    irpf = float(fila_veredicto.get('irpf_retencion', 0) or 0)
+    _total_dato = contrato_datos.parse_numero(fila_veredicto.get('total_factura'))
+    if not _total_dato.utilizable:
+        raise ValueError("total_factura no interpretable")
+    total_factura = _total_dato.valor
+    irpf = _num(fila_veredicto.get('irpf_retencion', 0))
 
     # linea de retencion (Hacienda Publica acreedora, grupo 4751) - FALTABA,
     # causa real de un descuadre de 125.62 encontrado al probar con datos reales

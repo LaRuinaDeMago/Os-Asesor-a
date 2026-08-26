@@ -208,6 +208,12 @@ def check_estados_y_cobertura():
                              # eslabon de "el criterio sale de los diez anos" estaba
                              # roto con las dos puntas hechas.
                              ("ensayo_retro_semaforo.py", "Ensayo en seco: retro_semaforo + orquestador"),
+                             # construir_historico_y_secuencia() no tenia ningun
+                             # ensayo propio. Encontro un bug real el 26-08-2026
+                             # (auditoria propia): con importes en formato
+                             # espanol, el historico que alimenta importe_atipico
+                             # se quedaba vacio en silencio.
+                             ("ensayo_orquestador.py", "Historico del orquestador: no pierde facturas por formato"),
                              # No elige los ataques: los enumera. En su primera
                              # pasada encontro tres defectos que ninguno de los
                              # 87 ataques escritos a mano habia tocado.

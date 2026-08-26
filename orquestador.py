@@ -26,6 +26,7 @@ import time
 from collections import defaultdict
 
 from motor_veredicto import evaluar_fila_v4, cargar_cache_json
+import contrato_datos
 
 
 def cargar_config(path):
@@ -79,12 +80,19 @@ def construir_historico_y_secuencia(filas_csv):
     se puede verificar) y cae al nombre si no lo encuentra, asi que las caches que
     ya estan en el disco del despacho —indexadas por nombre— siguen funcionando.
     """
+    # CORREGIDO 26-08-2026 (auditoria propia). float() a pelo no entiende el
+    # formato espanol ('132,90'), el mismo que contrato_datos.parse_numero()
+    # SI entiende y que el motor usa para decidir VERDE. El ValueError se
+    # capturaba y convertia en t=0, así que NINGUNA factura con importes en
+    # formato espanol llegaba a aportar al historico (if t > 0 nunca se
+    # cumplia): guard_importe_atipico se quedaba sin datos, en silencio, para
+    # cualquier proveedor cuyas facturas vinieran asi. Reproducido antes de
+    # arreglarlo: tres facturas reales con totales '132,90'/'140,00'/'135,50'
+    # producian un historico vacio, {}.
     tot, nums = defaultdict(list), defaultdict(list)
     for r in filas_csv:
-        try:
-            t = float(r.get('total_factura', 0) or 0)
-        except ValueError:
-            t = 0
+        dato_total = contrato_datos.parse_numero(r.get('total_factura'))
+        t = dato_total.valor if dato_total.utilizable else 0
         claves = [k for k in ((r.get('nif') or '').strip(), r.get('proveedor')) if k]
         for clave in claves:
             if t > 0:

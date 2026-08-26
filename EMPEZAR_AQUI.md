@@ -14,23 +14,42 @@ python3 audit_project.py
 Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 
 ```
-✅ Sintaxis de todos los .py
+✅ Sintaxis de todos los .py (recursivo)
 ✅ Cableado de guards (sin huérfanos): 26 guards, todos consultados
-✅ Suite de pruebas (test_motor_veredicto.py): 33/33 checks en verde
-✅ Bateria adversarial (test_adversarial.py): 111 en verde, 0 fallan
-✅ Ensayo en seco: retro_semaforo + orquestador + validar_captura
+✅ Modulos sin conectar: ninguno
+✅ Suite de pruebas (test_motor_veredicto.py): 36/36 checks en verde
+✅ Bateria adversarial (test_adversarial.py): 112 en verde, 0 fallan
 ✅ Estados: sin ramas muertas ni guards mudos
 ✅ Cobertura: guards probados de verdad — 26/26 (100%)
+✅ Ensayo en seco: retro_semaforo + orquestador
+✅ Historico del orquestador: no pierde facturas por formato   <- 10º auditor, nuevo
+✅ Barrido: ningun falso verde sin explicar
+✅ Barrera de privacidad: bloquea lo que debe
+✅ xDiario: ningun asiento descuadrado
+✅ Captura <-> motor: los campos cuadran
 ✅ Corpus roto: no cuelga ni contamina
-❌ Dependencias: faltan dbfread, anthropic, google-genai   <- NORMAL, son de captura
+❌ Dependencias: faltan dbfread, anthropic, google-genai, pdfplumber   <- NORMAL, son de captura
 ```
 
-> **Números actualizados el 26-08-2026** (el aviso de `guard_g7_ledger.py` sin
-> conectar desapareció ese día: el fichero, de otro dominio, se eliminó del
-> repo — ver §5-bis). Si tu `audit_project.py` da otros
-> números de test, no asumas que algo se rompió: mandan los tests que corren
-> delante de ti, no esta plantilla — puede quedarse desfasada según se añaden
-> pruebas.
+> **Números actualizados el 26-08-2026 (cierre de sesión, tras la mega-auditoría
+> propia).** Si tu `audit_project.py` da otros números de test, no asumas que
+> algo se rompió: mandan los tests que corren delante de ti, no esta plantilla
+> — puede quedarse desfasada según se añaden pruebas.
+>
+> **Esta sesión (26-08) fue casi toda auditoría, no producto — y encontró y
+> arregló defectos reales:** cinco rondas de auditoría externa (verificadas
+> una por una por ejecución, no de palabra — la mayoría de sus hallazgos ya
+> estaban cerrados o eran repeticiones, pero una encontró que
+> `reevaluar_tras_correccion()` podía marcar una factura como duplicada de sí
+> misma) más una mega-auditoría propia que encontró dos bugs reales y nuevos,
+> los dos en la misma familia: **el paso *después* del motor no entendía el
+> formato español que el motor sí entiende.** `layout_diario_contaplus.py`
+> (el fichero que entra en ContaPlus) y `orquestador.py` (el histórico que
+> alimenta dos guards) usaban `float()` a pelo en vez del parser del
+> contrato. Detalle completo, con reproducción de cada bug antes de tocar
+> nada, en `PROJECT_STATUS.md`, entradas del 26-08-2026. Nada de esto tocó
+> datos reales ni necesitó el corpus local — todo verificable con
+> `python3 audit_project.py` en cualquier clon.
 
 ### ✅ El paso 3.1 de abajo (retro-semáforo) YA SE HIZO — 25-08-2026
 

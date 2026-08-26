@@ -133,6 +133,17 @@ def main():
             "fecha en formato espanol": factura(
                 nº_documento='F6', fecha_expedicion='15/03/2026', base_21='100.00',
                 base_total='100.00', iva_total='21.00', total_factura='121.00'),
+            # AÑADIDO 26-08-2026 (auditoria propia): importes en formato espanol
+            # (coma decimal), el mismo formato que el motor SI sabe leer
+            # (contrato_datos.parse_numero) y que generar_asiento_desde_factura
+            # NO sabia leer (float() a pelo) -- una factura VERDE con importes
+            # asi reventaba con ValueError en el ultimo paso, descartada en
+            # silencio. Caso real: FAMILIA G de test_adversarial.py ya prueba
+            # que '1.328,90' llega a VERDE; aqui se prueba que TAMBIEN llega a
+            # ContaPlus.
+            "importes en formato espanol (coma decimal)": factura(
+                nº_documento='F7', base_10='132,90', base_total='132,90',
+                iva_total='13,29', total_factura='146,19'),
         }
         for nombre, f in casos.items():
             _, nl, na, regs = escribir_y_leer(tmp, [f], f"caso.txt")
@@ -170,8 +181,8 @@ def main():
         print("\nUNA TANDA MEZCLADA (una factura mala no se lleva por delante la tanda):")
         tanda = list(casos.values()) + list(malas.values())
         _, nl, na, regs = escribir_y_leer(tmp, tanda, "tanda.txt")
-        comprobar("salen las 6 buenas y ninguna de las 4 malas", na == 6,
-                  f"{na} asientos", "6", "P0")
+        comprobar(f"salen las {len(casos)} buenas y ninguna de las {len(malas)} malas",
+                  na == len(casos), f"{na} asientos", str(len(casos)), "P0")
         descuadrados = [a for a, ls in por_asiento(regs).items()
                         if abs(round(sum(l.get('EURODEBE') or 0 for l in ls), 2)
                                - round(sum(l.get('EUROHABER') or 0 for l in ls), 2)) > 0.01]

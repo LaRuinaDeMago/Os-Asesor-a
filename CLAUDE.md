@@ -35,8 +35,10 @@ Git → PROJECT_STATUS.md).
 
 ## Convenciones del proyecto
 - Python 3, sin frameworks pesados.
-- Cada guard nuevo necesita: función + entrada en `evaluar_fila_v4` (si aplica al
-  veredicto principal) + prueba en `test_motor_veredicto.py` + entrada en README.md.
+- Cada guard nuevo necesita: función con docstring que explique qué comprueba y
+  por qué (es la práctica real seguida hasta hoy — no existe un `README.md` de
+  catálogo de guards, ni ha existido nunca) + entrada en `evaluar_fila_v4` (si
+  aplica al veredicto principal) + prueba en `test_motor_veredicto.py`.
 - Los tests de `test_motor_veredicto.py` usan casos reales anonimizados (nombres
   y NIF sustituidos por placeholders con checksum matemáticamente válido, nunca
   el dato real) — mantener esa disciplina en cualquier test nuevo.
