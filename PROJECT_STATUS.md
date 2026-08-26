@@ -7,6 +7,61 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 26-08-2026 (cierre real de sesión) — `master` estaba congelado desde el primer commit: fusionado. Reinterpreta las 5 rondas de auditoría externa
+
+**Este es probablemente el hallazgo más importante de toda la sesión, y corrige
+una conclusión repetida en las cinco entradas de auditoría externa de arriba.**
+
+Al preparar el traspaso a LOCAL, se intentó fusionar `claude/repository-
+analysis-xbb60b` (la rama de trabajo de todo lo de hoy) contra `master` para
+que nada se perdiera. Git se negó: `fatal: refusing to merge unrelated
+histories`. Al inspeccionar `origin/master` directamente: **782 líneas en
+`motor_veredicto.py`, título de módulo "MOTOR DE VEREDICTO MECANICO — v1"**,
+sin `contrato_datos.py`, sin `EMPEZAR_AQUI.md`, con `_f()` convirtiendo
+ausencia en 0.0, `guard_confianza_captura` con el default `'OK'` sin
+protección, `guard_fecha_posterior_alta` comparando solo el año, y
+`calcular_veredicto()` con la lista manual de críticos — **exactamente y con
+precisión los mismos hallazgos, número de línea aproximado incluido, que las
+cinco rondas de auditoría externa fueron repitiendo sesión tras sesión.**
+
+**Reinterpretación necesaria:** las cinco entradas de arriba concluían que la
+auditoría externa citaba "código desactualizado" o "no ejecutaba de verdad".
+Eso era cierto para la comparación contra `claude/repository-analysis-
+xbb60b`, la rama de trabajo — pero **`master` es la rama por defecto de
+GitHub, lo único que ve cualquiera que clone el repositorio sin especificar
+rama, y lo que sirve un enlace `github.com/.../blob/master/...`**. Las
+auditorías no estaban leyendo una copia vieja de memoria: estaban leyendo,
+correctamente, el código real y público del proyecto — que llevaba desde
+`ea36e8d` (el primer commit del repositorio, antes incluso de las
+correcciones del 28-07-2026) sin recibir NINGÚN commit posterior. Todo el
+trabajo de endurecimiento del motor, la Fase 0, las auditorías y la sesión de
+hoy vivía exclusivamente en ramas `claude/*`, nunca fusionadas.
+
+**No se perdió ningún archivo de valor:** comparado árbol contra árbol, los
+únicos 6 ficheros exclusivos de `master` eran exactamente los del módulo de
+cripto ya eliminados deliberadamente hoy mismo (`guard_g7_ledger.py` y 4
+`.md`) — nada que recuperar. Los 35 ficheros exclusivos de la rama de trabajo
+son todo el motor endurecido, `contrato_datos.py`, los tests, los ensayos y
+la documentación operativa.
+
+**Arreglado con la técnica correcta para "unrelated histories" sin perder
+rastro**: `git merge --allow-unrelated-histories -s ours master` desde una
+rama temporal basada en `claude/repository-analysis-xbb60b` — el árbol
+resultante es idéntico, byte a byte, al de la rama de trabajo (verificado con
+`git diff --stat`, sin salida), pero el commit tiene DOS padres, así que el
+historial completo de `master` sigue siendo alcanzable como ancestro, no se
+descarta. Empujado a `origin/master` como fast-forward puro (`59566c0 →
+87f7aa3`, sin forzar nada). **Verificado en un clon nuevo y limpio, desde
+cero, directamente de GitHub:** 1.585 líneas, `contrato_datos.py` presente,
+`test_motor_veredicto.py` 36/36, `test_adversarial.py` 112/112.
+
+> **Lección para toda auditoría futura, externa o propia:** antes de dar por
+> "desactualizada" una discrepancia con GitHub, comprobar primero **qué
+> rama** se está mirando. La jerarquía de verdad de este archivo (Código →
+> Tests → Git → documentación) daba por hecho un único estado de "el
+> código" — y durante semanas hubo dos: el real, en ramas de trabajo, y el
+> público, congelado en `master`. Ahora coinciden.
+
 ## 26-08-2026 (cierre de sesión) — Mega-auditoría propia: todo lo que las 5 rondas externas no tocaron
 
 Tras cinco rondas de auditoría externa centradas casi enteramente en

@@ -36,6 +36,14 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 > algo se rompió: mandan los tests que corren delante de ti, no esta plantilla
 > — puede quedarse desfasada según se añaden pruebas.
 >
+> ⚠️ **Si vienes de clonar el repositorio hoy o antes, vuelve a clonarlo o haz
+> `git pull` en `master` antes de nada.** Hasta el cierre de esta sesión,
+> `master` (la rama por defecto) llevaba desde el primer commit sin recibir
+> ninguna de las correcciones — todo vivía en ramas `claude/*`, nunca
+> fusionadas. Ya está arreglado (`PROJECT_STATUS.md`, entrada de cierre real
+> de sesión), pero si tu copia local es de antes de hoy, es la versión vieja
+> de una sola pieza sin `contrato_datos.py`.
+>
 > **Esta sesión (26-08) fue casi toda auditoría, no producto — y encontró y
 > arregló defectos reales:** cinco rondas de auditoría externa (verificadas
 > una por una por ejecución, no de palabra — la mayoría de sus hallazgos ya
