@@ -7,6 +7,63 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 26-08-2026 (noche, más tarde) — Cuarta auditoría externa (ChatGPT), función por función: sin hallazgo nuevo grave, un patrón que sí importa
+
+Misma disciplina que las tres anteriores. Esta vez con una diferencia notable
+respecto a las tres rondas previas: **no apareció ningún bug nuevo, real y en
+producción.** Lo más señalable no es un hallazgo de código, es un patrón en
+la propia auditoría.
+
+### 🔁 El patrón que hay que anotar: la misma afirmación falsa, tercera vez
+
+La auditoría vuelve a decir que `guard_cuenta_gasto_coherente`,
+`guard_tipo_producto_iva_semantico` y `guard_tipo_operacion_especial` "existen
+con test propio pero no están cableados a `evaluar_fila_v4`/
+`calcular_veredicto_v4`". **Es la tercera ronda de auditoría externa que
+repite exactamente esta afirmación**, y las tres veces es falsa: están
+cableados desde el 19-08-2026 (línea 1259-1265 de `motor_veredicto.py`) y SÍ
+cambian el veredicto — se verificó de nuevo con una ejecución en vivo:
+
+```
+factura con cuenta_debe=218000 (inmovilizado), aritmetica perfecta
+-> VEREDICTO: AMBAR (sería VERDE sin este guard)
+-> tipo_operacion_especial: AMBAR "cuenta de destino 218000 es del grupo 2..."
+```
+
+También repite (segunda vez) que `guard_nif_casa_historico` da FALLO cuando el
+NIF no está en el maestro — cerrado el 20-08-2026, ahora da `NO_COMPROBADO`
+("proveedor NUEVO... no es un error, es un alta que decidir") — y (tercera
+vez) el caso `irpf` sin confirmar en `guard_retencion_vs_error` y el
+`guard_signo_efectivo` con negativo sin `tipo_documento`, ambos cerrados el
+19-08-2026 y ya refutados dos veces con evidencia en las entradas de arriba.
+
+**Conclusión operativa:** esta herramienta de auditoría externa concreta no
+está leyendo el estado real del repositorio en cada ronda — repite el mismo
+subconjunto de hallazgos (algunos reales en su día, ya cerrados) en vez de
+progresar. A partir de aquí, cualquier afirmación suya que ya conste como
+CERRADA en este archivo se descarta sin re-verificar salvo que aporte una
+línea de código o un caso reproducible nuevo, no una descripción en prosa.
+
+### 🟡 Dos observaciones sí eran ciertas, ninguna urgente, ninguna con caso real todavía
+
+- **`TOL = 0.02` es una única constante global** reutilizada en aritmética de
+  IVA, cuadre total, suma de tramos y retenciones. Es una simplificación
+  deliberada y medida (documentada contra 91 facturas reales, margen 2x), no
+  un bug — pero mezclar la semántica de "redondeo de IVA" con "tolerancia de
+  retención" bajo el mismo número es una decisión a revisar si algún día un
+  caso real la fuerza en direcciones opuestas. No se toca sin ese caso.
+- **`guard_ejercicio_coherente` no tiene forma de representar la excepción
+  que su propio docstring promete** ("NO_APLICA si se declara explícitamente
+  que es un gasto de ejercicio anterior aportado a propósito") — no existe
+  ningún parámetro en toda la cadena de llamada (confirmado con grep en
+  `motor_veredicto.py` y `orquestador.py`) para declarar esa excepción. Falla
+  del lado seguro (una factura de ejercicio anterior legítima da FALLO/ROJO,
+  fuerza revisión humana, nunca un falso VERDE), así que es un defecto de
+  experiencia, no de seguridad. Declarado como deuda; no se implementa sin un
+  caso real de gasto de ejercicio anterior que lo pida.
+
+Sin cambios de código en esta ronda — no había nada que reproducir.
+
 ## 26-08-2026 (noche) — Tercera auditoría externa (ChatGPT), línea por línea del motor: 1 hallazgo real y grave, resto ya cerrado o no reproducible
 
 Misma disciplina que las dos anteriores: cada afirmación se reprodujo contra
