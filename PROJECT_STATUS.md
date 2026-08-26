@@ -7,6 +7,46 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 26-08-2026 — Auditoría cloud completa: 5-bis ya cerrado, 6 ficheros de cripto fuera del repo
+
+Sesión Cloud, sin datos reales, siguiendo `CLAUDE.md`: `PROJECT_STATUS.md` leído
+entero, `audit_project.py` ejecutado (todo verde salvo lo ya declarado "normal":
+dependencias de captura no instaladas aquí), `EMPEZAR_AQUI.md` leído entero.
+
+**Auditoría §5-bis de `EMPEZAR_AQUI.md` (20-08-2026) verificada contra el código
+actual, no contra el texto: está desactualizada, los tres hallazgos ya estaban
+cerrados** — confirmado con grep, no supuesto: `triangulacion_identidad_v0.py`
+ya cableado (`motor_veredicto.py:152`, `guard_triangulacion_identidad`),
+`escribir_xdiario()` ya la llama `orquestador.py:230`, y `--proveedor` de
+`captura_orquestador.py` ya tiene default `"gemini"` (la migración que el
+documento seguía llamando "a medias" ya está hecha). Los 4 JSON invalidados
+(`fase0_huella*.json`, `fase0_reagrupa.json`, `fase0_umbral.json`) ya llevan
+`"INVALIDADO": true`. Nada de esto necesitaba trabajo — solo confirmarlo, para
+que la próxima sesión no lo dé por pendiente otra vez.
+
+**Lo único de §5-bis que seguía abierto y con valor real: los ficheros del
+módulo de cripto (Bitget/FIFO) mezclados en este repo del motor de facturas.**
+`guard_g7_ledger.py` seguía sin conectar (confirmado por `audit_project.py`) y
+el propio proyecto ya documentaba que había confundido a un auditor externo.
+Verificado uno a uno que ninguno lleva NIF/nombre de cliente real (son specs
+de un caso propio del titular, EXP-0001, y análisis de competidores públicos)
+y que nada del motor los importa. **Eliminados del repositorio** (no solo
+movidos, con la venia expresa de Diego para decidir con rigor):
+`guard_g7_ledger.py`, `DIA3_ESTADO_PARCIAL.md`, `DIA3_SPEC_C1_TACTICAS.md`,
+`MATRIZ_COBERTURA_v1.md`, `CATALOGO_EVENTOS_v1.md`,
+`TRIAJE_RONDA_2026-07-13.md` — seis, no cinco: `DIA3_SPEC_C1_TACTICAS.md` no
+estaba en la lista original de `EMPEZAR_AQUI.md` pero es del mismo dominio
+(spec + táctica comercial del módulo cripto) y quedó fuera por descuido, no
+por decisión.
+
+Verificado tras el borrado: `audit_project.py` — el aviso de "módulo sin
+conectar" desaparece (antes marcaba `guard_g7_ledger.py`, ahora "ninguno"),
+`test_motor_veredicto.py` 33/33, `test_adversarial.py` 111/111 sin cambio
+(ninguno de los seis ficheros tocaba el motor). `SUBE_A_GITHUB.md` se deja
+intacto: es el registro histórico de qué se auditó y subió en su día, no una
+lista de lo que hay hoy — reescribirlo perdería la trazabilidad de la
+auditoría de privacidad original.
+
 ## 25-08-2026 — Retro-semáforo contra el corpus real: diez arreglos, ROJO 45,97%→3,15%
 
 **Números completos y tabla de los diez arreglos en `FASE0_RESULTADOS.md` §14
