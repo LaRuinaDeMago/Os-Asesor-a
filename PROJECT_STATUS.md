@@ -200,7 +200,50 @@ demostrado nada — misma disciplina que la batería de privacidad.
 > por más de dos los defectos encontrados, y uno de ellos se había introducido
 > ese mismo día al arreglar los otros.
 
-### 8. PENDIENTE, y es lo primero de la próxima sesión
+### 8. Cuarto repaso: un defecto introducido AL ARREGLAR los otros
+
+Cuarta pasada, esta vez leyendo críticamente el código escrito ese día en vez de
+volver a ejecutar lo ya verificado. Barrido de código muerto sobre el AST
+(importaciones sin usar, funciones nunca llamadas, constantes nunca leídas).
+
+**El hallazgo, y es de la misma familia que todo lo demás de hoy:** al unificar
+el patrón de importes se dejó la conversión escrita como
+`abs(parse_numero(m).valor)` **a pelo**. `parse_numero()` devuelve `valor=None`
+cuando el estado es `INVALID`, así que **un solo importe no convertible en un PDF
+lanzaba `TypeError`**, el `except` del bucle lo contaba como *"PDF ilegible"*, y
+**se perdían TODOS los importes de ese documento por culpa de uno**.
+
+Un fallo de una línea que descarta un documento entero, en silencio, y contado
+como si el problema fuera el PDF. Es exactamente el patrón que esta sesión lleva
+persiguiendo — cometido, otra vez, al arreglar la versión anterior del mismo.
+
+Corregido usando `importes_en_texto()`, que **filtra por estado en vez de
+convertir a ciegas**. Efecto secundario bueno: esa función pasa de estar usada
+solo por su propio test a usarse en producción, que es donde tenía que estar.
+Con prueba de regresión propia en `ensayo_cruce_303.py` (22 comprobaciones).
+
+**Lo demás del barrido salió limpio**, y conviene decirlo con el mismo detalle:
+una importación sin usar en `diag_baseimpo.py` y una constante vestigial en
+`extraer_303_pdf.py` (`TRIM_A_NUM`, resto de copiar un bloque; ese script solo
+comprueba el nombre del fichero, no extrae el trimestre). Los otros cuatro avisos
+—`canonizar()`, `importes_en_texto()`, `NATURALEZAS`, `TIPOS_IVA_CONOCIDOS`—
+eran **falsos positivos** del comprobador, que solo mira dentro del propio
+fichero: los cuatro se usan desde otros módulos, verificado uno a uno. **Cero
+código muerto real en el repositorio.**
+
+**Y una prueba que no se había hecho nunca: clonar `master` en limpio desde
+GitHub y ejecutarlo.** 108 ficheros, 16 comprobaciones en verde, ningún fichero
+`_LOCAL`, ningún dato real. `master` funciona por sí solo en cualquier máquina —
+que es justo lo que no se cumplía antes de ayer y nadie había comprobado.
+
+> **Decisión deliberada: el comprobador de referencias rotas NO se convierte en
+> auditor permanente.** Produce demasiados falsos positivos (`Diario.dbf` y
+> compañía viven *dentro* de los contenedores `.DAT`, no en el repositorio), y
+> este proyecto ya tiene escrito que *"un auditor que grita cuando no toca acaba
+> ignorándose, y entonces no avisa cuando sí toca"*. Se queda como herramienta
+> puntual, y esa es la respuesta correcta, no una excusa.
+
+### 9. PENDIENTE, y es lo primero de la próxima sesión
 
 **Arreglar `reconstruir_303.py` para que derive la base del asiento**, como ya
 hace `retro_semaforo.reconstruir_compra()`. No es trivial: hoy procesa línea a

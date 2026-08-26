@@ -65,7 +65,7 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from retro_semaforo import (MAX_REGISTROS_POR_FICHERO, _crudo, cuenta,
-                            parse_cabecera, num, txt)
+                            parse_cabecera, num)
 
 PREF_IVA = ("472", "477")
 #: Cuentas de las que saldria la base si hubiera que reconstruirla: compras y

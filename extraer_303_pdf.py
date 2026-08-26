@@ -48,8 +48,10 @@ PATRON_NOMBRE = re.compile(
     r'[a-záéíóú°º]{0,4}\.?\s*trimestre.{0,5}?(?P<anio>20\d{2})',
     re.IGNORECASE
 )
-TRIM_A_NUM = {"1": 1, "2": 2, "3": 3, "4": 4,
-              "primer": 1, "segundo": 2, "tercer": 3, "cuarto": 4}
+# TRIM_A_NUM vivia aqui y no lo usaba nadie: este script solo comprueba que el
+# NOMBRE del fichero encaje con PATRON_NOMBRE, no extrae el trimestre. Era un
+# resto de copiar el bloque. Quien si lo usa es cruzar_303_importes.py, que
+# tiene el suyo. Quitado el 26-08-2026.
 
 # ARREGLADO 26-08-2026: aqui vivia r'-?\d{1,3}(?:\.\d{3})*,\d{2}',
 # que exige el punto de millar y por tanto leia "12345,67" como

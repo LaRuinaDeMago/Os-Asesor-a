@@ -88,7 +88,7 @@ import os
 import re
 import sys
 from collections import Counter, defaultdict
-from contrato_datos import RE_IMPORTE_EN_TEXTO, parse_numero
+from contrato_datos import RE_IMPORTE_EN_TEXTO, importes_en_texto
 
 logging.getLogger("pdfminer").setLevel(logging.ERROR)  # ruido de ToUnicode
 
@@ -180,14 +180,23 @@ def importes_del_pdf(ruta):
         texto = "\n".join((p.extract_text() or "") for p in pdf.pages)
     if len(texto.strip()) < 20:
         return None          # PDF escaneado o vacio: no es utilizable
-    encontrados = NUM_ES.findall(texto)
     # Estadistica de FORMA, no de valor: cuantos importes traian separador de
     # millar y cuantos no. Si casi ninguno lo traia, el patron viejo (que lo
     # exigia) estaba leyendo mal este archivo entero, y eso explica el cero.
-    for m in encontrados:
+    for m in NUM_ES.findall(texto):
         ESTADISTICA_FORMATO["agrupado" if NUM_AGRUPADO.match(m)
                             else "sin agrupar"] += 1
-    return {round(abs(parse_numero(m).valor), 2) for m in encontrados}
+    # La conversion la hace importes_en_texto(), que descarta lo que no se
+    # puede interpretar en vez de reventar.
+    #
+    # DEFECTO REAL corregido el 26-08-2026, introducido ese mismo dia al
+    # unificar el patron: aqui habia `abs(parse_numero(m).valor)` a pelo. Un
+    # solo importe INVALID en el documento hacia `abs(None)` -> TypeError, el
+    # `except` del bucle de arriba lo contaba como "PDF ilegible", y se
+    # perdian TODOS los importes de ese PDF por culpa de uno. Un fallo de una
+    # linea que descarta un documento entero, en silencio, es justo lo que
+    # este proyecto persigue.
+    return {round(abs(v), 2) for v in importes_en_texto(texto)}
 
 
 def importes_significativos(lados, min_importe):

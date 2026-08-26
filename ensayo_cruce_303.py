@@ -167,6 +167,18 @@ def main():
     comprobar("el cruce NO tiene su propia copia del patron de importes",
               cruce.NUM_ES is contrato_datos.RE_IMPORTE_EN_TEXTO)
 
+    # REGRESION del defecto del 26-08-2026 (introducido ese mismo dia al
+    # unificar el patron, encontrado en el cuarto repaso): la conversion era
+    # `abs(parse_numero(m).valor)` a pelo, asi que UN importe no convertible
+    # lanzaba TypeError, el except del bucle lo contaba como "PDF ilegible" y
+    # se perdian TODOS los importes de ese documento por culpa de uno solo.
+    # Un fallo de una linea que descarta un documento entero, en silencio.
+    _mezcla = "Base 12.345,67 cuota 2.592,59 y " + "9" * 400 + ",99 al final"
+    _rescatados = contrato_datos.importes_en_texto(_mezcla)
+    comprobar("un importe problematico no se lleva por delante a los buenos",
+              12345.67 in _rescatados and 2592.59 in _rescatados,
+              f"rescatados {len(_rescatados)}")
+
     tmp = tempfile.mkdtemp(prefix="ensayo_cruce_")
     try:
         raiz = os.path.join(tmp, "documentos")
