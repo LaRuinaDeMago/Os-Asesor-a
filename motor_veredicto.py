@@ -312,8 +312,19 @@ def guard_anti_duplicado(fila, vistos):
 def guard_confianza_captura(fila):
     """Deriva confianza del campo 'verificacion' que ya veniamos usando.
     Regla dura: un NIF matematicamente valido NO sube la confianza si el
-    propio proceso declaro que hubo inferencia (OK_INFERIDO)."""
-    v = fila.get('verificacion', 'OK')
+    propio proceso declaro que hubo inferencia (OK_INFERIDO).
+
+    CORREGIDO 26-08-2026 (auditoria externa verificada por ejecucion, no
+    aceptada de palabra): el default `fila.get('verificacion', 'OK')` convertia
+    la AUSENCIA del campo en la MISMA certeza que una lectura confirmada -> ALTA
+    -> el resto de guards en OK -> VERDE. Probado antes de tocar nada: una
+    factura coherente sin la clave 'verificacion' llegaba a VERDE de verdad, no
+    en teoria. Es exactamente la clase de fallo que este motor existe para
+    evitar (ausencia != certeza) y ninguno de los 111 casos de
+    test_adversarial.py lo cubria - todos fijaban 'verificacion' a mano."""
+    if 'verificacion' not in fila or not fila.get('verificacion'):
+        return "NO_COMPROBADO", "la captura no declaro el campo 'verificacion'"
+    v = fila.get('verificacion')
     if v == 'OK_INFERIDO':
         return "MEDIA", "dato inferido, no leido con certeza directa"
     if v == 'OK':

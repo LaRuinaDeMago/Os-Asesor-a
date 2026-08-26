@@ -79,6 +79,20 @@ def cebo_cif():
     return "B" + d + str((10 - (pares + impares) % 10) % 10)
 
 
+def cebo_nie():
+    """NIE inventado (extranjero residente) con letra de control correcta.
+
+    Anadido 26-08-2026 (auditoria externa verificada por ejecucion): el patron
+    de NIF del escaner no incluia X/Y/Z, el prefijo de un NIE real. Probado
+    antes de corregirlo: este NIE no se detectaba.
+
+    Deliberadamente DISTINTO de 'X1234567L' (el que ya usaba diag_nif.py como
+    ejemplo en su docstring y que por eso esta en NIF_SINTETICOS_CONOCIDOS):
+    este cebo debe seguir siendo detectado, no estar en la lista blanca."""
+    n = int("0" + "7654321")  # X -> 0, igual que nif_check.py
+    return "X7654321" + LETRAS_DNI[n % 23]
+
+
 def cebo_iban():
     return "ES" + "91" + "2100" + "0418" + "45" + "0200051332"
 
@@ -168,6 +182,9 @@ def main():
         comprobar("un CIF en un .md",
                   escanea(escribir(tmp, "notas.md", f"El proveedor {cebo_cif()} factura...\n")),
                   severidad="P0")
+        comprobar("un NIE (extranjero residente) en un .py (agujero encontrado 26-08)",
+                  escanea(escribir(tmp, "cliente.py", f"titular = '{cebo_nie()}'\n")),
+                  "el patron no incluia X/Y/Z, el prefijo de un NIE real", "P0")
         comprobar("un DNI en un .sh (agujero encontrado el 19-08)",
                   escanea(escribir(tmp, "script.sh", f"#!/bin/sh\necho {cebo_dni()}\n")),
                   "los .sh nunca se habian escaneado", "P0")

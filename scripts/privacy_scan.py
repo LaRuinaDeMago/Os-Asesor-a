@@ -39,7 +39,16 @@ if sys.platform == "win32":
 
 RAIZ = Path(__file__).resolve().parent.parent
 
-PATRON_NIF = re.compile(r'\b\d{8}[A-Za-z]\b|\b[A-HJNPQSUVW]\d{7}[0-9A-J]\b')
+# CORREGIDO 26-08-2026 (auditoria externa verificada por ejecucion): faltaba
+# el NIE (extranjero residente, prefijo X/Y/Z) entero como patron - el propio
+# nif_check.py ya lo reconoce desde el 25-08-2026, pero este escaner
+# independiente no lo buscaba: un NIE real en un fichero pasaba "sin
+# hallazgos". Es una rama aparte, no anadir X/Y/Z a la clase de CIF: el
+# caracter de control del NIE sale de las 23 letras del DNI (LETRAS_DNI en
+# nif_check.py), no de [0-9A-J] como el del CIF - probado antes de tocar
+# nada: anadir solo la letra inicial dejaba fuera 'X1234567L' igual, porque
+# la 'L' no cabe en [0-9A-J].
+PATRON_NIF = re.compile(r'\b\d{8}[A-Za-z]\b|\b[A-HJNPQSUVW]\d{7}[0-9A-J]\b|\b[XYZ]\d{7}[A-Za-z]\b')
 PATRON_IBAN = re.compile(r'\bES\d{2}\s?\d{4}\s?\d{4}\s?\d{2}\s?\d{10}\b')
 PATRON_TELEFONO = re.compile(r'\b[6789]\d{2}[\s.-]?\d{3}[\s.-]?\d{3}\b')
 
@@ -157,6 +166,13 @@ def es_hueco(valor):
 # Ninguno identifica a nadie real — es seguro tenerlos aquí en texto plano.
 NIF_SINTETICOS_CONOCIDOS = {
     "12345678Z", "12345678Y", "B12345674", "B12345678", "B99999999",
+    # NIE sintetico (26-08-2026): el mismo que compone cebo_nie() en
+    # test_privacidad.py, y el ejemplo que ya usaba diag_nif.py en su docstring
+    # antes de que este escaner supiera reconocer NIE. Checksum valido, nadie real.
+    "X1234567L",
+    # Mismo NIE con la letra de control puesta a proposito mal, usado por
+    # test_motor_veredicto.py para probar que se detecta un NIE INVALIDO.
+    "X1234567M",
 }
 
 # NOTA (19-08-2026): antes existía aquí una lista blanca de extensiones de texto

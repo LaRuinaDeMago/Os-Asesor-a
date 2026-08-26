@@ -14,6 +14,7 @@ import sys
 import json
 import os
 from datetime import datetime
+from pathlib import Path
 
 # Sin esto, una consola de Windows en cp1252 revienta con UnicodeEncodeError en
 # el primer ✅/❌ y la auditoría no llega a imprimir ni un resultado. Mismo
@@ -33,7 +34,10 @@ def check(nombre, ok, detalle=""):
 
 
 def check_sintaxis():
-    archivos = [f for f in os.listdir(".") if f.endswith(".py")]
+    # CORREGIDO 26-08-2026 (auditoria externa verificada): os.listdir(".") solo
+    # mira la raiz del repo. scripts/privacy_scan.py y scripts/*.py nunca habian
+    # pasado por este chequeo. Recursivo, excluyendo .git.
+    archivos = [str(p) for p in Path(".").rglob("*.py") if ".git" not in p.parts]
     fallos = []
     for f in archivos:
         try:
@@ -41,7 +45,7 @@ def check_sintaxis():
         except SyntaxError as e:
             fallos.append(f"{f}: {e}")
     check("Sintaxis de todos los .py", len(fallos) == 0,
-          f"{len(archivos)} archivos revisados" if not fallos else "; ".join(fallos))
+          f"{len(archivos)} archivos revisados (recursivo)" if not fallos else "; ".join(fallos))
 
 
 def check_cableado():

@@ -7,6 +7,108 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 26-08-2026 (tarde) — Segunda auditoría externa (ChatGPT): 3 hallazgos reales arreglados, varios falsos por código desactualizado
+
+Diego trajo dos auditorías externas hechas con ChatGPT sobre el proyecto. Se
+verificó cada afirmación **ejecutando el código actual**, no aceptándola de
+palabra — misma disciplina que pide este archivo sobre sí mismo. Resultado:
+la primera auditoría (arquitectónica) era mayormente correcta pero analizaba
+un snapshot antiguo del repo; la segunda decía haber "ejecutado el código y
+creado casos adversariales", pero su hallazgo estrella (una fecha
+`2026-99-99` que supuestamente daba VERDE) **da AMBAR al ejecutarlo de
+verdad** — ya estaba cerrado el 21-08-2026. No se dio nada por bueno sin
+reproducirlo.
+
+### ⚠️ Sigue sin resolver, y es lo más importante de las dos sesiones de hoy
+
+**El repositorio de GitHub es PÚBLICO ahora mismo** (`curl
+https://api.github.com/repos/LaRuinaDeMago/Os-Asesor-a` → `"private": false`),
+no privado como dice este mismo archivo más abajo y como asume `.claude/rules/
+datos.md` entero. No hay herramienta disponible en esta sesión Cloud con
+permiso para cambiarlo — **lo tiene que hacer Diego a mano**: `Settings →
+General → Danger Zone → Change repository visibility → Private`. No hay
+indicio de fuga de dato real (el contenido está limpio, verificado), pero la
+barrera del candado del repo lleva rota un tiempo indeterminado.
+
+### 🟢 Tres hallazgos reales de la segunda auditoría, verificados y arreglados
+
+1. **`guard_confianza_captura` convertía la AUSENCIA del campo `verificacion`
+   en la misma certeza que una lectura confirmada.** `fila.get('verificacion',
+   'OK')` — si la captura nunca escribe esa clave (fallo de la API, prompt que
+   cambia, campo renombrado: el mismo modo de fallo que ya rompió este
+   proyecto varias veces), el guard devolvía `ALTA` igual que si estuviera
+   confirmado. **Probado antes de arreglar nada: una factura coherente sin esa
+   clave llegaba a VERDE de verdad.** Ninguna de las 111 pruebas anteriores
+   omitía la clave (todas la fijaban a `'OK'` o `'DUDA'`). Corregido: ausencia
+   → `NO_COMPROBADO`, nunca `ALTA`. Nueva prueba, FAMILIA T de
+   `test_adversarial.py` (112 pruebas ahora).
+2. **El escáner de privacidad no reconocía un NIE** (extranjero residente,
+   prefijo X/Y/Z) como posible dato identificable — su patrón de letra
+   inicial no incluía esas tres letras, y además el carácter de control de un
+   NIE sale del alfabeto de 23 letras del DNI, no de `[0-9A-J]` como el CIF
+   (se necesitó una rama de patrón aparte, no ampliar la existente). Un NIE
+   real en un fichero pasaba "sin hallazgos". Corregido en
+   `scripts/privacy_scan.py`; nueva prueba en `test_privacidad.py` (30/30).
+3. **`audit_project.py` no revisaba `.py` de forma recursiva** —
+   `os.listdir(".")` se saltaba en silencio todo `scripts/*.py`, incluido el
+   propio escáner de privacidad. Cambiado a `Path(".").rglob("*.py")`.
+
+Verificado tras los tres arreglos: `test_motor_veredicto.py` 33/33,
+`test_adversarial.py` 112/112, `test_privacidad.py` 30/30, escáner de
+privacidad sobre el repo completo sin hallazgos, `audit_project.py` en verde
+salvo las dependencias de captura (normal en Cloud).
+
+### 🟠 Deuda técnica real, declarada, NO arreglada todavía (no urgente)
+
+- **Sesgo de mirar al futuro en `orquestador.py::construir_historico_y_secuencia`**:
+  construye el histórico de importes y de secuencia documental a partir de
+  **todo el CSV de la tanda de una vez**, antes de evaluar ninguna fila. Una
+  factura se compara contra un histórico que ya incluye su propio número de
+  documento y su propio importe. No es peligroso hoy (los guards afectados
+  bajan a NO_APLICA/AMBAR, nunca fabrican un OK), pero infla artificialmente
+  la aparente "normalidad" de `secuencia_documental_proveedor` e
+  `importe_atipico` cuando se procesan lotes grandes — afecta más a la
+  medición (retro-semáforo) que a la seguridad. Arreglo correcto: construir el
+  histórico de forma incremental, fila a fila, no de una sentada.
+- **`evaluar_fila_v2`/`evaluar_fila_v3`/`calcular_veredicto_v2` siguen vivos
+  dentro de `motor_veredicto.py`** sin que nada del repo los llame ni ningún
+  test los cubra — código legacy dentro del fichero más sensible del
+  proyecto. Heredan además el bug de `_f()` con el formato español
+  (`_f('1.234')` da `1.234`, no `1234.0`: el parser de producción,
+  `contrato_datos.parse_numero`, ya resuelve esa ambigüedad de forma
+  explícita y declarada, pero `_f()` no la usa). Sin riesgo real mientras
+  nadie los llame; candidatos a borrar en la próxima limpieza de motor,
+  siguiendo la misma disciplina de tests antes/después.
+- **`aprender_cuenta_gasto()` no valida que la cuenta que confirma el asesor
+  exista en el PGC** antes de guardarla con `confianza: CONFIRMADA_ASESOR`
+  (la más alta). Bajo riesgo — es un paso ya mediado por un humano — pero
+  merece una validación mínima contra `PGC_CUADRO_CUENTAS.json`.
+- `test_motor_veredicto.py` es un script de aserciones manuales, no un módulo
+  `unittest`/`pytest` (`python -m unittest discover` no lo encuentra). No es
+  un bug — `audit_project.py` ya lo ejecuta directamente y cruza el conteo de
+  `check()` declarados contra los que pasan, así que no depende de un texto
+  fijo — pero conviene saberlo si se integra CI externo en el futuro.
+
+### ❌ Lo que la segunda auditoría afirmó y resultó ser FALSO o desactualizado (verificado por ejecución)
+
+| Afirmación | Realidad verificada |
+|---|---|
+| Fecha `2026-99-99` sobre factura coherente → VERDE | **AMBAR**, cerrado el 21-08-2026 (`_anio_de` usa `contrato_datos.parse_fecha`, no `fecha[:4]`) |
+| `nif_check.py` no soporta NIE (X/Y/Z) | Soportado desde el 25-08-2026, con el algoritmo correcto (X→0, Y→1, Z→2) |
+| `DE123456789` (NIF-IVA UE) da FALLO→ROJO | Da `NO_COMPROBADO` explícitamente — no hay rama que lo convierta en ROJO |
+| `guard_cuenta_gasto_coherente`, `guard_tipo_producto_iva_semantico`, `guard_tipo_operacion_especial` no están en `evaluar_fila_v4` | Los tres están cableados, línea 1248-1254, desde el 19-08-2026 |
+| `guard_cuenta_gasto_coherente` no compara la cuenta propuesta contra el histórico | Sí compara, desde el 21-08-2026 (antes SÍ era así — arreglado ese día) |
+| El escáner de privacidad no distingue `.DAT`/ZIP por contenido | Ya detecta por firma de bytes desde el 19-08-2026 |
+| `audit_project.py` compara con el string fijo `"21/21 OK"` sin contar nada | Ya cuenta `check()` declarados vs. `OK` reales y los cruza, desde el 19-08-2026 |
+| Ficheros de otro dominio (cripto) siguen mezclados en el repo | Eliminados esta misma tarde, antes de esta segunda auditoría (ver entrada anterior) |
+| `motor_veredicto.py` tiene 712 líneas / 19 guards | Tiene 1.560 líneas / 28 funciones `guard_*` — la auditoría trabajó sobre una versión de hace semanas |
+
+**Lección para las próximas auditorías externas (humanas o de otra IA):**
+tratarlas como hipótesis a verificar por ejecución, nunca como hechos —
+exactamente la regla que este archivo ya aplica sobre sí mismo con los tests.
+Una auditoría que "dice haber ejecutado código" puede no haberlo hecho de
+verdad; el único juez es correr el motor aquí y ahora.
+
 ## 26-08-2026 — Auditoría cloud completa: 5-bis ya cerrado, 6 ficheros de cripto fuera del repo
 
 Sesión Cloud, sin datos reales, siguiendo `CLAUDE.md`: `PROJECT_STATUS.md` leído

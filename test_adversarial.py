@@ -781,6 +781,21 @@ _v, _m2 = evaluar({**BASE_FILA, 'base_21': '1000.00', 'base_total': '1000.00',
 comprobar("S", "pero 10 centimos de descuadre SI se cazan",
           _v == "ROJO", _v, "ROJO", "P0")
 
+print("\n=== FAMILIA T — La ausencia del campo, no solo su valor (26-08-2026) ===")
+# Auditoria externa verificada por ejecucion, no aceptada de palabra: probe el
+# caso exacto que proponia antes de arreglar nada, y SI daba VERDE de verdad.
+# guard_confianza_captura hacia fila.get('verificacion', 'OK'): si la captura
+# NUNCA escribe la clave (fallo de la API, cambio de nombre de campo, prompt
+# que omite el campo) es indistinguible de una lectura confirmada. Las FAMILIAS
+# O y Q ya prueban 'verificacion'='DUDA' y ='OK', pero ninguna de las 111
+# pruebas anteriores omitia la clave por completo.
+_sin_verificacion = {k: v for k, v in BASE_O.items() if k != 'verificacion'}
+assert 'verificacion' not in _sin_verificacion, "BASE_O no debe traer 'verificacion'"
+_v, _m2, _g = _ev(_sin_verificacion)
+comprobar("T", "campo 'verificacion' ausente -> NO_COMPROBADO, nunca ALTA por omision",
+          _g['confianza_captura'][0] == "NO_COMPROBADO" and _v == "AMBAR",
+          f"{_g['confianza_captura'][0]} / {_v}", "NO_COMPROBADO / AMBAR", "P0")
+
 # ---------------------------------------------------------------------------
 print("\n" + "=" * 70)
 fallos = [r for r in resultados if not r[2]]
