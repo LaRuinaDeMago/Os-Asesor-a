@@ -1,14 +1,36 @@
-# EMPEZAR AQUÍ — 21-08-2026
+# EMPEZAR AQUÍ — 26-08-2026
 
-Punto de entrada único. Corto a propósito: `PROJECT_STATUS.md` tiene 700 líneas y
-sirve para consultar, no para arrancar. Esto sirve para arrancar.
+Punto de entrada único. Corto a propósito: `PROJECT_STATUS.md` sirve para
+consultar, no para arrancar. Esto sirve para arrancar.
+
+---
+
+## 0. Dos cosas del entorno que ahorran media hora
+
+**En el PC de la asesoría el intérprete se llama `python`, no `python3`.**
+Comprobado el 26-08-2026: `python3` da *command not found*. En este documento
+verás `python3` en comandos antiguos — sustitúyelo por `python`.
+
+**Los scripts se ejecutan SIEMPRE desde la carpeta del proyecto, y la carpeta
+de datos va como argumento.** Nunca al revés: si abres el terminal dentro de
+la carpeta de datos, Python no encuentra el script. Las dos rutas reales:
+
+| Qué | Ruta |
+|---|---|
+| Corpus ContaPlus (`.DAT`, 2016-2026) | `C:\Users\SERVILAB\Desktop\100% contabilidad` |
+| Archivo de modelos AEAT presentados | `\\PC01\Documentos` |
+
+```bash
+cd "C:\Users\SERVILAB\Downloads\Proyecto asesoria completo"
+python diag_baseimpo.py "C:\Users\SERVILAB\Desktop\100% contabilidad" --limite 150
+```
 
 ---
 
 ## 1. Primer comando, antes de leer nada
 
 ```bash
-python3 audit_project.py
+python audit_project.py
 ```
 
 Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
