@@ -1,5 +1,13 @@
 # NUNCA_SUBE.md
 
+> **Documento VIGENTE, con una salvedad de fecha.** Las reglas de aquí siguen
+> mandando; el inventario concreto de ficheros es del **30-07-2026** y algunos
+> de los que cita ya no existen ni siquiera en local. La barrera real no es esta
+> lista sino `scripts/privacy_scan.py`, que decide **por el contenido** de cada
+> fichero y no por su nombre — ver `.claude/rules/datos.md`, apartado *"La
+> barrera mira el CONTENIDO, no la extensión"*. Esta lista documenta el porqué;
+> el escáner es quien bloquea.
+
 Lista explícita de qué NO sube a GitHub y por qué. Ningún NIF ni nombre real se
 cita en este documento — solo se describe que existe y el motivo, tal como pide
 la regla de la sección 1.5 de FLUJO_CONTINUO_PLAN_DEFINITIVO.md.

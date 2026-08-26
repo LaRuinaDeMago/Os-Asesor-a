@@ -1,8 +1,19 @@
 # SUBE_A_GITHUB.md
 
-Lista explícita de qué sube a GitHub y por qué. Cada entrada indica cómo se
-verificó — no es una aprobación en bloque. Ver `NUNCA_SUBE.md` para todo lo
-excluido y el motivo.
+> ⚠️ **REGISTRO HISTÓRICO DEL 30-07-2026, no un inventario actual.** Describe la
+> auditoría de aquel día, cuando el repositorio tenía una fracción de los
+> ficheros de hoy. **No sirve para saber qué hay ahora**: para eso mandan
+> `git ls-files` y el escáner (`python scripts/privacy_scan.py $(git ls-files)`),
+> que se ejecuta además en cada commit desde el hook `scripts/pre-commit`.
+>
+> Se conserva porque documenta **cómo** se verificó cada fichero en su momento,
+> que es información que no está en ningún otro sitio. Varios ficheros que cita
+> ya no existen (el módulo de cripto, eliminado el 26-08-2026): eso es correcto
+> para la fecha de este documento, no una referencia rota.
+
+Lista explícita de qué subió a GitHub y por qué **el 30-07-2026**. Cada entrada
+indica cómo se verificó — no fue una aprobación en bloque. Ver `NUNCA_SUBE.md`
+para todo lo excluido y el motivo.
 
 Verificación aplicada a todo lo de aquí abajo (2026-07-30): grep de solo-conteo
 sobre la lista de apellidos reales de clientes/proveedores ya identificados
@@ -37,7 +48,14 @@ verde) y con una segunda pasada de grep tras la edición (0 coincidencias).
   `Dato` omite el valor a propósito porque puede acabar en un log.
 - `layout_diario_contaplus.py` (verificado solo por compilación, no tiene test
   propio en test_motor_veredicto.py — considerar añadir uno)
+  > ✅ **HECHO.** `ensayo_xdiario.py` existe desde el 21-08-2026 y corre dentro
+  > de `audit_project.py`. En su primera ejecución encontró un defecto real:
+  > el xDiario emitía asientos descuadrados.
 - `orquestador.py` (igual: verificado por compilación, sin test propio)
+  > ✅ **HECHO.** `ensayo_orquestador.py` existe desde el 26-08-2026 y también
+  > corre dentro de `audit_project.py`. También encontró un bug real en su
+  > primera ejecución: el histórico perdía en silencio toda factura con
+  > importes en coma decimal.
 - `test_adversarial.py` (añadido 19-08-2026) — batería de ataque al motor. Todos
   sus NIF/CIF son inventados con checksum válido y ya están en el allowlist de
   `scripts/privacy_scan.py`.
