@@ -155,6 +155,30 @@ v, motivo, guards = reevaluar_tras_correccion(
 check("nif_casa_historico" in guards, "reevaluar_tras_correccion SI calcula nif_casa_historico (prueba que usa v4, no v2)")
 check(v == "ROJO", f"NIF no encontrado en maestro -> ROJO incluso tras 'correccion' (dio {v})")
 
+print("\n=== REGRESION (auditoria externa verificada, 26-08-2026): ===")
+print("=== una correccion NO puede marcar la factura como duplicada de si misma ===")
+# Reproduce el flujo real: la factura entra con un dato dudoso (AMBAR), y el
+# MISMO set 'vistos_duplicado' de esa primera pasada se reutiliza al reevaluar
+# tras la correccion -- exactamente como lo haria un orquestador real que
+# procesa una tanda entera y va corrigiendo AMBAR sobre la marcha.
+fila_ambar = {
+    'fecha_expedicion': '2026-01-15', 'nº_documento': 'F-900', 'proveedor': 'PROVEEDOR PILOTO EJEMPLO',
+    'nif': '12345678Z', 'base_10': '0', 'base_4': '0', 'base_21': '100.00', 'base_total': '100.00',
+    'iva_total': '21.00', 'irpf_retencion': '0', 'total_factura': '121.00', 'verificacion': 'DUDA',
+}
+vistos_tanda = set()
+v_antes, _, _ = evaluar_fila_v4(fila_ambar, vistos_tanda, {}, {}, {}, {}, 2020, None, None)
+check(v_antes == "AMBAR", f"la factura de partida es AMBAR (confianza de captura en duda), dio {v_antes}")
+fila_corregida_no_cambia_identidad = dict(fila_ambar)
+fila_corregida_no_cambia_identidad['categoria_producto'] = 'oficina'  # corriges un campo que NO es la identidad
+v_despues, motivo_despues, guards_despues = reevaluar_tras_correccion(
+    fila_corregida_no_cambia_identidad, vistos_tanda, {}, {}, {}, {}, 2020, None, None, {})
+check(guards_despues["anti_duplicado"][0] == "OK",
+      f"la reevaluacion tras corregir un campo NO IDENTIFICATIVO no se marca duplicada de si misma "
+      f"(anti_duplicado dio {guards_despues['anti_duplicado']}, veredicto {v_despues})")
+check(v_despues == "VERDE (corregido)",
+      f"y por tanto la factura SI llega a VERDE (corregido) (dio {v_despues}: {motivo_despues})")
+
 print("\n=== tipo_operacion_especial (guard nuevo, casos SINTETICOS - sin caso real todavia) ===")
 check(guard_tipo_operacion_especial('Fra C.382', '600000', '12345678Z')[0] == "NO_APLICA",
       "compra normal real (caso piloto) -> NO_APLICA, sin falso positivo")

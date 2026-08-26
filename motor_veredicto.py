@@ -1556,11 +1556,25 @@ def reevaluar_tras_correccion(fila_corregida, vistos_duplicado, historico_provee
     retencion_vs_error, signo_efectivo, secuencia_documental, ejercicio_coherente
     ni vencimiento_coherente. Bug real, detectado por revision externa, no por
     las pruebas propias - motivo por el cual las pruebas de regresion deben
-    cubrir tambien este flujo explicitamente (ver test_motor_veredicto.py)."""
+    cubrir tambien este flujo explicitamente (ver test_motor_veredicto.py).
+
+    CORREGIDO 26-08-2026 (auditoria externa verificada por ejecucion): guard_
+    anti_duplicado registra la clave de la factura en `vistos_duplicado` EN
+    CUANTO la evalua, antes de saber el veredicto final. La primera pasada
+    (AMBAR, pendiente de correccion) ya deja la clave registrada. Sin este
+    arreglo, la reevaluacion posterior encontraba su PROPIA clave en el mismo
+    set y devolvia ROJO "duplicado exacto" contra si misma - reproducido antes
+    de tocar nada: una factura AMBAR corregida sin cambiar NIF/nº doc/fecha/
+    total (el caso normal: se corrige el IRPF, la categoria, el tipo de
+    documento...) rompia siempre este flujo. Se descarta la clave de la propia
+    factura antes de reevaluar: si de verdad coincide con OTRA factura distinta
+    de la tanda, se sigue detectando (guard_anti_duplicado la vuelve a anadir
+    dentro de evaluar_fila_v4)."""
     fila_corregida = dict(fila_corregida)
     fila_corregida['verificacion'] = 'OK'  # la correccion humana se trata como lectura directa de nuevo
     secuencia_cache = secuencia_cache or {}
     maestro_proveedores = maestro_proveedores or {}
+    vistos_duplicado.discard(contrato_datos.canonizar(fila_corregida).clave_documental())
     veredicto, motivo, guards = evaluar_fila_v4(
         fila_corregida, vistos_duplicado, historico_proveedor, formato_cache,
         secuencia_cache, maestro_proveedores, alta_cliente_anio,

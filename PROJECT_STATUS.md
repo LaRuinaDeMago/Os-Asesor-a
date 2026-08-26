@@ -7,6 +7,70 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 26-08-2026 (noche) — Tercera auditoría externa (ChatGPT), línea por línea del motor: 1 hallazgo real y grave, resto ya cerrado o no reproducible
+
+Misma disciplina que las dos anteriores: cada afirmación se reprodujo contra
+el código actual antes de aceptarla. Patrón que se repite y ya es sistemático
+en las tres rondas: varios de los "hallazgos" citan, casi palabra por palabra,
+el comportamiento ANTIGUO que los propios comentarios de `motor_veredicto.py`
+describen como ya corregido (ej. el ejemplo exacto `irpf=999` vs
+`diferencia=150` que cita el código como el caso que motivó el arreglo del
+19-08-2026, presentado por la auditoría como si fuera el estado actual). Los
+números de línea citados (782 líneas, 32 funciones) tampoco coinciden con el
+fichero real (1.571 líneas, 47 funciones): la auditoría no está leyendo HEAD.
+
+### 🔴 Un hallazgo SÍ era real, grave, y reproducible de punta a punta
+
+**`reevaluar_tras_correccion()` podía marcar una factura como duplicada de sí
+misma.** `guard_anti_duplicado()` registra la clave documental
+(NIF+nº documento+fecha+total) en el set `vistos_duplicado` en el momento en
+que la evalúa, antes de saber el veredicto final de la fila. Es el diseño
+correcto para detectar duplicados dentro de una tanda — pero
+`reevaluar_tras_correccion()` reutiliza ese MISMO set cuando el asesor corrige
+un campo de una factura AMBAR y la reenvía, y la mayoría de correcciones
+reales (IRPF, categoría de producto, tipo de documento…) no tocan los cuatro
+campos de la clave. **Reproducido antes de arreglar nada:** una factura AMBAR
+por duda de captura, corregida sin tocar su identidad, volvía **ROJO
+"duplicado exacto de una factura ya vista"** — contra sí misma. Esto rompía
+el flujo declarado del propio proyecto (AMBAR → corrección humana → VERDE
+corregido) en el caso normal, no en un borde raro.
+
+Arreglado: `reevaluar_tras_correccion()` descarta la clave de la propia
+factura de `vistos_duplicado` antes de reevaluar (si de verdad coincide con
+OTRA factura distinta de la tanda, `guard_anti_duplicado` la vuelve a detectar
+igual, porque la reinserta dentro de `evaluar_fila_v4`). Nueva prueba de
+regresión en `test_motor_veredicto.py` (36/36 ahora) que reproduce el flujo
+completo: AMBAR → corrección de un campo no identificativo → debe llegar a
+VERDE (corregido), no ROJO.
+
+### ❌ Lo que esta tercera auditoría afirmó y resultó ser FALSO o desactualizado
+
+| Afirmación | Realidad verificada |
+|---|---|
+| `_f()` convierte ausencia/vacío en `0.0`, violando "ausencia ≠ OK" | Cierto para `_f()`, pero `evaluar_fila_v4` (producción) no la usa para los importes — usa `contrato_datos.canonizar()/canon.num()`, que distingue MISSING/ZERO/INVALID/VALUE desde el 19-08-2026, con `guard_integridad_datos` como frontera previa. El propio docstring de ese guard describe este bug como ya cerrado |
+| `guard_retencion_vs_error` acepta una retención típica (ej. 19%) sin que el IRPF declarado la confirme | Cerrado el 19-08-2026 — el guard exige que `irpf` coincida con la diferencia o declara `NO_COMPROBADO`; el propio código cita el caso `irpf=999 vs diferencia=150` como el bug ya corregido, con esos mismos números |
+| `guard_signo_efectivo` da OK a un importe negativo sin `tipo_documento` | Cerrado el 19-08-2026 — da `NO_COMPROBADO` explícitamente en ese caso |
+| `guard_cuenta_gasto_coherente`, `guard_tipo_producto_iva_semantico`, `guard_tipo_operacion_especial` fuera de `evaluar_fila_v4` | Cableados desde el 19-08-2026 (mismo hallazgo ya refutado en la ronda anterior) |
+| `nif_cliente_titular=None` no llega desde el orquestador | `orquestador.py` acepta `--nif-titular` desde el 19-08-2026 (mismo hallazgo ya refutado) |
+| `audit_project.py` declara "21/21" solo por la cadena `"TODAS LAS PRUEBAS PASAN"` | Ya cuenta `check()` declarados vs. `OK` reales y los cruza, desde el 19-08-2026 (mismo hallazgo ya refutado) |
+
+### 🟡 Confirmado pero de prioridad baja, declarado sin arreglar
+
+- **`guard_nif_casa_historico` compara `nif.strip()` contra las claves del
+  maestro sin normalizar mayúsculas/minúsculas.** Confirmado en el código: no
+  hay `.upper()`. No se ha arreglado porque no hay un caso real que lo pida
+  todavía (regla de `CLAUDE.md`) — a diferencia del bug de `anti_duplicado`,
+  que se reprodujo con datos de entrada perfectamente normales.
+- Comparación `< TOL` en vez de `<= TOL` en los guards de aritmética/cuadre:
+  un descuadre de exactamente 0,02 € da FALLO. Podría ser intencional (margen
+  estricto); si aparece un caso real en el borde, revisar entonces.
+- Legacy `evaluar_fila_v2/v3` y test no integrado en `pytest`: mismos hallazgos
+  ya declarados como deuda técnica en la entrada anterior de hoy.
+
+Verificado tras el arreglo: `test_motor_veredicto.py` 36/36,
+`test_adversarial.py` 112/112, `test_privacidad.py` 30/30, `audit_project.py`
+en verde salvo dependencias de captura (normal en Cloud).
+
 ## 26-08-2026 (tarde) — Segunda auditoría externa (ChatGPT): 3 hallazgos reales arreglados, varios falsos por código desactualizado
 
 Diego trajo dos auditorías externas hechas con ChatGPT sobre el proyecto. Se
