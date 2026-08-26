@@ -7,6 +7,42 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 26-08-2026 (noche, quinta ronda) — Quinta auditoría externa (ChatGPT): mismo patrón, un hallazgo demostrado falso con cifras propias del repo
+
+Verificada por ejecución, misma disciplina. **Repite, palabra por palabra en
+varios casos, las mismas cuatro afirmaciones ya refutadas en las rondas 3 y 4**
+(`_f()` convierte ausencia en 0 y esto llega a producción, `guard_retencion_
+vs_error` da OK sin que el IRPF confirme la hipótesis, `guard_signo_efectivo`
+da OK a un negativo sin `tipo_documento`, `guard_nif_casa_historico` da FALLO
+cuando el NIF no está en el maestro) — las cuatro re-verificadas con grep
+directo sobre el código actual, mismo resultado: las cuatro siguen cerradas
+desde el 19/20-08-2026, sin regresión.
+
+**Un hallazgo nuevo en esta ronda, y resultó ser el más fácil de refutar de
+las cinco auditorías:** afirma que falta "una batería específica de falsos
+verdes" que demuestre que el motor no puede fabricar VERDE cuando falta
+evidencia crítica, y propone crearla como el "siguiente salto de calidad".
+**Ya existe, se llama `barrido_falsos_verdes.py`, y sus números están en este
+mismo archivo desde el 21-08-2026:**
+
+```
+1.786 mutaciones de un solo campo sobre facturas VERDE
+1.644 cazadas por el motor, 87 equivalentes (nada que cazar)
+0 escapes sin explicar (100% de deteccion sobre lo detectable)
+control positivo: 172 de 172 escapes detectados con el motor saboteado
+```
+
+Es, en la práctica, más rigurosa que la batería que la auditoría propone
+crear (`TEST_FALSE_GREEN_001..008`, ~8 casos manuales): mutación exhaustiva
+de campo por campo sobre datos reales, no una lista de casos escritos a mano.
+
+Sin cambios de código en esta ronda — quinta consecutiva sin un hallazgo
+nuevo y real tras la del `anti_duplicado`/`reevaluar_tras_correccion`
+(ronda 3). Se mantiene la conclusión operativa ya escrita en la ronda 4: las
+afirmaciones de esta herramienta externa que ya constan como CERRADAS aquí no
+se re-verifican desde cero salvo que aporten código o un caso reproducible
+nuevo, no prosa repetida.
+
 ## 26-08-2026 (noche, más tarde) — Cuarta auditoría externa (ChatGPT), función por función: sin hallazgo nuevo grave, un patrón que sí importa
 
 Misma disciplina que las tres anteriores. Esta vez con una diferencia notable
