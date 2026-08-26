@@ -125,7 +125,8 @@ def comprobar(nombre, condicion, detalle="", severidad="P1"):
 def escanea(path):
     """Devuelve True si la barrera BLOQUEA ese fichero."""
     r = subprocess.run([sys.executable, ESCANER, path],
-                       capture_output=True, text=True, cwd=AQUI)
+                       capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", cwd=AQUI)
     return r.returncode != 0
 
 
@@ -253,10 +254,12 @@ def main():
         # El control de falsos positivos que de verdad manda: el repositorio
         # entero. Si una regla nueva bloquea la documentacion del propio
         # proyecto, la regla esta mal, por muy bien intencionada que sea.
-        _repo = subprocess.run(["git", "ls-files"], capture_output=True, text=True, cwd=AQUI)
+        _repo = subprocess.run(["git", "ls-files"], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", cwd=AQUI)
         _ficheros = [f for f in _repo.stdout.split() if f]
         _r = subprocess.run([sys.executable, ESCANER] + _ficheros,
-                            capture_output=True, text=True, cwd=AQUI)
+                            capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", cwd=AQUI)
         comprobar(f"el repositorio entero ({len(_ficheros)} ficheros) sigue limpio",
                   _r.returncode == 0, _r.stdout[-400:], "P0")
 
@@ -273,7 +276,8 @@ def main():
             f.write(fuente)
         trampa = escribir(tmp, "trampa_control.DAT", zip_bytes(), binario=True)
         r = subprocess.run([sys.executable, copia, trampa],
-                           capture_output=True, text=True, cwd=AQUI)
+                           capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", cwd=AQUI)
         comprobar("con el escaner saboteado, el ZIP disfrazado SE CUELA",
                   r.returncode == 0,
                   "si esto falla, el sabotaje no funciono y el control no vale",

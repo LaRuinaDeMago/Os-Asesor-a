@@ -294,6 +294,58 @@ def check_dependencias():
           "todas presentes" if not faltan else f"faltan: {faltan}")
 
 
+def check_subprocess_encoding():
+    """ANADIDO 26-08-2026. Toda llamada a subprocess.run con text=True tiene
+    que declarar `encoding`.
+
+    POR QUE ES UN AUDITOR Y NO UN ARREGLO PUNTUAL: sin `encoding`, Python
+    decodifica la salida del proceso hijo con la codificacion del SISTEMA
+    (cp1252 en un Windows espanol). Un solo byte UTF-8 sin equivalente mata el
+    hilo lector, `stdout` se queda en None, y el script revienta con un
+    AttributeError que no dice nada del problema real.
+
+    Lo peor: NO se nota en Cloud, donde la consola es UTF-8. Solo aparece en
+    el PC de la asesoria, que es justo la maquina donde el proyecto importa.
+    Este fichero lo sufrio (audit_project.py no llegaba al final) y ademas
+    estaba latente, sin haber saltado todavia, en ensayo_corpus_roto.py y en
+    las cuatro llamadas de test_privacidad.py.
+
+    Se comprueba sobre el AST, no sobre el texto: la leccion del 21-08-2026
+    con check_cableado fue que un auditor que mira la FORMA acusa a inocentes
+    en cuanto alguien reformatea una linea."""
+    fallos = []
+    revisadas = 0
+    # Misma recorrida recursiva que check_sintaxis(): si un fichero de
+    # scripts/ queda fuera del barrido, el agujero vuelve por ahi.
+    for f in [str(p) for p in Path(".").rglob("*.py") if ".git" not in p.parts]:
+        try:
+            arbol = ast.parse(open(f, encoding="utf-8").read())
+        except SyntaxError:
+            continue                       # ya lo reporta check_sintaxis()
+        for nodo in ast.walk(arbol):
+            if not isinstance(nodo, ast.Call):
+                continue
+            fn = nodo.func
+            nombre = ""
+            if isinstance(fn, ast.Attribute):
+                nombre = fn.attr
+                if isinstance(fn.value, ast.Name):
+                    nombre = f"{fn.value.id}.{fn.attr}"
+            if nombre not in ("subprocess.run", "run"):
+                continue
+            claves = {k.arg for k in nodo.keywords if k.arg}
+            # Sin text=True devuelve bytes: no hay decodificacion que fallar.
+            if not claves & {"text", "universal_newlines"}:
+                continue
+            revisadas += 1
+            if "encoding" not in claves:
+                fallos.append(f"{os.path.basename(f)}:{nodo.lineno}")
+    check("subprocess.run: encoding explicito", not fallos,
+          f"{revisadas} llamadas con text=True, todas declaran encoding"
+          if not fallos else
+          f"sin encoding (revientan en consola cp1252): {', '.join(fallos)}")
+
+
 def comparar_con_anterior():
     path_historico = ".audit_historico.json"
     anterior = None
@@ -319,6 +371,7 @@ if __name__ == "__main__":
     check_tests()
     check_adversarial()
     check_estados_y_cobertura()
+    check_subprocess_encoding()
     comparar_con_anterior()
 
     todos_ok = all(c["ok"] for c in RESULTADO["checks"].values())

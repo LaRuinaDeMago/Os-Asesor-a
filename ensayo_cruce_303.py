@@ -44,6 +44,7 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import contrato_datos
 import cruzar_303_importes as cruce
 
 FALLOS = []
@@ -153,11 +154,18 @@ def main():
                             ("12345,67", 12345.67),
                             ("1234567,89", 1234567.89),
                             ("345,67", 345.67),
-                            ("1.234.567,89", 1234567.89)):
-        hallados = cruce.NUM_ES.findall(texto)
-        valor = cruce._num_es_a_float(hallados[0]) if hallados else None
-        comprobar(f"lee {texto} como {esperado} (con y sin separador de millar)",
+                            ("1.234.567,89", 1234567.89),
+                            ("12 345,67", 12345.67)):   # espacio duro de PDF
+        valores = contrato_datos.importes_en_texto(texto)
+        valor = valores[0] if valores else None
+        comprobar(f"lee {texto!r} como {esperado} (con y sin separador de millar)",
                   valor == esperado, f"leyo {valor}")
+
+    # El patron vive en UN solo sitio. Si alguien vuelve a copiarlo dentro de
+    # un script, esta comprobacion lo caza: es la unica defensa real contra
+    # que la familia de bugs "arreglado aqui, no alli" vuelva a aparecer.
+    comprobar("el cruce NO tiene su propia copia del patron de importes",
+              cruce.NUM_ES is contrato_datos.RE_IMPORTE_EN_TEXTO)
 
     tmp = tempfile.mkdtemp(prefix="ensayo_cruce_")
     try:

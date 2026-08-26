@@ -147,7 +147,60 @@ aplica en una pieza y no en su hermana.**
 `audit_project.py` pasa de 10 a **11 auditores**. Escáner de privacidad sobre
 **108 ficheros: sin hallazgos**. 36/36, 112/112, cobertura 26/26.
 
-### 7. PENDIENTE, y es lo primero de la próxima sesión
+### 7. Barrido posterior: los mismos bugs estaban en OTROS SIETE sitios
+
+Tras documentar lo anterior se hizo lo que faltaba: **buscar los bugs de hoy en
+el resto del repositorio**, porque el patrón que se acababa de describir es
+precisamente *"el arreglo se aplicó en una pieza y no en su hermana"*. Aparecieron
+en siete sitios más, ninguno detectado hasta ahora.
+
+**a) El patrón numérico roto vivía en TRES copias.** Se arregló en
+`cruzar_303_importes.py` y se dejó intacto en `extraer_303_pdf.py:53` y
+`reconocer_303_pdf.py:66` — los dos scripts del 303 que ya existían. Es decir: se
+cometió el mismo error que se estaba documentando, en la misma sesión.
+
+**Arreglado de raíz, no parcheado tres veces.** El patrón y su conversión viven
+ahora en un solo sitio, `contrato_datos.py`, que ya era la única regla de números
+del proyecto:
+
+- `RE_IMPORTE_EN_TEXTO` — localiza importes dentro de texto libre (una página de
+  PDF, un OCR). Trabajo distinto de `parse_numero()`, que convierte un texto que
+  ya se sabe que es un número.
+- `importes_en_texto(texto)` — localiza y convierte, usando `parse_numero()`, de
+  modo que no hay dos formas de interpretar `1.234,56` según quién lo lea.
+- `parse_numero()` ampliado: ahora también limpia **espacio duro (` `) y fino
+  (` `)**, que es lo que mete la extracción de PDF donde el documento
+  mostraba un separador de millar. Sin eso, `12 345,67` salía `INVALID` por un
+  espacio que el ojo humano no distingue del normal.
+
+Los tres ficheros importan esa definición. `ensayo_cruce_303.py` comprueba
+explícitamente que **el cruce no tenga su propia copia** (`cruce.NUM_ES is
+contrato_datos.RE_IMPORTE_EN_TEXTO`): es la única defensa real contra que la
+familia vuelva.
+
+**b) El `subprocess.run` sin `encoding` estaba latente en CINCO llamadas más.**
+`ensayo_corpus_roto.py:61` y las **cuatro** de `test_privacidad.py`. No habían
+reventado todavía por pura suerte —depende de qué carácter concreto imprima el
+proceso hijo— pero eran la misma bomba. Las 18 llamadas del repositorio declaran
+ya `encoding` explícito.
+
+**c) Y se convirtió en auditor permanente, el 12º.** `check_subprocess_encoding()`
+recorre el **AST** (no el texto: la lección del 21-08 con `check_cableado` fue que
+un auditor que mira la forma acusa a inocentes en cuanto alguien reformatea) y
+exige `encoding` en toda llamada con `text=True`.
+
+**Probado que sabe ponerse rojo**, sobre una copia temporal del repositorio con el
+bug reintroducido a propósito: `❌ sin encoding (revientan en consola cp1252):
+ensayo_corpus_roto.py:67`. Un auditor que solo se ha visto en verde no ha
+demostrado nada — misma disciplina que la batería de privacidad.
+
+> **La lección de método, que vale más que los siete arreglos:** documentar un
+> patrón de bug no basta. Hay que **barrer el repositorio buscándolo**, en la
+> misma sesión, antes de dar el hallazgo por cerrado. Aquí el barrido multiplicó
+> por más de dos los defectos encontrados, y uno de ellos se había introducido
+> ese mismo día al arreglar los otros.
+
+### 8. PENDIENTE, y es lo primero de la próxima sesión
 
 **Arreglar `reconstruir_303.py` para que derive la base del asiento**, como ya
 hace `retro_semaforo.reconstruir_compra()`. No es trivial: hoy procesa línea a

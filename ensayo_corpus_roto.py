@@ -58,7 +58,14 @@ def correr(argumentos):
     excepcion que se lleva la bateria por delante. Es lo que se esta probando:
     un timeout aqui ES el hallazgo, y tiene que salir en el informe."""
     try:
+        # encoding EXPLICITO: sin el, `text=True` decodifica con la
+        # codificacion del sistema (cp1252 en Windows) y la salida UTF-8 del
+        # proceso hijo mata el hilo lector con UnicodeDecodeError, dejando
+        # stdout en None. Le paso a audit_project.py el 26-08-2026 y aqui
+        # estaba latente el mismo fallo, esperando a que un hijo imprimiera
+        # el caracter equivocado.
         r = subprocess.run(argumentos, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace",
                            cwd=AQUI, timeout=TOPE_SEGUNDOS)
         return r.returncode, r.stdout + r.stderr, False
     except subprocess.TimeoutExpired:

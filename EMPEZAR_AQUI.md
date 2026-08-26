@@ -29,6 +29,7 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ✅ Captura <-> motor: los campos cuadran
 ✅ Corpus roto: no cuelga ni contamina
 ✅ Cruce 303: identifica sin inventar                     <- 11º auditor, 26-08
+✅ subprocess.run: encoding explicito (18 llamadas)       <- 12º auditor, 26-08
 ❌ Dependencias: faltan anthropic, google-genai   <- NORMAL, son de captura
 ```
 
@@ -119,7 +120,7 @@ ceguera del instrumento, pero no está descartado del todo. Ver
 > (`cruzar_303_importes.py` + `ensayo_cruce_303.py`, y `cuadre_303_ficha.py`
 > para la vía manual): esperan un `303_LOCAL.json` que valga.
 
-### Los once auditores, y por qué hacen falta los once
+### Los doce auditores, y por qué hacen falta los doce
 
 Cada uno tapa un agujero que los demás no ven. No es redundancia:
 
@@ -136,8 +137,17 @@ Cada uno tapa un agujero que los demás no ven. No es redundancia:
 | `ensayo_corpus_roto.py` | ¿un fichero corrupto para la medición? | **cuelgue y cifras contaminadas** |
 | `ensayo_orquestador.py` | ¿el histórico pierde facturas por el formato? | **guard alimentado en vacío** |
 | `ensayo_cruce_303.py` | ¿el cruce inventa una correspondencia? | **cliente identificado por azar** |
+| `check_subprocess_encoding` | ¿algún `subprocess.run` sin `encoding`? | **verde en Cloud, roto en el PC real** |
 
-Los once corren dentro de `audit_project.py`: basta el primer comando.
+Los doce corren dentro de `audit_project.py`: basta el primer comando.
+
+> El 12º es del 26-08 y nace de un bug que ya había mordido: `audit_project.py`
+> **se rompía a la mitad en el PC de la asesoría** y no en Cloud, porque
+> `text=True` sin `encoding` decodifica con la codificación del sistema. Al
+> arreglarlo se barrió el repositorio y aparecieron **cinco llamadas más** con
+> la misma bomba, latentes. Comprueba sobre el **AST**, no sobre el texto, y
+> está probado con el bug reintroducido a propósito: se pone rojo y dice
+> fichero y línea.
 
 `audit_estados.py` se escribió tras encontrar a mano, después de semanas, que
 `guard_cuenta_gasto_coherente` estaba cableado, tenía su rama `FALLO -> AMBAR`

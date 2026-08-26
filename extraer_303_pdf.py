@@ -33,6 +33,7 @@ import os
 import re
 import sys
 from collections import Counter
+from contrato_datos import RE_IMPORTE_EN_TEXTO, parse_numero
 
 logging.getLogger("pdfminer").setLevel(logging.ERROR)  # silencia el ruido de ToUnicode
 
@@ -50,7 +51,14 @@ PATRON_NOMBRE = re.compile(
 TRIM_A_NUM = {"1": 1, "2": 2, "3": 3, "4": 4,
               "primer": 1, "segundo": 2, "tercer": 3, "cuarto": 4}
 
-NUM_ES = re.compile(r'-?\d{1,3}(?:\.\d{3})*,\d{2}')
+# ARREGLADO 26-08-2026: aqui vivia r'-?\d{1,3}(?:\.\d{3})*,\d{2}',
+# que exige el punto de millar y por tanto leia "12345,67" como
+# "345,67" -- un numero distinto, en silencio. El 47% de los importes
+# del archivo real vienen sin separador, asi que este patron estaba
+# corrompiendo casi la mitad de las lecturas. Es candidato serio a
+# explicar parte del 1,2% de consistencia interna que se atribuyo
+# entero a la rejilla del PDF. Ahora manda contrato_datos.py.
+NUM_ES = RE_IMPORTE_EN_TEXTO
 TIPOS_LEGALES = (0, 4, 5, 10, 21)
 TOL_TIPO = 0.6   # puntos porcentuales de margen sobre el tipo legal mas cercano
 
@@ -68,7 +76,7 @@ CASILLAS_DEDUCIBLE = (28, 29)
 
 
 def _num_es_a_float(s):
-    return float(s.replace(".", "").replace(",", "."))
+    return parse_numero(s).valor
 
 
 def extraer_numero_tras(texto, pos_inicio, ventana=80):

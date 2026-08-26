@@ -88,6 +88,7 @@ import os
 import re
 import sys
 from collections import Counter, defaultdict
+from contrato_datos import RE_IMPORTE_EN_TEXTO, parse_numero
 
 logging.getLogger("pdfminer").setLevel(logging.ERROR)  # ruido de ToUnicode
 
@@ -117,42 +118,19 @@ PATRON_NOMBRE = re.compile(
 )
 TRIM_A_NUM = {"1": 1, "2": 2, "3": 3, "4": 4,
               "primer": 1, "segundo": 2, "tercer": 3, "cuarto": 4}
-#: BUG REAL heredado de extraer_303_pdf.py, cazado el 26-08-2026 al no casar
-#: ni un solo trimestre. El patron original era:
-#:
-#:      r'-?\d{1,3}(?:\.\d{3})*,\d{2}'
-#:
-#: que exige el punto de millar. Si el PDF escribe "12345,67" sin separador
-#: -- y al extraer texto de un PDF eso pasa constantemente -- el patron NO
-#: falla: encuentra "345,67". Devuelve un numero DISTINTO, en silencio, sin
-#: error. Medido: "12345,67"->345,67 y "1234567,89"->567,89.
-#:
-#: Es la misma clase de fallo que el motor existe para impedir: no una
-#: excepcion, sino una respuesta falsa con aspecto de buena. Y como
-#: extraer_303_pdf.py usaba este mismo patron, es candidato serio a explicar
-#: parte de aquel 1,2% de consistencia interna que se atribuyo entero a la
-#: rejilla del PDF.
-#:
-#: Ahora se aceptan las dos formas: agrupada (12.345,67 / 12 345,67, con
-#: espacio normal o duro, que es lo que suele meter la extraccion de PDF) y
-#: sin agrupar (12345,67).
-#: El separador de millar puede llegar como punto, espacio normal, espacio
-#: duro (\u00a0) o espacio fino (\u2009): la extraccion de PDF mete uno u otro
-#: donde el documento mostraba la separacion. Se escriben como escapes para
-#: que no dependan de un byte invisible en el fuente.
-SEP_MILLAR = "[.\u0020\u00a0\u2009]"
-NUM_ES = re.compile(r"-?(?:\d{1,3}(?:" + SEP_MILLAR + r"\d{3})+|\d+),\d{2}")
+#: El patron de importes y su conversion viven en contrato_datos.py, que es la
+#: unica regla de numeros del proyecto. NO se copian aqui: el 26-08-2026 se
+#: descubrio que habia TRES copias del patron y las tres estaban mal (exigian
+#: el punto de millar, asi que "12345,67" se leia como "345,67" en silencio,
+#: devolviendo un numero distinto sin dar ningun error). Ver el comentario
+#: largo de RE_IMPORTE_EN_TEXTO en contrato_datos.py.
+NUM_ES = RE_IMPORTE_EN_TEXTO
 
 #: Solo para diagnostico: cuantos importes venian agrupados y cuantos no. Si
 #: casi ninguno viene agrupado, el patron viejo estaba destrozando los
 #: importes de este archivo en concreto.
-NUM_AGRUPADO = re.compile(r"^-?\d{1,3}(?:" + SEP_MILLAR + r"\d{3})+,\d{2}$")
+NUM_AGRUPADO = re.compile(r"^-?\d{1,3}(?:[.\u0020\u00a0\u2009]\d{3})+,\d{2}$")
 
-
-def _num_es_a_float(s):
-    for sep in (".", "\u0020", "\u00a0", "\u2009"):
-        s = s.replace(sep, "")
-    return float(s.replace(",", "."))
 
 #: Reserva para los nombres que el patron estricto no reconoce. En la primera
 #: pasada real (26-08-2026) se quedaron fuera 145 de 1.168 ficheros — un 12%
@@ -209,7 +187,7 @@ def importes_del_pdf(ruta):
     for m in encontrados:
         ESTADISTICA_FORMATO["agrupado" if NUM_AGRUPADO.match(m)
                             else "sin agrupar"] += 1
-    return {round(abs(_num_es_a_float(m)), 2) for m in encontrados}
+    return {round(abs(parse_numero(m).valor), 2) for m in encontrados}
 
 
 def importes_significativos(lados, min_importe):

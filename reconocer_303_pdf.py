@@ -25,6 +25,7 @@ se imprime en ningun momento. Solo recuentos.
 Uso:
     python reconocer_303_pdf.py "RUTA_DE_DOCUMENTOS"
 """
+from contrato_datos import RE_IMPORTE_EN_TEXTO
 import os
 import re
 import sys
@@ -63,7 +64,9 @@ PATRONES_TEXTO = {
     "'Regimen general'": re.compile(r'r[eé]gimen\s+general', re.IGNORECASE),
     "'Resultado' (palabra suelta)": re.compile(r'\bresultado\b', re.IGNORECASE),
     "numero con formato moneda ES (1.234,56)":
-        re.compile(r'\d{1,3}(?:\.\d{3})*,\d{2}'),
+        # ARREGLADO 26-08-2026: exigia el punto de millar; ver
+        # RE_IMPORTE_EN_TEXTO en contrato_datos.py.
+        RE_IMPORTE_EN_TEXTO,
 }
 
 

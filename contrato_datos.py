@@ -46,6 +46,7 @@ Este modulo maneja valores reales en memoria, pero NUNCA los emite: los informes
 de incidencia citan el NOMBRE DEL CAMPO y su estado, jamas su contenido. Es la
 misma regla que ya siguen scripts/privacy_scan.py y los scripts de la Fase 0.
 """
+import re
 from datetime import date, datetime
 
 # --- Estados posibles de un dato ------------------------------------------
@@ -149,7 +150,13 @@ def parse_numero(x):
     if s == '':
         return Dato(None, MISSING)
 
-    s = s.replace('€', '').replace('EUR', '').replace(' ', '')
+    # Se quitan tambien el espacio duro (\u00a0) y el fino (\u2009): la
+    # extraccion de texto de un PDF mete uno u otro donde el documento
+    # mostraba un separador de millar, y sin quitarlos "12 345,67" acababa
+    # en INVALID por un espacio que el ojo humano ni distingue del normal.
+    s = s.replace('\u20ac', '').replace('EUR', '')
+    for _espacio in ('\u0020', '\u00a0', '\u2009'):
+        s = s.replace(_espacio, '')
     ultimo_punto, ultima_coma = s.rfind('.'), s.rfind(',')
     if ultimo_punto != -1 and ultima_coma != -1:
         if ultima_coma > ultimo_punto:           # 1.234,56 -> espanol
@@ -182,6 +189,55 @@ def _dato_numerico(v):
     if v != v or v in (float('inf'), float('-inf')):
         return Dato(None, INVALID)
     return Dato(v, ZERO if v == 0 else VALUE)
+
+
+#: Separadores de millar que puede traer un importe extraido de un PDF: punto,
+#: espacio normal, espacio duro (\u00a0) y espacio fino (\u2009). Escritos como
+#: escapes a proposito: un caracter de espacio invisible dentro del fuente es
+#: imposible de revisar en un diff.
+_SEP_MILLAR = '[.\u0020\u00a0\u2009]'
+
+#: Patron para ENCONTRAR importes dentro de un texto libre (una pagina de PDF,
+#: un OCR, un correo). Es un trabajo distinto del de parse_numero(), que
+#: convierte un texto que YA se sabe que es un numero; aqui hay que localizarlos
+#: primero, entre palabras.
+#:
+#: BUG REAL cazado el 26-08-2026, y la razon de que esto viva AQUI y no en cada
+#: script: habia TRES copias del patron (extraer_303_pdf.py, reconocer_303_pdf.py
+#: y el cruce nuevo), las tres escritas como
+#:
+#:      r'-?\d{1,3}(?:\.\d{3})*,\d{2}'
+#:
+#: que EXIGE el punto de millar. Con "12345,67" ese patron no falla: encuentra
+#: "345,67". Devuelve un numero distinto, en silencio, sin error. Medido sobre
+#: el archivo real del despacho: el 47% de los importes vienen SIN separador de
+#: millar, asi que casi la mitad se leian mal.
+#:
+#: El patron arreglado en un solo sitio y copiado a mano en los otros dos es
+#: exactamente como nacen los bugs de esta familia — el mismo patron que el
+#: proyecto ya documento dos veces (float() a pelo tras el motor, BASEIMPO sin
+#: alternativa). Por eso hay una sola definicion y los tres la importan.
+RE_IMPORTE_EN_TEXTO = re.compile(
+    r'-?(?:\d{1,3}(?:' + _SEP_MILLAR + r'\d{3})+|\d+),\d{2}')
+
+
+def importes_en_texto(texto):
+    """Todos los importes con dos decimales que aparecen en un texto libre.
+
+    Localiza con RE_IMPORTE_EN_TEXTO y convierte con parse_numero(), que es la
+    unica regla de conversion del proyecto: asi no hay dos formas distintas de
+    interpretar "1.234,56" segun quien lo lea.
+
+    Devuelve una lista de floats. Lo que no se pueda convertir se descarta en
+    silencio A PROPOSITO: en un texto libre hay cadenas con forma de numero que
+    no lo son, y aqui eso no es un dato perdido, es ruido descartado.
+    """
+    valores = []
+    for trozo in RE_IMPORTE_EN_TEXTO.findall(texto):
+        dato = parse_numero(trozo)
+        if dato.estado in UTILIZABLES:
+            valores.append(dato.valor)
+    return valores
 
 
 def parse_fecha(x):
