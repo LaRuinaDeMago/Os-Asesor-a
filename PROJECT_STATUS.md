@@ -7,6 +7,60 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, decimoctava entrada) — Cuarto candidato encontrado (`cuenta_gasto_coherente`), verificado como MÁS DIFÍCIL, no arreglado a propósito
+
+Diego no puede volver a ejecutar `retro_semaforo.py` hoy (no está en el PC).
+En vez de esperar sin hacer nada, se buscó sistemáticamente si el mismo
+patrón de la entrada anterior (una caché declarada, nunca rellenada por los
+dos scripts de medición) se repite en otro guard — dado que ya se demostró
+real una vez, valía la pena comprobar el resto antes de darlo por un caso
+aislado.
+
+### Encontrado: `guard_cuenta_gasto_coherente` está en la misma situación estructural
+
+Está en `AMBAR_DEDICADOS` (puede mover VERDE→AMBAR igual que los tres
+anteriores) y nunca puede devolver `FALLO` con lo que le llega hoy desde
+`retro_semaforo.py` ni `validar_captura_historica.py` — dormido en las dos
+mediciones reales, mismo síntoma.
+
+**Pero el diagnóstico completo revela tres huecos, no uno:** `fila['cuenta_
+proveedor']` y `fila['cuenta_debe']` nunca se copian desde las líneas del
+asiento a la `fila` que ve el motor (la información SÍ está en `gastos`/
+`acree` dentro de `reconstruir_compra()`, solo se descarta antes de llegar
+al motor), y `mapeo_cuenta_gasto` nunca se pasa, igual que las tres caches
+ya arregladas.
+
+### Por qué NO se arregla igual — verificado antes de tocar nada
+
+`construir_mapeo_cuenta_gasto()` indexa por **código de cuenta** (`400015`),
+no por NIF. Y `FASE0_RESULTADOS.md` §10.1 ya demostró, con el corpus real,
+que **el código de cuenta no es una identidad estable entre clientes**: el
+mismo proveedor puede ser `400001` en una copia y `400035` en otra, y el
+mismo código puede ser dos proveedores distintos en dos clientes. `retro_
+semaforo.py` acumula `maestro_acumulado` en un único diccionario para **todo
+el corpus, todos los clientes juntos** (verificado: se inicializa una sola
+vez, fuera de cualquier bucle por cliente). Acumular `mapeo_cuenta_gasto` de
+la misma forma, con la misma clave, mezclaría cuentas de clientes distintos
+bajo la misma clave — un histórico falso, no uno real. Sería un arreglo que
+rompe algo peor de lo que arregla, y no se ha hecho.
+
+### Queda declarado, no arreglado — con la pregunta de diseño exacta
+
+No es una decisión mecánica: hay que decidir si `mapeo_cuenta_gasto` se
+acumula **por cliente** (una tabla distinta por copia, reiniciada en cada
+`c` del bucle de `dats`) o si el guard necesita cambiar su clave de "código
+de cuenta" a NIF — un cambio de firma, no solo de llamada. Ninguna de las
+dos se ha decidido ni implementado. Copiar `cuenta_proveedor`/`cuenta_debe`
+a `fila` en `reconstruir_compra()` es mecánico y de bajo riesgo por
+separado, pero no aporta nada sin resolver antes la pregunta del mapeo.
+
+**No se ha tocado ningún código para este hallazgo.** Solo diagnóstico,
+verificado leyendo `guard_cuenta_gasto_coherente()`, `construir_mapeo_
+cuenta_gasto()`, `reconstruir_compra()` y la firma interna de `evaluar_
+fila_v4()` en la llamada real al guard (línea 1319 de `motor_veredicto.py`).
+
+---
+
 ## 27-08-2026 (sesión Cloud, decimoséptima entrada) — Hallazgo de Diego, verificado: las tres caches de historial nunca se acumulaban en las dos mediciones con corpus real
 
 Diego encontró algo que va más allá de un detalle de estilo, con el mismo

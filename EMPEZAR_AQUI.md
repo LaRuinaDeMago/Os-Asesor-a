@@ -167,6 +167,16 @@ motor."** Cerrado, no toca seguir picando en el retro-semáforo.
 > el corpus real y comparar el VERDE/AMBAR nuevo contra el 87,71%/9,26% de
 > arriba. Si el ROJO se mueve, es una señal nueva que investigar aparte —no
 > debería, según lo ya verificado.
+>
+> **Cuarto candidato encontrado el mismo día, buscando sistemáticamente el
+> mismo patrón: `guard_cuenta_gasto_coherente` también está dormido, pero
+> NO arreglado a propósito.** Se indexa por código de cuenta (`400015`), no
+> por NIF — y `FASE0_RESULTADOS.md` §10.1 ya demostró que el código de
+> cuenta no es identidad estable entre clientes. Acumularlo igual que las
+> tres cachés de arriba mezclaría cuentas de clientes distintos. Requiere
+> una decisión de diseño (¿tabla por cliente, o el guard cambia su clave a
+> NIF?) antes de tocar código. Detalle en `PROJECT_STATUS.md` (decimoctava
+> entrada del 27-08).
 
 Sigue abierto, y no es urgente: `cuadre_total`/`retencion_vs_error` (~800
 casos, 2,7%) y `nif_digito_control` (60 casos tras el arreglo 11, 0,2%) sin
