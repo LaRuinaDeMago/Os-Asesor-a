@@ -7,6 +7,53 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, duodécima entrada) — `comparar_esquema_dbf.py`: la herramienta segura para lo que el incidente anterior intentaba hacer mal
+
+Tras el incidente de la entrada anterior, se construyó la vía correcta para
+responder la pregunta original (¿tiene ContaSOL el mismo layout de `.dbf`
+que ContaPlus?) sin que ningún dato real tenga que acercarse nunca a Cloud.
+
+**Reutiliza, no reinventa:** `leer_cabecera()` ya existía en
+`fase0_esquema_dbf.py`, construida y verificada en la Fase 0 para leer
+**solo la cabecera** de un `.dbf` — nombres de campo, tipos, anchos, número
+de registros — y pararse ahí, con un tope duro de 65535 bytes, sin tocar
+jamás la zona de filas. Una cabecera dBase no contiene ningún dato de
+cliente: es la definición de estructura, el mismo tipo de información que
+ya vive en el propio `CAMPOS` de `layout_diario_contaplus.py`.
+
+`comparar_esquema_dbf.py` (nuevo) abre esa misma función contra un `.dbf`
+**suelto** (no dentro de un ZIP/.DAT, a diferencia del uso original en
+Fase 0) y compara el resultado campo a campo contra el layout ya verificado
+de ContaPlus. La salida son solo nombres de campo técnicos y números — es
+segura de pegar entera en el chat, a diferencia de cualquier fichero
+original.
+
+`test_comparar_esquema_dbf.py`: 12/12 en verde, con cabeceras dBase
+construidas a mano (cero filas, cero datos) para los tres casos que
+importan — esquema idéntico, un campo con distinto ancho, un campo de
+menos. Probado con sabotaje (la comparación forzada a decir siempre
+"idéntico"): el ensayo lo detecta y revienta con fuerza, más visible
+todavía que un simple fallo. `test_motor_veredicto.py` 39/39,
+`test_adversarial.py` 112/112 sin cambios. Escáner de privacidad sin
+hallazgos.
+
+**Siguiente paso real, de Diego, sin ningún dato de cliente:**
+
+```bash
+python comparar_esquema_dbf.py "ruta\al\fichero_diario.dbf"
+```
+
+Si dice **IDÉNTICO**, el `xDiario.txt` que ya genera este proyecto sirve
+para ContaSOL sin cambios. Si dice **DIFERENTE**, señala exactamente qué
+campo difiere y en qué — no hay que adivinar nada ni traer el fichero
+completo a ningún sitio para saberlo. Complementa, no sustituye, la
+comprobación pendiente de la entrada del "paso final a ContaPlus/ContaSOL"
+(importar un xDiario sintético en una empresa de pruebas): esta herramienta
+responde si el **layout de entrada** coincide; esa otra prueba responde si
+la **importación** funciona de verdad.
+
+---
+
 ## 🔴 27-08-2026 (sesión Cloud, undécima entrada) — INCIDENTE: 4 ficheros reales subidos a Cloud, expuestos pese a pedir que no se leyeran
 
 Al intentar avanzar la verificación de ContaSOL (entrada anterior), Diego

@@ -857,6 +857,26 @@ necesita que el modelo la VEA (DPA); la numeración y la exportación, no.
 
 ## 10. Verificación pendiente: el xDiario ¿sirve también para ContaSOL?
 
+> 🔴 **Incidente el mismo día, leer antes de intentar esto:** al intentar
+> avanzar esta verificación, se adjuntaron 4 ficheros reales a esta
+> conversación Cloud pidiendo "no los leas" — y el mecanismo de adjuntos los
+> mostró igual, antes de que hubiera ocasión de actuar. Detalle sin datos
+> reales en `PROJECT_STATUS.md` (entrada "INCIDENTE") y regla nueva en
+> `.claude/rules/datos.md`: **ningún fichero real se adjunta a Cloud, nunca,
+> ni con instrucciones de "no lo leas"**. La barrera tiene que estar antes.
+
+**👉 Por eso existe `comparar_esquema_dbf.py` (nuevo, mismo día):** responde
+si un `.dbf` tiene el mismo layout que ContaPlus leyendo **solo su
+cabecera** (nombres de campo, anchos — nunca una fila), así que su salida
+completa es segura de pegar en el chat. Ejecutar en local:
+
+```bash
+python comparar_esquema_dbf.py "ruta\al\Diario.dbf de ContaSOL"
+```
+
+Dice IDÉNTICO o exactamente en qué campo difiere. Detalle en
+`PROJECT_STATUS.md` (duodécima entrada del 27-08).
+
 `escribir_xdiario()` (`layout_diario_contaplus.py`) lleva desde el 20/21-08
 construido y auditado para ContaPlus, con el layout de campos verificado
 byte a byte contra un `Diario.dbf` real. Su docstring afirmaba, sin que
