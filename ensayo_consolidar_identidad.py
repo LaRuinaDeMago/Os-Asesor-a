@@ -176,11 +176,33 @@ def main():
                   and stats["n_sospechosa_sin_corroborar"] == 1,
                   (stats["n_sospechosa_corroborada"], stats["n_sospechosa_sin_corroborar"]))
 
+        # --- Calibracion: en ESTE corpus, DELTA (no-equipo) y EPSILON      --
+        # (equipo) estan las dos al 100% de mezcla -- exactamente el patron
+        # NO INFORMATIVA que se confirmo con el corpus real de Diego.
+        calib = stats["calibracion_sospechosa"]
+        comprobar("con este corpus, la calibracion sale NO INFORMATIVA "
+                  "(mismo patron que el corpus real: saturada en los dos "
+                  "lados)", calib["informativa"] is False, calib)
+
         # --- Fichero de detalle: orden de prioridad y marcas correctas ------
         ruta_detalle = os.path.join(tmp, "detalle_LOCAL.txt")
-        escribir_consolidado(filas, ruta_detalle)
+        orden = escribir_consolidado(filas, ruta_detalle, calib["informativa"])
         with open(ruta_detalle, encoding="utf-8") as f:
             texto = f.read()
+
+        comprobar("el detalle avisa que SOSPECHOSA no se usa para priorizar "
+                  "en este corpus",
+                  "NO se usa para ordenar la prioridad" in texto)
+        comprobar("el aviso de DELTA MIXTA lleva el sufijo de calibracion "
+                  "[NO INFORMATIVA...]",
+                  "'DELTA MIXTA'" in texto and "NO INFORMATIVA en este corpus"
+                  in texto.split("'DELTA MIXTA'")[1].split("ContaPlus:")[0])
+        posicion = {f["carpeta"]: i for i, f in enumerate(orden)}
+        comprobar("con la calibracion en NO INFORMATIVA, GAMMA (sin ningun "
+                  "aviso, confianza alta) queda ANTES que DELTA MIXTA en la "
+                  "prioridad -- SOSPECHOSA ya no infla la urgencia aqui",
+                  posicion["GAMMA CONSULTING SL"] < posicion["DELTA MIXTA"],
+                  posicion)
         comprobar("el detalle marca DISCREPANCIA en el bloque de ALFA",
                   "ALFA SERVICIOS SL'  <<< DISCREPANCIA" in texto
                   or ("'ALFA SERVICIOS SL'" in texto and "DISCREPANCIA" in
@@ -205,6 +227,46 @@ def main():
                            "Mantenimiento", "Consulting"):
             comprobar(f"por consola NO aparece '{fragmento}'",
                       fragmento not in salida, salida)
+
+        # --- Segundo corpus: calibracion SI informativa -----------------
+        # El escenario de arriba sale NO INFORMATIVA por construccion (un
+        # solo caso en cada bucket, los dos mezclados). Hace falta un
+        # segundo corpus, con mas carpetas sanas de nombre "cliente
+        # concreto", para probar la rama contraria: cuando la calibracion
+        # SI es de fiar, SOSPECHOSA debe seguir mandando en la prioridad.
+        cp2 = os.path.join(tmp, "contaplus2")
+        crear_codigo(os.path.join(cp2, "COPIA BACKUP ORDENADOR"), "SPZET1_A.DAT",
+                     [cif_valido("B", 8000000 + k) for k in range(6)], "20180101")
+        crear_codigo(os.path.join(cp2, "COPIA BACKUP ORDENADOR"), "SPZET2_A.DAT",
+                     [dni_valido(9000000 + k) for k in range(6)], "20230101")
+        for i in range(3):
+            proveedores = [cif_valido("B", 10000000 + i * 100 + k) for k in range(6)]
+            carpeta = os.path.join(cp2, f"CLIENTE SANO {i}")
+            crear_codigo(carpeta, "SPSAN1_A.DAT", proveedores, "20180101")
+            crear_codigo(carpeta, "SPSAN2_A.DAT", proveedores, "20230101")
+        doc2 = os.path.join(tmp, "documentos2")
+        os.makedirs(os.path.join(doc2, "Cliente Sin Relacion SL"), exist_ok=True)
+
+        stats2, filas2 = consolidar(cp2, doc2, max_difusion=0.30, min_nifs=3)
+        calib2 = stats2["calibracion_sospechosa"]
+        comprobar("segundo corpus: calibracion INFORMATIVA (0% de mezcla "
+                  "entre las 3 carpetas 'cliente sano', 100% en la de "
+                  "equipo)", calib2["informativa"] is True, calib2)
+
+        ruta_detalle2 = os.path.join(tmp, "detalle2b_LOCAL.txt")
+        orden2 = escribir_consolidado(filas2, ruta_detalle2, calib2["informativa"])
+        posicion2 = {f["carpeta"]: i for i, f in enumerate(orden2)}
+        comprobar("con calibracion INFORMATIVA, la carpeta de equipo "
+                  "(sospechosa corroborada) queda ANTES que las 'cliente "
+                  "sano' (sin ningun aviso) -- aqui SI manda en la prioridad",
+                  all(posicion2["COPIA BACKUP ORDENADOR"] < posicion2[f"CLIENTE SANO {i}"]
+                      for i in range(3)),
+                  posicion2)
+        with open(ruta_detalle2, encoding="utf-8") as f:
+            texto2 = f.read()
+        comprobar("el segundo detalle NO lleva el sufijo de calibracion "
+                  "[NO INFORMATIVA...] (aqui si es de fiar)",
+                  "NO INFORMATIVA en este corpus" not in texto2)
 
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

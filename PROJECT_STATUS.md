@@ -7,6 +7,78 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, decimosexta entrada) — Confirmado con datos reales: SOSPECHOSA es el artefacto de continuidad temporal, no mezcla real. `consolidar_identidad.py` ya se calibra sola
+
+Cierra la entrada anterior. Diego ejecutó `diag_calibracion_sospechosa.py`
+contra el corpus completo (3.857 contenedores, 28 carpetas analizadas):
+
+| | |
+|---|---|
+| Suena a equipo/copia Y sospechosa | 24 carpetas, media 26,6 grupos |
+| Suena a equipo/copia Y sana | 0 carpetas |
+| NO suena a equipo/copia Y sospechosa | **3 carpetas, media 24,7 grupos** |
+| NO suena a equipo/copia Y sana | 0 carpetas |
+
+**Tasa de sospechosas: 100% entre las que suenan a equipo, 100% TAMBIÉN
+entre las que no.** Es exactamente el patrón que el propio script marca como
+diagnóstico en su "cómo se lee": *"si las dos tasas son parecidas -sobre
+todo si la segunda también es alta-, SOSPECHOSA no distingue nada por sí
+sola."* Gana la hipótesis A (artefacto de continuidad temporal) sobre la B
+(mezcla real): si fuera real, las carpetas con nombre de cliente concreto
+deberían salir sanas casi siempre, y no es así ni una vez.
+
+**Conclusión operativa, sin ambigüedad:** la marca SOSPECHOSA de
+`diag_carpetas_multiempresa.py`, tal como está construida hoy (Jaccard de
+proveedores entre códigos de una misma carpeta), no sirve para priorizar
+revisión en este corpus. No es un defecto de la implementación de hoy — es
+la confirmación a escala real de lo que la tercera entrada ya había
+reproducido con datos sintéticos ("sin continuidad temporal entre copias,
+hasta la misma empresa parece no coincidir consigo misma").
+
+### `calcular_contingencia()` ahora devuelve un veredicto, no solo números
+
+`diag_calibracion_sospechosa.py` se amplió con `informativa` (True/False/
+None, umbral: tasa entre las que NO suenan a equipo < 50%) y
+`consolidar_identidad.py` lo llama en cada ejecución. Si sale **NO
+INFORMATIVA** (el caso de hoy), la marca SOSPECHOSA se sigue mostrando en
+`consolidado_LOCAL.txt` -- ninguna información se descarta -- pero deja de
+competir por prioridad con una DISCREPANCIA real o con la confianza normal
+del nombre. Cada aviso lleva el sufijo `[NO INFORMATIVA en este corpus, no
+usada para priorizar]` para que quede explícito, no implícito.
+
+Tres estados posibles, y los tres se prueban: INFORMATIVA (la señal sí
+distingue), NO INFORMATIVA (satura los dos lados, el caso real de hoy) y
+NO_COMPROBADO (sin carpetas de nombre "cliente concreto" con las que
+contrastar -- nunca se finge un veredicto que no se puede sostener, misma
+disciplina que `motor_veredicto.py`).
+
+### Verificación
+
+`ensayo_diag_calibracion_sospechosa.py` reescrito con los tres escenarios
+(incluido uno que reproduce el resultado real de hoy con datos sintéticos:
+saturado en los dos lados). `ensayo_consolidar_identidad.py` ampliado con un
+segundo corpus sintético para probar las dos ramas de la calibración en la
+priorización real del fichero de salida -- con NO INFORMATIVA, una carpeta
+sin ningún aviso pero de confianza alta queda ANTES que una sospechosa en la
+cola de revisión; con INFORMATIVA, es al revés. Los 12 `ensayo_*.py` del
+repositorio en verde, `test_motor_veredicto.py` 39/39, `test_adversarial.py`
+112/112, `test_privacidad.py` 30/30, escáner de privacidad sobre el
+repositorio completo sin hallazgos.
+
+### Lo que queda para más adelante, sin bloquear nada de hoy
+
+Arreglar de raíz `diag_carpetas_multiempresa.py` (que la técnica tenga en
+cuenta la ventana temporal de cada código, no solo el solape bruto de
+proveedores) es un trabajo aparte, no trivial, y no se acomete hoy sin que
+haya un caso concreto que lo pida -- la calibración automática ya evita el
+daño práctico (que la marca engañe la prioridad de revisión) mientras tanto.
+La marca DISCREPANCIA no tiene este problema: usa el mismo Jaccard pero en
+dirección conservadora (exige similitud ALTA para fusionar entre carpetas
+distintas), así que el mismo artefacto la haría fallar en detectar
+fragmentación real, no inventar discrepancias.
+
+---
+
 ## 27-08-2026 (sesión Cloud, decimoquinta entrada) — Diego ejecutó `consolidar_identidad.py` contra el corpus real: 27 de 27 carpetas "SOSPECHOSA" (100%) — cifra que no se acepta sin comprobar, y coincide con un fallo ya documentado
 
 Primera ejecución real de `consolidar_identidad.py` (entrada anterior),

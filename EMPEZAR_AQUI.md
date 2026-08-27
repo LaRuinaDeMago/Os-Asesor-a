@@ -77,7 +77,20 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 > - `python ensayo_diag_carpetas_multiempresa.py`
 > - `python ensayo_consolidar_identidad.py`
 >
-> **Pendiente, y lo ejecuta Diego, no Claude:**
+> **27-08-2026 (sesión Cloud, decimosexta entrada):** ejecutado contra el
+> corpus real -- confirmado que SOSPECHOSA es el artefacto de continuidad
+> temporal ya sospechado (100% de sospechosas también entre carpetas con
+> nombre de cliente concreto, no solo entre las de equipo/copia).
+> `diag_calibracion_sospechosa.py` (nuevo) mide esto con una tabla de
+> contingencia, y `consolidar_identidad.py` ya llama a ese cálculo solo:
+> si sale NO INFORMATIVA, deja de usar SOSPECHOSA para priorizar la revisión
+> (se sigue mostrando, marcada). Detalle completo en `PROJECT_STATUS.md`.
+> - `python ensayo_diag_calibracion_sospechosa.py`
+>
+> **Ya no hace falta ejecutar `diag_calibracion_sospechosa.py` aparte** --
+> `consolidar_identidad.py` se calibra solo en cada corrida. Repetir el
+> cruce con el código actual (opcional, solo si quieres el fichero
+> `consolidado_LOCAL.txt` actualizado con la calibración ya integrada):
 > ```bash
 > python consolidar_identidad.py "C:\Users\SERVILAB\Desktop\100% contabilidad" "\\PC01\Documentos" --detalle consolidado_LOCAL.txt
 > ```
