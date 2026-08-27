@@ -148,10 +148,43 @@ ceguera del instrumento, pero no está descartado del todo. Ver
 >
 > Con la fórmula nueva, `base×tipo=cuota` se cumple por construcción siempre
 > que haya un tipo con el que dividir, así que la coherencia debería salir
-> muy por encima del 64,9% de antes. Si no es así, hay algo más que
-> investigar antes de pasar al cruce contra los PDF de `\\PC01\Documentos`
-> con `cuadre_303_ficha.py` o `cruzar_303_importes.py` — los dos ya
-> construidos y probados, esperando una base que valga.
+> muy por encima del 64,9% de antes. **Hecho: 99,1%.** Ver el bloque de abajo
+> para lo que vino después.
+
+> 🛑 **HECHO Y CONFIRMADO: el problema que queda ya NO es de números, es de
+> IDENTIDAD, y NO se resuelve por estadística. Requiere revisión humana.**
+>
+> Con la base ya al 99,1% de coherencia, `cruzar_303_importes.py` contra
+> `\\PC01\Documentos` siguió dando **1 de 24 cubos casados, ninguno sólido**
+> — mismo patrón plano que antes del arreglo. Se probaron TRES vías
+> algorítmicas para resolver la identidad (fragmentación por códigos
+> delgados, fusión por proveedores comunes, granularidad de cubo mal
+> calibrada) y las tres necesitaron que Diego aportara un dato que invalidaba
+> el número obtenido: las carpetas incluyen clientes históricos, no solo los
+> 33 actuales; `\\PC01\Documentos` no es "una carpeta por cliente" (mezcla
+> contabilidades, facturas, memorias); el modelo 347 (propuesto como
+> verificación cruzada) lo presentan muy pocos clientes. Detalle completo,
+> con cada intento y su fallo reproducido con datos sintéticos, en
+> `PROJECT_STATUS.md`, tercera entrada del 27-08.
+>
+> **👉 SIGUIENTE PASO REAL, y lo hace Diego, no un script:**
+>
+> ```bash
+> python cuadre_303_ficha.py --listar
+> ```
+>
+> Lista las 24-28 carpetas del corpus con trimestres y años, marcando con
+> `(?)` las que suenan a equipo/backup. Diego las reconoce al instante
+> porque las nombró él — es la única fuente que hoy se ha demostrado, tres
+> veces, que no comete el error que sí comete cada heurística estadística
+> probada. Con eso resuelto, `cruzar_303_importes.py` puede repetirse con
+> una base de clientes fiable.
+>
+> **Lo que SÍ queda de los tres intentos, y no se tira:** `enlazador_
+> clientes_303.py` y `diag_carpetas_multiempresa.py` tienen ahora un filtro
+> de difusión de proveedores comunes (el mismo que `cruzar_303_importes.py`
+> ya tenía desde el 26-08) y sirven de **apoyo** a la revisión manual — una
+> pista de qué carpetas mirar dos veces, no una sentencia automática.
 
 > 🛑 **BLOQUEO HISTÓRICO, YA CERRADO (ver el aviso de arriba). Se conserva
 > como registro de por qué hizo falta el arreglo, no como estado actual.**

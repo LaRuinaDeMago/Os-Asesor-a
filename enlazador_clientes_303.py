@@ -12,6 +12,20 @@ seguridad crea su propio codigo, casi sin excepcion. Con ~33 empresas reales
 repartidas en 500+ cubos, comparar el 303 a mano contra ese detalle no es
 viable: una empresa real puede estar partida en 15-40 entradas.
 
+BUG REAL cazado el 27-08-2026, no preventivo: el script NO filtraba
+proveedores DEMASIADO COMUNES (banco, electrica, telefonica, Hacienda como
+contraparte...) antes de calcular la similitud. Probado sobre el corpus real:
+5 carpetas fabricadas a proposito como empresas DISTINTAS, cada una con
+proveedores propios pero compartiendo 4 "genericos", se fusionaron en UN
+SOLO grupo -- la similitud por los genericos (0,67) bastaba para saltar el
+umbral, sin que importara que cada una tuviera proveedores propios y
+distintos. Es la MISMA familia de fallo que `cruzar_303_importes.py` ya
+resolvio el 26-08 para los importes ("un importe presente en el 40% de las
+carpetas no distingue a nadie"), aqui aplicada a NIF de proveedores. Sin
+esto, el resultado real del 27-08 fue "6 grupos" para 27 folders -- muy por
+debajo de las 33 empresas conocidas, sobre-fusionando por culpa de
+proveedores compartidos que no dicen nada de identidad.
+
 QUE HACE, Y QUE NO HACE TODAVIA (FASE 1 de 2)
 ----------------------------------------------
 Esta fase SOLO agrupa y mide la calidad del agrupamiento. NO toca
@@ -28,7 +42,9 @@ en ningun momento.
 
 Uso:
     python enlazador_clientes_303.py "RUTA_DEL_CORPUS"
+    python enlazador_clientes_303.py "RUTA_DEL_CORPUS" --max-difusion 0.2
 """
+import argparse
 import hashlib
 import os
 import sys
@@ -37,7 +53,7 @@ from collections import Counter, defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from retro_semaforo import parse_cabecera, num, txt, cuenta
-from reconstruir_303 import clave_cliente, trimestre_de
+from reconstruir_303 import trimestre_de
 
 MIN_NIFS = 3  # cubos con menos contrapartes que esto no tienen senal fiable
 
@@ -46,8 +62,37 @@ def _h(valor):
     return hashlib.blake2b(valor.encode("utf-8"), digest_size=10).digest()
 
 
+def carpeta_y_codigo(ruta):
+    """(carpeta, carpeta/codigo) -- el mismo patron ya usado en
+    retro_semaforo.py:686 para `cliente_id` en --emitir-cartera.
+
+    SEGUNDO BUG REAL cazado el 27-08-2026, mas grave que el de la difusion:
+    esta funcion usaba `clave_cliente(ruta)`, importada de reconstruir_303.py.
+    Esa funcion se cambio el 25-08-2026 para devolver SOLO la carpeta (el
+    arreglo que paso 507 "clientes" a 24). Como este fichero solo IMPORTABA
+    la funcion por nombre, el cambio del 25-08 le cambio el significado a
+    "cubo" en SILENCIO: paso de ser "carpeta+codigo" (lo que dice su propia
+    cabecera, "cubo a cubo en vez de carpeta a carpeta en bruto") a ser
+    exactamente "carpeta a carpeta en bruto" -- la MISMA granularidad que se
+    supone que venia a refinar. El script llevaba desde el 25-08 sin poder
+    hacer lo que dice que hace, y nadie se entero hasta hoy, comparando el
+    numero de cubos obtenido (igual al numero de carpetas) contra lo
+    esperado."""
+    carpeta = os.path.basename(os.path.dirname(ruta))
+    codigo = os.path.basename(ruta)[:7]
+    return carpeta, f"{carpeta}/{codigo}"
+
+
 def main():
-    raiz = os.path.abspath(sys.argv[1])
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("carpeta", help="Raiz del corpus con los contenedores .DAT")
+    ap.add_argument("--max-difusion", type=float, default=0.30,
+                    help="Ignorar NIF presentes en mas de esta fraccion de "
+                         "cubos (no distinguen identidad). Por defecto 0,30, "
+                         "igual que cruzar_303_importes.py")
+    args = ap.parse_args()
+
+    raiz = os.path.abspath(args.carpeta)
     dats = sorted(os.path.join(dp, n)
                   for dp, _, fns in os.walk(raiz) for n in fns
                   if os.path.splitext(n)[1].lower() == ".dat")
@@ -75,8 +120,9 @@ def main():
                     if not cNIF:
                         continue
 
-                    cubo_h = _h(clave_cliente(ruta))
-                    carpeta_por_cubo[cubo_h] = _h(os.path.basename(os.path.dirname(ruta)))
+                    carpeta, cubo_txt = carpeta_y_codigo(ruta)
+                    cubo_h = _h(cubo_txt)
+                    carpeta_por_cubo[cubo_h] = _h(carpeta)
 
                     while True:
                         rec = fh.read(len_reg)
@@ -101,6 +147,29 @@ def main():
     print(f"  cubos con senal suficiente (>= {MIN_NIFS} contrapartes): {len(cubos):,}")
     print(f"  cubos descartados por poca senal: {descartados:,}")
 
+    # --- Filtro de DIFUSION, anadido el 27-08-2026 --------------------------
+    # Un NIF presente en casi todos los cubos (banco, electrica, telefonica,
+    # Hacienda como contraparte...) no distingue nada: infla la similitud
+    # entre empresas REALMENTE distintas que comparten proveedores genericos.
+    # Probado: 5 empresas fabricadas con proveedores propios + 4 genericos se
+    # fusionaban en 1 solo grupo antes de este filtro. Misma tecnica que
+    # cruzar_303_importes.py ya aplica a importes desde el 26-08.
+    cubos_por_nif = defaultdict(set)
+    for c in cubos:
+        for nif in nifs_por_cubo[c]:
+            cubos_por_nif[nif].add(c)
+    tope = max(2, int(len(cubos) * args.max_difusion))
+    difusos = {nif for nif, cs in cubos_por_nif.items() if len(cs) > tope}
+    del cubos_por_nif
+
+    nifs_filtrados = {c: (nifs_por_cubo[c] - difusos) for c in cubos}
+    # Quitar los NIF difusos puede dejar algun cubo por debajo del minimo:
+    # se reevalua el filtro de senal DESPUES de limpiar, no antes.
+    cubos = [c for c in cubos if len(nifs_filtrados[c]) >= MIN_NIFS]
+    print(f"  NIF descartados por demasiado comunes (en mas del "
+          f"{args.max_difusion:.0%} de los cubos): {len(difusos):,}")
+    print(f"  cubos con senal DESPUES de filtrar difusos: {len(cubos):,}")
+
     # --- Histograma de similitud de Jaccard entre TODOS los pares -----------
     # No decide el umbral de antemano: lo mide, igual que hizo el trabajo de
     # huella original el 12-08-2026 ("histograma bimodal, meseta estable").
@@ -111,10 +180,10 @@ def main():
     n = len(cubos)
     for i in range(n):
         a = cubos[i]
-        set_a = nifs_por_cubo[a]
+        set_a = nifs_filtrados[a]
         for j in range(i + 1, n):
             b = cubos[j]
-            set_b = nifs_por_cubo[b]
+            set_b = nifs_filtrados[b]
             inter = len(set_a & set_b)
             if inter == 0:
                 continue

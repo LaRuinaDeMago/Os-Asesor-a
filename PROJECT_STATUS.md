@@ -7,6 +7,132 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión LOCAL, tercera entrada del día) — La identidad cliente↔carpeta no se resuelve por estadística: se necesita revisión humana, y ya existe la herramienta
+
+Con la base ya arreglada (99,1% de coherencia interna, entrada anterior), se
+repitió `cruzar_303_importes.py` contra los 1.043 modelos 303 reales: **1 de 24
+cubos con algún trimestre casado, ninguno sólido.** Mismo patrón plano de
+tolerancias que ayer (2,7% exacto, no mejora al aflojar céntimos) — descarta
+definitivamente que fuera un problema de precisión. Con la base ya correcta, la
+única explicación que queda es identidad: un "cubo" del corpus de ContaPlus no
+se corresponde con un cliente suelto en los 303 presentados.
+
+### Tres intentos de resolverlo por estadística, y por qué ninguno bastó
+
+**Intento 1 — `diag_carpetas_multiempresa.py` (nuevo):** mide si los códigos
+DENTRO de una carpeta se separan en varios grupos de proveedores sin solape
+(evidencia de que la carpeta mezcla empresas). Primer resultado sobre el
+corpus real: **27 de 28 carpetas "sospechosas"**, con 19-34 grupos cada
+una — imposible (implicaría cientos de empresas ocultas en una cartera de
+~33). Reproducido el fallo con datos sintéticos: **una sola empresa real**,
+con sus códigos viendo cada uno una muestra aleatoria de un pool de
+proveedores, salía como "29 grupos". Causa: sin continuidad temporal entre
+copias, hasta la misma empresa parece no coincidir consigo misma.
+
+**Intento 2 — `enlazador_clientes_303.py` (existente, nunca antes probado
+contra el corpus real tras el arreglo del 25-08):** mide si hay que FUSIONAR
+carpetas que son la misma empresa. Resultado real: **solo 6 grupos de 27
+carpetas** — sobre-fusión masiva. Reproducido con datos sintéticos: **5
+empresas genuinamente distintas**, cada una con proveedores propios más 4
+"genéricos" compartidos (banco, eléctrica...), se fusionaron en 1 solo grupo.
+Causa: ningún filtro de "proveedor demasiado común" — la misma familia de
+fallo que `cruzar_303_importes.py` ya resolvió el 26-08 para importes.
+
+**Arreglado con un filtro de difusión** (NIF presentes en más del 30% de los
+cubos se descartan antes de comparar, igual que `cruzar_303_importes.py`) en
+los dos scripts, y verificado con seis escenarios sintéticos: separa empresas
+distintas con proveedores comunes, funde la misma empresa repartida en dos
+carpetas, y — con deriva **realista** entre copias sucesivas en vez de
+muestreo aleatorio puro — da exactamente 1 grupo para una empresa y
+exactamente 2 para una mezcla real de dos.
+
+**Segundo bug real encontrado en `enlazador_clientes_303.py`, más grave que
+la difusión:** usaba `clave_cliente()`, importada de `reconstruir_303.py`.
+Esa función se cambió el 25-08 para devolver solo la carpeta (el arreglo que
+pasó 507→24 "clientes"). Como este fichero solo importaba la función por
+nombre, el cambio del 25-08 le cambió el significado de "cubo" **en
+silencio**: pasó de ser "carpeta+código" (lo que dice su propia cabecera,
+"cubo a cubo en vez de carpeta a carpeta en bruto") a ser exactamente
+"carpeta a carpeta en bruto" — la misma granularidad que se supone que venía
+a refinar. Llevaba desde el 25-08 sin poder hacer lo que dice que hace, y
+nadie se enteró hasta hoy. Corregido: ahora usa el mismo patrón
+`carpeta/código[:7]` que ya emplea `retro_semaforo.py:686` para
+`cliente_id`.
+
+**Intento 3, tras los dos arreglos, contra el corpus real:**
+`enlazador_clientes_303.py` dio **137 grupos** (841 cubos con señal), y
+`diag_carpetas_multiempresa.py` siguió dando **27 de 27 carpetas
+"sospechosas"** con 18-36 grupos cada una — sin apenas cambio respecto al
+intento 1. Investigado antes de aceptar el número: la alarma de "años
+solapados" del propio `enlazador_clientes_303.py` (107 de 107 grupos
+multi-cubo) resultó estar **mal calibrada**, no ser una señal real — compara
+años brutos, y como cada copia de ContaPlus contiene el histórico COMPLETO
+hasta su fecha (ya documentado en el proyecto), dos códigos de la MISMA
+empresa comparten años por diseño, siempre. Esa alarma concreta queda
+retirada como criterio de calidad hasta recalibrarla.
+
+### Por qué se para aquí, y no es rendirse
+
+**No hay ningún número de referencia limpio contra el que calibrar un
+algoritmo.** Se probaron tres supuestos "33 empresas conocidas" / "52
+carpetas de cliente en el archivo" / "139 carpetas totales en el archivo", y
+Diego desmontó los tres con contexto que ningún script puede deducir solo:
+
+- Las 24-28 carpetas del corpus de ContaPlus incluyen clientes **históricos**,
+  no solo los 33 actuales — el corpus cubre 2016-2026.
+- Las 139 carpetas de `\\PC01\Documentos` **no son "una por cliente"**:
+  mezclan contabilidades, facturas, memorias anuales y clientes bajo la misma
+  estructura de nivel 1. Los "52" de `cruzar_303_importes.py` (26-08) eran
+  solo las carpetas donde apareció al menos un PDF de 303 reconocible, no un
+  censo de clientes.
+- El modelo 347 (que se propuso como cross-check con NIF ya verificados por
+  Hacienda) lo presentan **muy pocos clientes** — no puede ser la vía general,
+  solo un contraste puntual para los que sí lo tengan.
+
+Tres intentos de resolver esto por estadística pura han necesitado, cada uno,
+que Diego aportara el dato que invalidaba la cifra. **La conclusión correcta
+no es seguir afinando el algoritmo: es que este problema no tiene la forma de
+uno que la estadística sola resuelva**, porque no existe ningún conjunto de
+referencia limpio en ninguno de los dos lados.
+
+### La vía que sí funciona: revisión humana, con la herramienta ya construida
+
+`cuadre_303_ficha.py --listar` (construido el 26-08, sin usar para esto hasta
+hoy) lista las 24-28 carpetas del corpus con trimestres y años, marcando con
+`(?)` las que suenan a equipo/backup. Diego las reconoce al instante porque
+las nombró él. Es más lento que un algoritmo, pero es la única fuente que hoy
+se ha demostrado, tres veces, que no comete el error que sí comete cada
+heurística estadística probada.
+
+**Los dos arreglos de difusión no se descartan**: sirven de apoyo a la
+revisión manual (una carpeta marcada como "cliente único" que sale con muchos
+grupos en `diag_carpetas_multiempresa.py` es una pista para mirarla dos
+veces, no una sentencia automática).
+
+### Verificación
+
+Seis pruebas sintéticas nuevas para los dos scripts arreglados (una empresa
+con muestreo aleatorio puro — falla, es el caso límite ya conocido; una
+empresa con deriva realista — 1 grupo, correcto; dos empresas mezcladas con
+deriva realista — exactamente 2 grupos, correcto; 5 empresas distintas con
+proveedores comunes — separadas; la misma empresa repartida en dos carpetas —
+fusionada; empresas distintas sin comunes — separadas). `test_motor_veredicto.py`
+36/36, `test_adversarial.py` 112/112, escáner de privacidad sobre 108+
+ficheros sin hallazgos.
+
+### Pendiente, y es lo primero de mañana (o de ahora, si queda tiempo)
+
+```bash
+python cuadre_303_ficha.py --listar
+```
+
+Diego revisa las 24-28 carpetas, marca cuáles son un cliente reconocible y
+cuáles no, y decide a mano qué hacer con las dudosas. Con eso resuelto, el
+cruce contra `\\PC01\Documentos` con `cruzar_303_importes.py` puede repetirse
+con una base de clientes fiable.
+
+---
+
 ## 27-08-2026 (sesión LOCAL, segunda entrada del día) — El arreglo de la mañana mejoró pero no resolvió: la base se deriva de la propia fórmula del 303, no de la contabilidad
 
 **Corrige la entrada de abajo (misma fecha), no la sustituye.** El arreglo de esta
