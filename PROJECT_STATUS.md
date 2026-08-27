@@ -7,6 +7,73 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, decimoquinta entrada) — Diego ejecutó `consolidar_identidad.py` contra el corpus real: 27 de 27 carpetas "SOSPECHOSA" (100%) — cifra que no se acepta sin comprobar, y coincide con un fallo ya documentado
+
+Primera ejecución real de `consolidar_identidad.py` (entrada anterior),
+contra el corpus completo: **37 carpetas de ContaPlus, 140 de Documentos, 27
+en grupo multi-carpeta, 21 con discrepancia de nombre, 27 SOSPECHOSAS de
+mezclar empresas, 9 sin ningún aviso.**
+
+**El 27 de sospechosas no se dio por bueno.** Coincide casi al dígito con el
+"27 de 28" que `diag_carpetas_multiempresa.py` ya documenta en su propia
+cabecera como un resultado "imposible" (implicaría cientos de empresas
+ocultas en una cartera de ~33), causado entonces por códigos con pocos
+proveedores ("delgados"). Diego ejecutó el script directamente para
+comprobarlo: **el diagnóstico de códigos delgados NO explica esto hoy** —
+solo 78 de 958 códigos (8%) son delgados; el 72% tiene 10+ proveedores. Con
+el filtro de difusión ya activo (heredado del 27-08) y códigos ricos en
+proveedores, el resultado sigue siendo **27 de 27 (100%)**, un salto de
+imposibilidad todavía mayor que el original.
+
+### Dos hipótesis igual de plausibles, ninguna aceptada sin dato
+
+**A) Artefacto de continuidad temporal**, ya reproducido con datos
+sintéticos en la tercera entrada de hoy: *"una sola empresa real, con sus
+códigos viendo cada uno una muestra aleatoria de un pool de proveedores,
+salió como 29 grupos... sin continuidad temporal entre copias, hasta la
+misma empresa parece no coincidir consigo misma."* Si una empresa trata con
+200 proveedores a lo largo de los años pero cada copia registra solo 20-30,
+dos copias de la MISMA empresa pueden solapar poco por pura estadística.
+
+**B) Real**: el corpus ya tiene un caso confirmado a mano ("Contabilidad
+ordenador de Jose") de carpetas organizadas por EQUIPO/COPIA en vez de por
+cliente. Si eso es la norma y no la excepción en estas 27-28 carpetas, un
+100% de sospechosas sería correcto, no un fallo de medición.
+
+### `diag_calibracion_sospechosa.py` (nuevo): distingue las dos sin que nadie mire un nombre todavía
+
+Cruza la señal SOSPECHOSA contra la pista de nombre que ya usa
+`cuadre_303_ficha.py` (`suena_a_equipo`: contiene "ordenador", "copia",
+"backup", "pc0/1/2"...). Si sospechosa correlaciona con nombres de
+equipo/copia, gana la hipótesis B. Si sale sospechosa por igual entre
+carpetas con nombre de equipo y con nombre de cliente concreto, es la A —y
+la señal SOSPECHOSA no es fiable tal cual está hoy. Por consola solo sale
+una tabla de contingencia de 4 números y dos porcentajes, nunca un nombre:
+Diego puede pegar la salida completa en el chat sin ningún problema.
+
+`ensayo_diag_calibracion_sospechosa.py` (nuevo) fija en código que, con
+datos donde la hipótesis B es cierta por construcción (2 carpetas de
+"equipo" mezclando de verdad, 2 de "cliente" sanas), la tabla lo detecta al
+100%/0% exacto. En verde. `test_motor_veredicto.py` 39/39,
+`test_adversarial.py` 112/112, escáner de privacidad sin hallazgos.
+
+### Pendiente, y decide qué hacer con `consolidar_identidad.py` mientras tanto
+
+```bash
+python diag_calibracion_sospechosa.py "C:\Users\SERVILAB\Desktop\100% contabilidad"
+```
+
+Hasta tener este resultado, la recomendación es **no fiarse todavía** de la
+marca SOSPECHOSA en `consolidado_LOCAL.txt` — puede estar sobre-marcando por
+el artefacto A. La marca DISCREPANCIA (del cruce nombre↔proveedor entre
+carpetas hermanas) es una historia distinta: usa el mismo Jaccard pero en
+dirección conservadora (exige similitud ALTA para fusionar entre carpetas
+distintas, nunca al revés), así que un fallo de continuidad temporal la haría
+FALLAR EN DETECTAR fragmentación real, no inventar discrepancias — es mucho
+menos sospechosa de dar falsos positivos que SOSPECHOSA.
+
+---
+
 ## 27-08-2026 (sesión Cloud, decimocuarta entrada) — `consolidar_identidad.py`: cruza las tres señales de identidad cliente↔carpeta en una sola vista, sin resolver por estadística lo que ya se demostró que no se puede
 
 Diego preguntó, tras el cierre de la tercera entrada de hoy (revisión humana
