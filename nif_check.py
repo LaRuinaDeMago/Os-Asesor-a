@@ -29,6 +29,7 @@ def valida_nif(nif):
     # sin su digito de control) y 8 todo-digitos (DNI sin su letra de
     # control). Solo 2 no encajaban en ninguna de las dos formas y se quedan
     # fuera de este arreglo, sin inventarles una explicacion.
+    letras_dni = "TRWAGMYFPDXBNJZSQVHLCKE"
     if len(nif) == 8:
         if nif.isdigit():
             return (None, "SIN_DATO",
@@ -36,7 +37,24 @@ def valida_nif(nif):
         if nif[0].isalpha() and nif[1:8].isdigit():
             return (None, "SIN_DATO",
                     "letra+7 digitos: forma de CIF al que le falta el digito de control, no verificable")
-    letras_dni = "TRWAGMYFPDXBNJZSQVHLCKE"
+        # AÑADIDO 28-08-2026 (sesion Cloud, sobre el residuo declarado en
+        # FASE0_RESULTADOS.md §14: "2 de longitud 8 que no encajaban en
+        # ninguna forma"). 7 digitos + letra AL FINAL es una tercera forma de
+        # longitud 8 que las dos de arriba no cubren -- y a diferencia de
+        # esas dos, esta SI es verificable del todo, no solo declarable como
+        # SIN_DATO: es un DNI de 9 caracteres al que se le perdio el CERO
+        # INICIAL (tipico de una hoja de calculo que lee el campo como
+        # numero). El cero inicial no cambia el valor de num % 23 --
+        # int('01234567') == int('1234567') -- asi que el digito de control
+        # se puede calcular exactamente igual que en un DNI completo. No es
+        # el mismo caso que los dos de arriba (falta un caracter irrecuperable
+        # ahi); aqui no falta nada, solo se escribio distinto.
+        if nif[:7].isdigit() and nif[7].isalpha():
+            num = int(nif[:7])
+            letra_calc = letras_dni[num % 23]
+            return (letra_calc == nif[7], "DNI",
+                    f"letra esperada {letra_calc} (7 digitos + letra: DNI con el 0 inicial "
+                    "perdido, recuperable porque el 0 no cambia el modulo)")
     if len(nif) == 9 and nif[:8].isdigit() and nif[8].isalpha():
         num = int(nif[:8])
         letra_calc = letras_dni[num % 23]

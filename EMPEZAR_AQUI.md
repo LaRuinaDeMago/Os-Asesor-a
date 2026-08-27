@@ -39,7 +39,7 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ✅ Sintaxis de todos los .py (recursivo)
 ✅ Cableado de guards (sin huérfanos): 26 guards, todos consultados
 ✅ Modulos sin conectar: ninguno
-✅ Suite de pruebas (test_motor_veredicto.py): 36/36 checks en verde
+✅ Suite de pruebas (test_motor_veredicto.py): 39/39 checks en verde
 ✅ Bateria adversarial (test_adversarial.py): 112 en verde, 0 fallan
 ✅ Estados: sin ramas muertas ni guards mudos
 ✅ Cobertura: guards probados de verdad — 26/26 (100%)
@@ -109,6 +109,17 @@ casos, 2,7%) y `nif_digito_control` (60 casos tras el arreglo 11, 0,2%) sin
 patrón dominante ya identificable — parece señal real del histórico, no
 ceguera del instrumento, pero no está descartado del todo. Ver
 `FASE0_RESULTADOS.md` §14 para el desglose.
+
+> **Arreglo 12 (28-08-2026, sesión Cloud, con aritmética sintética, no con el
+> corpus real):** `nif_check.py` ya recupera una tercera forma de longitud 8
+> ("2 de longitud 8 que no encajaban en ninguna forma" del párrafo de
+> arriba) — un DNI al que se le perdió el cero inicial, verificable del todo
+> porque el cero no cambia `num % 23`. **Los 60 casos de arriba siguen siendo
+> el último número real medido** — este arreglo todavía no se ha confirmado
+> contra el corpus: la próxima vez que corras `diag_nif_otro_residual.py` en
+> local, el bucket de longitud 8 debería bajar. Detalle en
+> `FASE0_RESULTADOS.md` §14 y `PROJECT_STATUS.md` (séptima entrada Cloud del
+> 27-08).
 
 > ✅ **RESUELTO EL 27-08-2026 (segunda versión — la primera mejoró pero no
 > bastó).** El bloqueo de abajo (histórico, no lo borres: explica por qué

@@ -7,6 +7,52 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, séptima entrada del día) — `nif_check.py`: tercera forma de longitud 8, recuperable de verdad (no solo SIN_DATO)
+
+Diego preguntó si se podía "pulir" también el semáforo (`retro_semaforo.py`),
+no solo la identidad de carpetas. `retro_semaforo.py` en sí no se toca sin el
+corpus real delante, pero una de sus piezas —`nif_check.py`, que decide
+`nif_digito_control`— sí tenía un hueco demostrable con aritmética, sin
+necesitar ningún dato real: `FASE0_RESULTADOS.md` §14 declara 14 residuos
+"sin patrón reconocible" dentro de los 60 de `nif_digito_control`, y nombra
+explícitamente "2 de longitud 8 que no encajaban en ninguna forma".
+
+**La hipótesis, la misma familia de bug que este proyecto ya encontró dos
+veces en el mismo sitio** (arreglos 10 y 11 de §14: NIE con algoritmo
+equivocado, longitud 8 sin el dígito de control): `nif_check.py` cubría dos
+formas de longitud 8 (8 dígitos sin letra; letra+7 dígitos) pero no una
+tercera — 7 dígitos + letra al final, la forma de un DNI al que se le perdió
+el **cero inicial** al leerlo como número. Comprobado con aritmética antes de
+tocar nada: `int('01234567') == int('1234567')` — el cero inicial no cambia
+`num % 23`, así que a diferencia de las otras dos formas (genuinamente
+irrecuperables, correctamente `SIN_DATO`), esta sí se puede verificar del
+todo. Implementado, y clasificado como `DNI` con verdicto real, no como
+`SIN_DATO`.
+
+**Verificación:** dos comprobaciones nuevas en `test_motor_veredicto.py` con
+DNI sintéticos (checksum matemáticamente válido, ningún dato real) —
+`test_motor_veredicto.py` pasa de 36 a 39/39. Probado con sabotaje (la rama
+nueva desactivada a propósito): falla exactamente en las 2 comprobaciones
+nuevas, ninguna otra. `test_adversarial.py` 112/112 sin cambios (no toca
+`motor_veredicto.py`). Escáner de privacidad sin hallazgos.
+
+**Lo que esto NO es, dicho con la misma honestidad que pide el resto del
+proyecto:** una hipótesis verificada con aritmética sintética no es lo mismo
+que un hallazgo confirmado contra el corpus real. Anotado en
+`FASE0_RESULTADOS.md` §14 como pendiente de confirmar: la próxima vez que
+Diego ejecute `diag_nif_otro_residual.py` en local, el bucket `longitud
+8 / otra_mezcla` debería bajar — si no baja, la hipótesis queda refutada, sin
+darla por buena solo porque cuadre en sintético.
+
+**Lo que se miró y se decidió NO tocar, con motivo:** el otro residuo abierto
+de §14 (`cuadre_total`/`retencion_vs_error`, ~800 casos, 2,7%) ya está
+descrito como sin patrón dominante tras separar retención e ISP — sin una
+hipótesis concreta y falsable como la de arriba, forzar un cambio ahí sería
+inventar una causa para poder decir que se hizo algo, exactamente lo que
+`CLAUDE.md` prohíbe. Se deja declarado, no se toca.
+
+---
+
 ## 27-08-2026 (sesión Cloud, sexta entrada del día) — `emparejar_carpetas.py`: señal por palabras + detección de colisiones, con datos sintéticos
 
 Diego preguntó directamente si había algo de "verdadero valor" que hacer desde

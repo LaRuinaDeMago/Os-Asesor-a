@@ -566,6 +566,26 @@ delante.
   encajaban en ninguna forma). Misma lectura que el resto: parece señal real
   del histórico, no ceguera del instrumento.
 
+  > **Arreglo 12, sesión Cloud 28-08-2026, sobre los "2 de longitud 8 que no
+  > encajaban en ninguna forma".** Hipótesis concreta, verificada con
+  > aritmética sintética antes de tocar código: `nif_check.py` cubría dos
+  > formas de longitud 8 (8 dígitos sin letra; letra+7 dígitos) pero no una
+  > tercera — **7 dígitos + letra al final**, la forma exacta de un DNI de 9
+  > caracteres al que se le perdió el **cero inicial** al leerlo como número
+  > (típico de una hoja de cálculo). A diferencia de las otras dos formas,
+  > esta SÍ es verificable del todo: `int('01234567') == int('1234567')`, el
+  > cero inicial no cambia `num % 23`, así que la letra de control se calcula
+  > exactamente igual que en un DNI completo — no se declara `SIN_DATO`, se
+  > verifica de verdad. Implementado y probado con DNI sintéticos (checksum
+  > matemáticamente válido, ningún dato real) en `test_motor_veredicto.py`;
+  > probado con sabotaje (rama desactivada a propósito) — falla exactamente
+  > en las 2 comprobaciones nuevas, ninguna otra. **Pendiente de confirmar
+  > contra el residuo real:** la próxima vez que se ejecute
+  > `diag_nif_otro_residual.py` en local, el bucket `longitud 8 / otra_mezcla`
+  > debería bajar (idealmente a 0, si la hipótesis es correcta) — si no baja,
+  > la hipótesis queda refutada y no hay que darla por buena solo porque la
+  > aritmética cuadre en sintético.
+
 ### 14-bis. El 303 presentado: identidad de cliente corregida, cuadre pendiente
 
 **`reconstruir_303.py` tenía el mismo bug de deduplicación que el primero de

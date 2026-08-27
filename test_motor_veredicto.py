@@ -90,6 +90,20 @@ check(valida_nif("B1234567")[0] is None, "letra+7 digitos (CIF sin control): SIN
 # de mas.
 check(valida_nif("1234567")[0] == False, "7 digitos sigue siendo FALLO (no se ha ampliado de mas)")
 
+print("\n=== Nivel 1: DNI con el 0 inicial perdido (28-08-2026, sesion Cloud) ===")
+# Distinto de los dos SIN_DATO de arriba: ahi falta el UNICO caracter que
+# permite comprobar (el digito de control), aqui no falta nada -- el cero
+# inicial no cambia el valor de num % 23, asi que SI se puede verificar
+# del todo. DNI sintetico: '01234567' -> letra 'L' (checksum matematicamente
+# valido, nunca un dato real). '1234567L' es lo que llega si algo leyo el
+# campo como numero y se comio el cero inicial.
+check(valida_nif("1234567L")[0] == True,
+      "7 digitos + letra (DNI con el 0 inicial perdido): recuperable, se verifica de verdad")
+check(valida_nif("1234567L")[1] == "DNI",
+      "se clasifica como DNI, no como SIN_DATO -- no falta informacion, solo se escribio distinto")
+check(valida_nif("1234567M")[0] == False,
+      "7 digitos + letra incorrecta: sigue detectandose como FALLO (L real vs M puesta a proposito)")
+
 print("\n=== Nivel 4: retencion_vs_error (caso real anonimizado) ===")
 # base 661.15, iva 138.84, irpf -125.62, total 674.37 -> retencion 19%
 r = guard_retencion_vs_error(661.15, 138.84, -125.62, 674.37)
