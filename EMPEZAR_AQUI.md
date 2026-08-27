@@ -727,10 +727,37 @@ Cerrado, ya no hace falta repasarlo:
   `TRIAJE_RONDA_2026-07-13.md` — **eliminados del repositorio.** Si hacen
   falta, viven fuera de este proyecto.
 
-Sigue pendiente de verificar (no urgente, no bloquea nada): que el
-identificador de modelo `modelo="claude-sonnet-4-6"` en la rama `--proveedor
-claude` de `captura_orquestador.py` (opción secundaria, no la que se usa por
-defecto) siga vigente si alguna vez se usa esa rama.
+✅ **RESUELTO 27-08-2026 (sesión Cloud):** el identificador de modelo en la
+rama `--proveedor claude` de `captura_orquestador.py` (opción secundaria, no
+la que se usa por defecto) era `"claude-sonnet-4-6"` — no corresponde a
+ningún modelo real de la familia Claude vigente. Corregido a
+`"claude-sonnet-5"`. Sin caso real para probarlo (necesita `ANTHROPIC_API_KEY`
+y una factura, y esa rama sigue sin ser la que se usa por defecto), pero el
+identificador viejo habría fallado con un error de la API en cuanto alguien
+la hubiera usado — no era una preferencia, era un dato incorrecto.
+
+🟡 **Encontrado 27-08-2026 (sesión Cloud), no arreglado a propósito — es una
+aclaración de config, no un bug:** `config.example.json` declara
+`cache_maestro_proveedores`, `cache_iva_por_concepto` y
+`salida_csv_veredicto`. Verificado contra el código (`grep` en
+`orquestador.py`, no contra este texto): ninguna de las tres se lee.
+- `cache_maestro_proveedores` está superada por un mecanismo mejor que ya
+  existe: `--maestro-json` (fusiona con `--subcuentas`, distingue proveedores
+  activos de históricos). No falta conectarla — el diseño cambió y la clave
+  vieja se quedó en el ejemplo.
+- `salida_csv_veredicto` está superada por `--salida` (argumento de línea de
+  comandos, más simple).
+- `cache_iva_por_concepto` es la única de las tres que es un hueco real, no
+  solo una clave vieja: `construir_cache_iva_por_concepto()` existe en
+  `motor_veredicto.py` y aprende tipo de IVA por concepto a partir de
+  facturas ya verificadas, pero **nada la llama, nada la persiste, y ningún
+  guard la consume** — `guard_tipo_producto_iva_semantico` decide contra la
+  tabla oficial fija (`TABLA_IVA_4`), no contra este aprendizaje. No se ha
+  cableado aquí porque cablearla exige decidir qué guard la consumiría y con
+  qué prioridad frente a la tabla oficial — eso es diseño nuevo, no conectar
+  algo ya decidido, y `CLAUDE.md` pide no añadir eso sin un caso real
+  concreto. `config.example.json` anotado con las tres aclaraciones para que
+  nadie las dé por activas.
 
 ## 6. Lo que NO se hace hoy
 

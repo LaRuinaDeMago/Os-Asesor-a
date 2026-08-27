@@ -7,6 +7,66 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, quinta entrada del día) — Re-verificación completa y dos correcciones menores, sin tocar el motor
+
+Sesión Cloud pedida explícitamente como auditoría rigurosa antes de seguir:
+"vuelve a comprobar minuciosamente todo... para saber con certeza que estamos
+en el punto óptimo". Dos hallazgos reales, los dos fuera de `motor_veredicto.py`,
+verificados contra el código (no contra este texto) antes y después de tocar
+nada. `audit_project.py`, `test_motor_veredicto.py` (36/36) y
+`test_adversarial.py` (112/112) en verde antes y después de cada cambio.
+
+**Aviso de proceso, para que no se repita:** el primer intento de esta sesión
+Cloud trabajó sobre un checkout **24 commits por detrás de `origin`** (nunca
+se hizo `git fetch` antes de leer el código) y produjo un commit duplicando
+—peor— un arreglo que otra sesión ya había cerrado el 26-08. Descartado con
+`git reset --hard origin/...` antes de que llegara a fusionarse. Lección: en
+Cloud, `git fetch` explícito antes de fiarse de "up to date with origin" en
+`git status`, que no refresca por sí solo.
+
+**1. Identificador de modelo obsoleto en `captura_orquestador.py`, corregido.**
+La rama `--proveedor claude` (opción secundaria, no la que se usa por
+defecto) llamaba a `modelo="claude-sonnet-4-6"` — no corresponde a ningún
+modelo real de la familia Claude vigente (la actual es Sonnet 5 / Opus 5 /
+Fable 5 / Haiku 4.5). Corregido a `"claude-sonnet-5"`. No se ha podido probar
+en vivo (necesita `ANTHROPIC_API_KEY` y una factura real, fuera del alcance
+de esta sesión) pero el valor viejo habría devuelto un error de la API en
+cuanto alguien usara esa rama — no era una preferencia de estilo, era un dato
+incorrecto que llevaba ahí sin detectar desde que `EMPEZAR_AQUI.md` lo dejó
+anotado como "pendiente de verificar" el 20-08.
+
+**2. `config.example.json` declaraba tres claves que `orquestador.py` nunca
+lee.** Verificado por `grep`, no supuesto: `cache_maestro_proveedores`,
+`cache_iva_por_concepto` y `salida_csv_veredicto` no aparecían en ningún
+`config.get(...)` del orquestador. Las dos primeras están genuinamente
+superadas por mecanismos mejores que ya existen (`--maestro-json` +
+`--diario`/`--subcuentas` para el maestro; `--salida` para la ruta de
+salida) — no faltaba conectarlas, el diseño cambió y la clave vieja se quedó
+en el ejemplo. La tercera, `cache_iva_por_concepto`, es distinta y sí es un
+hueco real: `construir_cache_iva_por_concepto()` existe en
+`motor_veredicto.py`, aprende tipo de IVA por concepto de facturas ya
+verificadas, y **nada la llama, nada la persiste, ningún guard la
+consume** — `guard_tipo_producto_iva_semantico` decide contra la tabla
+oficial fija, no contra este aprendizaje. No cableada: decidir qué guard la
+consumiría y con qué prioridad frente a la tabla oficial es diseño nuevo, no
+conectar algo ya decidido, y `CLAUDE.md` pide no añadir eso sin un caso real
+concreto que lo pida. Las tres claves se quitaron de `config.example.json`
+con una nota explicando por qué, para que nadie las dé por activas.
+
+**Lo que se confirmó que NO hacía falta tocar:** el resto de lo que la sesión
+anterior había señalado como "pendiente" en `EMPEZAR_AQUI.md` §5-bis ya
+estaba cerrado de verdad (triangulación de identidad, `escribir_xdiario`,
+proveedor por defecto, JSON invalidados, ficheros de cripto) — releído y
+verificado, sin encontrar nada adicional que corregir ahí.
+
+**Lo que sigue sin poder avanzarse desde Cloud, por diseño, no por falta de
+tiempo:** el paso siguiente real del proyecto (`emparejar_carpetas.py`,
+confirmar las 14 coincidencias de confianza alta y decidir las 23 restantes
+en `emparejado_LOCAL.txt`) es de Diego, en local, con datos reales. Ninguna
+sesión Cloud puede tocarlo (`.claude/rules/datos.md`).
+
+---
+
 ## 27-08-2026 (sesión LOCAL, cuarta entrada del día) — `emparejar_carpetas.py`: la identidad se resuelve por NOMBRE, no por estadística, y sin DPA
 
 Cierra el hilo de la tercera entrada de hoy. Tras tres intentos estadísticos
