@@ -551,12 +551,31 @@ def _normalizar_num_doc(nº_documento):
 
 def _forma(nº_documento):
     """Convierte un nº de documento (ya normalizado) en su 'firma de forma':
-    digitos->D, letras->L, el resto (puntos, barras, guiones) se conserva tal cual."""
+    digitos->D, letras->L, el resto (puntos, barras, guiones) se conserva tal cual.
+
+    CORREGIDO 27-08-2026: una TIRADA de digitos cuenta como una sola 'D', en vez
+    de una 'D' por digito. Antes, 'FAC-99' daba 'LLL-DD' y 'FAC-100' daba
+    'LLL-DDD' — formas distintas—, asi que el primer numero de factura que
+    cruzara un limite de digitos (9->10, 99->100, 999->1000) salia FALLO siendo
+    perfectamente legitimo. Y numerar SIN ceros a la izquierda es de lo mas
+    comun en el software de una pyme.
+
+    Medido por simulacion antes de tocarlo (400 proveedores, compras
+    irregulares, todas las facturas legitimas): con numeracion sin ceros a la
+    izquierda el guard marcaba FALLO el 9,1%; con ceros a la izquierda, el
+    0,0%. Es decir, TODO ese ruido venia de contar digitos, no de detectar
+    nada. Con la tirada colapsada, las dos numeraciones se comportan igual.
+
+    Lo que NO se colapsa son las letras: 'FAC' y 'FACTURA' son prefijos
+    genuinamente distintos, y ahi la longitud si es senal. La magnitud del
+    numero tampoco se pierde de vista — de eso se ocupa
+    guard_secuencia_documental_proveedor, que mira el valor, no la forma."""
     limpio = _normalizar_num_doc(nº_documento)
     out = []
     for ch in limpio:
         if ch.isdigit():
-            out.append('D')
+            if not out or out[-1] != 'D':   # una tirada de digitos = una 'D'
+                out.append('D')
         elif ch.isalpha():
             out.append('L')
         else:
@@ -1162,7 +1181,24 @@ def guard_secuencia_documental_proveedor(proveedor, nº_documento, secuencia_cac
     rango = max(previos) - min(previos) if len(previos) > 1 else 0
     salto_medio = rango / max(len(previos) - 1, 1) if len(previos) > 1 else 0
     dist_min = min(abs(actual_num - p) for p in previos)
-    if salto_medio > 0 and dist_min > salto_medio * 20:
+    # CORREGIDO 27-08-2026, misma familia que el `desv > 0` de
+    # guard_importe_atipico y encontrado en la misma auditoria: si todos los
+    # numeros previos son IGUALES, `salto_medio` es 0, la condicion previa no
+    # se cumplia nunca y el guard caia al `return OK` final -- afirmando
+    # "coherente con secuencia conocida" sobre CUALQUIER numero, incluido uno
+    # a seis ordenes de magnitud. Verificado antes de tocar nada: con previos
+    # 100 y 100, un nº 999999 devolvia OK.
+    #
+    # Aqui NO se pone un suelo como en importe_atipico: la escala de un numero
+    # de factura es arbitraria (no hay un "5% de un numero de serie" que
+    # signifique algo), asi que inventar un umbral seria falsa precision. Se
+    # dice lo unico que se puede sostener: sin variacion previa no hay
+    # secuencia con la que comparar. NO_COMPROBADO, nunca un OK afirmativo.
+    if salto_medio <= 0:
+        return ("NO_COMPROBADO",
+                f"los {len(previos)} numeros previos no varian entre si: no hay "
+                f"secuencia con la que comparar el nº {actual_num}")
+    if dist_min > salto_medio * 20:
         return "FALLO", f"nº {actual_num} muy alejado de la secuencia conocida (dist={dist_min}, salto medio={salto_medio:.0f})"
     return "OK", f"nº {actual_num} coherente con secuencia conocida"
 

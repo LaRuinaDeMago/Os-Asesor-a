@@ -244,6 +244,17 @@ está acordado de antemano es **qué significaría cada rango**:
 | **entre 1 y 15 puntos** | Lo esperado. Son facturas que antes pasaban sin que nadie las mirara y ahora piden revisión. Mirar el desglose por guard para ver cuál domina |
 | **más de 15 puntos** | Demasiado ruido para ser útil. **No se toca el umbral para que cuadre**: se mira qué guard concentra los disparos y se investiga ese caso concreto con datos, como se hizo con el 40,8% |
 
+**4 · Y si el que domina es `cuenta_gasto_coherente`, NO es un bug.** Está
+medido (`PROJECT_STATUS.md`, vigesimoprimera entrada): 0% de disparos en
+proveedores de una sola actividad, pero **47% en un proveedor mixto** — una
+ferretería que además te repara. Cada aviso es técnicamente cierto: esta
+factura va a una cuenta distinta de la habitual, y lo dice como `[CRITERIO]`,
+*"decide tú"*. **La pregunta que hay que contestar entonces no es técnica
+sino contable, y es tuya:** ¿quieres que te pregunte cada vez en un proveedor
+que legítimamente factura de dos cosas, o "habitual" debería admitir varios
+grupos establecidos? Los tres guards restantes ya están calibrados con
+números; este se dejó a propósito sin tocar esperando esa respuesta.
+
 > ⚠️ **Regla, por si el número sale incómodo:** el 3σ y el suelo del 5% se
 > fijaron con una simulación *antes* de ver el corpus real. Si el resultado no
 > gusta, se investiga la causa — **no se ajustan las constantes hasta que el

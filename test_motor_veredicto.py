@@ -405,6 +405,45 @@ check(guard_importe_atipico('P', 500.0,
       {'B4': {'n_facturas_normales': 4, 'media': 0, 'desv': 0}}, nif='B4')[0] == "NO_COMPROBADO",
       "con media 0 (sin escala con la que comparar) tampoco se finge un OK")
 
+print("\n=== estructura_reconocida y secuencia_documental: misma auditoria (27-08-2026) ===")
+# Auditados a proposito despues de encontrar los dos defectos de
+# importe_atipico: los tres estaban dormidos por la misma causa, asi que su
+# logica de decision tampoco se habia ejercitado nunca contra datos realistas.
+
+# DEFECTO 3 -- estructura_reconocida contaba DIGITOS. 'FAC-99' -> 'LLL-DD' y
+# 'FAC-100' -> 'LLL-DDD': el primer numero que cruzaba un limite de digitos
+# salia FALLO siendo legitimo. Medido: 9,1% de ruido con numeracion sin ceros
+# a la izquierda (lo normal en software de pyme), 0,0% con ceros -- o sea,
+# TODO el ruido venia de contar digitos.
+_fmt = {'B5': {'ejemplos': ['FAC-97', 'FAC-98', 'FAC-99'], 'n_facturas_vistas': 3}}
+check(guard_estructura_reconocida('P', 'FAC-100', _fmt, nif='B5')[0] == "OK",
+      "cruzar de FAC-99 a FAC-100 (mismo formato, un digito mas) ya NO es "
+      "FALLO: una tirada de digitos cuenta como una sola 'D'")
+check(guard_estructura_reconocida('P', 'FAC-123456', _fmt, nif='B5')[0] == "OK",
+      "y da igual cuantos digitos: de la MAGNITUD se ocupa el guard de "
+      "secuencia, no el de forma")
+# ...sin aflojar la deteccion: una forma genuinamente distinta sigue saltando.
+check(guard_estructura_reconocida('P', '77/XYZ', _fmt, nif='B5')[0] == "FALLO",
+      "una forma realmente distinta (77/XYZ) sigue detectandose")
+check(guard_estructura_reconocida('P', 'ALBARAN 12', _fmt, nif='B5')[0] == "FALLO",
+      "y un prefijo de letras distinto tambien: las letras NO se colapsan, "
+      "ahi la longitud si es senal")
+
+# DEFECTO 4 -- secuencia_documental, misma familia que el desv=0: si todos los
+# numeros previos son iguales, salto_medio=0 y el guard afirmaba "coherente"
+# sobre cualquier numero.
+_sec = {'B6': {'numeros_vistos': ['A-100', 'B-100']}}
+_est_s, _det_s = guard_secuencia_documental_proveedor('P', 'C-999999', _sec, nif='B6')
+check(_est_s == "NO_COMPROBADO",
+      f"con numeros previos identicos (sin secuencia con la que comparar), un "
+      f"nº 999999 es NO_COMPROBADO, no un OK afirmativo (dio {_est_s})")
+# Y con secuencia real sigue funcionando en los dos sentidos.
+_sec2 = {'B7': {'numeros_vistos': ['F-100', 'F-110', 'F-120']}}
+check(guard_secuencia_documental_proveedor('P', 'F-130', _sec2, nif='B7')[0] == "OK",
+      "con secuencia real, el siguiente numero razonable sigue siendo OK")
+check(guard_secuencia_documental_proveedor('P', 'F-99000', _sec2, nif='B7')[0] == "FALLO",
+      "y uno absurdamente lejano sigue siendo FALLO")
+
 print(f"\n{'='*50}")
 if FALLOS:
     print(f"❌ {len(FALLOS)} PRUEBA(S) FALLIDA(S): {FALLOS}")

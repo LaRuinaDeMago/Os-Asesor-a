@@ -7,6 +7,110 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, vigesimoprimera entrada) — Auditados los otros tres guards dormidos: dos defectos más, y uno que NO se toca por ser decisión contable
+
+Consecuencia directa de la entrada anterior: si `importe_atipico` llevaba dos
+defectos de decisión invisibles por estar dormido, los otros tres guards
+despertados estaban en la misma situación — su lógica nunca se había
+ejercitado contra datos realistas, sólo contra tests unitarios con cachés
+construidas a mano. Auditados los tres con el mismo método: leer, formular
+hipótesis, medir con simulación **antes** de tocar nada.
+
+### Defecto 3 — `estructura_reconocida` contaba dígitos
+
+`_forma()` convertía cada dígito en una `D`, así que `FAC-99` daba `LLL-DD` y
+`FAC-100` daba `LLL-DDD`: **formas distintas**. El primer número de factura
+que cruzara un límite de dígitos (9→10, 99→100, 999→1000) salía `FALLO`
+siendo perfectamente legítimo. Y numerar **sin ceros a la izquierda** es de
+lo más común en el software de una pyme.
+
+Medido por simulación (400 proveedores, compras irregulares, todas las
+facturas legítimas por construcción):
+
+| Numeración | FALLO antes | FALLO ahora |
+|---|---|---|
+| **sin** ceros a la izquierda (`FAC-100`) | **9,1%** | **0,0%** |
+| con ceros a la izquierda (`FAC-00100`) | 0,0% | 0,0% |
+
+Que las dos columnas se separaran así fue la prueba de la hipótesis: **todo
+ese ruido venía de contar dígitos, no de detectar nada.** Arreglado: una
+tirada de dígitos cuenta como una sola `D`. Las **letras no se colapsan** —
+`FAC` y `FACTURA` son prefijos genuinamente distintos y ahí la longitud sí es
+señal. Y no se pierde de vista la magnitud del número: de eso se ocupa el
+guard de secuencia, que mira el valor, no la forma. Verificado que la
+detección sigue viva: `77/XYZ` y `ALBARAN 12` sobre un histórico
+`FAC-2026-00N` siguen dando `FALLO`.
+
+### Defecto 4 — `secuencia_documental_proveedor`, la misma ceguera del `desv > 0`
+
+Misma familia exacta que el defecto 1 de la entrada anterior, en otro guard:
+la condición era `if salto_medio > 0 and dist_min > salto_medio * 20`. Si
+todos los números previos son **iguales**, `salto_medio` es 0, la condición
+previa no se cumple nunca y el guard caía al `return "OK"` final —
+afirmando *"coherente con secuencia conocida"* sobre cualquier número.
+Verificado antes de tocar nada: con previos `100` y `100`, un nº **999999**
+devolvía `OK`.
+
+Arreglado a `NO_COMPROBADO`, y **aquí no se pone un suelo** como en
+`importe_atipico`: la escala de un número de factura es arbitraria (no existe
+"el 5% de un número de serie"), así que inventar un umbral sería falsa
+precisión. Se dice lo único que se puede sostener: sin variación previa no
+hay secuencia con la que comparar.
+
+Su umbral normal (20× el salto medio) se midió también: **~4%** de ruido
+sobre secuencias legítimas con compras irregulares, antes y después. Está en
+el mismo orden que el 4,6% que se aceptó para el 3σ, así que **no se toca**.
+
+### El cuarto guard: `cuenta_gasto_coherente` NO tiene defecto — y por eso no se toca
+
+Auditado igual, y el resultado es distinto: **no hay bug**. Sus dos ramas
+`NO_APLICA` (sin histórico / sin cuenta propuesta) ya están declaradas y
+ninguna devuelve `OK`. Medido:
+
+| Proveedor | FALLO |
+|---|---|
+| de una sola actividad (el caso normal) | **0,0%** |
+| que el 15% de las veces factura otra cosa | 14,7% |
+| mixto al 50% (ferretería que además repara) | 47,0% |
+
+**Ese 47% no es ruido: es el guard haciendo exactamente lo que dice.** Avisa
+de que esta factura va a una cuenta distinta de la habitual, como `AMBAR
+[CRITERIO]` — *"decide tú"*, no *"esto está mal"*. Cada aviso es
+técnicamente cierto.
+
+**Queda declarado, no arreglado, y a propósito:** si a un proveedor
+legítimamente mixto conviene preguntarle cada vez, o si "habitual" debería
+admitir **varios** grupos establecidos (los que superen
+`MIN_ASIENTOS_PATRON_GASTO`, la constante que ya existe), **es una decisión
+contable de Diego, no técnica.** La cuenta de gasto tiene consecuencias
+fiscales; que el motor pregunte de más puede ser justo lo que se quiere. No
+se toca sin esa respuesta.
+
+### Verificación
+
+7 comprobaciones nuevas en `test_motor_veredicto.py` (**65/65**), incluidas
+las que impiden sobrecorregir (una forma realmente distinta y un prefijo de
+letras distinto siguen dando `FALLO`; con secuencia real el guard sigue
+distinguiendo en los dos sentidos). Probado con sabotaje —reintroducidos los
+dos defectos a la vez— y falla **exactamente en las 3 comprobaciones** que
+dependen de ellos. `test_adversarial.py` 112/112, cobertura 26/26, barrido de
+falsos verdes y ensayo end-to-end en verde. Escáner de privacidad sin
+hallazgos.
+
+### El patrón, ya con cuatro casos
+
+De cinco guards auditados en dos entradas, **cuatro tenían un defecto de
+decisión** que llevaba meses invisible, y ninguno se habría visto sin
+despertarlos primero. Dos de los cuatro eran **la misma ceguera** (`desv > 0`
+y `salto_medio > 0`: una condición previa pensada para evitar dividir por
+cero que, de paso, convertía la ausencia de dispersión en un `OK`
+afirmativo). Merece quedar escrito como forma a buscar: **una condición
+`if x > 0 and <comprobacion>` seguida de `return "OK"` es un falso verde
+esperando** — el caso sin dispersión no es "todo correcto", es "no he podido
+comprobar nada".
+
+---
+
 ## 🔴 27-08-2026 (sesión Cloud, vigésima entrada) — `importe_atipico` tenía DOS defectos opuestos, invisibles porque el guard estaba dormido. Uno era un falso verde de manual
 
 Al comprobar las **costuras** del arreglo anterior —los cuatro guards ya
