@@ -28,12 +28,23 @@ contrapartes, similitud de Jaccard, mirar si la distribucion es bimodal) pero
 aplicada DENTRO de cada carpeta, no entre carpetas.
 
 REGLA DE DATOS: cada NIF se hashea nada mas leerlo, nunca vive en texto
-plano. Las carpetas se identifican por NUMERO DE ORDEN (Carpeta #1, #2...),
-nunca por su nombre real -- ni siquiera en la salida, por si el nombre fuera
-identificable. Solo se imprimen recuentos y el histograma de similitud.
+plano. Por consola las carpetas se identifican por NUMERO DE ORDEN (Carpeta
+#1, #2...), nunca por su nombre real -- ni siquiera en la salida estandar,
+por si el nombre fuera identificable. Solo se imprimen recuentos y el
+histograma de similitud.
+
+ANADIDO 27-08-2026 (consolidacion de senales): `--detalle` es opcional y NO
+cambia lo de arriba -- la consola sigue sin nombres. Si se pasa, escribe
+ademas que CARPETAS (nombre real) salieron sospechosas de mezclar empresas,
+a un fichero que DEBE llevar _LOCAL en el nombre (mismo guardia que
+`emparejar_carpetas.py`, `cuadre_303_ficha.py` y ahora tambien
+`enlazador_clientes_303.py`). Solo AHI vive el nombre real. Pensado para que
+`consolidar_identidad.py` lo cruce con las otras dos senales sin que el
+modelo vea ningun nombre.
 
 Uso:
     python diag_carpetas_multiempresa.py "RUTA_DEL_CORPUS"
+    python diag_carpetas_multiempresa.py "RUTA_DEL_CORPUS" --detalle multiempresa_LOCAL.txt
 """
 import argparse
 import hashlib
@@ -65,32 +76,21 @@ def codigo_de(ruta):
     return os.path.basename(ruta)[:7]
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("carpeta")
-    ap.add_argument("--min-nifs", type=int, default=3,
-                    help="Contrapartes minimas para que un codigo cuente "
-                         "(por defecto 3, igual que enlazador_clientes_303.py)")
-    ap.add_argument("--max-difusion", type=float, default=0.30,
-                    help="Ignorar NIF presentes en mas de esta fraccion de "
-                         "codigos del corpus entero (por defecto 0,30)")
-    args = ap.parse_args()
-    min_nifs = args.min_nifs
-    max_difusion = args.max_difusion
+def calcular_sospechosas(raiz, min_nifs=3, max_difusion=0.30, progreso=False):
+    """Toda la logica de deteccion, sin imprimir nombres. Devuelve un dict
+    con los contadores que main() imprime (identicos a los de siempre) MAS
+    `n_grupos_por_carpeta_real`: {nombre_real: n_grupos} SOLO para quien pida
+    --detalle -- main() no lo imprime por consola en ningun caso.
 
-    raiz = os.path.abspath(args.carpeta)
-    if not os.path.isdir(raiz):
-        print("ERROR: esa carpeta no existe.", file=sys.stderr)
-        sys.exit(2)
+    Extraido de main() el 27-08-2026, misma razon que en
+    `enlazador_clientes_303.py`: reutilizar desde `consolidar_identidad.py`
+    sin duplicar la logica ni cambiar el comportamiento por consola."""
     dats = sorted(os.path.join(dp, n) for dp, _, fns in os.walk(raiz)
                   for n in fns if n.lower().endswith(".dat"))
     if not dats:
-        print("ERROR: no hay ningun .DAT ahi dentro.", file=sys.stderr)
-        sys.exit(2)
-    print(f"{len(dats):,} contenedores a revisar.")
+        return None
 
-    # nifs_por_cubo: (carpeta_idx, codigo) -> {nif_hash, ...}
-    nifs_por_cubo = defaultdict(set)
+    nifs_por_cubo = defaultdict(set)   # (carpeta_idx, codigo) -> {nif_hash, ...}
     errores = Counter()
     carpetas_vistas = {}   # nombre_real -> indice (nunca se imprime el nombre)
 
@@ -130,7 +130,7 @@ def main():
                         del rec
         except Exception as e:
             errores["contenedor:" + type(e).__name__] += 1
-        if i % paso == 0 or i == len(dats):
+        if progreso and (i % paso == 0 or i == len(dats)):
             print(f"    {i * 100 // len(dats):>3}%  ({i:,}/{len(dats):,})")
 
     # DIAGNOSTICO PREVIO, antes de agrupar nada: cuantos proveedores distintos
@@ -154,18 +154,6 @@ def main():
             tamanos["10-29"] += 1
         else:
             tamanos["30+"] += 1
-    print()
-    print("=" * 70)
-    print(f"TAMAÑO DE CADA CODIGO (numero de proveedores distintos que trae)")
-    print("=" * 70)
-    print(f"  total de codigos vistos (con al menos 1 NIF): "
-          f"{sum(tamanos.values()):,}")
-    for etiqueta in ("0", "1-2", f"3-{min_nifs-1}", f"{min_nifs}-9", "10-29", "30+"):
-        n = tamanos.get(etiqueta, 0)
-        print(f"    {etiqueta:<10} {'#' * min(50, n):<50} {n:,}")
-    print("  Si la mayoria cae en '1-2' o en el tramo justo por debajo del")
-    print(f"  minimo ({min_nifs}), la fragmentacion de abajo es RUIDO de codigos")
-    print("  delgados, no empresas distintas -- sube --min-nifs y repite.")
 
     # FILTRO DE DIFUSION, anadido el 27-08-2026 tras probar el script contra
     # el corpus real y obtener un resultado imposible (27 de 28 carpetas
@@ -186,9 +174,6 @@ def main():
     tope = max(2, int(len(todos_los_cubos) * max_difusion))
     difusos = {nif for nif, cs in cubos_por_nif.items() if len(cs) > tope}
     del cubos_por_nif
-    print()
-    print(f"NIF descartados por demasiado comunes en TODO el corpus "
-          f"(en mas del {max_difusion:.0%} de los codigos): {len(difusos):,}")
 
     # Agrupar cubos por carpeta, con los NIF difusos ya quitados. Un codigo
     # puede perder senal suficiente tras el filtro: se reevalua el minimo
@@ -199,15 +184,9 @@ def main():
         if len(limpio) >= min_nifs:
             cubos_por_carpeta[idx].append((cod, limpio))
 
-    print()
-    print("=" * 70)
-    print(f"CARPETAS ANALIZADAS: {len(carpetas_vistas)}  "
-          f"(con senal suficiente para medir: {len(cubos_por_carpeta)})")
-    print(f"(usando --min-nifs {min_nifs})")
-    print("=" * 70)
-
     resultado = Counter()   # "1 grupo" / "2+ grupos (posible mezcla)" / "solo 1 codigo"
     detalle_grupos = []
+    n_grupos_por_idx = {}
 
     for idx, cubos in sorted(cubos_por_carpeta.items()):
         if len(cubos) < 2:
@@ -245,28 +224,141 @@ def main():
 
         n_grupos = len(grupos)
         detalle_grupos.append(n_grupos)
+        n_grupos_por_idx[idx] = n_grupos
         if n_grupos == 1:
             resultado["1 grupo (misma empresa, copias distintas)"] += 1
         else:
             resultado[f"{n_grupos}+ grupos (POSIBLE MEZCLA de empresas)"] += 1
 
+    sospechosas = sum(1 for n in detalle_grupos if n >= 2)
+
+    # n_grupos_por_carpeta_real: SOLO para --detalle. Invierte carpetas_vistas
+    # (nombre_real -> idx) para poder escribir el nombre real, nunca el
+    # indice, en el fichero _LOCAL que Diego revisa.
+    idx_a_nombre = {idx: nombre for nombre, idx in carpetas_vistas.items()}
+    n_grupos_por_carpeta_real = {idx_a_nombre[idx]: n
+                                  for idx, n in n_grupos_por_idx.items()}
+
+    return {
+        "n_dats": len(dats),
+        "n_carpetas": len(carpetas_vistas),
+        "n_carpetas_con_senal": len(cubos_por_carpeta),
+        "min_nifs": min_nifs,
+        "max_difusion": max_difusion,
+        "tamanos": tamanos,
+        "difusos": len(difusos),
+        "resultado": resultado,
+        "detalle_grupos": detalle_grupos,
+        "sospechosas": sospechosas,
+        "errores": errores,
+        "n_grupos_por_carpeta_real": n_grupos_por_carpeta_real,
+    }
+
+
+def escribir_detalle_multiempresa(n_grupos_por_carpeta_real, ruta_salida):
+    """Escribe, por nombre real, que carpetas salieron sospechosas de
+    mezclar empresas y cuales no -- es una PISTA para revisar, nunca una
+    sentencia: el propio diseno del script (ver cabecera) ya avisa que esto
+    puede ser ruido de codigos con pocos proveedores."""
+    con_datos = sorted(n_grupos_por_carpeta_real.items())
+    n_sospechosas = sum(1 for _n, g in con_datos if g >= 2)
+    with open(ruta_salida, "w", encoding="utf-8") as f:
+        f.write("CARPETAS SOSPECHOSAS DE MEZCLAR VARIAS EMPRESAS (por NIF de "
+                "proveedores, dentro de la carpeta)\n")
+        f.write("=" * 78 + "\n\n")
+        f.write("Es una PISTA, no una sentencia: puede ser ruido si los codigos\n")
+        f.write("de esa carpeta traen pocos proveedores cada uno. Revisa a mano\n")
+        f.write("las marcadas SOSPECHOSA antes de darlas por buenas o por malas.\n\n")
+        for nombre, n_grupos in con_datos:
+            marca = "SOSPECHOSA" if n_grupos >= 2 else "sana      "
+            f.write(f"[{marca}] {n_grupos} grupo(s)  ->  {nombre!r}\n")
+        if not con_datos:
+            f.write("(Ninguna carpeta con senal suficiente para medir en esta "
+                     "ejecucion.)\n")
+    return n_sospechosas
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("carpeta")
+    ap.add_argument("--min-nifs", type=int, default=3,
+                    help="Contrapartes minimas para que un codigo cuente "
+                         "(por defecto 3, igual que enlazador_clientes_303.py)")
+    ap.add_argument("--max-difusion", type=float, default=0.30,
+                    help="Ignorar NIF presentes en mas de esta fraccion de "
+                         "codigos del corpus entero (por defecto 0,30)")
+    ap.add_argument("--detalle",
+                    help="Fichero _LOCAL con los nombres reales de carpetas "
+                         "sospechosas. Opcional -- sin esto el script se "
+                         "comporta exactamente igual que siempre.")
+    args = ap.parse_args()
+    min_nifs = args.min_nifs
+    max_difusion = args.max_difusion
+
+    if args.detalle and "_LOCAL" not in os.path.basename(args.detalle):
+        print("ERROR: --detalle debe contener _LOCAL en el nombre: lleva "
+              "nombres de carpeta reales.", file=sys.stderr)
+        sys.exit(1)
+
+    raiz = os.path.abspath(args.carpeta)
+    if not os.path.isdir(raiz):
+        print("ERROR: esa carpeta no existe.", file=sys.stderr)
+        sys.exit(2)
+
+    r = calcular_sospechosas(raiz, min_nifs, max_difusion, progreso=True)
+    if r is None:
+        print("ERROR: no hay ningun .DAT ahi dentro.", file=sys.stderr)
+        sys.exit(2)
+
+    print(f"{r['n_dats']:,} contenedores a revisar.")
+    print()
+    print("=" * 70)
+    print(f"TAMAÑO DE CADA CODIGO (numero de proveedores distintos que trae)")
+    print("=" * 70)
+    print(f"  total de codigos vistos (con al menos 1 NIF): "
+          f"{sum(r['tamanos'].values()):,}")
+    for etiqueta in ("0", "1-2", f"3-{min_nifs-1}", f"{min_nifs}-9", "10-29", "30+"):
+        n = r["tamanos"].get(etiqueta, 0)
+        print(f"    {etiqueta:<10} {'#' * min(50, n):<50} {n:,}")
+    print("  Si la mayoria cae en '1-2' o en el tramo justo por debajo del")
+    print(f"  minimo ({min_nifs}), la fragmentacion de abajo es RUIDO de codigos")
+    print("  delgados, no empresas distintas -- sube --min-nifs y repite.")
+
+    print()
+    print(f"NIF descartados por demasiado comunes en TODO el corpus "
+          f"(en mas del {max_difusion:.0%} de los codigos): {r['difusos']:,}")
+
+    print()
+    print("=" * 70)
+    print(f"CARPETAS ANALIZADAS: {r['n_carpetas']}  "
+          f"(con senal suficiente para medir: {r['n_carpetas_con_senal']})")
+    print(f"(usando --min-nifs {min_nifs})")
+    print("=" * 70)
+
     print()
     print("RESULTADO POR CARPETA:")
-    for k, v in resultado.most_common():
+    for k, v in r["resultado"].most_common():
         print(f"    {k:<52} {v:>4}")
 
-    sospechosas = sum(1 for n in detalle_grupos if n >= 2)
+    detalle_grupos = r["detalle_grupos"]
     print()
-    print(f"CARPETAS SOSPECHOSAS DE MEZCLAR EMPRESAS: {sospechosas} de "
+    print(f"CARPETAS SOSPECHOSAS DE MEZCLAR EMPRESAS: {r['sospechosas']} de "
           f"{len(detalle_grupos)} con mas de un codigo analizable")
     if detalle_grupos:
         print("DISTRIBUCION DE GRUPOS POR CARPETA (1 = sano):")
         for n, c in sorted(Counter(detalle_grupos).items()):
             print(f"    {n} grupo(s): {'#' * min(50, c)} {c}")
 
-    if errores:
+    if r["errores"]:
         print()
-        print("INCIDENCIAS:", dict(errores))
+        print("INCIDENCIAS:", dict(r["errores"]))
+
+    if args.detalle:
+        ruta_detalle = os.path.abspath(args.detalle)
+        n_sosp = escribir_detalle_multiempresa(r["n_grupos_por_carpeta_real"], ruta_detalle)
+        print()
+        print(f"Detalle con nombres reales (LOCAL, no lo pegues en el chat): {ruta_detalle}")
+        print(f"({n_sosp} carpetas marcadas SOSPECHOSA)")
 
     print()
     print("COMO SE LEE:")

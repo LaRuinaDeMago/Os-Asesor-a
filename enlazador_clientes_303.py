@@ -36,13 +36,22 @@ no agrupar nada. Se mide la calidad ANTES de confiarse.
 
 REGLA DE DATOS: cada NIF se hashea nada mas leerlo -- nunca vive como texto
 plano en ninguna variable de este script, ni siquiera de forma transitoria.
-Solo se cuentan e imprimen numeros: tamanos de grupo, distribucion de
-similitud, anios cubiertos. Ningun nombre de carpeta ni NIF real se imprime
-en ningun momento.
+Por consola SOLO se cuentan e imprimen numeros: tamanos de grupo, distribucion
+de similitud, anios cubiertos -- nunca un nombre de carpeta ni un NIF real.
+
+ANADIDO 27-08-2026 (consolidacion de senales): `--detalle` es opcional y NO
+cambia lo de arriba -- sigue sin imprimirse nada por consola. Si se pasa,
+escribe ademas que CARPETAS (nombre real) quedaron agrupadas como la misma
+empresa, a un fichero que DEBE llevar _LOCAL en el nombre (mismo guardia que
+`emparejar_carpetas.py` y `cuadre_303_ficha.py`). Solo AHI vive el nombre real,
+nunca en stdout. Pensado para que `consolidar_identidad.py` lo cruce con la
+similitud de nombre de `emparejar_carpetas.py` sin que el modelo vea ninguno
+de los dos.
 
 Uso:
     python enlazador_clientes_303.py "RUTA_DEL_CORPUS"
     python enlazador_clientes_303.py "RUTA_DEL_CORPUS" --max-difusion 0.2
+    python enlazador_clientes_303.py "RUTA_DEL_CORPUS" --detalle enlazado_LOCAL.txt
 """
 import argparse
 import hashlib
@@ -83,24 +92,30 @@ def carpeta_y_codigo(ruta):
     return carpeta, f"{carpeta}/{codigo}"
 
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("carpeta", help="Raiz del corpus con los contenedores .DAT")
-    ap.add_argument("--max-difusion", type=float, default=0.30,
-                    help="Ignorar NIF presentes en mas de esta fraccion de "
-                         "cubos (no distinguen identidad). Por defecto 0,30, "
-                         "igual que cruzar_303_importes.py")
-    args = ap.parse_args()
+def calcular_grupos(raiz, max_difusion=0.30):
+    """Toda la logica de agrupamiento, sin imprimir nada. Devuelve un dict con
+    los contadores que main() imprime (identicos a los de siempre) MAS
+    `grupos_reales`: {lider_hash: {nombre_de_carpeta_real, ...}} SOLO para
+    quien pida --detalle -- main() no lo imprime por consola en ningun caso,
+    unicamente lo escribe a un fichero _LOCAL si se lo piden.
 
-    raiz = os.path.abspath(args.carpeta)
+    Extraido de main() el 27-08-2026 para poder reutilizar este calculo desde
+    `consolidar_identidad.py` sin duplicar la logica (la misma disciplina que
+    ya obligo a centralizar el patron de importes en `contrato_datos.py` el
+    26-08). El comportamiento por consola no cambia ni un caracter."""
     dats = sorted(os.path.join(dp, n)
                   for dp, _, fns in os.walk(raiz) for n in fns
                   if os.path.splitext(n)[1].lower() == ".dat")
-    print(f"{len(dats)} contenedores.")
 
     nifs_por_cubo = defaultdict(set)     # cubo_hash -> {nif_hash, ...}
     carpeta_por_cubo = {}                # cubo_hash -> carpeta_hash (para el veto)
     anios_por_cubo = defaultdict(set)
+    # nombre_real_por_cubo vive SOLO en memoria de este proceso. Nunca se
+    # imprime por consola -- solo se usa si --detalle pide escribir el
+    # fichero _LOCAL. Es el mismo dato que ya pasaba por una variable local
+    # (`carpeta`) en el bucle de siempre; antes se descartaba tras hashear,
+    # ahora se conserva para ese unico uso opcional.
+    nombre_real_por_cubo = {}
     errores = Counter()
 
     for ruta in dats:
@@ -123,6 +138,7 @@ def main():
                     carpeta, cubo_txt = carpeta_y_codigo(ruta)
                     cubo_h = _h(cubo_txt)
                     carpeta_por_cubo[cubo_h] = _h(carpeta)
+                    nombre_real_por_cubo[cubo_h] = carpeta
 
                     while True:
                         rec = fh.read(len_reg)
@@ -143,9 +159,6 @@ def main():
 
     cubos = [c for c in nifs_por_cubo if len(nifs_por_cubo[c]) >= MIN_NIFS]
     descartados = len(nifs_por_cubo) - len(cubos)
-    print("")
-    print(f"  cubos con senal suficiente (>= {MIN_NIFS} contrapartes): {len(cubos):,}")
-    print(f"  cubos descartados por poca senal: {descartados:,}")
 
     # --- Filtro de DIFUSION, anadido el 27-08-2026 --------------------------
     # Un NIF presente en casi todos los cubos (banco, electrica, telefonica,
@@ -158,7 +171,7 @@ def main():
     for c in cubos:
         for nif in nifs_por_cubo[c]:
             cubos_por_nif[nif].add(c)
-    tope = max(2, int(len(cubos) * args.max_difusion))
+    tope = max(2, int(len(cubos) * max_difusion))
     difusos = {nif for nif, cs in cubos_por_nif.items() if len(cs) > tope}
     del cubos_por_nif
 
@@ -166,15 +179,10 @@ def main():
     # Quitar los NIF difusos puede dejar algun cubo por debajo del minimo:
     # se reevalua el filtro de senal DESPUES de limpiar, no antes.
     cubos = [c for c in cubos if len(nifs_filtrados[c]) >= MIN_NIFS]
-    print(f"  NIF descartados por demasiado comunes (en mas del "
-          f"{args.max_difusion:.0%} de los cubos): {len(difusos):,}")
-    print(f"  cubos con senal DESPUES de filtrar difusos: {len(cubos):,}")
 
     # --- Histograma de similitud de Jaccard entre TODOS los pares -----------
     # No decide el umbral de antemano: lo mide, igual que hizo el trabajo de
     # huella original el 12-08-2026 ("histograma bimodal, meseta estable").
-    print("")
-    print("Calculando similitud entre pares (puede tardar un minuto)...")
     hist = Counter()
     pares_altos = []  # (sim, cubo_a, cubo_b) para sim >= 0.30, para clustering
     n = len(cubos)
@@ -193,11 +201,6 @@ def main():
             hist[bucket] += 1
             if sim >= 0.30:
                 pares_altos.append((sim, a, b))
-
-    print("")
-    print("DISTRIBUCION DE SIMILITUD (solo pares con algo de solape):")
-    for bucket in sorted(hist):
-        print(f"    {bucket:>4.1f}  {'#' * min(60, hist[bucket]):<60} {hist[bucket]:,}")
 
     # --- Clustering por union-find, con el veto de "misma carpeta" ----------
     padre = {c: c for c in cubos}
@@ -231,16 +234,6 @@ def main():
         grupos[encontrar(c)].append(c)
 
     tamanos = Counter(len(miembros) for miembros in grupos.values())
-    print("")
-    print("=" * 66)
-    print(f"  GRUPOS FORMADOS (umbral Jaccard >= {UMBRAL}): {len(grupos):,}")
-    print(f"  (el numero real de empresas conocido es 33 -- comparar con esto)")
-    print("=" * 66)
-    print(f"  fusiones vetadas por regla de 'misma carpeta, codigo distinto': {vetados:,}")
-    print("")
-    print("TAMANO DE GRUPO (cuantos cubos por grupo, y cuantos grupos de ese tamano):")
-    for tam in sorted(tamanos):
-        print(f"    {tam:>3} cubo(s)  ->  {tamanos[tam]:>4,} grupos")
 
     # --- Sanity check: solapamiento de anios DENTRO de un grupo -------------
     # Tras la deduplicacion de reconstruir_303.py, dos cubos de la MISMA
@@ -263,13 +256,122 @@ def main():
             grupos_con_solape += 1
 
     grupos_multi = sum(1 for m in grupos.values() if len(m) >= 2)
-    print("")
-    print(f"  grupos con 2+ cubos: {grupos_multi:,}")
-    print(f"  de esos, con anios solapados entre miembros (senal de alarma): "
-          f"{grupos_con_solape:,}")
 
-    if errores:
-        print(f"\nErrores: {dict(errores)}")
+    # grupos_reales: SOLO para --detalle. Nombre real de cada carpeta
+    # distinta que aporto al menos un cubo a ese grupo -- lo que le interesa
+    # a Diego no es cuantos cubos hay, es cuantas CARPETAS DISTINTAS resultan
+    # ser, segun esta senal, la misma empresa.
+    grupos_reales = defaultdict(set)
+    for lider, miembros in grupos.items():
+        for m in miembros:
+            nombre = nombre_real_por_cubo.get(m)
+            if nombre:
+                grupos_reales[lider].add(nombre)
+
+    return {
+        "n_dats": len(dats),
+        "cubos_con_senal_inicial": len(nifs_por_cubo),
+        "descartados_por_poca_senal": descartados,
+        "difusos": len(difusos),
+        "cubos_tras_filtro": len(cubos),
+        "hist": hist,
+        "grupos": grupos,
+        "tamanos": tamanos,
+        "vetados": vetados,
+        "grupos_multi": grupos_multi,
+        "grupos_con_solape": grupos_con_solape,
+        "errores": errores,
+        "grupos_reales": grupos_reales,
+    }
+
+
+def escribir_detalle_grupos(grupos_reales, ruta_salida):
+    """Escribe SOLO los grupos que agrupan 2+ carpetas REALES distintas --
+    un grupo de una sola carpeta no dice nada nuevo (ya se sabe que una
+    carpeta es ella misma). Ese es exactamente el caso que le interesa a
+    Diego: "estas N carpetas de ContaPlus son, segun el NIF de sus
+    proveedores, la misma empresa fragmentada en varias copias"."""
+    multi = {lider: sorted(nombres) for lider, nombres in grupos_reales.items()
+             if len(nombres) >= 2}
+    with open(ruta_salida, "w", encoding="utf-8") as f:
+        f.write("CARPETAS DE CONTAPLUS AGRUPADAS COMO LA MISMA EMPRESA (por NIF "
+                "de proveedores)\n")
+        f.write("=" * 78 + "\n\n")
+        f.write("Cada grupo de abajo son 2+ carpetas que, segun sus proveedores en\n")
+        f.write("comun, probablemente son la MISMA empresa repartida en varias\n")
+        f.write("copias de seguridad. Es una senal de apoyo, no una fusion\n")
+        f.write("automatica -- decide tu si tiene sentido con lo que sabes.\n\n")
+        if not multi:
+            f.write("(Ningun grupo con 2+ carpetas distintas en esta ejecucion.)\n")
+        for i, (_lider, nombres) in enumerate(sorted(multi.items(), key=lambda kv: kv[0]), start=1):
+            f.write(f"Grupo {i}: {len(nombres)} carpetas\n")
+            for nombre in nombres:
+                f.write(f"    - {nombre!r}\n")
+            f.write("\n")
+    return len(multi)
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("carpeta", help="Raiz del corpus con los contenedores .DAT")
+    ap.add_argument("--max-difusion", type=float, default=0.30,
+                    help="Ignorar NIF presentes en mas de esta fraccion de "
+                         "cubos (no distinguen identidad). Por defecto 0,30, "
+                         "igual que cruzar_303_importes.py")
+    ap.add_argument("--detalle",
+                    help="Fichero _LOCAL con los nombres reales de las carpetas "
+                         "agrupadas (2+ carpetas por grupo). Opcional -- sin "
+                         "esto el script se comporta exactamente igual que "
+                         "siempre, solo numeros por consola.")
+    args = ap.parse_args()
+
+    if args.detalle and "_LOCAL" not in os.path.basename(args.detalle):
+        print("ERROR: --detalle debe contener _LOCAL en el nombre: lleva "
+              "nombres de carpeta reales.", file=sys.stderr)
+        sys.exit(1)
+
+    raiz = os.path.abspath(args.carpeta)
+    r = calcular_grupos(raiz, args.max_difusion)
+
+    print(f"{r['n_dats']} contenedores.")
+    print("")
+    print(f"  cubos con senal suficiente (>= {MIN_NIFS} contrapartes): "
+          f"{r['cubos_con_senal_inicial'] - r['descartados_por_poca_senal']:,}")
+    print(f"  cubos descartados por poca senal: {r['descartados_por_poca_senal']:,}")
+    print(f"  NIF descartados por demasiado comunes (en mas del "
+          f"{args.max_difusion:.0%} de los cubos): {r['difusos']:,}")
+    print(f"  cubos con senal DESPUES de filtrar difusos: {r['cubos_tras_filtro']:,}")
+
+    print("")
+    print("DISTRIBUCION DE SIMILITUD (solo pares con algo de solape):")
+    for bucket in sorted(r["hist"]):
+        print(f"    {bucket:>4.1f}  {'#' * min(60, r['hist'][bucket]):<60} {r['hist'][bucket]:,}")
+
+    print("")
+    print("=" * 66)
+    print(f"  GRUPOS FORMADOS (umbral Jaccard >= 0.5): {len(r['grupos']):,}")
+    print(f"  (el numero real de empresas conocido es 33 -- comparar con esto)")
+    print("=" * 66)
+    print(f"  fusiones vetadas por regla de 'misma carpeta, codigo distinto': {r['vetados']:,}")
+    print("")
+    print("TAMANO DE GRUPO (cuantos cubos por grupo, y cuantos grupos de ese tamano):")
+    for tam in sorted(r["tamanos"]):
+        print(f"    {tam:>3} cubo(s)  ->  {r['tamanos'][tam]:>4,} grupos")
+
+    print("")
+    print(f"  grupos con 2+ cubos: {r['grupos_multi']:,}")
+    print(f"  de esos, con anios solapados entre miembros (senal de alarma): "
+          f"{r['grupos_con_solape']:,}")
+
+    if r["errores"]:
+        print(f"\nErrores: {dict(r['errores'])}")
+
+    if args.detalle:
+        ruta_detalle = os.path.abspath(args.detalle)
+        n_multi = escribir_detalle_grupos(r["grupos_reales"], ruta_detalle)
+        print("")
+        print(f"Detalle con nombres reales (LOCAL, no lo pegues en el chat): {ruta_detalle}")
+        print(f"({n_multi} grupos con 2+ carpetas distintas)")
 
     print("")
     print("Esto es SOLO la medicion (fase 1). No se ha tocado ningun fichero")

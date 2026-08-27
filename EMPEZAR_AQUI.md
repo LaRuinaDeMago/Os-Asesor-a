@@ -66,6 +66,21 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 >   para el módulo de facturas EMITIDAS, ver §9).
 > - `python test_comparar_esquema_dbf.py` — 12/12 (compara el layout de un
 >   `.dbf` real contra ContaPlus sin exponer ningún dato, ver §10).
+>
+> **27-08-2026 (sesión Cloud, decimocuarta entrada):** `consolidar_identidad.py`
+> (nuevo) cruza las tres señales de identidad cliente↔carpeta del 27-08
+> (`emparejar_carpetas.py`, `enlazador_clientes_303.py`,
+> `diag_carpetas_multiempresa.py`) en una sola vista ordenada por prioridad
+> de revisión — detalle completo en `PROJECT_STATUS.md`, misma fecha. Tres
+> ensayos nuevos, también sin cablear a `audit_project.py` todavía:
+> - `python ensayo_enlazador_clientes_303.py`
+> - `python ensayo_diag_carpetas_multiempresa.py`
+> - `python ensayo_consolidar_identidad.py`
+>
+> **Pendiente, y lo ejecuta Diego, no Claude:**
+> ```bash
+> python consolidar_identidad.py "C:\Users\SERVILAB\Desktop\100% contabilidad" "\\PC01\Documentos" --detalle consolidado_LOCAL.txt
+> ```
 
 > ⚠️ **Si `audit_project.py` muere con `UnicodeDecodeError` a mitad de la
 > lista, tu copia es anterior al 26-08-2026.** Los tres `subprocess.run` no

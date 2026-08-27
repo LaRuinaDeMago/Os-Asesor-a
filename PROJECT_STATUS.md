@@ -7,6 +7,95 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, decimocuarta entrada) — `consolidar_identidad.py`: cruza las tres señales de identidad cliente↔carpeta en una sola vista, sin resolver por estadística lo que ya se demostró que no se puede
+
+Diego preguntó, tras el cierre de la tercera entrada de hoy (revisión humana
+vía `cuadre_303_ficha.py --listar`, sin conjunto de referencia limpio en
+ningún lado), si había una forma de aprovechar mejor los datos ya
+disponibles. **Respuesta razonada, no un reintento del mismo enfoque:** la
+conclusión de la tercera entrada sigue en pie —no hay estadística que
+resuelva la identidad desde cero—, pero las tres señales que se construyeron
+ese mismo día (similitud de nombre en `emparejar_carpetas.py`, agrupación por
+proveedor en `enlazador_clientes_303.py`, homogeneidad interna en
+`diag_carpetas_multiempresa.py`) nunca se habían cruzado entre sí. Cada una
+vivía en su propio informe suelto.
+
+### Qué añade, exactamente, que ninguna de las tres por separado tenía
+
+Dos carpetas de ContaPlus con nombres **distintos** pueden agruparse como la
+misma empresa real por proveedores compartidos (`enlazador_clientes_303.py`),
+pero cada una, mirada solo por nombre, puede emparejar con una carpeta de
+Documentos **distinta** y con alta confianza cada una. Ninguno de los dos
+scripts por separado puede ver esa discrepancia, porque cada uno solo conoce
+su propia señal. Igual de importante: si una carpeta de ContaPlus está
+marcada como sospechosa de mezclar varias empresas reales
+(`diag_carpetas_multiempresa.py`), cualquier emparejamiento por nombre que se
+le proponga es sospechoso por construcción — puede que ni siquiera exista
+"el cliente" singular al que emparejar.
+
+### Diseño de tres roles, sin excepción ni una vez
+
+`consolidar_identidad.py` **importa** las funciones ya escritas de los otros
+tres scripts (nunca las duplica — mismo criterio que centralizó el patrón de
+importes en `contrato_datos.py` el 26-08). Por consola solo salen recuentos.
+El nombre real de cualquier carpeta vive únicamente en el fichero de salida,
+que debe llevar `_LOCAL` en el nombre (mismo guardia que los otros tres). No
+se leyó, no se imprimió y no se escribió ni un solo dato real en esta sesión.
+
+**Cambio necesario en dos scripts existentes, sin tocar su comportamiento:**
+`enlazador_clientes_303.py` y `diag_carpetas_multiempresa.py` solo imprimían
+recuentos — nunca guardaban el nombre real de las carpetas en ningún sitio,
+ni siquiera en un fichero `_LOCAL`, así que no había nada que cruzar. Los dos
+se refactorizaron para exponer una función reutilizable
+(`calcular_grupos()` / `calcular_sospechosas()`) y un `--detalle` opcional
+que escribe el nombre real a un fichero `_LOCAL` **solo si se pide** — sin
+`--detalle`, los dos se comportan exactamente igual que antes, verificado con
+los ensayos nuevos de abajo.
+
+### Verificación
+
+Los dos scripts refactorizados **no tenían ningún ensayo propio en el
+repositorio** pese a llevar dos arreglos reales cada uno (filtro de difusión,
+segundo bug de `clave_cliente()`) — las "seis pruebas sintéticas" que
+documenta la tercera entrada de hoy se corrieron a mano esa sesión y no
+quedaron fijadas en código. Cerrado ese hueco de paso:
+
+| Fichero | Qué fija en código |
+|---|---|
+| `ensayo_enlazador_clientes_303.py` (nuevo) | Dos carpetas con nombre distinto pero mismos proveedores se agrupan; una tercera sin solape no se contamina; el detalle solo lista grupos de 2+ carpetas |
+| `ensayo_diag_carpetas_multiempresa.py` (nuevo) | Una carpeta con dos códigos sin solape de proveedores sale SOSPECHOSA; una con proveedores compartidos sale sana, sin falso positivo |
+| `ensayo_consolidar_identidad.py` (nuevo) | El caso que importa: dos carpetas de nombre distinto, agrupadas por proveedor, con candidatos de nombre discrepantes → marcadas DISCREPANCIA; una carpeta mixta → SOSPECHOSA; una carpeta sana sin avisos → ningún ruido; por consola, ningún fragmento de los nombres inventados aparece nunca (comprobado carácter a carácter) |
+
+Los tres ensayos nuevos en verde. Batería completa repetida tras el cambio:
+`test_motor_veredicto.py` 39/39, `test_adversarial.py` 112/112,
+`test_privacidad.py` 30/30, y los **11** `ensayo_*.py` del repositorio (los 8
+de antes más los 3 nuevos) en verde — incluidos los que ya existían para
+`emparejar_carpetas.py`, `retro_semaforo.py` y `reconstruir_303.py`, que no
+cambiaron de comportamiento con este refactor. `audit_project.py`: 15/16
+(la dependencia que falta es la excepción normal ya conocida, `anthropic`/
+`google-genai`). Escáner de privacidad sobre el repositorio completo: sin
+hallazgos.
+
+**A propósito, sin cablear a `audit_project.py` todavía:** mismo criterio que
+`numeracion_correlativa.py` y `comparar_esquema_dbf.py` — código nuevo de
+hoy, sin haberse probado contra el corpus real, no se mezcla con el motor ya
+estable y auditado 14 veces.
+
+### Pendiente, y lo ejecuta Diego, no Claude (regla de tres roles)
+
+```bash
+python consolidar_identidad.py "C:\Users\SERVILAB\Desktop\100% contabilidad" "\\PC01\Documentos" --detalle consolidado_LOCAL.txt
+```
+
+El fichero de salida viene ordenado por prioridad de revisión: primero las
+discrepancias y los avisos de mezcla, después por confianza del nombre (baja
+primero). Si algo sale con `DISCREPANCIA`, compara los dos candidatos con
+calma — puede ser un error de una de las dos señales, o puede ser real (la
+misma empresa cambió de nombre comercial entre una copia y otra). Ninguna
+marca de este fichero decide nada por sí sola.
+
+---
+
 ## 27-08-2026 (sesión Cloud, decimotercera entrada) — `comparar_esquema_dbf.py` ejecutado de verdad, y una fecha nueva: migración a ContaSOL/FactuSOL a principios de 2027
 
 Diego consiguió instalar Python en un segundo equipo (no es el que documenta
