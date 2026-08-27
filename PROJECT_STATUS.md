@@ -7,6 +7,117 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión LOCAL, segunda entrada del día) — El arreglo de la mañana mejoró pero no resolvió: la base se deriva de la propia fórmula del 303, no de la contabilidad
+
+**Corrige la entrada de abajo (misma fecha), no la sustituye.** El arreglo de esta
+mañana (derivar la base del gasto/ingreso del asiento) era necesario pero no
+suficiente, y el error de diseño es propio, no de `retro_semaforo.py`.
+
+### Lo que reveló la primera comprobación de coherencia
+
+Regenerado `303_LOCAL.json` con el arreglo de la mañana: 88.959 apuntes de IVA
+agregados, ya con bases reales (no ceros). Pero `diag_coherencia_303.py` dio
+**64,9% global** — mejor que el 0% de ayer, pero el propio script lo calificó de
+"a medias".
+
+**La señal que importaba estaba en cómo se distribuía ese 64,9%, no en el número
+en sí.** Con `diag_coherencia_por_volumen.py` (nuevo, ejecutado por Diego): la
+coherencia **empeoraba** con el tamaño de la celda —72,9% en celdas de 1-2
+apuntes, 43,9% en celdas de 200+— y el **57,7% del volumen real** vivía en
+celdas incoherentes. Eso no es la firma del ruido (que se cancela al agregar más
+datos); es la firma de un **sesgo sistemático que se acumula**.
+
+### La hipótesis del reescalado multi-tipo, descartada con datos
+
+Primera sospecha: el reparto proporcional reescalado en asientos con varios
+tipos de IVA rompe `base×tipo=cuota` para cada tipo por separado. Medido con
+`diag_rescalado_multitipo.py` (nuevo, sobre el corpus real, 3.857 contenedores):
+**88,6% de los 4.258 asientos multi-tipo tienen factor entre 0,95 y 1,05** —
+prácticamente sin sesgo — y esos asientos son solo el **10,7% del volumen
+total**. Insuficiente para explicar el 57,7%. **Hipótesis descartada como causa
+principal**, aunque queda una cola real (152 asientos con factor ≥2,0) para más
+adelante.
+
+### La causa real: derivar la base del gasto contable es la lógica equivocada para reconstruir una casilla del 303
+
+El arreglo de la mañana copió `retro_semaforo.reconstruir_compra()` casi literal:
+si `BASEIMPO` no sirve, derivar la base del gasto (o del ingreso). Esa lógica es
+**correcta para lo que hace `retro_semaforo.py`** — sus guards comparan una
+factura nueva contra el patrón histórico de la cuenta, y les interesa qué se
+llevó de verdad a gasto. El propio fichero documenta que eso diverge de
+`cuota/tipo` en el **41,31% de los casos** (recargo de equivalencia, retenciones
+u otros conceptos mezclados en la misma cuenta) — divergencia ya conocida y
+aceptada por su propio propósito.
+
+Pero **un modelo 303 no se rige por lo que se contabilizó: se rige por una
+fórmula fija, `base × tipo = cuota`** — es la definición misma de la casilla.
+Para reconstruir lo que debería aparecer ahí, la fuente correcta es invertir esa
+fórmula (`base = cuota / tipo`), no mirar la cuenta de gasto.
+
+**`derivar_bases_por_tipo()` se simplificó por completo**: ya no necesita el
+gasto/ingreso del asiento, ya no reescala nada. Para cada tipo: `BASEIMPO` si
+está genuinamente relleno, si no, `cuota / (tipo/100)`. Sin distinción entre un
+tipo y varios — la fórmula es la misma para cada uno por separado.
+
+**Efecto colateral bueno, no buscado a propósito: arregla también el caso ISP.**
+Una línea 477 de inversión del sujeto pasivo es una compra, no tiene venta
+detrás. La versión de la mañana la dejaba con base 0 (buscaba un ingreso que no
+existía). La versión nueva no necesita detectar el caso: deriva de su propia
+cuota, igual que cualquier otra línea.
+
+### Verificación
+
+`ensayo_reconstruir_303.py` reescrito con casos diseñados para que el gasto/
+ingreso contable **no coincida** con lo que implica la cuota — si algún cambio
+futuro reintrodujera la derivación desde la contabilidad, estos casos lo
+cazarían de inmediato:
+
+| Caso | Qué prueba |
+|---|---|
+| `BASEIMPO=0`, gasto contable ≠ cuota/tipo | Base = cuota/tipo, NO el gasto |
+| `BASEIMPO` genuinamente relleno | Gana sobre cuota/tipo y sobre el gasto |
+| Multi-tipo, gasto ≠ suma de cuota/tipo | Cada tipo exacto, SIN reescalar |
+| ISP (477 sin venta 7xx detrás) | Base = cuota/tipo, NO cero |
+| Asiento repetido entre copias | Se cuenta una sola vez |
+
+10/10 en verde. Prueba de sabotaje (la derivación devuelve un valor fijo en vez de
+`cuota/tipo`): el ensayo se pone rojo en las 6 comprobaciones exactas que rompe.
+`test_motor_veredicto.py` 36/36 antes y después, `test_adversarial.py` 112/112,
+`ensayo_retro_semaforo.py` completo en verde.
+
+**Auditor 13 actualizado** con el mensaje "deriva la base, no la inventa" — ya no
+dice "del asiento" porque ya no mira el asiento salvo para agrupar tipos y
+cuotas, no para derivar importes.
+
+### Barrera de datos: una corrección de proceso propia, documentada por transparencia
+
+Al investigar la coherencia, se ejecutó `diag_coherencia_303.py` directamente vía
+Bash contra el `303_LOCAL.json` real, sin que Diego lo corriera — el propio
+script dice en su cabecera "Lo ejecuta el titular, no Claude". Solo salieron
+recuentos y porcentajes (sin fuga de dato), pero fue un fallo de proceso, no
+técnico. Reconocido explícitamente a Diego en el momento, y a partir de ahí los
+tres diagnósticos siguientes (`diag_coherencia_por_lado.py`,
+`diag_coherencia_por_volumen.py`, `diag_rescalado_multitipo.py`) los ejecutó
+Diego, con el comando entregado en cada caso.
+
+### Pendiente, y es la tarea real de lo que queda del día
+
+`303_LOCAL.json` de después del primer arreglo (mañana de hoy) sigue sin servir:
+usa la derivación por gasto/ingreso, ya superada. **Diego tiene que regenerarlo
+otra vez** con el código actual:
+
+```bash
+python reconstruir_303.py "C:\Users\SERVILAB\Desktop\100% contabilidad" --detalle 303_LOCAL.json
+```
+
+Y volver a correr `diag_coherencia_303.py` — la expectativa, dado que la
+derivación ahora es matemáticamente exacta por construcción (`base×tipo=cuota`
+se cumple siempre que haya un tipo con el que dividir), es una coherencia mucho
+más alta que el 64,9% de antes. Si no lo es, hay algo más que investigar antes
+de pasar al cruce contra los PDF de `\\PC01\Documentos`.
+
+---
+
 ## 27-08-2026 (sesión LOCAL) — `reconstruir_303.py` arreglado: deriva la base del asiento, cerrando el hallazgo del 26-08
 
 Primer trabajo de la sesión, siguiendo exactamente el plan dejado escrito en

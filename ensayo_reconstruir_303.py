@@ -1,29 +1,33 @@
 #!/usr/bin/env python3
 """ensayo_reconstruir_303.py — ensayo en seco de la derivacion de base por
-asiento en reconstruir_303.py.
+tipo en reconstruir_303.py.
 
 POR QUE HACE FALTA UN ENSAYO PROPIO, ADEMAS DEL DE ensayo_retro_semaforo.py
 ------------------------------------------------------------------------------
 `ensayo_retro_semaforo.py` prueba que `reconstruir_303.py` corre de punta a
 punta contra un corpus con UN asiento simple por factura (una linea de IVA,
-un tipo). Eso basta para probar la fontaneria, pero NO ejercita los tres
-casos que de verdad ponen a prueba la derivacion de base escrita el
-27-08-2026:
+un tipo, sin ningun conflicto entre gasto y cuota). Eso basta para probar la
+fontaneria, pero NO ejercita los casos que de verdad importan.
 
-  1. Varios tipos de IVA en el MISMO asiento (reparto proporcional
-     reescalado, la parte mas delicada de `derivar_bases_por_tipo`).
-  2. BASEIMPO genuinamente relleno (el 0,6% real): tiene que usarse tal
-     cual, NO derivarse del gasto/ingreso.
-  3. El mismo asiento repetido en dos "copias" (deduplicacion por asiento
-     completo, no por linea suelta): tiene que contarse UNA sola vez.
+DOS VERSIONES EN UN MISMO DIA, Y POR QUE
+-------------------------------------------
+Primera version (mañana del 27-08): copiaba la logica de
+`retro_semaforo.reconstruir_compra()` -- derivar la base del gasto/ingreso
+contable del asiento. Mejoro el bug del 26-08 (BASEIMPO=0) pero, medido
+contra el corpus real, dejo una coherencia (base*tipo=cuota) del 64,9% que
+EMPEORABA con el tamaño de la celda -- sesgo sistematico, no ruido.
+Investigado con `diag_rescalado_multitipo.py`: el reescalado multi-tipo no
+era la causa (88,6% sin sesgo). La causa real: un 303 se rige por
+`base = cuota / tipo`, no por lo contabilizado a gasto -- esa formula es
+correcta para lo que hace retro_semaforo.py (comparar contra el patron
+historico), no para reconstruir una casilla fiscal.
 
-Sin esto, un cambio futuro en `derivar_bases_por_tipo` podria romper
-cualquiera de los tres casos y ningun ensayo lo notaria hasta la proxima
-ejecucion real -- la misma leccion de "verde en el ensayo, roto en el mundo
-real" que esta sesion lleva persiguiendo todo el dia.
-
-REGLA DE DATOS: todo inventado, corpus en directorio temporal, borrado al
-terminar. Ningun .DAT toca el repositorio.
+Los casos de aqui prueban la version DEFINITIVA (cuota/tipo, sin mirar
+gasto/ingreso salvo para nada), y estan diseñados a proposito para que el
+gasto/ingreso contable NO COINCIDA con lo que implica la cuota -- si algun
+cambio futuro reintrodujera la derivacion desde el gasto, estos casos lo
+cazarian inmediatamente, porque las cifras esperadas SOLO salen bien con la
+formula correcta.
 
 Uso:
     python ensayo_reconstruir_303.py
@@ -76,29 +80,30 @@ def leer(raiz):
 
 
 def main():
-    print("ENSAYO EN SECO: derivacion de base por asiento en reconstruir_303.py")
+    print("ENSAYO EN SECO: derivacion de base por tipo en reconstruir_303.py")
     print("=" * 72)
 
     tmp = tempfile.mkdtemp(prefix="ensayo_r303_")
     try:
         raiz = os.path.join(tmp, "corpus")
 
-        # --- CASO 1: un solo tipo de IVA, BASEIMPO a 0 (el caso real, 99,4%) ---
-        # base=1000, tipo 21% -> cuota=210. La base NO viene en BASEIMPO: debe
-        # derivarse de la cuenta de gasto (600000, DEBE=1000).
+        # --- CASO 1: BASEIMPO=0, y el GASTO NO COINCIDE con cuota/tipo -----
+        # base=1000 al 21% -> cuota=210. Pero el gasto contabilizado es 1300
+        # (300 de mas: un concepto no deducible mezclado en la misma cuenta,
+        # el caso real que explico el 64,9%). Si el codigo mirase el gasto,
+        # daria 1300; la formula correcta da 1000.
         filas_1 = [
-            {"ASIEN": 1, "SUBCTA": "600000", "EURODEBE": 1000.0, "EUROHABER": 0,
+            {"ASIEN": 1, "SUBCTA": "600000", "EURODEBE": 1300.0, "EUROHABER": 0,
              "IVA": 0, "TERNIF": "", "BASEIMPO": 0, "FECHA": "20220315", "DOCUMENTO": "F1"},
             {"ASIEN": 1, "SUBCTA": "472000", "EURODEBE": 210.0, "EUROHABER": 0,
              "IVA": 21, "TERNIF": "", "BASEIMPO": 0, "FECHA": "20220315", "DOCUMENTO": "F1"},
-            {"ASIEN": 1, "SUBCTA": "400000", "EURODEBE": 0, "EUROHABER": 1210.0,
+            {"ASIEN": 1, "SUBCTA": "400000", "EURODEBE": 0, "EUROHABER": 1510.0,
              "IVA": 0, "TERNIF": "", "BASEIMPO": 0, "FECHA": "20220315", "DOCUMENTO": "F1"},
         ]
         empaquetar(os.path.join(raiz, "CLIENTE_UNO"), "COPIA_A.DAT", filas_1)
 
         # --- CASO 2: BASEIMPO genuinamente relleno (el 0,6% real) ---------------
-        # Si BASEIMPO trae un valor y el gasto trae OTRO, tiene que ganar
-        # BASEIMPO -- es el dato mas directo cuando existe de verdad.
+        # Tiene que GANAR sobre cuota/tipo Y sobre el gasto, los dos distintos.
         filas_2 = [
             {"ASIEN": 1, "SUBCTA": "600000", "EURODEBE": 999999.0, "EUROHABER": 0,
              "IVA": 0, "TERNIF": "", "BASEIMPO": 0, "FECHA": "20220615", "DOCUMENTO": "F2"},
@@ -109,45 +114,49 @@ def main():
         ]
         empaquetar(os.path.join(raiz, "CLIENTE_DOS"), "COPIA_A.DAT", filas_2)
 
-        # --- CASO 3: multi-tipo en el MISMO asiento -----------------------------
-        # Un asiento con dos tipos de IVA (21% y 10%). BASEIMPO a 0 en los dos.
-        # gasto total = 1000 (600) + 500 (601) = 1500. La suma derivada tiene
-        # que ser EXACTA (reescalada), no solo aproximada.
+        # --- CASO 3: multi-tipo, con gasto que NO coincide con la suma ----------
+        # 21%: cuota=210 -> base=1000.  10%: cuota=50 -> base=500.  Suma=1500.
+        # El gasto contabilizado es 1700 (200 de mas). Con la formula vieja
+        # (reescalado a gasto), las bases habrian salido 1133,33 y 566,67.
+        # Con la correcta, cada tipo sale EXACTO por separado: 1000 y 500,
+        # SIN que la suma tenga que cuadrar con el gasto.
         filas_3 = [
-            {"ASIEN": 1, "SUBCTA": "600000", "EURODEBE": 1000.0, "EUROHABER": 0,
-             "IVA": 0, "TERNIF": "", "BASEIMPO": 0, "FECHA": "20220915", "DOCUMENTO": "F3"},
-            {"ASIEN": 1, "SUBCTA": "601000", "EURODEBE": 500.0, "EUROHABER": 0,
+            {"ASIEN": 1, "SUBCTA": "600000", "EURODEBE": 1700.0, "EUROHABER": 0,
              "IVA": 0, "TERNIF": "", "BASEIMPO": 0, "FECHA": "20220915", "DOCUMENTO": "F3"},
             {"ASIEN": 1, "SUBCTA": "472000", "EURODEBE": 210.0, "EUROHABER": 0,
              "IVA": 21, "TERNIF": "", "BASEIMPO": 0, "FECHA": "20220915", "DOCUMENTO": "F3"},
             {"ASIEN": 1, "SUBCTA": "472000", "EURODEBE": 50.0, "EUROHABER": 0,
              "IVA": 10, "TERNIF": "", "BASEIMPO": 0, "FECHA": "20220915", "DOCUMENTO": "F3"},
-            {"ASIEN": 1, "SUBCTA": "400000", "EURODEBE": 0, "EUROHABER": 1760.0,
+            {"ASIEN": 1, "SUBCTA": "400000", "EURODEBE": 0, "EUROHABER": 1960.0,
              "IVA": 0, "TERNIF": "", "BASEIMPO": 0, "FECHA": "20220915", "DOCUMENTO": "F3"},
         ]
         empaquetar(os.path.join(raiz, "CLIENTE_TRES"), "COPIA_A.DAT", filas_3)
 
-        # --- CASO 4: venta (repercutido, 477) desde el ingreso (7xx) ------------
+        # --- CASO 4: ISP -- una linea 477 SIN ninguna venta (7xx) detras --------
+        # Es la razon de fondo del segundo arreglo: una autorrepercusion es una
+        # COMPRA, no lleva ingreso. Con la version que derivaba del ingreso,
+        # esto daba base=0 con cuota real. Con cuota/tipo, se deriva igual que
+        # cualquier otra linea, sin necesitar detectar el caso ISP.
         filas_4 = [
-            {"ASIEN": 1, "SUBCTA": "430000", "EURODEBE": 1210.0, "EUROHABER": 0,
-             "IVA": 0, "TERNIF": "", "BASEIMPO": 0, "FECHA": "20221215", "DOCUMENTO": "V1"},
-            {"ASIEN": 1, "SUBCTA": "700000", "EURODEBE": 0, "EUROHABER": 1000.0,
-             "IVA": 0, "TERNIF": "", "BASEIMPO": 0, "FECHA": "20221215", "DOCUMENTO": "V1"},
-            {"ASIEN": 1, "SUBCTA": "477021", "EURODEBE": 0, "EUROHABER": 210.0,
-             "IVA": 21, "TERNIF": "", "BASEIMPO": 0, "FECHA": "20221215", "DOCUMENTO": "V1"},
+            {"ASIEN": 1, "SUBCTA": "621000", "EURODEBE": 2000.0, "EUROHABER": 0,
+             "IVA": 0, "TERNIF": "", "BASEIMPO": 0, "FECHA": "20221215", "DOCUMENTO": "ISP1"},
+            {"ASIEN": 1, "SUBCTA": "472000", "EURODEBE": 420.0, "EUROHABER": 0,
+             "IVA": 21, "TERNIF": "", "BASEIMPO": 0, "FECHA": "20221215", "DOCUMENTO": "ISP1"},
+            {"ASIEN": 1, "SUBCTA": "477000", "EURODEBE": 0, "EUROHABER": 420.0,
+             "IVA": 21, "TERNIF": "", "BASEIMPO": 0, "FECHA": "20221215", "DOCUMENTO": "ISP1"},
+            {"ASIEN": 1, "SUBCTA": "400000", "EURODEBE": 0, "EUROHABER": 2000.0,
+             "IVA": 0, "TERNIF": "", "BASEIMPO": 0, "FECHA": "20221215", "DOCUMENTO": "ISP1"},
         ]
         empaquetar(os.path.join(raiz, "CLIENTE_CUATRO"), "COPIA_A.DAT", filas_4)
 
         # --- CASO 5: el asiento 1 de CLIENTE_UNO, REPETIDO en una "copia" -------
-        # Misma carpeta de cliente, segundo contenedor con el MISMO asiento
-        # (bytes identicos): tiene que deduplicarse y NO sumarse dos veces.
         empaquetar(os.path.join(raiz, "CLIENTE_UNO"), "COPIA_B.DAT", filas_1)
 
         datos, incidencias = leer(raiz)
 
         # --- Verificaciones ------------------------------------------------
         c1 = datos.get("CLIENTE_UNO", {}).get("2022T1", {}).get("deducible", {}).get("21", {})
-        comprobar("caso 1 (BASEIMPO=0): base derivada del gasto = 1000,00",
+        comprobar("caso 1: base = cuota/tipo = 1000,00 (NO el gasto, que es 1300)",
                   c1.get("base") == 1000.0, c1)
         comprobar("caso 1: cuota = 210,00 (directa, nunca se deriva)",
                   c1.get("cuota") == 210.0, c1)
@@ -155,27 +164,31 @@ def main():
                   c1.get("apuntes") == 1, c1)
 
         c2 = datos.get("CLIENTE_DOS", {}).get("2022T2", {}).get("deducible", {}).get("21", {})
-        comprobar("caso 2 (BASEIMPO=500 relleno): GANA BASEIMPO, no el gasto",
+        comprobar("caso 2 (BASEIMPO=500 relleno): GANA sobre cuota/tipo y sobre el gasto",
                   c2.get("base") == 500.0, c2)
 
         c3d = datos.get("CLIENTE_TRES", {}).get("2022T3", {}).get("deducible", {})
         b21, b10 = c3d.get("21", {}).get("base"), c3d.get("10", {}).get("base")
-        comprobar("caso 3 (multi-tipo): la suma de las bases derivadas es EXACTA",
-                  b21 is not None and b10 is not None
-                  and round(b21 + b10, 2) == 1500.0,
-                  f"21%={b21} 10%={b10} suma={round((b21 or 0) + (b10 or 0), 2)}")
-        comprobar("caso 3: el tipo mayoritario (21%) se lleva el resto del redondeo",
-                  b21 is not None and abs(b21 - 1000.0) < 1.0, b21)
+        comprobar("caso 3 (multi-tipo): 21% = 1000,00 exacto, SIN reescalar al gasto (1700)",
+                  b21 == 1000.0, b21)
+        comprobar("caso 3 (multi-tipo): 10% = 500,00 exacto, SIN reescalar al gasto",
+                  b10 == 500.0, b10)
 
-        c4 = datos.get("CLIENTE_CUATRO", {}).get("2022T4", {}).get("devengado", {}).get("21", {})
-        comprobar("caso 4 (venta, 477): base derivada del INGRESO (7xx) = 1000,00",
-                  c4.get("base") == 1000.0, c4)
+        c4d = datos.get("CLIENTE_CUATRO", {}).get("2022T4", {}).get("deducible", {}).get("21", {})
+        c4v = datos.get("CLIENTE_CUATRO", {}).get("2022T4", {}).get("devengado", {}).get("21", {})
+        comprobar("caso 4 (ISP, lado deducible): base = 2000,00 desde cuota/tipo",
+                  c4d.get("base") == 2000.0, c4d)
+        comprobar("caso 4 (ISP, lado devengado, SIN venta 7xx detras): "
+                  "base = 2000,00, NO cero",
+                  c4v.get("base") == 2000.0, c4v)
 
         comprobar("caso 5: el asiento duplicado SE CUENTA (no se pierde en silencio)",
                   incidencias.get("duplicado entre copias de seguridad", 0) >= 1,
                   dict(incidencias))
 
         # --- Coherencia global: cada celda cuadra base*tipo/100 = cuota --------
+        # Con la formula correcta, esto tiene que ser SIEMPRE exacto -- es la
+        # comprobacion que demuestra que ya no hace falta ningun reescalado.
         descuadres = []
         for cli, tris in datos.items():
             for tri, lados in tris.items():
@@ -184,9 +197,9 @@ def main():
                         if not tipo.isdigit() or int(tipo) == 0:
                             continue
                         esperada = round(v["base"] * int(tipo) / 100.0, 2)
-                        if abs(esperada - v["cuota"]) > 0.02:
+                        if abs(esperada - v["cuota"]) > 0.01:
                             descuadres.append((cli, tri, lado, tipo, v["cuota"], esperada))
-        comprobar("todas las celdas cuadran: base x tipo = cuota",
+        comprobar("todas las celdas cuadran EXACTO: base x tipo = cuota",
                   not descuadres, descuadres[:3])
 
     finally:
@@ -198,7 +211,7 @@ def main():
         for f in FALLOS:
             print(f"  - {f}")
         sys.exit(1)
-    print("El ensayo pasa. La derivacion de base por asiento hace lo que dice.")
+    print("El ensayo pasa. La derivacion de base por tipo hace lo que dice.")
 
 
 if __name__ == "__main__":

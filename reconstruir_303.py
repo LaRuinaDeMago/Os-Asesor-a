@@ -74,7 +74,7 @@ from collections import Counter, defaultdict
 if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from retro_semaforo import (MAX_REGISTROS_POR_FICHERO, PREF_GASTO, cuenta,
+from retro_semaforo import (MAX_REGISTROS_POR_FICHERO, cuenta,
                             num, parse_cabecera, txt)
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -87,10 +87,11 @@ SALIDA_AGREGADA = os.path.join(AQUI, "reconstruccion_303_agregado.json")
 PREF_REPERCUTIDO = "477"
 PREF_SOPORTADO = "472"
 
-#: Prefijo de las cuentas de INGRESO (ventas), simetrico de PREF_GASTO (6xx)
-#: que ya usa retro_semaforo.py para las compras. No existe una constante
-#: compartida porque retro_semaforo.py nunca ha necesitado el lado de ventas
-#: -- sus guards validan facturas de COMPRA, no de venta.
+#: Prefijo de las cuentas de INGRESO (ventas). Ya NO se usa para derivar la
+#: base (ver derivar_bases_por_tipo, reescrito el 27-08-2026) -- se conserva
+#: porque diag_rescalado_multitipo.py la importa de aqui para su propio
+#: diagnostico, que sigue midiendo cuanto diverge el ingreso contable de lo
+#: que implica la cuota, aunque esa cifra ya no se use para reconstruir.
 PREF_INGRESO = "7"
 
 #: Tipos vigentes en Espana en el periodo que cubre el corpus. Un tipo fuera de
@@ -140,45 +141,51 @@ def clave_cliente(ruta):
     return os.path.basename(os.path.dirname(ruta))
 
 
-def derivar_bases_por_tipo(ivas, suma_contrapartida):
-    """Reparte `suma_contrapartida` (el gasto o el ingreso del asiento) entre
-    los tipos de IVA presentes, replicando EXACTAMENTE la logica ya probada
-    de `retro_semaforo.reconstruir_compra()` (lineas 314-376): base directa
-    si BASEIMPO esta genuinamente relleno, si no, derivada del importe
-    contable; con varios tipos, reparto proporcional reescalado para que la
-    suma cuadre exacta con la contrapartida.
+def derivar_bases_por_tipo(ivas):
+    """Para cada tipo de IVA presente en un lado de un asiento, calcula la
+    base que DEBE aparecer en la casilla del 303.
 
-    `ivas` = lista de (tipo, cuota, base_directa) de un mismo lado
-    (soportado o repercutido) de UN asiento. `suma_contrapartida` = importe
-    total de las lineas de gasto (6xx) o ingreso (7xx) de ese mismo asiento.
+    REESCRITO EL 27-08-2026, EL MISMO DIA DEL PRIMER ARREGLO -- error de
+    diseno propio, no de retro_semaforo.py. La version anterior copiaba la
+    logica de `retro_semaforo.reconstruir_compra()`: derivar la base del
+    GASTO/INGRESO contable del asiento cuando BASEIMPO no sirve. Esa logica
+    es correcta PARA LO QUE HACE retro_semaforo.py -- sus guards comparan una
+    factura nueva contra el patron HISTORICO de la cuenta, y les interesa lo
+    que de verdad se llevo a gasto. El propio fichero documenta que eso
+    diverge de cuota/tipo en el 41,31% de los casos (recargo de equivalencia,
+    retenciones u otros conceptos mezclados en la misma cuenta).
 
-    AGRUPADO EN UNA FUNCION, NO DUPLICADO: soportado usa el gasto como
-    contrapartida, repercutido usa el ingreso. Es el mismo error de familia
-    que el patron de importes duplicado en tres ficheros (26-08-2026) — una
-    sola definicion, dos llamadas."""
-    if not ivas:
-        return {}
-    if len(ivas) == 1:
-        tipo, _cuota, base_directa = ivas[0]
-        base = base_directa if base_directa > 0 else round(suma_contrapartida, 2)
-        return {int(tipo): base}
-    derivado = {}
+    Pero un modelo 303 NO se rige por lo que se contabilizo: se rige por una
+    formula fija, base * tipo = cuota -- es la definicion misma de la
+    casilla. Medido sobre el corpus real tras el primer arreglo: coherencia
+    64,9% global, y EMPEORANDO con el tamano de la celda (72,9% en celdas
+    pequenas -> 43,9% en celdas de 200+ apuntes) -- la firma de un sesgo
+    sistematico que se acumula, no de ruido. La hipotesis del reescalado
+    multi-tipo se descarto con diag_rescalado_multitipo.py: el 88,6% de los
+    asientos multi-tipo tiene factor 0,95-1,05, y multi-tipo es solo el
+    10,7% del volumen -- no basta para explicarlo.
+
+    La causa real: para RECONSTRUIR una casilla del 303, la fuente correcta
+    es invertir la propia formula (base = cuota / tipo), no el gasto
+    contable. Esto ademas arregla SOLO el caso ISP sin necesitar detectarlo:
+    una linea 477 de autorrepercusion no tiene venta detras, asi que ya no
+    hace falta buscarla -- se deriva de su propia cuota, como cualquier otra.
+
+    `ivas` = lista de (tipo, cuota, base_directa) de un mismo lado de UN
+    asiento. Ya no hace falta el importe de gasto/ingreso: por eso
+    PREF_GASTO/PREF_INGRESO dejan de usarse aqui (se conservan como
+    constantes, las sigue usando diag_rescalado_multitipo.py)."""
+    por_tipo = defaultdict(float)
     for tipo, cuota, base_directa in ivas:
-        base = base_directa
-        if base <= 0 and tipo > 0:
-            base = round(cuota / (tipo / 100.0), 2)
-        derivado[int(tipo)] = derivado.get(int(tipo), 0.0) + base
-    suma_derivada = sum(derivado.values())
-    total_bruto = round(suma_contrapartida, 2)
-    if suma_derivada > 0 and total_bruto > 0:
-        factor = total_bruto / suma_derivada
-        por_tipo = {t: round(b * factor, 2) for t, b in derivado.items()}
-        diff = round(total_bruto - sum(por_tipo.values()), 2)
-        if diff:
-            t_mayor = max(por_tipo, key=por_tipo.get)
-            por_tipo[t_mayor] = round(por_tipo[t_mayor] + diff, 2)
-        return por_tipo
-    return derivado
+        tipo_i = int(tipo)
+        if base_directa > 0:
+            por_tipo[tipo_i] += base_directa
+        elif tipo > 0:
+            por_tipo[tipo_i] += round(cuota / (tipo / 100.0), 2)
+        # tipo == 0 sin BASEIMPO: no hay formula que invertir (cuota es
+        # siempre 0 a ese tipo). Se queda sin base, y es lo correcto: no se
+        # inventa un numero que no se puede derivar de nada.
+    return {t: round(b, 2) for t, b in por_tipo.items()}
 
 
 def acumular(ruta, acumulado, incidencias, vistos_contenido):
@@ -191,14 +198,26 @@ def acumular(ruta, acumulado, incidencias, vistos_contenido):
     IVA): BASEIMPO es un CERO LITERAL en el 99,4% de los casos. Este script
     llevaba desde el 21-08-2026 sumando esos ceros y llamando "base
     imponible" al resultado -- `303_LOCAL.json` no describia ninguna
-    contabilidad. `retro_semaforo.py` nunca tuvo este bug porque
-    `reconstruir_compra()` ya deriva la base del gasto cuando BASEIMPO no
-    sirve, desde el 25-08. Esta version aplica la MISMA tecnica aqui, para
-    los dos lados (soportado del gasto 6xx, repercutido del ingreso 7xx).
+    contabilidad.
 
-    Para derivar la base hace falta saber que OTRAS lineas viven en el MISMO
-    asiento -- ya no basta con mirar una linea suelta. Por eso ahora se lee
-    el contenedor ENTERO primero (agrupando por ASIEN, igual que
+    PRIMER ARREGLO (mismo dia): copiar la tecnica de
+    `retro_semaforo.reconstruir_compra()` -- derivar la base del gasto/ingreso
+    contable del asiento. Mejoro el problema (base ya no era cero) pero no lo
+    resolvio: medido despues, coherencia 64,9% y EMPEORANDO con el tamano de
+    la celda, la firma de un sesgo sistematico. Investigado con
+    `diag_rescalado_multitipo.py` sobre el corpus real: el reescalado
+    multi-tipo NO era la causa (88,6% de esos asientos sin sesgo, y solo el
+    10,7% del volumen). La causa real: un 303 se rige por `base * tipo =
+    cuota`, no por lo que se contabilizo a gasto -- esa es la logica correcta
+    para lo que hace `retro_semaforo.py` (comparar contra el patron
+    historico), no para reconstruir una casilla fiscal. Ver
+    `derivar_bases_por_tipo()` para el arreglo definitivo: invierte la propia
+    formula del 303 en vez de mirar la contabilidad.
+
+    Para derivar la base hace falta saber que OTRAS lineas de IVA viven en el
+    MISMO asiento (para separar tipos y sumar cuotas correctamente) -- ya no
+    basta con mirar una linea suelta. Por eso se lee el contenedor ENTERO
+    primero (agrupando por ASIEN, igual que
     `retro_semaforo.reconstruir_compra()`) y se procesa asiento a asiento.
 
     DEDUPLICACION, cambiada de granularidad A PROPOSITO: antes se
@@ -280,17 +299,11 @@ def acumular(ruta, acumulado, incidencias, vistos_contenido):
                         len(ivas_soportado) + len(ivas_repercutido))
                     continue
 
-                gasto_total = round(sum(l[1] for l in lineas
-                                        if l[0].startswith(PREF_GASTO)), 2)
-                ingreso_total = round(sum(l[2] for l in lineas
-                                          if l[0].startswith(PREF_INGRESO)), 2)
-
-                for ivas, contrapartida, lado in (
-                        (ivas_soportado, gasto_total, "deducible"),
-                        (ivas_repercutido, ingreso_total, "devengado")):
+                for ivas, lado in ((ivas_soportado, "deducible"),
+                                   (ivas_repercutido, "devengado")):
                     if not ivas:
                         continue
-                    por_tipo = derivar_bases_por_tipo(ivas, contrapartida)
+                    por_tipo = derivar_bases_por_tipo(ivas)
                     cuota_por_tipo = defaultdict(float)
                     apuntes_por_tipo = Counter()
                     for tipo, cuota, _base in ivas:

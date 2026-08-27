@@ -109,36 +109,49 @@ patrón dominante ya identificable — parece señal real del histórico, no
 ceguera del instrumento, pero no está descartado del todo. Ver
 `FASE0_RESULTADOS.md` §14 para el desglose.
 
-> ✅ **RESUELTO EL 27-08-2026.** El bloqueo de abajo (histórico, no lo borres:
-> explica por qué hizo falta el arreglo) ya está cerrado.
+> ✅ **RESUELTO EL 27-08-2026 (segunda versión — la primera mejoró pero no
+> bastó).** El bloqueo de abajo (histórico, no lo borres: explica por qué
+> hizo falta el arreglo) ya está cerrado.
 >
-> `reconstruir_303.py` se reescribió para derivar la base **del asiento**
-> (agrupando por `ASIEN` y leyendo las líneas de contrapartida, 6xx compras
-> / 7xx ventas), igual que `retro_semaforo.reconstruir_compra()`. Probado con
-> `ensayo_reconstruir_303.py` (9/9: un solo tipo, `BASEIMPO` genuinamente
-> relleno que debe ganar, multi-tipo en el mismo asiento con reparto exacto,
-> venta desde el ingreso, y deduplicación de un asiento repetido entre
-> copias) y **con el bug reintroducido a propósito**: el ensayo lo caza en
-> las 5 comprobaciones exactas que rompe, ni una más ni una menos. Es el 13º
-> auditor, dentro de `audit_project.py`.
+> **Primer intento de la mañana** (ya superado, no lo repitas): derivar la
+> base del gasto/ingreso contable del asiento, copiando
+> `retro_semaforo.reconstruir_compra()`. Mejoró el 0% del 26-08 a un 64,9% de
+> coherencia (`base×tipo=cuota`), pero esa coherencia **empeoraba** con el
+> tamaño de la celda (72,9% → 43,9%) — la firma de un sesgo sistemático, no
+> de ruido. Investigado con `diag_rescalado_multitipo.py` sobre el corpus
+> real: el reescalado multi-tipo NO era la causa (88,6% de esos asientos sin
+> sesgo, solo el 10,7% del volumen).
 >
-> **Y el propio ensayo tenía el mismo punto ciego que se lleva persiguiendo
-> todo el proyecto**: `ensayo_retro_semaforo.py` rellenaba `BASEIMPO` con el
-> valor correcto en su corpus sintético, así que nunca podía ejercitar la
-> derivación — daba verde sin haber probado nada. Corregido: ahora ese
-> corpus deja `BASEIMPO` a 0, como la contabilidad real.
+> **La causa real:** un 303 no se rige por lo contabilizado, se rige por una
+> fórmula fija — `base × tipo = cuota`. Correcto usar el gasto contable
+> para lo que hace `retro_semaforo.py` (comparar contra el patrón
+> histórico); equivocado para reconstruir una casilla fiscal. `reconstruir_
+> 303.py` ahora invierte la propia fórmula (`base = cuota / tipo`) en vez de
+> mirar la contabilidad. **Efecto colateral bueno:** arregla también el caso
+> ISP sin necesitar detectarlo — una línea 477 sin venta detrás ya no se
+> queda en base 0.
 >
-> **👉 SIGUIENTE PASO REAL: regenerar `303_LOCAL.json`.** El de antes de hoy
-> describe una contabilidad ficticia (bases a cero) y no sirve para nada:
+> Probado con `ensayo_reconstruir_303.py` (10/10, casos diseñados para que
+> el gasto/ingreso contable NO coincida con cuota/tipo — si algo reintrodujera
+> la derivación desde la contabilidad, lo cazarían) y con el bug reintroducido
+> a propósito: 6 comprobaciones exactas en rojo. 13º auditor, dentro de
+> `audit_project.py`.
+>
+> **👉 SIGUIENTE PASO REAL: regenerar `303_LOCAL.json` OTRA VEZ.** El que
+> generaste esta mañana con el primer arreglo también está superado — usa la
+> derivación por gasto/ingreso, ya sustituida:
 >
 > ```bash
 > python reconstruir_303.py "C:\Users\SERVILAB\Desktop\100% contabilidad" --detalle 303_LOCAL.json
+> python diag_coherencia_303.py
 > ```
 >
-> Con el fichero nuevo, retoma el cuadre donde se dejó: `cuadre_303_ficha.py`
-> (manual, `--listar` primero) o `cruzar_303_importes.py` (automático, contra
-> `\\PC01\Documentos`). Los dos ya estaban construidos y probados — solo
-> esperaban un `303_LOCAL.json` que valiera.
+> Con la fórmula nueva, `base×tipo=cuota` se cumple por construcción siempre
+> que haya un tipo con el que dividir, así que la coherencia debería salir
+> muy por encima del 64,9% de antes. Si no es así, hay algo más que
+> investigar antes de pasar al cruce contra los PDF de `\\PC01\Documentos`
+> con `cuadre_303_ficha.py` o `cruzar_303_importes.py` — los dos ya
+> construidos y probados, esperando una base que valga.
 
 > 🛑 **BLOQUEO HISTÓRICO, YA CERRADO (ver el aviso de arriba). Se conserva
 > como registro de por qué hizo falta el arreglo, no como estado actual.**
@@ -184,12 +197,17 @@ Cada uno tapa un agujero que los demás no ven. No es redundancia:
 Los trece corren dentro de `audit_project.py`: basta el primer comando.
 
 > El 13º es del 27-08 y cierra el hallazgo mayor de la sesión anterior: la
-> base de `303_LOCAL.json` era un cero disfrazado de dato. Prueba cinco
-> casos que el ensayo general (`ensayo_retro_semaforo.py`) no ejercitaba —
-> multi-tipo en un mismo asiento, `BASEIMPO` genuinamente relleno que debe
-> ganar sobre lo derivado, venta desde el ingreso, y un asiento duplicado
-> entre copias — y está probado con el bug reintroducido a propósito: se
-> pone rojo exactamente en las 5 comprobaciones que ese bug rompe.
+> base de `303_LOCAL.json` era un cero disfrazado de dato. Reescrito DOS
+> veces el mismo día: la primera versión derivaba del gasto/ingreso
+> contable (mejoraba el problema, no lo resolvía); la definitiva invierte la
+> propia fórmula del 303 (`base = cuota / tipo`). Prueba cinco casos, con el
+> gasto/ingreso contable deliberadamente distinto de lo que implica la
+> cuota — para que si algo reintrodujera la derivación desde la
+> contabilidad, lo cace de inmediato: `BASEIMPO` genuinamente relleno que
+> debe ganar, multi-tipo sin reescalar, ISP (línea 477 sin venta detrás) sin
+> quedarse en cero, y un asiento duplicado entre copias. Probado con el bug
+> reintroducido a propósito: se pone rojo exactamente en las comprobaciones
+> que ese bug rompe.
 >
 > Y de paso se encontró que `ensayo_retro_semaforo.py` tenía el MISMO punto
 > ciego que todo esto lleva persiguiendo: su corpus sintético rellenaba
