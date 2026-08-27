@@ -91,11 +91,23 @@ def main():
         # debe quedar en confianza baja, nunca emparejada con seguridad.
         # CASO 4: el mismo cliente con DOS carpetas legitimas en Documentos
         # (actual + historica) no debe marcarse como "ambiguo".
+        # CASO 5 (28-08-2026, senal nueva): el MISMO nombre con las palabras
+        # en OTRO orden ('Hermanos Perez SL' / 'Perez Hermanos') debe
+        # rescatarse a confianza ALTA por coincidencia de palabras, aunque
+        # por texto seguido solo de 0.57 (MEDIA). Caso real, no inventado
+        # para que cuadre: es justo el ejemplo con el que se detecto el hueco.
+        # CASO 6 (28-08-2026, deteccion nueva): dos carpetas de ContaPlus que
+        # normalizan IGUAL (con/sin sufijo societario escrito distinto) deben
+        # marcarse como COLISION al competir por la misma carpeta de
+        # Documentos -- antes no se detectaba nada.
         crear(cp, [
             "GARCIA E HIJOS SL",
             "FERRETERIA GENERAL SL",
             "Contabilidad ordenador de Pepe",
             "TALLERES LOPEZ CB",
+            "HERMANOS PEREZ SL",
+            "TALLERES MARTINEZ SL",
+            "TALLERES MARTINEZ, SL",
         ])
         crear(doc, [
             "Garcia e Hijos, S.L.",
@@ -105,6 +117,8 @@ def main():
             "Restaurante Fernandez",
             "Facturas generales",
             "Administracion de Fincas Ruiz",
+            "Perez Hermanos",
+            "Talleres Martinez, S.L.",
         ])
 
         r = ejecutar(cp, doc, detalle)
@@ -115,7 +129,8 @@ def main():
         comprobar("escribe el fichero de detalle", os.path.exists(detalle))
         comprobar("por consola NO aparece ningun nombre de carpeta real",
                   "Garcia" not in salida and "Ferreteria" not in salida
-                  and "Lopez" not in salida,
+                  and "Lopez" not in salida and "Perez" not in salida
+                  and "Martinez" not in salida,
                   "un nombre real se ha colado en la salida de consola")
 
         # --- Caso 1: variantes de escritura ---------------------------------
@@ -147,9 +162,33 @@ def main():
                   "como puesto 2 (informativo, no es un error)",
                   "puesto 2" in bloque_talleres and "HISTORICO" in bloque_talleres)
 
+        # --- Caso 5: rescate por palabras (orden invertido) -------------------
+        bloque_perez = bloque_de(texto, "HERMANOS PEREZ SL")
+        comprobar("caso 5: 'HERMANOS PEREZ SL' / 'Perez Hermanos' (orden "
+                  "invertido) sube a confianza ALTA por palabras, no se queda "
+                  "en 0.57 de texto seguido",
+                  bloque_perez.startswith("[ALTA ]")
+                  and "puesto 1 (1.00) -> 'Perez Hermanos'" in bloque_perez,
+                  bloque_perez[:150])
+        comprobar("caso 5: el detalle explica que el rescate fue por palabras",
+                  "[por palabras]" in bloque_perez.split("\n")[1],
+                  bloque_perez[:200])
+
+        # --- Caso 6: colision (dos carpetas de ContaPlus, un solo candidato) --
+        bloque_mart1 = bloque_de(texto, "TALLERES MARTINEZ SL")
+        bloque_mart2 = bloque_de(texto, "TALLERES MARTINEZ, SL")
+        comprobar("caso 6: las dos variantes de 'Talleres Martinez' se marcan "
+                  "COLISION (compiten por la misma carpeta de Documentos)",
+                  "COLISION" in bloque_mart1 and "COLISION" in bloque_mart2,
+                  bloque_mart1[:200])
+        comprobar("caso 6: el resumen de consola cuenta al menos 1 colision",
+                  "COLISIONES" in salida and "COLISIONES (2+ carpetas de ContaPlus "
+                  "con el mismo candidato principal): 1" in salida,
+                  [l for l in salida.splitlines() if "COLISIONES" in l])
+
         # --- Recuento agregado: consistencia interna -------------------------
-        comprobar("el recuento de consola declara 4 carpetas de ContaPlus",
-                  "ContaPlus: 4 carpetas" in salida, salida[:120])
+        comprobar("el recuento de consola declara 7 carpetas de ContaPlus",
+                  "ContaPlus: 7 carpetas" in salida, salida[:120])
 
     finally:
         shutil.rmtree(tmp, ignore_errors=True)

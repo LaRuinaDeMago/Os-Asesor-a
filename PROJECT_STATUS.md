@@ -7,6 +7,60 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, sexta entrada del día) — `emparejar_carpetas.py`: señal por palabras + detección de colisiones, con datos sintéticos
+
+Diego preguntó directamente si había algo de "verdadero valor" que hacer desde
+Cloud con los datos que ya existen. Respuesta corta: en Cloud no hay ningún
+dato, ni debe haberlo (`.claude/rules/datos.md`) — pero sí se puede mejorar la
+herramienta que Diego va a volver a usar en local, antes de que invierta el
+tiempo manual en revisar las 23 carpetas pendientes de `emparejado_LOCAL.txt`.
+
+**El hueco, demostrado con un ejemplo concreto antes de tocar nada:**
+`emparejar_carpetas.py` solo comparaba texto seguido (`difflib.SequenceMatcher`).
+Las razones sociales españolas cambian de orden con frecuencia — probado con
+`'HERMANOS PEREZ SL'` vs `'Perez Hermanos'`: por texto seguido, 0.57 (cae en
+MEDIA, exige revisión manual); por conjunto de palabras (ignora el orden),
+1.00. Peor aún: si el candidato correcto tenía el orden invertido, podía
+quedar fuera del top-3 por su char_ratio bajo, y Diego nunca llegaba a verlo —
+el mismo problema de fondo que el filtro de palabras clave retirado el 27-08
+por la mañana (esconder el candidato correcto), solo que por omisión en vez
+de por filtro explícito.
+
+**Arreglo:** nueva señal `jaccard_palabras()` (conjunto de palabras, ignora
+orden) combinada con la existente vía `combinado() = max(char, jaccard)` —
+nunca un promedio que pueda bajar una puntuación que ya funcionaba, solo
+puede rescatar un candidato que el orden de palabras escondía. Se usa para
+elegir el top-3, ordenarlo y clasificarlo — antes solo se usaba para
+clasificar el ya elegido por texto seguido.
+
+**Segundo arreglo, mismo commit:** detección de **colisiones** — dos carpetas
+de ContaPlus distintas compitiendo por la misma carpeta de Documentos como
+candidato principal. No existía ninguna señal para esto antes. No es
+necesariamente un error (puede ser una empresa con dos altas, o una carpeta
+de Documentos que agrupa a varios clientes) pero siempre merece revisión
+humana explícita — se cuenta y se marca en el detalle, nunca se resuelve solo.
+
+**Verificación, con el mismo estándar que el resto del proyecto:**
+`ensayo_emparejar_carpetas.py` ampliado de 4 a 6 casos sintéticos (dos
+nuevos: rescate por palabras, colisión), 13/13 comprobaciones en verde.
+Probado con sabotaje — `combinado()` devolviendo solo `char_ratio`, señal por
+palabras ignorada — y el ensayo falla **exactamente** en la comprobación del
+caso 5, ninguna otra: confirma que apunta a la causa exacta. Restaurado y
+re-verificado. `test_motor_veredicto.py` 36/36, `test_adversarial.py`
+112/112, `audit_project.py` completo en verde salvo las dependencias
+esperadas en Cloud, escáner de privacidad sin hallazgos. Nada de esto tocó
+`motor_veredicto.py` ni ningún dato real — los seis casos del ensayo son
+nombres inventados, nunca clientes reales.
+
+**Lo que Diego debería ver la próxima vez que ejecute el script en local:**
+el mismo resumen de siempre (ALTA/MEDIA/BAJA/AMBIGUAS) más una línea nueva de
+COLISIONES, y en `emparejado_LOCAL.txt` alguna entrada que antes era MEDIA
+puede haber subido a ALTA con la nota `[por palabras]` — eso es la mejora
+funcionando, no un error. Ningún candidato que antes se veía ha desaparecido:
+la combinación solo puede rescatar, nunca ocultar.
+
+---
+
 ## 27-08-2026 (sesión Cloud, quinta entrada del día) — Re-verificación completa y dos correcciones menores, sin tocar el motor
 
 Sesión Cloud pedida explícitamente como auditoría rigurosa antes de seguir:

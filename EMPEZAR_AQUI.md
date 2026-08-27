@@ -183,17 +183,29 @@ ceguera del instrumento, pero no está descartado del todo. Ver
 > fijando esa regresión en código para que no vuelva. Detalle completo en
 > `PROJECT_STATUS.md`, cuarta entrada del 27-08.
 >
-> **👉 SIGUIENTE PASO REAL:**
+> **👉 SIGUIENTE PASO REAL:** vuelve a ejecutar el comando, no uses el
+> `emparejado_LOCAL.txt` de ayer — el script mejoró el 27-08 en Cloud, con
+> datos sintéticos, antes de que invirtieras tiempo revisando las 23:
 >
 > ```bash
 > python emparejar_carpetas.py "C:\Users\SERVILAB\Desktop\100% contabilidad" "\\PC01\Documentos"
 > ```
 >
-> Resultado ya obtenido: **14 de 37 con confianza alta** (prácticamente
-> resueltas, confirmar en segundos) y **23 que necesitan que Diego elija
-> entre 2-3 candidatos nombrados** — mucho más manejable que revisar 140
-> nombres a ciegas. Abre `emparejado_LOCAL.txt`, confirma las 14 altas, y
-> decide las 23 con calma — no bloquean nada mientras tanto.
+> **Qué cambió (detalle completo en `PROJECT_STATUS.md`, sexta entrada Cloud
+> del 27-08):** ahora compara también por CONJUNTO de palabras, no solo por
+> texto seguido — una razón social con las palabras en otro orden
+> ('Hermanos Perez SL' / 'Perez Hermanos') ya no se queda en MEDIA. Es un
+> rescate, nunca un recorte: ningún candidato que antes veías desaparece, la
+> puntuación solo puede subir. Es probable que **algunas de las 23 MEDIA de
+> ayer hayan subido a ALTA** — mira la nota `[por palabras]` en el detalle
+> para saber por qué. También nuevo: una línea de **COLISIONES** en el
+> resumen — dos carpetas de ContaPlus compitiendo por la misma carpeta de
+> Documentos. No es necesariamente un error, pero revísalo siempre a mano.
+>
+> Resultado de ayer, antes de esta mejora, para comparar: **14 de 37 con
+> confianza alta**, 23 a decidir entre 2-3 candidatos. Con la mejora debería
+> quedar igual o mejor, nunca peor — si algo que ayer estaba en ALTA hoy no
+> lo está, es un fallo y hay que avisar, no seguir adelante.
 >
 > Con eso resuelto, `cruzar_303_importes.py` puede repetirse con una base de
 > clientes fiable.
