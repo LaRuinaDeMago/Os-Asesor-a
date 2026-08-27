@@ -7,6 +7,75 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 🔴 27-08-2026 (sesión Cloud, vigesimotercera entrada) — Error propio, del día anterior: las cachés acumulaban mezclando TODOS los clientes
+
+Al buscar si quedaba alguna otra familia de defecto conocida (la de `float()`
+a pelo en vez del contrato de datos — descartada, ver abajo), se comparó el
+alcance del histórico en producción contra el de la medición. **No
+coincidían, y el error era mío, introducido el día anterior.**
+
+### El error
+
+En producción, `orquestador.py` construye el histórico con
+`construir_historico_y_secuencia(filas)`, donde `filas` son las facturas de
+**una tanda — es decir, de UN cliente**.
+
+En mi arreglo de `retro_semaforo.py`, las tres cachés se inicializaban
+**fuera** del bucle de contenedores, así que acumulaban a lo largo de todo el
+corpus, **mezclando los ~24 clientes**. Curiosamente sí había acertado con
+`mapeo_cuenta_gasto_cliente` (reseteado por cliente, porque el código de
+cuenta no es identidad estable), pero no apliqué el mismo razonamiento a las
+otras tres.
+
+### Por qué importa, y no es un detalle de estilo
+
+1. **La medición dejaría de describir a producción.** Este script existe
+   para predecir qué hará el motor cuando se ejecute de verdad. Si el
+   instrumento no se comporta como el sistema que mide, el número no
+   describe nada — y el retro-semáforo está a punto de volver a ejecutarse
+   precisamente para producir ese número.
+2. **En `importe_atipico` la mezcla es además incorrecta en sí misma.** Un
+   mismo proveedor puede facturar 5.000 € a un cliente grande y 100 € a uno
+   pequeño; juntarlo todo desplaza la media e infla la desviación, con
+   falsos positivos y detecciones perdidas a la vez.
+
+**Matiz honesto, porque no todo apuntaba en la misma dirección:** para
+`estructura_reconocida` y `secuencia_documental_proveedor`, acumular en
+global sería discutiblemente **mejor** — un proveedor numera igual para todos
+sus clientes, así que se vería más de su serie. Se ha elegido igualmente el
+alcance por cliente: **que la medición refleje producción vale más que ser
+más lista que ella.** Si algún día producción pasa a un histórico por
+proveedor, se cambian las dos a la vez, no antes.
+
+### Arreglo y regresión
+
+Las cuatro cachés se resetean ahora **juntas y en el mismo sitio**, en la
+frontera de cambio de cliente. Y el ensayo lo fija como invariante
+estructural sobre AST: es fácil añadir una quinta caché y olvidarse, y el
+síntoma sería un número silenciosamente equivocado, no un error visible.
+Probado con sabotaje —sacando una sola caché del reseteo, exactamente el
+error original— y el ensayo la señala por su nombre.
+
+### Y una familia que se investigó y NO dio nada: `float()` a pelo
+
+Se revisó si seguía viva la otra familia recurrente del proyecto (usar
+`float()` sobre un campo de factura en vez de `contrato_datos.parse_numero()`
+— causa raíz de los 8 falsos verdes y reaparecida el 26-08 en dos ficheros).
+**Barrido el repositorio: no queda ningún caso vivo en el camino del motor.**
+El único candidato con esa forma, `leer_ascii_completo` en
+`layout_diario_contaplus.py` (`float(v) if v else 0.0`), **no es el mismo
+caso**: leyendo un fichero de ancho fijo de ContaPlus, un campo numérico
+vacío significa cero de verdad, no "dato ausente".
+
+**Se decidió NO construir un auditor para esta familia**, y conviene dejar
+escrito el motivo: distinguir un `float()` peligroso de uno legítimo exige
+seguir de dónde viene el dato, no reconocer una forma — un detector
+sintáctico daría falsos positivos constantes, y este proyecto acaba de
+recordar (dos veces en dos días) que un auditor que grita cuando no toca
+acaba ignorándose. Mejor no tenerlo que tenerlo gritando.
+
+---
+
 ## 27-08-2026 (sesión Cloud, vigesimosegunda entrada) — El patrón de falso verde, convertido en auditor. Y cazó a su propio autor
 
 La entrada anterior terminaba dejando escrito un patrón *"como forma a

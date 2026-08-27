@@ -43,6 +43,7 @@ al terminar: ningun .DAT toca este repositorio, ni por accidente.
 
 Uso:  python3 ensayo_retro_semaforo.py
 """
+import ast
 import json
 import os
 import random
@@ -518,6 +519,43 @@ def main():
             p = os.path.join(AQUI, f)
             if os.path.exists(p):
                 os.remove(p)
+
+    # --- El ALCANCE de las caches: por cliente, igual que produccion --------
+    # ANADIDO 27-08-2026, y corrige un error introducido ese mismo dia: las
+    # tres caches de historial se inicializaban FUERA del bucle de
+    # contenedores, asi que acumulaban mezclando todos los clientes del
+    # corpus. Produccion no hace eso: orquestador.py construye el historico
+    # con las facturas de UNA tanda (un cliente). Un instrumento que no se
+    # comporta como el sistema que mide da un numero que no describe nada.
+    #
+    # Se comprueba sobre el AST y no ejecutando: el reseteo ocurre dentro de
+    # main(), y lo que hay que garantizar es estructural — que NINGUNA cache
+    # de historial se quede fuera del bloque de cambio de cliente. Es facil
+    # añadir una quinta y olvidarla, y el sintoma seria un numero
+    # silenciosamente equivocado, no un error.
+    print("\n--- Alcance de las caches de historial (por cliente, no global) ---")
+    CACHES = ("historico_acumulado", "formato_acumulado", "secuencia_acumulada",
+              "mapeo_cuenta_gasto_cliente")
+    fuente = open(os.path.join(AQUI, "retro_semaforo.py"), encoding="utf-8").read()
+    arbol = ast.parse(fuente)
+    reseteadas = set()
+    for nodo in ast.walk(arbol):
+        # El bloque `if carpeta_ruta != cliente_actual:` es el cambio de cliente
+        if not (isinstance(nodo, ast.If) and isinstance(nodo.test, ast.Compare)
+                and isinstance(nodo.test.left, ast.Name)
+                and nodo.test.left.id == "carpeta_ruta"):
+            continue
+        for asig in ast.walk(nodo):
+            if isinstance(asig, ast.Assign) and isinstance(asig.value, ast.Dict) \
+                    and not asig.value.keys:
+                for t in asig.targets:
+                    if isinstance(t, ast.Name):
+                        reseteadas.add(t.id)
+    for cache in CACHES:
+        comprobar(f"'{cache}' se resetea al cambiar de cliente",
+                  cache in reseteadas,
+                  "si no, acumula mezclando clientes y la medicion deja de "
+                  "describir lo que hara produccion")
 
     print()
     if fallos:

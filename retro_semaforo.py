@@ -618,18 +618,36 @@ def main():
     # ANADIDO 27-08-2026 (hallazgo verificado de Diego): las tres caches que
     # evaluar_fila_v4() tambien consulta (importe atipico, formato del numero
     # de documento, secuencia documental) se pasaban {} en cada factura --
-    # nunca se acumulaban, a diferencia del maestro de arriba. Misma tecnica:
-    # crecen segun se avanza, se actualizan DESPUES de evaluar cada fila
-    # (ver actualizar_caches_historicas() en motor_veredicto.py), nunca antes.
+    # nunca se acumulaban, a diferencia del maestro de arriba. Se actualizan
+    # DESPUES de evaluar cada fila (ver actualizar_caches_historicas() en
+    # motor_veredicto.py), nunca antes.
+    #
+    # ALCANCE: POR CLIENTE, no global. CORREGIDO el mismo dia, y el error era
+    # mio: la primera version las inicializaba aqui fuera, asi que acumulaban
+    # mezclando TODOS los clientes del corpus. Y eso no es lo que hace
+    # produccion: orquestador.py construye este historico con
+    # construir_historico_y_secuencia(filas), donde `filas` son las facturas
+    # de UNA tanda, es decir, de UN cliente.
+    #
+    # Un instrumento de medida que no se comporta como el sistema que mide
+    # produce un numero que no describe nada -- y este script existe
+    # precisamente para predecir que hara el motor en produccion. Ademas, en
+    # importe_atipico la mezcla es ademas incorrecta en si misma: un mismo
+    # proveedor puede facturar 5.000 EUR a un cliente grande y 100 EUR a uno
+    # pequeño, y juntarlo todo desplaza la media e infla la desviacion.
+    #
+    # (Para estructura_reconocida y secuencia_documental, acumular en global
+    # seria discutiblemente MEJOR -- el proveedor numera igual para todos sus
+    # clientes--, pero se prefiere que la medicion refleje produccion antes
+    # que ser mas lista que ella. Si algun dia produccion pasa a un historico
+    # por proveedor y no por cliente, esto se cambia a la vez, no antes.)
     historico_acumulado = {}
     formato_acumulado = {}
     secuencia_acumulada = {}
-    # ANADIDO 27-08-2026 (cuarto candidato). mapeo_cuenta_gasto se indexa por
-    # CODIGO DE CUENTA (400015), no por NIF -- y el codigo de cuenta NO es
-    # identidad estable entre clientes distintos (FASE0_RESULTADOS.md
-    # §10.1). Se resetea cada vez que `ruta` entra en una carpeta de cliente
-    # distinta (ver dentro del bucle) -- NUNCA se acumula globalmente para
-    # todo el corpus, a diferencia de las tres caches de arriba.
+    # mapeo_cuenta_gasto se indexa por CODIGO DE CUENTA (400015), no por NIF
+    # -- y el codigo de cuenta NO es identidad estable entre clientes
+    # distintos (FASE0_RESULTADOS.md §10.1). Se resetea en la MISMA frontera
+    # de cliente que las tres de arriba.
     mapeo_cuenta_gasto_cliente = {}
     cliente_actual = None
     # Para el patron de cartera: lineas por cliente, indexadas por contenedor.
@@ -655,11 +673,21 @@ def main():
                   f"({n_asientos:,} asientos leidos)", flush=True)
         # dats.sort() (arriba) agrupa los ficheros por carpeta de cliente de
         # forma contigua -- comparar el directorio padre basta para saber si
-        # se ha cambiado de cliente y hay que resetear el mapeo por-cuenta.
+        # se ha cambiado de cliente.
+        #
+        # Las CUATRO caches se resetean juntas y en el mismo sitio a
+        # proposito: las cuatro alimentan guards cuyo historico, en
+        # produccion, es el de UN cliente (orquestador.py construye el suyo
+        # con las facturas de una sola tanda). Tenerlas en dos alcances
+        # distintos haria que la medicion no describiera a produccion, que es
+        # justo lo unico que este script sirve para predecir.
         carpeta_ruta = os.path.dirname(ruta)
         if carpeta_ruta != cliente_actual:
             cliente_actual = carpeta_ruta
             mapeo_cuenta_gasto_cliente = {}
+            historico_acumulado = {}
+            formato_acumulado = {}
+            secuencia_acumulada = {}
         try:
             if not zipfile.is_zipfile(ruta):
                 continue

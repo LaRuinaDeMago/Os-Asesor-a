@@ -196,6 +196,15 @@ motor."** Cerrado, no toca seguir picando en el retro-semáforo.
 > retro-semáforo con las cachés arregladas pero con el umbral de 1σ, el ÁMBAR
 > se habría disparado por ruido puro y habría parecido que el arreglo empeoró
 > el motor. Cazado antes de que pasara.
+>
+> 🔴 **Y un error propio, corregido el mismo día:** las tres cachés se
+> acumulaban **mezclando todos los clientes** del corpus, cuando producción
+> (`orquestador.py`) construye el histórico con las facturas de **un solo
+> cliente**. Un instrumento que no se comporta como el sistema que mide da un
+> número que no describe nada. Ya se resetean las cuatro en la frontera de
+> cliente, con la invariante fijada en `ensayo_retro_semaforo.py`. Si esto no
+> se hubiera visto, el número de la re-medición habría sido **inservible sin
+> que nada lo delatara**.
 
 ---
 
