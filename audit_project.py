@@ -274,7 +274,15 @@ def check_estados_y_cobertura():
                              # que tiene que GANAR sobre lo derivado), y que un
                              # asiento repetido entre copias se deduplique
                              # completo, no linea a linea.
-                             ("ensayo_reconstruir_303.py", "Reconstruir 303: deriva la base, no la inventa")):
+                             ("ensayo_reconstruir_303.py", "Reconstruir 303: deriva la base, no la inventa"),
+                             # emparejar_carpetas.py (27-08-2026) tuvo un
+                             # defecto real, encontrado contra el corpus real:
+                             # un filtro de "carpetas genericas" por palabra
+                             # clave hizo caer las coincidencias de confianza
+                             # ALTA de 14 a 0, porque un negocio real puede
+                             # llamarse "Ferreteria General". Retirado el
+                             # mismo dia; este ensayo evita que vuelva.
+                             ("ensayo_emparejar_carpetas.py", "Emparejar carpetas: por nombre, sin adivinar por palabra")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue

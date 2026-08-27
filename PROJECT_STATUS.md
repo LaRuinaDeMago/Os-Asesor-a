@@ -7,6 +7,93 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión LOCAL, cuarta entrada del día) — `emparejar_carpetas.py`: la identidad se resuelve por NOMBRE, no por estadística, y sin DPA
+
+Cierra el hilo de la tercera entrada de hoy. Tras tres intentos estadísticos
+fallidos, se planteó directamente si hacía falta contratar la API/Consola de
+Anthropic (DPA) para que el modelo pudiera leer los nombres de carpeta
+directamente. **Respuesta razonada, no reflejo defensivo:** no, y no por esta
+tarea — el propio `.claude/rules/datos.md` ya lo dice (*"el diseño de tres
+roles sigue siendo MEJOR que el DPA para todo lo que un script pueda
+contar. Aunque haya DPA"*). Comparar dos listas de nombres es exactamente eso:
+algo que un script puede resolver sin que el modelo vea un solo nombre.
+
+### La idea, y por qué no se había probado en todo el día
+
+Las tres técnicas de la entrada anterior (huella de NIF, similitud de
+proveedores, cruce de importes) intentaban **adivinar por contenido contable**
+algo que ya estaba escrito, en texto plano, en el nombre de las dos carpetas
+— Diego las llamó igual, o casi igual, en ContaPlus y en `\\PC01\Documentos`.
+Comparar contenido cuando el nombre ya lo dice es resolver el problema por el
+camino más difícil. `emparejar_carpetas.py` (nuevo) compara los nombres
+directamente con similitud de texto (`difflib.SequenceMatcher`), normalizando
+acentos, mayúsculas, puntuación y sufijos societarios (`SL`, `S.L.`, `CB`...).
+Nunca abre un `.DAT` ni un PDF.
+
+### Dos ejecuciones reales, y un error propio real por el camino
+
+**Primera ejecución real:** 37 carpetas de ContaPlus, 140 de Documentos. 14
+coincidencias de confianza alta, 23 media, 0 baja — pero **37 de 37
+marcadas como "ambiguas"**, un resultado inútil.
+
+**Arreglo 1 (bueno):** el criterio de "ambiguo" saltaba incluso cuando el
+mejor candidato ya era casi perfecto (1.00) solo porque había un segundo
+candidato decente — exactamente lo que pasa cuando el mismo cliente tiene
+carpeta actual e histórica en Documentos, que no es un error. Añadido
+`UMBRAL_SEGURO = 0.90`: por encima de ahí, nunca se marca ambiguo.
+
+**Arreglo 2 (fallido, revertido el mismo día):** para reducir la ambigüedad
+causada por 140 candidatos (muchos genéricos: "Facturas", "Contabilidad",
+"Memorias anuales"), se añadió un filtro por palabras clave para descartar
+esas carpetas de Documentos antes de comparar. **Resultado de la segunda
+ejecución real: las coincidencias de confianza alta cayeron de 14 a 0.** La
+única explicación posible: el filtro estaba descartando **candidatos
+correctos** — un negocio real puede llamarse legítimamente "Ferretería
+General" o "Administración de Fincas X", y esas palabras estaban en la lista
+de exclusión. Adivinar por palabra clave sobre un nombre de negocio real es
+exactamente el tipo de atajo frágil que esta sesión llevaba todo el día
+demostrando que falla. **Retirado sin sustituto** — mejor mostrar más
+candidatos (se pasó de 2 a 3 por carpeta) y dejar que Diego decida, que
+ocultar el correcto por una coincidencia de palabra.
+
+**Tercera ejecución real, con los dos arreglos correctos:** 14 alta, 23
+media, 0 baja, **24 ambiguas** (bajó de 37 a 24 gracias al `UMBRAL_SEGURO`).
+Las 14 de confianza alta no necesitan revisión — las 23 restantes sí, pero
+con hasta 3 candidatos nombrados por carpeta, no con 140 nombres a ciegas.
+
+### Verificación
+
+`ensayo_emparejar_carpetas.py` (nuevo) fija en código los cuatro
+comportamientos probados a mano hoy, con el caso 2 como **prueba de
+regresión explícita** del filtro fallido: si alguien reintroduce un filtro
+por palabra clave, este ensayo se pone rojo señalando exactamente ese caso.
+Probado con sabotaje: reintroducido el filtro retirado, el ensayo falla
+**solo** en la comprobación del caso 2, ninguna más — confirma que la prueba
+apunta a la causa exacta, no a un síntoma genérico. 9/9 en verde con el
+código bueno. Conectado como **14º auditor**.
+
+`test_motor_veredicto.py` 36/36, `test_adversarial.py` 112/112, escáner de
+privacidad sobre 108+ ficheros sin hallazgos.
+
+### Pendiente, y no bloquea nada
+
+Diego revisa `emparejado_LOCAL.txt`: confirma las 14 de confianza alta (debería
+ser cuestión de segundos) y decide las 23 restantes con calma, sin presión —
+las de confianza alta ya se pueden usar para lo que siga.
+
+### Corrección de proceso reconocida en el momento
+
+Durante esta investigación se corrigió, en caliente y a petición de Diego, una
+afirmación imprecisa: decir que "la privacidad no tuvo nada que ver" con la
+fricción del día no era exacto. Sí tuvo que ver — el motivo de usar métodos
+indirectos en vez de leer un nombre directamente **es** la barrera de datos.
+Lo que sigue siendo cierto, y es la distinción que importa: esa barrera no
+hacía el problema imposible, solo obligaba a resolverlo con un script en vez
+de con una lectura directa. Detalle completo de esta conversación en el
+propio historial de la sesión; aquí queda el resultado técnico.
+
+---
+
 ## 27-08-2026 (sesión LOCAL, tercera entrada del día) — La identidad cliente↔carpeta no se resuelve por estadística: se necesita revisión humana, y ya existe la herramienta
 
 Con la base ya arreglada (99,1% de coherencia interna, entrada anterior), se

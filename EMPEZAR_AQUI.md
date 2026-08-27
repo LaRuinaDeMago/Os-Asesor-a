@@ -53,6 +53,7 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ✅ Cruce 303: identifica sin inventar                     <- 11º auditor, 26-08
 ✅ subprocess.run: encoding explicito (18 llamadas)       <- 12º auditor, 26-08
 ✅ Reconstruir 303: deriva la base, no la inventa         <- 13º auditor, 27-08
+✅ Emparejar carpetas: por nombre, sin adivinar por palabra <- 14º auditor, 27-08
 ❌ Dependencias: faltan anthropic, google-genai   <- NORMAL, son de captura
 ```
 
@@ -167,24 +168,48 @@ ceguera del instrumento, pero no está descartado del todo. Ver
 > con cada intento y su fallo reproducido con datos sintéticos, en
 > `PROJECT_STATUS.md`, tercera entrada del 27-08.
 >
-> **👉 SIGUIENTE PASO REAL, y lo hace Diego, no un script:**
+> ✅ **RESUELTO EN GRAN PARTE, EL MISMO DÍA: por NOMBRE, no por estadística,
+> y sin necesitar DPA.** Las tres vías de arriba adivinaban identidad desde
+> contenido contable; el nombre de la carpeta ya la decía en texto plano.
+> `emparejar_carpetas.py` (nuevo) compara los nombres de las carpetas de
+> ContaPlus contra los de `\\PC01\Documentos` por similitud de texto —nunca
+> abre un `.DAT` ni un PDF— y sigue siendo diseño de tres roles: el script
+> corre en la máquina de Diego, y por consola solo salen tres números.
+>
+> Tuvo un error real por el camino (un filtro por palabra clave para
+> descartar carpetas "genéricas" hizo caer las coincidencias buenas de 14 a
+> 0 — un negocio real puede llamarse "Ferretería General"). Retirado el
+> mismo día, con `ensayo_emparejar_carpetas.py` (nuevo, **15º auditor**)
+> fijando esa regresión en código para que no vuelva. Detalle completo en
+> `PROJECT_STATUS.md`, cuarta entrada del 27-08.
+>
+> **👉 SIGUIENTE PASO REAL:**
 >
 > ```bash
-> python cuadre_303_ficha.py --listar
+> python emparejar_carpetas.py "C:\Users\SERVILAB\Desktop\100% contabilidad" "\\PC01\Documentos"
 > ```
 >
-> Lista las 24-28 carpetas del corpus con trimestres y años, marcando con
-> `(?)` las que suenan a equipo/backup. Diego las reconoce al instante
-> porque las nombró él — es la única fuente que hoy se ha demostrado, tres
-> veces, que no comete el error que sí comete cada heurística estadística
-> probada. Con eso resuelto, `cruzar_303_importes.py` puede repetirse con
-> una base de clientes fiable.
+> Resultado ya obtenido: **14 de 37 con confianza alta** (prácticamente
+> resueltas, confirmar en segundos) y **23 que necesitan que Diego elija
+> entre 2-3 candidatos nombrados** — mucho más manejable que revisar 140
+> nombres a ciegas. Abre `emparejado_LOCAL.txt`, confirma las 14 altas, y
+> decide las 23 con calma — no bloquean nada mientras tanto.
 >
-> **Lo que SÍ queda de los tres intentos, y no se tira:** `enlazador_
-> clientes_303.py` y `diag_carpetas_multiempresa.py` tienen ahora un filtro
-> de difusión de proveedores comunes (el mismo que `cruzar_303_importes.py`
-> ya tenía desde el 26-08) y sirven de **apoyo** a la revisión manual — una
-> pista de qué carpetas mirar dos veces, no una sentencia automática.
+> Con eso resuelto, `cruzar_303_importes.py` puede repetirse con una base de
+> clientes fiable.
+>
+> **Lo que queda de los tres intentos anteriores, y no se tira:** `enlazador_
+> clientes_303.py` y `diag_carpetas_multiempresa.py` tienen un filtro de
+> difusión de proveedores comunes (el mismo que `cruzar_303_importes.py` ya
+> tenía desde el 26-08) y sirven de **apoyo** a la revisión — una pista de
+> qué carpetas mirar dos veces, no una sentencia automática.
+>
+> **Y una decisión ya tomada y razonada, para no volver a plantearla sin
+> motivo nuevo:** se consideró contratar la API/Consola de Anthropic (DPA)
+> para resolver esto por lectura directa. Descartado para ESTA tarea, no en
+> general — `.claude/rules/datos.md` ya lo dice: *"el diseño de tres roles
+> sigue siendo MEJOR que el DPA para todo lo que un script pueda contar,
+> aunque haya DPA"*. Comparar dos listas de nombres es exactamente eso.
 
 > 🛑 **BLOQUEO HISTÓRICO, YA CERRADO (ver el aviso de arriba). Se conserva
 > como registro de por qué hizo falta el arreglo, no como estado actual.**
@@ -207,7 +232,7 @@ ceguera del instrumento, pero no está descartado del todo. Ver
 > 21-08, el hallazgo sobre `BASEIMPO` es del 25-08, y nadie había revisado
 > la pieza hermana hasta el 27-08.
 
-### Los trece auditores, y por qué hacen falta los trece
+### Los catorce auditores, y por qué hacen falta los catorce
 
 Cada uno tapa un agujero que los demás no ven. No es redundancia:
 
@@ -226,8 +251,9 @@ Cada uno tapa un agujero que los demás no ven. No es redundancia:
 | `ensayo_cruce_303.py` | ¿el cruce inventa una correspondencia? | **cliente identificado por azar** |
 | `check_subprocess_encoding` | ¿algún `subprocess.run` sin `encoding`? | **verde en Cloud, roto en el PC real** |
 | `ensayo_reconstruir_303.py` | ¿la base se deriva o se sigue leyendo a pelo? | **base ficticia con aspecto de real** |
+| `ensayo_emparejar_carpetas.py` | ¿se filtra por palabra clave sobre un nombre real? | **negocio real descartado por su propio nombre** |
 
-Los trece corren dentro de `audit_project.py`: basta el primer comando.
+Los catorce corren dentro de `audit_project.py`: basta el primer comando.
 
 > El 13º es del 27-08 y cierra el hallazgo mayor de la sesión anterior: la
 > base de `303_LOCAL.json` era un cero disfrazado de dato. Reescrito DOS
@@ -246,6 +272,17 @@ Los trece corren dentro de `audit_project.py`: basta el primer comando.
 > ciego que todo esto lleva persiguiendo: su corpus sintético rellenaba
 > `BASEIMPO` con el valor correcto, así que daba verde sin haber probado la
 > derivación ni una vez. Corregido para que refleje la realidad (cero).
+
+> El 14º es del 27-08, mismo día, y protege un error propio distinto: al
+> intentar reducir la ambigüedad de `emparejar_carpetas.py`, se añadió un
+> filtro por palabra clave ("general", "administración"...) para descartar
+> carpetas "genéricas" de `\\PC01\Documentos`. Resultado real: las
+> coincidencias de confianza alta cayeron de 14 a 0 — el filtro descartaba
+> negocios reales que legítimamente contienen esas palabras en su propio
+> nombre ("Ferretería General"). Retirado el mismo día. Este ensayo prueba
+> exactamente ese caso como regresión: probado con el filtro reintroducido a
+> propósito, se pone rojo solo en esa comprobación, ninguna otra — confirma
+> que apunta a la causa exacta.
 
 > El 12º es del 26-08 y nace de un bug que ya había mordido: `audit_project.py`
 > **se rompía a la mitad en el PC de la asesoría** y no en Cloud, porque
