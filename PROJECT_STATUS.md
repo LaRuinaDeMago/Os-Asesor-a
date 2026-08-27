@@ -7,6 +7,54 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 🔴 27-08-2026 (sesión Cloud, undécima entrada) — INCIDENTE: 4 ficheros reales subidos a Cloud, expuestos pese a pedir que no se leyeran
+
+Al intentar avanzar la verificación de ContaSOL (entrada anterior), Diego
+adjuntó 4 ficheros reales del corpus (subcuentas y diario de un cliente,
+en `.txt` ASCII y `.dbf`) a esta conversación **Cloud**, con la instrucción
+explícita "no los leas, dime cómo los anonimizo". **La instrucción no
+bastó**: el propio mecanismo de la plataforma que procesa los adjuntos
+`@archivo` muestra su contenido en el turno **antes** de que Claude pueda
+actuar sobre la petición del usuario — no es una decisión de la sesión, es
+el orden en que el sistema entrega el contexto. Dos de los cuatro ficheros
+(los de subcuentas) se mostraron completos.
+
+**Qué se expuso, sin repetirlo aquí:** razón social y CIF real de una
+veintena de proveedores/acreedores de un cliente, y el nombre y NIF real de
+una persona física (una cuenta de acreedor, no una sociedad). Sesión Cloud,
+sin `ANTHROPIC_API_KEY` ni DPA — exactamente el escenario que
+`.claude/rules/datos.md` lleva un mes documentando como línea que nunca
+debe cruzarse. Se cruzó, por un mecanismo de plataforma, no por una decisión
+tomada aquí.
+
+**Contención, en el momento, antes de continuar con nada más:**
+1. Ningún dato del contenido se usó, repitió, ni sirvió de base para
+   construir nada — la sesión se detuvo ahí explícitamente.
+2. Confirmado que nada tocó el repositorio git: los 4 ficheros vivían en
+   un directorio de subida temporal del contenedor, fuera de
+   `/home/user/Os-Asesor-a`, nunca en la ruta del proyecto.
+3. Los 4 ficheros **borrados del contenedor** tras confirmar con Diego.
+4. La copia original de Diego, en su propia máquina, no se ha tocado en
+   ningún momento — esto es solo sobre lo que llegó a esta sesión Cloud.
+
+**La lección, para que no se repita — y es nueva, no una repetición de la
+regla del `.zip`/`.DAT`:** hasta hoy, la barrera de datos de este proyecto
+asumía que "no leer un archivo" era una decisión que Claude podía tomar
+dentro de la conversación. **No lo es, cuando el archivo llega como adjunto
+a un mensaje**: el contenido se entrega en el mismo turno, antes de que
+haya ocasión de decidir nada. La barrera real tiene que estar **antes** de
+adjuntar el archivo, no después.
+
+**Regla nueva, añadida a `.claude/rules/datos.md`:** ningún fichero con
+datos reales de cliente se adjunta a una conversación Cloud, bajo ninguna
+circunstancia, ni siquiera con instrucciones de "no lo leas" — la
+anonimización o extracción de estructura tiene que ocurrir **antes**, con
+un script que Diego ejecuta en su máquina (mismo diseño de tres roles ya
+usado en toda la Fase 0: Claude escribe el script sin ver datos, Diego lo
+ejecuta, solo la salida ya segura sale de su máquina).
+
+---
+
 ## 27-08-2026 (sesión Cloud, décima entrada del día) — El paso final a ContaPlus/ContaSOL: una afirmación sin comprobar, corregida antes de construir nada nuevo
 
 Diego pidió trabajar el último tramo del motor: exportar los asientos

@@ -1,5 +1,36 @@
 # Regla de datos — la más importante de todo el proyecto
 
+## ⛔ Regla dura, añadida 27-08-2026 tras un incidente real: nunca adjuntar un fichero real a una conversación Cloud
+
+**Ningún fichero con datos reales de cliente se adjunta a una conversación
+Cloud, bajo ninguna circunstancia — ni siquiera con la instrucción "no lo
+leas".** Esa instrucción no protege nada: el mecanismo de la plataforma que
+procesa un adjunto `@archivo` entrega su contenido en el mismo turno,
+**antes** de que Claude tenga ocasión de actuar sobre lo que el usuario ha
+pedido. "No leerlo" no es una decisión que se pueda tomar dentro de la
+conversación una vez el archivo ya está adjunto — la barrera tiene que estar
+**antes** de adjuntarlo, no después.
+
+Incidente real (27-08-2026, detalle sin datos en `PROJECT_STATUS.md`,
+entrada "INCIDENTE"): 4 ficheros reales de contabilidad (subcuentas y
+diario) subidos a una sesión Cloud pidiendo explícitamente que no se
+leyeran, con el objetivo de anonimizarlos antes de traerlos. Dos de los
+cuatro se mostraron completos, con razón social y CIF reales de una
+veintena de terceros y el nombre y NIF real de una persona física.
+Contenido nunca reutilizado, ficheros borrados del contenedor, nada llegó
+al repositorio git — pero la exposición a la API de Anthropic sin DPA ya
+había ocurrido, y no se puede deshacer desde la sesión.
+
+**La forma correcta, siempre:** el mismo diseño de tres roles que ya usa
+toda la Fase 0. Claude escribe un script **sin ver ningún dato**, que
+extrae solo lo que hace falta (estructura de un fichero — anchos de campo,
+posiciones — o un agregado, nunca contenido identificable). Diego lo
+ejecuta **en su máquina, antes de adjuntar nada**. Solo esa salida, ya
+segura, se pega en el chat o se sube como fichero. Anonimizar un fichero
+real para poder subirlo después sigue siendo trabajo que se hace ANTES, en
+local, con un script — nunca subiendo el original a Cloud "para que Claude
+no lo lea".
+
 Cloud (GitHub, Claude Code Web): SOLO código, tests, datos sintéticos/anonimizados,
 documentación, arquitectura.
 
