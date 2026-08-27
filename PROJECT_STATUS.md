@@ -7,6 +7,101 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión LOCAL) — `reconstruir_303.py` arreglado: deriva la base del asiento, cerrando el hallazgo del 26-08
+
+Primer trabajo de la sesión, siguiendo exactamente el plan dejado escrito en
+`EMPEZAR_AQUI.md`. Antes de tocar código: `git fetch` + verificación de que
+`master` y la rama de trabajo seguían en el mismo commit (`acb139f`, sin
+divergencia), `audit_project.py` con las 16 comprobaciones de siempre en verde,
+y `test_motor_veredicto.py` 36/36 como punto de partida — la regla dura de
+`.claude/rules/contabilidad.md` antes de tocar nada cerca del motor.
+
+### El defecto del ensayo, encontrado ANTES de tocar el arreglo
+
+Antes de escribir una sola línea de `reconstruir_303.py`, se revisó qué
+comprobaba ya `ensayo_retro_semaforo.py` sobre él (la comprobación "cada celda
+cuadra: base x tipo = cuota agregada"). Resultado: **el propio ensayo tenía el
+mismo punto ciego que toda la sesión anterior estuvo persiguiendo.**
+`generar_corpus()` rellenaba `BASEIMPO` con el valor real en su corpus
+sintético — algo que la contabilidad real nunca hace (99,4% cero, medido el
+26-08) — así que la comprobación daba VERDE sin haber ejercitado la derivación
+de base ni una sola vez.
+
+**Corregido antes del arreglo, no después**, y verificado que rompe la
+comprobación existente con los datos ahora realistas: `BASEIMPO` a 0 en las
+líneas 472/477 del generador → `ensayo_retro_semaforo.py` pasa de verde a
+`FALLA cada celda cuadra: base x tipo = cuota agregada -> 120 celdas
+descuadran: [('2016T2', 'devengado', '21', 99.98, 0.0), ...]`. Reproducción del
+bug de ayer, esta vez dentro del propio ensayo, antes de escribir el arreglo.
+
+### El arreglo
+
+`acumular()` en `reconstruir_303.py` se reescribió por completo: de procesar
+línea a línea (mirando solo las cuentas 472/477 sueltas) a **agrupar todo el
+contenedor por `ASIEN`** primero, igual que `retro_semaforo.reconstruir_compra()`
+lleva haciendo desde el 25-08. Nueva función compartida,
+`derivar_bases_por_tipo()`, que replica esa misma lógica ya probada (base
+directa si `BASEIMPO` está genuinamente relleno; si no, derivada de la
+contrapartida contable; con varios tipos de IVA en el mismo asiento, reparto
+proporcional reescalado para que la suma cuadre exacta) — **generalizada a los
+dos lados**, algo que no existía en ningún sitio del repositorio:
+
+- **Deducible (472, soportado):** base derivada del **gasto** (cuentas `6xx`,
+  columna DEBE) cuando `BASEIMPO` no sirve.
+- **Devengado (477, repercutido):** base derivada del **ingreso** (cuentas
+  `7xx`, columna HABER) cuando `BASEIMPO` no sirve. Este lado no existía en
+  ningún script del proyecto — `retro_semaforo.py` solo valida compras.
+
+**La deduplicación cambió de granularidad, a propósito.** Antes era por LÍNEA
+suelta (huella de los 954 bytes de un registro). Ahora es por **ASIENTO
+COMPLETO** (huella de las huellas de sus líneas, ordenadas — la misma técnica
+ya validada en `retro_semaforo.py`), porque derivar la base exige mirar el
+asiento entero de todas formas, y una copia de seguridad repite el asiento
+completo, nunca una línea suelta.
+
+### Verificación, en el orden que exige `.claude/rules/testing.md`
+
+| Comprobación | Resultado |
+|---|---|
+| `test_motor_veredicto.py` antes y después | 36/36 los dos |
+| `test_adversarial.py` | 112/112 |
+| `ensayo_retro_semaforo.py` completo | Verde, incluida la celda que antes descuadraba |
+| **`ensayo_reconstruir_303.py`** (nuevo, 9 casos) | 9/9 |
+| Prueba de sabotaje (bug reintroducido a propósito) | Rojo en las 5 comprobaciones exactas que rompe, ninguna más |
+| Rendimiento (25k → 125k asientos, 4x) | 0,88s → 3,80s — lineal, sin cuadrático oculto |
+| Escáner de privacidad | Sin hallazgos |
+
+**Los cinco casos del ensayo nuevo, y por qué cada uno importa:**
+
+1. Un solo tipo de IVA, `BASEIMPO=0` (el caso real, 99,4%) → base derivada del
+   gasto.
+2. `BASEIMPO` genuinamente relleno (el 0,6% real) → **debe ganar** sobre la
+   derivación, nunca al revés.
+3. Varios tipos de IVA en el mismo asiento → la suma de las bases derivadas es
+   **exacta** (reescalada), no solo aproximada.
+4. Una venta (477) → base derivada del **ingreso**, no del gasto — el lado que
+   ningún script probaba hasta hoy.
+5. El mismo asiento repetido en una "copia" → se cuenta **una sola vez**.
+
+Conectado como **13º auditor** dentro de `audit_project.py`.
+
+### Lo que sigue, y es la tarea real de hoy
+
+`303_LOCAL.json` generado antes de esta sesión describe una contabilidad
+ficticia (bases a cero) y no sirve para nada. **Pendiente, y lo ejecuta Diego,
+no Claude** (regla de tres roles — el fichero lleva importes de clientes
+reales):
+
+```bash
+python reconstruir_303.py "C:\Users\SERVILAB\Desktop\100% contabilidad" --detalle 303_LOCAL.json
+```
+
+Con el fichero regenerado, retomar el cuadre donde se dejó: `cuadre_303_ficha.py`
+(manual) o `cruzar_303_importes.py` (automático, contra `\\PC01\Documentos`) —
+los dos ya estaban construidos y probados, solo esperaban una base real.
+
+---
+
 ## 26-08-2026 (sesión LOCAL, primera ejecución en el PC de la asesoría) — `reconstruir_303.py` lleva desde el 21-08 sumando ceros y llamándolos base imponible
 
 **Primera sesión ejecutada en el PC real del despacho, no en Cloud.** Ese cambio

@@ -1,4 +1,4 @@
-# EMPEZAR AQUÍ — 26-08-2026
+# EMPEZAR AQUÍ — 27-08-2026
 
 Punto de entrada único. Corto a propósito: `PROJECT_STATUS.md` sirve para
 consultar, no para arrancar. Esto sirve para arrancar.
@@ -52,6 +52,7 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ✅ Corpus roto: no cuelga ni contamina
 ✅ Cruce 303: identifica sin inventar                     <- 11º auditor, 26-08
 ✅ subprocess.run: encoding explicito (18 llamadas)       <- 12º auditor, 26-08
+✅ Reconstruir 303: deriva la base, no la inventa         <- 13º auditor, 27-08
 ❌ Dependencias: faltan anthropic, google-genai   <- NORMAL, son de captura
 ```
 
@@ -108,41 +109,59 @@ patrón dominante ya identificable — parece señal real del histórico, no
 ceguera del instrumento, pero no está descartado del todo. Ver
 `FASE0_RESULTADOS.md` §14 para el desglose.
 
-> 🛑 **ANULADO EL 26-08-2026 EN SESIÓN LOCAL. NO EMPIECES POR AQUÍ.**
+> ✅ **RESUELTO EL 27-08-2026.** El bloqueo de abajo (histórico, no lo borres:
+> explica por qué hizo falta el arreglo) ya está cerrado.
+>
+> `reconstruir_303.py` se reescribió para derivar la base **del asiento**
+> (agrupando por `ASIEN` y leyendo las líneas de contrapartida, 6xx compras
+> / 7xx ventas), igual que `retro_semaforo.reconstruir_compra()`. Probado con
+> `ensayo_reconstruir_303.py` (9/9: un solo tipo, `BASEIMPO` genuinamente
+> relleno que debe ganar, multi-tipo en el mismo asiento con reparto exacto,
+> venta desde el ingreso, y deduplicación de un asiento repetido entre
+> copias) y **con el bug reintroducido a propósito**: el ensayo lo caza en
+> las 5 comprobaciones exactas que rompe, ni una más ni una menos. Es el 13º
+> auditor, dentro de `audit_project.py`.
+>
+> **Y el propio ensayo tenía el mismo punto ciego que se lleva persiguiendo
+> todo el proyecto**: `ensayo_retro_semaforo.py` rellenaba `BASEIMPO` con el
+> valor correcto en su corpus sintético, así que nunca podía ejercitar la
+> derivación — daba verde sin haber probado nada. Corregido: ahora ese
+> corpus deja `BASEIMPO` a 0, como la contabilidad real.
+>
+> **👉 SIGUIENTE PASO REAL: regenerar `303_LOCAL.json`.** El de antes de hoy
+> describe una contabilidad ficticia (bases a cero) y no sirve para nada:
+>
+> ```bash
+> python reconstruir_303.py "C:\Users\SERVILAB\Desktop\100% contabilidad" --detalle 303_LOCAL.json
+> ```
+>
+> Con el fichero nuevo, retoma el cuadre donde se dejó: `cuadre_303_ficha.py`
+> (manual, `--listar` primero) o `cruzar_303_importes.py` (automático, contra
+> `\\PC01\Documentos`). Los dos ya estaban construidos y probados — solo
+> esperaban un `303_LOCAL.json` que valiera.
+
+> 🛑 **BLOQUEO HISTÓRICO, YA CERRADO (ver el aviso de arriba). Se conserva
+> como registro de por qué hizo falta el arreglo, no como estado actual.**
 > Lo que decía este bloque —"comparar a mano 5-10 trimestres de
-> `303_LOCAL.json` contra los 303 presentados"— **no se puede hacer, y no
-> por falta de tiempo: `303_LOCAL.json` no describe ninguna contabilidad.**
+> `303_LOCAL.json` contra los 303 presentados"— **no se podía hacer, y no
+> por falta de tiempo: `303_LOCAL.json` no describía ninguna contabilidad.**
 >
 > Medido el 26-08 con `diag_baseimpo.py` sobre el corpus real (44.522
 > apuntes de IVA): el campo `BASEIMPO` es un **cero literal en el 99,4%**
-> de los apuntes, y `reconstruir_303.py` lo suma tal cual y llama "base
-> imponible" al resultado. Las bases de ese fichero son ficticias. El cruce
+> de los apuntes, y `reconstruir_303.py` lo sumaba tal cual y llamaba "base
+> imponible" al resultado. Las bases de ese fichero eran ficticias. El cruce
 > automático contra los 1.043 modelos 303 del archivo dio **0 cubos casados
 > de 24**, y el diagnóstico por tolerancias demostró que no era un problema
 > de redondeo (aflojar a céntimos no movía el 4,0%). Detalle completo en
 > `PROJECT_STATUS.md`, entrada del 26-08 (sesión LOCAL).
 >
-> **`retro_semaforo.py` NO está afectado** y el 87,71% VERDE sigue en pie:
+> **`retro_semaforo.py` NO estaba afectado** y el 87,71% VERDE sigue en pie:
 > `reconstruir_compra()` ya deriva la base del gasto cuando `BASEIMPO` no
-> sirve. El fallo es de propagación — `reconstruir_303.py` se escribió el
-> 21-08, el hallazgo sobre `BASEIMPO` es del 25-08, y nadie revisó la pieza
-> hermana.
->
-> ### 👉 EL SIGUIENTE PASO REAL: arreglar `reconstruir_303.py`
->
-> Que derive la base **del asiento**, igual que `retro_semaforo.
-> reconstruir_compra()` (ver `retro_semaforo.py:336`). Hoy procesa línea a
-> línea mirando solo 472/477; necesita **agrupar por `ASIEN`** y leer las
-> líneas de contrapartida (6xx compras, 7xx ventas). Viable y medido: el
-> **98,6%** de los asientos tienen esa línea.
->
-> Hasta que eso esté hecho y `303_LOCAL.json` regenerado, **ningún cuadre
-> contra el 303 puede funcionar** — ni a mano ni automático. Las
-> herramientas del cruce ya están construidas y probadas
-> (`cruzar_303_importes.py` + `ensayo_cruce_303.py`, y `cuadre_303_ficha.py`
-> para la vía manual): esperan un `303_LOCAL.json` que valga.
+> sirve. El fallo era de propagación — `reconstruir_303.py` se escribió el
+> 21-08, el hallazgo sobre `BASEIMPO` es del 25-08, y nadie había revisado
+> la pieza hermana hasta el 27-08.
 
-### Los doce auditores, y por qué hacen falta los doce
+### Los trece auditores, y por qué hacen falta los trece
 
 Cada uno tapa un agujero que los demás no ven. No es redundancia:
 
@@ -160,8 +179,22 @@ Cada uno tapa un agujero que los demás no ven. No es redundancia:
 | `ensayo_orquestador.py` | ¿el histórico pierde facturas por el formato? | **guard alimentado en vacío** |
 | `ensayo_cruce_303.py` | ¿el cruce inventa una correspondencia? | **cliente identificado por azar** |
 | `check_subprocess_encoding` | ¿algún `subprocess.run` sin `encoding`? | **verde en Cloud, roto en el PC real** |
+| `ensayo_reconstruir_303.py` | ¿la base se deriva o se sigue leyendo a pelo? | **base ficticia con aspecto de real** |
 
-Los doce corren dentro de `audit_project.py`: basta el primer comando.
+Los trece corren dentro de `audit_project.py`: basta el primer comando.
+
+> El 13º es del 27-08 y cierra el hallazgo mayor de la sesión anterior: la
+> base de `303_LOCAL.json` era un cero disfrazado de dato. Prueba cinco
+> casos que el ensayo general (`ensayo_retro_semaforo.py`) no ejercitaba —
+> multi-tipo en un mismo asiento, `BASEIMPO` genuinamente relleno que debe
+> ganar sobre lo derivado, venta desde el ingreso, y un asiento duplicado
+> entre copias — y está probado con el bug reintroducido a propósito: se
+> pone rojo exactamente en las 5 comprobaciones que ese bug rompe.
+>
+> Y de paso se encontró que `ensayo_retro_semaforo.py` tenía el MISMO punto
+> ciego que todo esto lleva persiguiendo: su corpus sintético rellenaba
+> `BASEIMPO` con el valor correcto, así que daba verde sin haber probado la
+> derivación ni una vez. Corregido para que refleje la realidad (cero).
 
 > El 12º es del 26-08 y nace de un bug que ya había mordido: `audit_project.py`
 > **se rompía a la mitad en el PC de la asesoría** y no en Cloud, porque

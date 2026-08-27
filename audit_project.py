@@ -263,7 +263,18 @@ def check_estados_y_cobertura():
                              # defectos en la primera pasada de los comandos
                              # LOCAL. Aqui se prueba la logica del cruce con
                              # importes inventados, sin abrir un solo PDF.
-                             ("ensayo_cruce_303.py", "Cruce 303: identifica sin inventar")):
+                             ("ensayo_cruce_303.py", "Cruce 303: identifica sin inventar"),
+                             # reconstruir_303.py se reescribio el 27-08-2026 para
+                             # derivar la base del asiento en vez de leer BASEIMPO
+                             # a pelo (BASEIMPO es un cero literal en el 99,4% de
+                             # los apuntes reales, medido con diag_baseimpo.py).
+                             # Este ensayo prueba lo que ensayo_retro_semaforo.py
+                             # no ejercita: multi-tipo en un mismo asiento,
+                             # BASEIMPO genuinamente relleno (el 0,6% restante,
+                             # que tiene que GANAR sobre lo derivado), y que un
+                             # asiento repetido entre copias se deduplique
+                             # completo, no linea a linea.
+                             ("ensayo_reconstruir_303.py", "Reconstruir 303: deriva la base, no la inventa")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue

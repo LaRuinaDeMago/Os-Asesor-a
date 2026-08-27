@@ -168,8 +168,17 @@ def generar_corpus(raiz, n_clientes=3, asientos_por_cliente=40, semilla=21082026
             filas.append({**comun, "SUBCTA": cuenta_gasto,
                           "EURODEBE": base, "EUROHABER": 0, "IVA": 0,
                           "BASEIMPO": 0, "RECEQUIV": 0})
+            # BASEIMPO se deja a 0 A PROPOSITO, no relleno con `base`.
+            # CORREGIDO 27-08-2026: hasta hoy este generador rellenaba
+            # BASEIMPO con el valor real, y por eso el ensayo daba VERDE sin
+            # haber probado NADA de la derivacion de base -- exactamente lo
+            # que reconstruir_303.py necesitaba y no tenia. Medido con
+            # diag_baseimpo.py el 26-08-2026 sobre el corpus real: BASEIMPO
+            # es un CERO LITERAL en el 99,4% de los apuntes de IVA (44.243 de
+            # 44.522). Rellenarlo aqui con el valor correcto era fabricar un
+            # ensayo mas facil que la realidad, y por eso no cazo el bug.
             filas.append({**comun, "SUBCTA": "472000", "EURODEBE": cuota,
-                          "EUROHABER": 0, "IVA": tipo, "BASEIMPO": base,
+                          "EUROHABER": 0, "IVA": tipo, "BASEIMPO": 0,
                           "RECEQUIV": 0})
             filas.append({**comun, "SUBCTA": "400000", "EURODEBE": 0,
                           "EUROHABER": total, "IVA": 0, "BASEIMPO": 0,
@@ -191,8 +200,9 @@ def generar_corpus(raiz, n_clientes=3, asientos_por_cliente=40, semilla=21082026
                 filas.append({**comun_v, "SUBCTA": "700000", "EURODEBE": 0,
                               "EUROHABER": base_v, "IVA": 0, "BASEIMPO": 0,
                               "RECEQUIV": 0})
+                # BASEIMPO a 0 tambien en el lado de ventas, mismo motivo.
                 filas.append({**comun_v, "SUBCTA": "477021", "EURODEBE": 0,
-                              "EUROHABER": cuota_v, "IVA": 21, "BASEIMPO": base_v,
+                              "EUROHABER": cuota_v, "IVA": 21, "BASEIMPO": 0,
                               "RECEQUIV": 0})
         dbf = os.path.join(carpeta, "Diario.dbf")
         escribir_dbf(dbf, filas)

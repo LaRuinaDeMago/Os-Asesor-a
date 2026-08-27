@@ -74,8 +74,8 @@ from collections import Counter, defaultdict
 if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
-from retro_semaforo import (MAX_REGISTROS_POR_FICHERO, cuenta, num,
-                            parse_cabecera, txt)
+from retro_semaforo import (MAX_REGISTROS_POR_FICHERO, PREF_GASTO, cuenta,
+                            num, parse_cabecera, txt)
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 SALIDA_AGREGADA = os.path.join(AQUI, "reconstruccion_303_agregado.json")
@@ -86,6 +86,12 @@ SALIDA_AGREGADA = os.path.join(AQUI, "reconstruccion_303_agregado.json")
 #: repercutido o soportado.
 PREF_REPERCUTIDO = "477"
 PREF_SOPORTADO = "472"
+
+#: Prefijo de las cuentas de INGRESO (ventas), simetrico de PREF_GASTO (6xx)
+#: que ya usa retro_semaforo.py para las compras. No existe una constante
+#: compartida porque retro_semaforo.py nunca ha necesitado el lado de ventas
+#: -- sus guards validan facturas de COMPRA, no de venta.
+PREF_INGRESO = "7"
 
 #: Tipos vigentes en Espana en el periodo que cubre el corpus. Un tipo fuera de
 #: esta lista no se descarta: se cuenta aparte, porque puede ser un tipo antiguo
@@ -134,25 +140,79 @@ def clave_cliente(ruta):
     return os.path.basename(os.path.dirname(ruta))
 
 
+def derivar_bases_por_tipo(ivas, suma_contrapartida):
+    """Reparte `suma_contrapartida` (el gasto o el ingreso del asiento) entre
+    los tipos de IVA presentes, replicando EXACTAMENTE la logica ya probada
+    de `retro_semaforo.reconstruir_compra()` (lineas 314-376): base directa
+    si BASEIMPO esta genuinamente relleno, si no, derivada del importe
+    contable; con varios tipos, reparto proporcional reescalado para que la
+    suma cuadre exacta con la contrapartida.
+
+    `ivas` = lista de (tipo, cuota, base_directa) de un mismo lado
+    (soportado o repercutido) de UN asiento. `suma_contrapartida` = importe
+    total de las lineas de gasto (6xx) o ingreso (7xx) de ese mismo asiento.
+
+    AGRUPADO EN UNA FUNCION, NO DUPLICADO: soportado usa el gasto como
+    contrapartida, repercutido usa el ingreso. Es el mismo error de familia
+    que el patron de importes duplicado en tres ficheros (26-08-2026) — una
+    sola definicion, dos llamadas."""
+    if not ivas:
+        return {}
+    if len(ivas) == 1:
+        tipo, _cuota, base_directa = ivas[0]
+        base = base_directa if base_directa > 0 else round(suma_contrapartida, 2)
+        return {int(tipo): base}
+    derivado = {}
+    for tipo, cuota, base_directa in ivas:
+        base = base_directa
+        if base <= 0 and tipo > 0:
+            base = round(cuota / (tipo / 100.0), 2)
+        derivado[int(tipo)] = derivado.get(int(tipo), 0.0) + base
+    suma_derivada = sum(derivado.values())
+    total_bruto = round(suma_contrapartida, 2)
+    if suma_derivada > 0 and total_bruto > 0:
+        factor = total_bruto / suma_derivada
+        por_tipo = {t: round(b * factor, 2) for t, b in derivado.items()}
+        diff = round(total_bruto - sum(por_tipo.values()), 2)
+        if diff:
+            t_mayor = max(por_tipo, key=por_tipo.get)
+            por_tipo[t_mayor] = round(por_tipo[t_mayor] + diff, 2)
+        return por_tipo
+    return derivado
+
+
 def acumular(ruta, acumulado, incidencias, vistos_contenido):
     """Suma las bases y cuotas de IVA de un contenedor. No devuelve nada del
     contenido: escribe en las estructuras que recibe.
 
-    BUG REAL cazado el 25-08-2026, no preventivo: este script no deduplicaba
-    NADA entre copias de seguridad. Cada copia de ContaPlus contiene el
-    HISTORICO COMPLETO hasta esa fecha (mismo hallazgo que en
-    retro_semaforo.py esta manana: 63,3% de los asientos son la misma
-    factura repetida en la siguiente copia), asi que cada apunte de IVA se
-    sumaba una vez por cada copia de seguridad en la que aparece -- las
-    bases y cuotas agregadas salian infladas por el mismo factor, no solo
-    repartidas en demasiados "clientes". Comparar esas cifras contra un 303
-    real nunca habria cuadrado, y no por ningun error contable de verdad.
+    REESCRITO EL 27-08-2026 -- BUG REAL, no preventivo, y de los gordos:
+    hasta esta version, la base se leia de BASEIMPO directamente. Medido con
+    diag_baseimpo.py el 26-08-2026 sobre el corpus real (44.522 apuntes de
+    IVA): BASEIMPO es un CERO LITERAL en el 99,4% de los casos. Este script
+    llevaba desde el 21-08-2026 sumando esos ceros y llamando "base
+    imponible" al resultado -- `303_LOCAL.json` no describia ninguna
+    contabilidad. `retro_semaforo.py` nunca tuvo este bug porque
+    `reconstruir_compra()` ya deriva la base del gasto cuando BASEIMPO no
+    sirve, desde el 25-08. Esta version aplica la MISMA tecnica aqui, para
+    los dos lados (soportado del gasto 6xx, repercutido del ingreso 7xx).
+
+    Para derivar la base hace falta saber que OTRAS lineas viven en el MISMO
+    asiento -- ya no basta con mirar una linea suelta. Por eso ahora se lee
+    el contenedor ENTERO primero (agrupando por ASIEN, igual que
+    `retro_semaforo.reconstruir_compra()`) y se procesa asiento a asiento.
+
+    DEDUPLICACION, cambiada de granularidad A PROPOSITO: antes se
+    deduplicaba por LINEA (huella de los 954 bytes de un registro suelto).
+    Ahora se deduplica por ASIENTO COMPLETO (huella de las huellas de sus
+    lineas, ordenadas -- exactamente la tecnica ya validada en
+    `retro_semaforo.py`), porque derivar la base exige mirar el asiento
+    entero de todas formas, y una copia de seguridad repite el asiento
+    COMPLETO, nunca una linea suelta. Sigue siendo necesaria: cada copia de
+    ContaPlus contiene el HISTORICO COMPLETO hasta esa fecha, así que sin
+    deduplicar las bases y cuotas saldrian infladas por el numero de copias.
 
     `vistos_contenido` es del RUN ENTERO, no del contenedor: por eso viaja
-    como parametro en vez de crearse aqui dentro. Se deduplica por LINEA
-    (huella de los 954 bytes del registro), mas simple que el enlace por
-    ASIENTO que usa retro_semaforo.py -- esta agregacion no necesita saber
-    a que asiento pertenece cada apunte de IVA, solo sumarlo una vez."""
+    como parametro en vez de crearse aqui dentro."""
     with zipfile.ZipFile(ruta) as z:
         nombre = next((i.filename for i in z.infolist()
                        if not i.is_dir()
@@ -165,13 +225,16 @@ def acumular(ruta, acumulado, incidencias, vistos_contenido):
             idx = {c["nombre"]: c for c in campos}
             cS, cED, cEH = idx.get("SUBCTA"), idx.get("EURODEBE"), idx.get("EUROHABER")
             cIVA, cBASE, cFEC = idx.get("IVA"), idx.get("BASEIMPO"), idx.get("FECHA")
-            if not (cS and cFEC):
-                incidencias["Diario.dbf sin SUBCTA o FECHA"] += 1
+            cA = idx.get("ASIEN")
+            if not (cS and cFEC and cA):
+                incidencias["Diario.dbf sin SUBCTA, FECHA o ASIEN"] += 1
                 return
             cliente = clave_cliente(ruta)
-            # La misma red que en retro_semaforo: parse_cabecera ya rechaza una
-            # longitud de registro imposible, pero un bucle que no termina es el
-            # fallo mas caro que hay —no da error y no acaba— y merece dos capas.
+            # Primera pasada: agrupar TODO el contenedor por asiento. Misma
+            # red de seguridad que antes: parse_cabecera ya rechaza una
+            # longitud de registro imposible, pero un bucle que no termina
+            # es el fallo mas caro que hay -- no da error y no acaba.
+            lineas_por_asiento = defaultdict(list)
             leidos_aqui = 0
             while True:
                 rec = fh.read(len_reg)
@@ -183,38 +246,67 @@ def acumular(ruta, acumulado, incidencias, vistos_contenido):
                 if rec[:1] == b"*":            # registro borrado en dBase
                     continue
                 pref = cuenta(rec, cS)
-                if pref not in (PREF_REPERCUTIDO, PREF_SOPORTADO):
-                    continue
-                huella = hashlib.blake2b(rec, digest_size=8).digest()
-                if huella in vistos_contenido:
-                    incidencias["duplicado entre copias de seguridad"] += 1
-                    continue
-                vistos_contenido.add(huella)
-                tri = trimestre_de(txt(rec, cFEC))
-                if tri is None:
-                    incidencias["apunte de IVA con fecha inutilizable"] += 1
-                    continue
-                tipo = num(rec, cIVA)
-                base = num(rec, cBASE)
-                # El repercutido se abona (haber) y el soportado se carga (debe).
-                # Se toma el que tenga importe, sin forzar el signo: si un apunte
-                # viene por el lado contrario (rectificativa, abono), su importe
-                # sale negativo y resta, que es lo correcto.
-                cuota = num(rec, cED) - num(rec, cEH)
-                if pref == PREF_REPERCUTIDO:
-                    cuota = -cuota
-                lado = "devengado" if pref == PREF_REPERCUTIDO else "deducible"
-                tipo_int = int(round(tipo))
-                if tipo_int not in TIPOS_CONOCIDOS:
-                    incidencias[f"apunte de IVA con tipo fuera de la lista"] += 1
-                    clave_tipo = "tipo_no_catalogado"
-                else:
-                    clave_tipo = str(tipo_int)
-                celda = acumulado[cliente][tri][lado][clave_tipo]
-                celda["base"] = round(celda["base"] + base, 2)
-                celda["cuota"] = round(celda["cuota"] + cuota, 2)
-                celda["apuntes"] += 1
+                huella_linea = hashlib.blake2b(rec, digest_size=8).digest()
+                lineas_por_asiento[int(num(rec, cA))].append((
+                    pref, num(rec, cED), num(rec, cEH),
+                    num(rec, cIVA) if cIVA else 0.0,
+                    num(rec, cBASE) if cBASE else 0.0,
+                    txt(rec, cFEC), huella_linea))
                 del rec
+
+            for _asien, lineas in lineas_por_asiento.items():
+                huella_asiento = hashlib.blake2b(
+                    b"".join(sorted(l[6] for l in lineas)), digest_size=16).digest()
+                if huella_asiento in vistos_contenido:
+                    incidencias["duplicado entre copias de seguridad"] += (
+                        sum(1 for l in lineas if l[0] in (PREF_REPERCUTIDO, PREF_SOPORTADO)))
+                    continue
+                vistos_contenido.add(huella_asiento)
+
+                ivas_soportado = [(l[3], l[1] - l[2], l[4]) for l in lineas
+                                  if l[0] == PREF_SOPORTADO]
+                ivas_repercutido = [(l[3], l[2] - l[1], l[4]) for l in lineas
+                                    if l[0] == PREF_REPERCUTIDO]
+                if not (ivas_soportado or ivas_repercutido):
+                    continue
+
+                # La fecha del asiento: se toma de la primera linea de IVA
+                # que la traiga. En un asiento real todas comparten fecha.
+                fecha_txt = next((l[5] for l in lineas
+                                  if l[0] in (PREF_SOPORTADO, PREF_REPERCUTIDO) and l[5]), "")
+                tri = trimestre_de(fecha_txt)
+                if tri is None:
+                    incidencias["apunte de IVA con fecha inutilizable"] += (
+                        len(ivas_soportado) + len(ivas_repercutido))
+                    continue
+
+                gasto_total = round(sum(l[1] for l in lineas
+                                        if l[0].startswith(PREF_GASTO)), 2)
+                ingreso_total = round(sum(l[2] for l in lineas
+                                          if l[0].startswith(PREF_INGRESO)), 2)
+
+                for ivas, contrapartida, lado in (
+                        (ivas_soportado, gasto_total, "deducible"),
+                        (ivas_repercutido, ingreso_total, "devengado")):
+                    if not ivas:
+                        continue
+                    por_tipo = derivar_bases_por_tipo(ivas, contrapartida)
+                    cuota_por_tipo = defaultdict(float)
+                    apuntes_por_tipo = Counter()
+                    for tipo, cuota, _base in ivas:
+                        cuota_por_tipo[int(tipo)] += cuota
+                        apuntes_por_tipo[int(tipo)] += 1
+                    for tipo_int in sorted(set(por_tipo) | set(cuota_por_tipo)):
+                        if tipo_int not in TIPOS_CONOCIDOS:
+                            incidencias["apunte de IVA con tipo fuera de la lista"] += \
+                                apuntes_por_tipo[tipo_int]
+                            clave_tipo = "tipo_no_catalogado"
+                        else:
+                            clave_tipo = str(tipo_int)
+                        celda = acumulado[cliente][tri][lado][clave_tipo]
+                        celda["base"] = round(celda["base"] + por_tipo.get(tipo_int, 0.0), 2)
+                        celda["cuota"] = round(celda["cuota"] + cuota_por_tipo[tipo_int], 2)
+                        celda["apuntes"] += apuntes_por_tipo[tipo_int]
 
 
 def nuevo_acumulado():
