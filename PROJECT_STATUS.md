@@ -7,6 +7,90 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, novena entrada del día) — Arranca el módulo de facturas EMITIDAS: numeración correlativa, primera pieza
+
+Diego pidió empezar a tantear el terreno de un módulo nuevo, distinto del
+motor de veredicto: hoy el despacho emite facturas de venta **a mano, en
+Excel**, a partir de lo que el cliente manda por WhatsApp, con numeración
+correlativa por serie, para exportarlas después a **FactuSOL** y que quede
+cubierto por **VeriFactu**. Primera sesión de scoping, con dos decisiones de
+alcance que conviene dejar escritas antes que el código.
+
+### Alcance reducido con una pregunta, no con una suposición
+
+VeriFactu exige hash encadenado, QR verificable y envío a AEAT. **Si
+FactuSOL es el software certificado VeriFactu del despacho** (pendiente de
+confirmar con Diego, no asumido), esa parte la hace FactuSOL — nuestro
+trabajo se reduce a entregarle datos correctos: la factura bien construida,
+con numeración sin huecos, en el formato que FactuSOL espera. Reimplementar
+el hash encadenado nosotros sería duplicar una certificación que ya existe
+en otro sitio, y encima sin la nuestra certificada.
+
+### Investigado antes de construir nada — y un bloqueo real, no evitado
+
+Se buscó el formato exacto de importación de FactuSOL (ficheros de
+importación por Excel/Calc, cabecera FAC + líneas LFA) en fuentes públicas.
+**No se pudo verificar con confianza suficiente**: las páginas con la
+estructura de columnas exacta redirigen a un dominio que bloquea el acceso
+automatizado (403), y el PDF alternativo es una imagen escaneada sin texto
+extraíble. La regla de este proyecto —la misma que costó meses de trabajo
+con el `.DAT` de ContaPlus— es no adivinar un formato de datos: se verifica
+contra una plantilla real o no se construye. **No se ha escrito ningún
+exportador especulativo.**
+
+### Lo que sí se construyó: `numeracion_correlativa.py`
+
+La pieza que no depende de conocer el formato de FactuSOL ni de leer ningún
+mensaje de WhatsApp — lógica pura sobre enteros, sin ningún dato de cliente:
+
+- `siguiente_numero()` — el próximo correlativo de una serie, dado el
+  histórico de números ya usados.
+- `detectar_huecos()` — qué números faltan en una serie que debería ser
+  continua (exactamente el fallo que VeriFactu está diseñado para cazar).
+- `validar_numero_nuevo()` — veredicto (`OK`/`FALLO` con motivo) sobre un
+  número propuesto: correlativo correcto, duplicado, o hueco hacia
+  delante/atrás. Nunca inventa ni corrige un número — solo dice si el
+  propuesto es válido.
+- `validar_ledger()` — chequeo de salud de un histórico completo de
+  facturas por serie, no solo del último número.
+
+`test_numeracion_correlativa.py`: 25/25 en verde, incluido un control de
+diseño que comprueba que ninguna de las cuatro funciones acepta un parámetro
+de identidad de cliente. Probado con sabotaje (la comprobación de huecos
+hacia delante desactivada a propósito): falla exactamente en las 3
+comprobaciones que dependen de ella, ninguna otra. `test_motor_veredicto.py`
+39/39 y `test_adversarial.py` 112/112 sin cambios — módulo nuevo,
+independiente, no toca el motor. Escáner de privacidad sin hallazgos.
+
+**Deliberadamente NO wired a `audit_project.py` todavía.** Es un módulo que
+empieza hoy, no la pieza ya estable y auditada 14 veces que es el motor de
+veredicto — mezclarlo ahí sería fingir una madurez que no tiene.
+
+### Lo que sigue, y quién lo tiene que traer
+
+Dos cosas concretas, ninguna necesita DPA ni dato real de cliente:
+
+1. **La plantilla vacía de importación de FactuSOL.** `Utilidades > Ficheros
+   XLS` tiene una opción para descargar la plantilla con la estructura
+   exacta — sin ninguna factura dentro, solo las columnas. Con eso se
+   construye el exportador contra el formato real, no contra un blog.
+2. **Un ejemplo del formato de numeración que ya usáis hoy en el Excel**
+   (la serie, cuántos dígitos, si resetea cada año...) — sin datos de
+   cliente, solo la forma del número (p.ej. "2026/00047" o "F-047"). Si el
+   sistema nuevo empieza una numeración distinta de la que ya está en curso,
+   **eso mismo sería un hueco** — la primera cosa que este módulo existe
+   para evitar.
+
+**Y lo que sigue detrás de la puerta del DPA, sin cambios:** leer el mensaje
+de WhatsApp del cliente y convertirlo en los datos de la factura (importe,
+concepto, destinatario) es trabajo que el modelo tiene que VER para hacer —
+la misma frontera que ya separa `captura_orquestador.py` (lee fotos, DPA) de
+`motor_veredicto.py` (valida JSON ya estructurado, sin DPA). Este módulo
+sigue exactamente ese mismo patrón: la numeración y la exportación se
+construyen ahora, sin DPA; la lectura del WhatsApp espera a la puerta 2.
+
+---
+
 ## 27-08-2026 (sesión Cloud, octava entrada del día) — `EMPEZAR_AQUI.md` §4: la pregunta llevaba semanas contestada, sin decirlo
 
 Diego pidió seguir avanzando "lo que podamos hacer aquí en Cloud". Antes de

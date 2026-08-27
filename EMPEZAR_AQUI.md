@@ -822,3 +822,33 @@ aclaración de config, no un bug:** `config.example.json` declara
 | `FASE0_RESULTADOS.md` | Los números medidos del histórico |
 | `TECHO_Y_LIMITES.md` | Qué hay por encima del motor actual, medido |
 | `.claude/rules/datos.md` | La frontera de datos. Manda sobre todo lo demás |
+
+---
+
+## 9. Módulo nuevo, arrancado el 27-08-2026: facturas EMITIDAS
+
+Distinto del motor de arriba (que valida facturas RECIBIDAS). Objetivo:
+`WhatsApp del cliente → factura correlativa bien construida → FactuSOL →
+VeriFactu`. Hoy se hace a mano en Excel. Detalle completo, con el
+razonamiento de alcance, en `PROJECT_STATUS.md` (novena entrada del 27-08).
+
+**Construido ya, en Cloud, sin datos reales:** `numeracion_correlativa.py`
+— decide el siguiente número correlativo de una serie y detecta huecos o
+duplicados antes de que lleguen a FactuSOL. 25/25 en verde
+(`test_numeracion_correlativa.py`).
+
+**Bloqueado, y necesita dos cosas concretas de Diego, ninguna con dato de
+cliente:**
+1. La plantilla vacía de importación de FactuSOL (`Utilidades > Ficheros
+   XLS`, sin ninguna factura dentro) — la documentación pública no la deja
+   verificar con confianza (páginas bloqueadas / PDF de imagen), y este
+   proyecto no adivina un formato de datos.
+2. La forma del número que ya se usa hoy en el Excel (serie, dígitos, si
+   resetea por año) — sin eso, el módulo nuevo podría empezar una
+   numeración distinta de la que ya está en curso, que sería exactamente el
+   hueco que existe para evitar.
+
+**Sigue detrás de la puerta del DPA, sin cambios:** leer el WhatsApp del
+cliente y convertirlo en los datos de la factura. Mismo patrón que
+`captura_orquestador.py`/`motor_veredicto.py`: la lectura del mensaje real
+necesita que el modelo la VEA (DPA); la numeración y la exportación, no.
