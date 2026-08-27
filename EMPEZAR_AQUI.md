@@ -54,8 +54,18 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ✅ subprocess.run: encoding explicito (18 llamadas)       <- 12º auditor, 26-08
 ✅ Reconstruir 303: deriva la base, no la inventa         <- 13º auditor, 27-08
 ✅ Emparejar carpetas: por nombre, sin adivinar por palabra <- 14º auditor, 27-08
-❌ Dependencias: faltan anthropic, google-genai   <- NORMAL, son de captura
+❌ Dependencias: faltan dbfread, anthropic, google-genai, pdfplumber   <- NORMAL, son de captura/lectura de PDF, no del motor
 ```
+
+> **27-08-2026 (sesión Cloud, cierre de sesión):** dos módulos nuevos,
+> independientes del motor, **a propósito sin cablear a `audit_project.py`
+> todavía** (son código que empieza hoy, no la pieza ya estable y auditada
+> 14 veces que es el motor — mezclarlos ahí fingiría una madurez que no
+> tienen). Se verifican con su propio comando:
+> - `python test_numeracion_correlativa.py` — 25/25 (numeración correlativa
+>   para el módulo de facturas EMITIDAS, ver §9).
+> - `python test_comparar_esquema_dbf.py` — 12/12 (compara el layout de un
+>   `.dbf` real contra ContaPlus sin exponer ningún dato, ver §10).
 
 > ⚠️ **Si `audit_project.py` muere con `UnicodeDecodeError` a mitad de la
 > lista, tu copia es anterior al 26-08-2026.** Los tres `subprocess.run` no
@@ -63,18 +73,23 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 > auditor reventaba al leer la salida UTF-8 de los scripts hijos. Pasaba en
 > el PC de la asesoría y no en Cloud. Ya está arreglado: haz `git pull`.
 
-> **Números actualizados el 26-08-2026 (cierre de sesión, tras la mega-auditoría
-> propia).** Si tu `audit_project.py` da otros números de test, no asumas que
-> algo se rompió: mandan los tests que corren delante de ti, no esta plantilla
-> — puede quedarse desfasada según se añaden pruebas.
+> **Números actualizados el 27-08-2026 (cierre de sesión Cloud).** Si tu
+> `audit_project.py` da otros números de test, no asumas que algo se rompió:
+> mandan los tests que corren delante de ti, no esta plantilla — puede
+> quedarse desfasada según se añaden pruebas.
 >
-> ⚠️ **Si vienes de clonar el repositorio hoy o antes, vuelve a clonarlo o haz
-> `git pull` en `master` antes de nada.** Hasta el cierre de esta sesión,
-> `master` (la rama por defecto) llevaba desde el primer commit sin recibir
-> ninguna de las correcciones — todo vivía en ramas `claude/*`, nunca
-> fusionadas. Ya está arreglado (`PROJECT_STATUS.md`, entrada de cierre real
-> de sesión), pero si tu copia local es de antes de hoy, es la versión vieja
-> de una sola pieza sin `contrato_datos.py`.
+> ⚠️ **`master` vuelve a estar desactualizado — el mismo problema del 26-08,
+> otra vez, corregido entonces y reabierto desde.** Todo lo de hoy (27-08:
+> el módulo de facturas emitidas, `comparar_esquema_dbf.py`, los arreglos de
+> `nif_check.py` y `emparejar_carpetas.py`, y esta misma corrección) vive
+> **solo** en la rama `claude/github-retomada-o4zyic`, 9 commits por delante
+> de `master` a fecha de hoy. **Clona o haz `git pull` sobre esa rama
+> concreta, no sobre `master`:**
+> ```bash
+> git clone -b claude/github-retomada-o4zyic https://github.com/LaRuinaDeMago/Os-Asesor-a
+> ```
+> Fusionar a `master` es una decisión de Diego, no automática — se deja
+> anotado aquí para que no se repita la misma sorpresa una tercera vez.
 >
 > **Esta sesión (26-08) fue casi toda auditoría, no producto — y encontró y
 > arregló defectos reales:** cinco rondas de auditoría externa (verificadas
@@ -334,15 +349,18 @@ propósito, lo señala en menos de un segundo.
 
 ---
 
-## 2. Dónde quedó todo (20-08-2026)
+## 2. Dónde quedó todo (actualizado 27-08-2026)
 
 | | |
 |---|---|
-| **Motor** | 26 guards cableados. Los 8 falsos verdes P0 **cerrados**. Resiste 87 ataques + controles positivos. Cobertura útil 26/26 |
+| **Motor** | 26 guards cableados. Los 8 falsos verdes P0 **cerrados**. Resiste 112 ataques adversariales + controles positivos. Cobertura útil 26/26 |
 | **Contrato de datos** | `contrato_datos.py`. `MISSING` ≠ `ZERO` ≠ `INVALID`. La ausencia ya no vale 0 |
-| **Barrera de privacidad** | Agujero del `.DAT` **cerrado**: decide por contenido, no por extensión |
-| **Inventario del histórico** | Falta poco. Es el trabajo de hoy |
-| **Facturas reales por el pipeline** | **Cero.** Nada se ha validado todavía contra la realidad |
+| **Barrera de privacidad** | Agujero del `.DAT` **cerrado**: decide por contenido, no por extensión. Regla nueva 27-08: ningún fichero real se adjunta a Cloud, ni con "no lo leas" (§10, incidente documentado en `PROJECT_STATUS.md`) |
+| **Retro-semáforo contra el histórico real** | **Hecho y cerrado** (25-08): ROJO 3,03% < 5% del umbral fijado de antemano — el motor no molesta con lo que ya estaba bien |
+| **Falsos verdes sobre facturas reales** | **Sigue en cero.** Es la métrica que decide el proyecto, y no depende del motor: depende de contratar API/Consola con DPA y pasar facturas reales de punta a punta (§4) |
+| **Exportación a ContaPlus** | Sólida — layout verificado contra dos clientes reales, importación real verificada una vez |
+| **Exportación a ContaSOL** | Sin urgencia — migración fechada a principios de 2027, herramienta (`comparar_esquema_dbf.py`) lista y esperando un `.dbf` real de ContaSOL (§10) |
+| **Módulo de facturas EMITIDAS** | Arrancado hoy (§9): numeración correlativa construida y probada, exportación a FactuSOL pendiente de su plantilla real |
 
 ---
 
