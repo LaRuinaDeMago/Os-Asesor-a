@@ -834,6 +834,41 @@ def construir_mapeo_cuenta_gasto(diario_recs):
     return mapeo
 
 
+def actualizar_mapeo_cuenta_gasto(mapeo_cuenta_gasto, fila):
+    """Inverso INCREMENTAL de construir_mapeo_cuenta_gasto(), para usarse fila
+    a fila -- mismo principio de 'solo las facturas anteriores' que
+    actualizar_caches_historicas(). Se llama DESPUES de evaluar cada fila,
+    nunca antes.
+
+    ANADIDO 27-08-2026 (cuarto candidato, hallazgo de Diego). A diferencia de
+    actualizar_caches_historicas(), esta funcion se indexa por CODIGO DE
+    CUENTA del proveedor (ej. '400015'), no por NIF -- es la misma clave que
+    ya usa construir_mapeo_cuenta_gasto(). Y el codigo de cuenta NO es
+    identidad estable entre clientes distintos (FASE0_RESULTADOS.md §10.1:
+    el mismo codigo puede ser dos proveedores distintos en dos clientes
+    distintos). **Quien llama a esta funcion es responsable de resetear
+    `mapeo_cuenta_gasto` a {} cada vez que cambia de cliente** -- acumularla
+    sin resetear mezclaria cuentas de clientes distintos bajo la misma clave,
+    un histórico falso. Dentro de UN mismo cliente el codigo si es estable
+    (siempre ha sido el diseño valido: orquestador.py ya construye este
+    mismo mapeo por cliente, de una sola pasada, desde --diario)."""
+    prov = fila.get('cuenta_proveedor')
+    gasto = fila.get('cuenta_debe')
+    if not prov or not gasto:
+        return
+    entry = mapeo_cuenta_gasto.setdefault(prov, {'_conteo': {}})
+    conteo = entry['_conteo']
+    conteo[gasto] = conteo.get(gasto, 0) + 1
+    cuenta_mas_usada = max(conteo.items(), key=lambda kv: kv[1])[0]
+    n_total = sum(conteo.values())
+    n_esta = conteo[cuenta_mas_usada]
+    entry['cuenta_gasto'] = cuenta_mas_usada
+    entry['grupo_pgc'] = GRUPOS_PGC.get(cuenta_mas_usada[:3], 'grupo no catalogado')
+    entry['confianza'] = 'ALTA' if n_esta == n_total else f'MEDIA ({n_esta}/{n_total} asientos)'
+    entry['n_asientos'] = n_total
+    entry['n_esta'] = n_esta
+
+
 #: Cuantos asientos hacen falta para que "lo de siempre" sea un patron y no una
 #: anecdota. Tres es el minimo con el que una mayoria significa algo; por debajo,
 #: el guard informa pero no acusa.

@@ -7,6 +7,74 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, decimonovena entrada) — El cuarto candidato, resuelto: mapeo por cliente, con la contaminación cruzada demostrada antes de confiar en el diseño
+
+Cierra la entrada anterior. Diego, sin poder volver al PC, pidió seguir
+avanzando con lo que estuviera en la mano. Se retomó `guard_cuenta_gasto_
+coherente` — declarado ayer como "más difícil, no arreglado" — para ver si
+el riesgo identificado (mezclar clientes bajo el mismo código de cuenta)
+tenía una solución ya probada dentro del propio proyecto, en vez de inventar
+una nueva.
+
+### El diseño ya existía — solo había que replicarlo con el ámbito correcto
+
+`orquestador.py` ya construye `mapeo_cuenta_gasto` desde `--diario` **por
+cliente**, de una sola pasada (un cliente por ejecución). Es exactamente el
+ámbito correcto para una clave que no es identidad estable entre clientes
+(`FASE0_RESULTADOS.md` §10.1). `retro_semaforo.py` procesa varios clientes
+en una sola pasada, así que hacía falta la misma idea pero incremental y con
+reseteo explícito al cambiar de cliente — no una decisión nueva, una
+extensión del patrón ya validado.
+
+**Verificado antes de dar por bueno que `dats.sort()` agrupa por cliente**:
+los contenedores se ordenan por ruta completa, así que los ficheros de una
+misma carpeta quedan contiguos — comparar `os.path.dirname(ruta)` contra el
+del contenedor anterior basta para saber cuándo tocaba resetear.
+
+### Lo construido
+
+- `reconstruir_compra()`: ahora copia `cuenta_proveedor` (acreedor) y
+  `cuenta_debe` (gasto) a la `fila` — la información ya estaba en `gastos`/
+  `acree`, solo se descartaba antes de llegar al motor.
+- `actualizar_mapeo_cuenta_gasto()` (nueva, en `motor_veredicto.py`, junto a
+  `construir_mapeo_cuenta_gasto()` que es su versión de lote): incremental,
+  misma disciplina de "solo lo anterior" que las tres cachés de ayer.
+- En `retro_semaforo.py`: `mapeo_cuenta_gasto_cliente` se **resetea a `{}`**
+  cada vez que el contenedor entra en una carpeta de cliente distinta —
+  nunca se acumula globalmente para todo el corpus, a diferencia de las tres
+  cachés (que sí son seguras de acumular por NIF, identidad estable entre
+  clientes).
+
+### Verificación — con el riesgo real demostrado, no solo evitado de palabra
+
+`test_motor_veredicto.py` (51/51, 6 comprobaciones nuevas): construido un
+caso con dos "clientes" sintéticos que comparten el mismo código de cuenta
+`400015` — cliente A paga siempre a `621000`, cliente B siempre a `600000`.
+**Con el mapeo reseteado**, una factura de B coherente con su propio patrón
+da `OK`. **Sin resetear** (reconstruido a propósito, no una copia superficial
+que habría compartido el diccionario y corrompido las comprobaciones de
+arriba — encontrado y corregido antes de ejecutar nada): esa misma factura
+de B, perfectamente coherente con su propio historial, **sale `FALLO`** por
+comparar contra el patrón mezclado con el de A. El error de diseño que el
+reseteo evita no es silencio — es acusar a la factura correcta por un motivo
+que no es suyo.
+
+`test_adversarial.py` 112/112 sin cambios. `ensayo_retro_semaforo.py`
+(end-to-end completo, vía `audit_project.py`) sigue en verde tras el cambio.
+Escáner de privacidad sin hallazgos.
+
+### Con esto, los cuatro candidatos de la última auditoría quedan cerrados
+
+Los tres del hallazgo original (`importe_atipico`, `estructura_reconocida`,
+`secuencia_documental_proveedor`) y este cuarto (`cuenta_gasto_coherente`)
+tienen su arreglo escrito, probado y documentado. **Ninguno puede afectar al
+ROJO** (ninguno está en `criticos`) — solo pueden mover VERDE hacia AMBAR.
+Sigue pendiente lo mismo de ayer, sin cambios: Diego vuelve a ejecutar
+`retro_semaforo.py` contra el corpus real cuando esté en el PC, y compara el
+VERDE/AMBAR nuevo contra el 87,71%/9,26% ya citado.
+
+---
+
 ## 27-08-2026 (sesión Cloud, decimoctava entrada) — Cuarto candidato encontrado (`cuenta_gasto_coherente`), verificado como MÁS DIFÍCIL, no arreglado a propósito
 
 Diego no puede volver a ejecutar `retro_semaforo.py` hoy (no está en el PC).

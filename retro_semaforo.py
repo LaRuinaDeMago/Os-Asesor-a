@@ -303,6 +303,16 @@ def reconstruir_compra(lineas):
         return "ISP"
 
     fila = {}
+    # ANADIDO 27-08-2026 (cuarto candidato del hallazgo de Diego): guard_
+    # cuenta_gasto_coherente necesita estos dos campos y nunca los tenia --
+    # la informacion estaba en gastos/acree y se descartaba antes de llegar
+    # al motor. Se toma la primera linea de cada lado: el caso dominante es
+    # una sola cuenta de gasto y un solo acreedor por asiento; con varias
+    # cuentas de gasto en un mismo asiento (tramos de IVA distintos con
+    # gastos en cuentas distintas, caso raro) esto es una aproximacion, no
+    # una perdida de rigor nueva -- el guard es AMBAR/asesor, nunca ROJO.
+    fila['cuenta_proveedor'] = acree[0][0]
+    fila['cuenta_debe'] = gastos[0][0]
     # Bases por tipo de IVA: cada linea de IVA trae su tipo en el campo IVA y su
     # base imponible en BASEIMPO. Si BASEIMPO viene vacio, se deriva de la cuota.
     #
@@ -614,6 +624,14 @@ def main():
     historico_acumulado = {}
     formato_acumulado = {}
     secuencia_acumulada = {}
+    # ANADIDO 27-08-2026 (cuarto candidato). mapeo_cuenta_gasto se indexa por
+    # CODIGO DE CUENTA (400015), no por NIF -- y el codigo de cuenta NO es
+    # identidad estable entre clientes distintos (FASE0_RESULTADOS.md
+    # §10.1). Se resetea cada vez que `ruta` entra en una carpeta de cliente
+    # distinta (ver dentro del bucle) -- NUNCA se acumula globalmente para
+    # todo el corpus, a diferencia de las tres caches de arriba.
+    mapeo_cuenta_gasto_cliente = {}
+    cliente_actual = None
     # Para el patron de cartera: lineas por cliente, indexadas por contenedor.
     # Solo se acumula si se ha pedido, para no gastar memoria de balde.
     lineas_cartera = defaultdict(list) if args.emitir_cartera else None
@@ -635,6 +653,13 @@ def main():
         if n_cont % paso_aviso == 0 or n_cont == len(dats):
             print(f"  ... {n_cont}/{len(dats)} contenedores  "
                   f"({n_asientos:,} asientos leidos)", flush=True)
+        # dats.sort() (arriba) agrupa los ficheros por carpeta de cliente de
+        # forma contigua -- comparar el directorio padre basta para saber si
+        # se ha cambiado de cliente y hay que resetear el mapeo por-cuenta.
+        carpeta_ruta = os.path.dirname(ruta)
+        if carpeta_ruta != cliente_actual:
+            cliente_actual = carpeta_ruta
+            mapeo_cuenta_gasto_cliente = {}
         try:
             if not zipfile.is_zipfile(ruta):
                 continue
@@ -788,7 +813,8 @@ def main():
                                 maestro_acumulado,
                                 alta_cliente_anio=1990,
                                 nif_cliente_titular=None,
-                                ejercicio_tanda=anio)
+                                ejercicio_tanda=anio,
+                                mapeo_cuenta_gasto=mapeo_cuenta_gasto_cliente)
                         except Exception as e:
                             errores["motor:" + type(e).__name__] += 1
                             continue
@@ -804,6 +830,8 @@ def main():
                             mv.actualizar_caches_historicas(
                                 historico_acumulado, formato_acumulado,
                                 secuencia_acumulada, fila)
+                            mv.actualizar_mapeo_cuenta_gasto(
+                                mapeo_cuenta_gasto_cliente, fila)
 
                         n_reconstruidas += 1
                         veredictos[v] += 1
@@ -844,7 +872,8 @@ def main():
                                         maestro_acumulado,
                                         alta_cliente_anio=1990,
                                         nif_cliente_titular=None,
-                                        ejercicio_tanda=anio)
+                                        ejercicio_tanda=anio,
+                                        mapeo_cuenta_gasto=mapeo_cuenta_gasto_cliente)
                                     det_veredictos[v2] += 1
                                     det_por_tipo[etiqueta][v2] += 1
                                 except Exception as e:

@@ -35,7 +35,7 @@ from motor_veredicto import (
     guard_tipo_producto_iva_semantico, guard_tipo_operacion_especial,
     evaluar_fila_v4, calcular_veredicto_v4,
     construir_mapeo_cuenta_gasto, aprender_cuenta_gasto, reevaluar_tras_correccion,
-    actualizar_caches_historicas,
+    actualizar_caches_historicas, actualizar_mapeo_cuenta_gasto,
 )
 from nif_check import valida_nif
 
@@ -285,6 +285,87 @@ check(_v_forma == "AMBAR",
 # dos casos de arriba (secuencia_cache se rellena en la misma pasada que
 # formato_cache) -- su logica propia ya tiene cobertura unitaria en la
 # FAMILIA O de test_adversarial.py con caches construidas a mano.
+
+print("\n=== actualizar_mapeo_cuenta_gasto (cuarto candidato, 27-08-2026) ===")
+# guard_cuenta_gasto_coherente se indexa por CODIGO DE CUENTA (400015), no
+# por NIF -- y el codigo de cuenta NO es identidad estable entre clientes
+# distintos (FASE0_RESULTADOS.md §10.1). Esta prueba demuestra las dos
+# mitades: (1) el mapeo incremental funciona igual que las caches de arriba,
+# y (2) RESETEARLO al cambiar de cliente evita mezclar el patron de dos
+# clientes distintos bajo el mismo codigo -- que es la razon por la que este
+# arreglo no es identico al de las tres caches anteriores.
+_CTA_PROV = "400015"  # mismo codigo, DOS clientes distintos abajo
+
+
+def _fila_gasto(cuenta_debe, total=121.00, doc_n=1):
+    return {**_fila_hist(total, f"FAC-2026-{doc_n:03d}"),
+            'cuenta_proveedor': _CTA_PROV, 'cuenta_debe': cuenta_debe}
+
+
+# --- Cliente A: 3 facturas a 621000 (arrendamientos), luego una a 600000 ---
+_mapeo_a = {}
+for f in [_fila_gasto("621000", doc_n=n) for n in range(1, 4)]:
+    evaluar_fila_v4(f, set(), {}, {}, {}, {}, 2020, None, 2026, mapeo_cuenta_gasto=_mapeo_a)
+    actualizar_mapeo_cuenta_gasto(_mapeo_a, f)
+check(_mapeo_a[_CTA_PROV]['cuenta_gasto'] == "621000" and _mapeo_a[_CTA_PROV]['n_asientos'] == 3,
+      f"tras 3 facturas a 621000, el mapeo del cliente A dice 621000/n=3 "
+      f"(dice {_mapeo_a[_CTA_PROV]['cuenta_gasto']}/{_mapeo_a[_CTA_PROV]['n_asientos']})")
+
+_v_a, _mot_a, _g_a = evaluar_fila_v4(
+    _fila_gasto("600000", doc_n=4), set(), {}, {}, {}, {}, 2020, None, 2026,
+    mapeo_cuenta_gasto=_mapeo_a)
+check(_g_a['cuenta_gasto_coherente'][0] == "FALLO",
+      f"una 4a factura del mismo proveedor a una cuenta DISTINTA (600000) "
+      f"SI se detecta (dio {_g_a['cuenta_gasto_coherente']})")
+check(_v_a == "AMBAR", f"y baja el veredicto a AMBAR (dio {_v_a})")
+
+# --- Cliente B, MISMO codigo de cuenta 400015, patron distinto: 600000 ---
+# SIN resetear (el bug que este reseteo evita): reutilizar _mapeo_a mezclaria
+# el 621000 de A con el 600000 de B bajo la misma clave "400015". CON
+# resetear (lo que hace retro_semaforo.py ahora, un dict nuevo por cliente):
+# el patron de B se juzga solo contra B.
+_mapeo_b = {}   # dict NUEVO -- esto es literalmente el reseteo por cliente
+for f in [_fila_gasto("600000", doc_n=n) for n in range(1, 4)]:
+    evaluar_fila_v4(f, set(), {}, {}, {}, {}, 2020, None, 2026, mapeo_cuenta_gasto=_mapeo_b)
+    actualizar_mapeo_cuenta_gasto(_mapeo_b, f)
+
+_v_b, _mot_b, _g_b = evaluar_fila_v4(
+    _fila_gasto("600000", doc_n=4), set(), {}, {}, {}, {}, 2020, None, 2026,
+    mapeo_cuenta_gasto=_mapeo_b)
+check(_g_b['cuenta_gasto_coherente'][0] == "OK",
+      f"con el mapeo reseteado, la 4a factura de B (tambien a 600000, "
+      f"coherente con SU propio patron) da OK (dio {_g_b['cuenta_gasto_coherente']})")
+check(_v_b == "VERDE" or (_v_b == "AMBAR" and "cuenta_gasto_coherente" not in _mot_b),
+      f"y no se contamina con el patron de A -- veredicto {_v_b}, motivo {_mot_b[:60]}")
+
+# --- Y la prueba de que el reseteo es lo que lo salva: SIN resetear ---
+# Fresco de verdad (no una copia superficial de _mapeo_a, que compartiria el
+# diccionario interno y corromperia las comprobaciones de arriba): se
+# reconstruye desde cero, A y B en el MISMO diccionario, para simular
+# exactamente lo que pasaria si retro_semaforo.py no reseteara entre clientes.
+_mapeo_sin_resetear = {}
+for f in [_fila_gasto("621000", doc_n=n) for n in range(1, 4)]:
+    actualizar_mapeo_cuenta_gasto(_mapeo_sin_resetear, f)
+for f in [_fila_gasto("600000", doc_n=n) for n in range(4, 7)]:
+    actualizar_mapeo_cuenta_gasto(_mapeo_sin_resetear, f)
+_v_mezcla, _mot_mezcla, _g_mezcla = evaluar_fila_v4(
+    _fila_gasto("600000", doc_n=7), set(), {}, {}, {}, {}, 2020, None, 2026,
+    mapeo_cuenta_gasto=_mapeo_sin_resetear)
+# La propia factura de B (600000, coherente con SU patron) se juzga contra un
+# historico contaminado con las de A -- el riesgo real no es que el guard se
+# quede callado, es que puede acusar de "no coherente" a una factura que SI
+# lo es dentro de su propio cliente, solo porque comparte codigo de cuenta
+# con otro cliente que tiene un patron distinto. Con 3+3 empatados, gana el
+# primero insertado (621000, de A) como "habitual", y la de B (600000) no
+# coincide con esa habitual ajena -- FALLO, pero un FALLO que acusa a la
+# factura equivocada por la razon equivocada.
+check(_g_mezcla['cuenta_gasto_coherente'][0] == "FALLO"
+      and "621000" in _g_mezcla['cuenta_gasto_coherente'][1],
+      f"SIN resetear: una factura de B, coherente con el patron DE B, sale "
+      f"FALLO por comparar contra el patron de A que comparte el mismo "
+      f"codigo de cuenta (dio {_g_mezcla['cuenta_gasto_coherente']}) -- "
+      f"el riesgo real que el reseteo por cliente evita no es silencio, es "
+      f"acusar a la factura correcta")
 
 print(f"\n{'='*50}")
 if FALLOS:
