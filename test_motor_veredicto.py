@@ -367,6 +367,44 @@ check(_g_mezcla['cuenta_gasto_coherente'][0] == "FALLO"
       f"el riesgo real que el reseteo por cliente evita no es silencio, es "
       f"acusar a la factura correcta")
 
+print("\n=== importe_atipico: los dos defectos opuestos (27-08-2026) ===")
+# Encontrados al comprobar las COSTURAS del arreglo de las caches: los cuatro
+# guards ya pueden disparar, asi que por primera vez importaba COMO deciden.
+# Los dos defectos llevaban ahi desde siempre, invisibles porque el guard
+# estaba dormido (cache vacia) en las dos mediciones con corpus real.
+
+# DEFECTO 1 (falso verde, el grave): un proveedor de CUOTA FIJA tiene desv=0,
+# y la condicion previa `desv > 0` hacia que CUALQUIER importe diera OK.
+_hist_fijo = {'B1': {'n_facturas_normales': 4, 'media': 121.00, 'desv': 0}}
+_est, _det = guard_importe_atipico('P', 99999.00, _hist_fijo, nif='B1')
+check(_est == "FALLO",
+      f"cuota fija de 121,00 x4 y llega una de 99.999,00 (825x): FALLO, no un "
+      f"OK afirmativo (dio {_est}: {_det})")
+check(guard_importe_atipico('P', 1210.00, _hist_fijo, nif='B1')[0] == "FALLO",
+      "misma cuota fija, un 10x tambien se detecta")
+# ...pero sin volverse quisquilloso: una subida de precio normal NO es anomalia.
+check(guard_importe_atipico('P', 121.50, _hist_fijo, nif='B1')[0] == "OK",
+      "la misma cuota fija con una subida de 0,50 EUR sigue siendo OK: "
+      "una actualizacion de precio no es una anomalia")
+
+# DEFECTO 2 (ruido, el que habria envenenado la re-medicion): el umbral era
+# 1 sigma, que no es un umbral de atipicidad -- marcaba FALLO el 40,8% de
+# facturas legitimas (medido por simulacion antes de tocar nada).
+_hist_var = {'B2': {'n_facturas_normales': 4, 'media': 121.00, 'desv': 2.07}}
+check(guard_importe_atipico('P', 124.00, _hist_var, nif='B2')[0] == "OK",
+      "una desviacion del 2,5% sobre un historico con variacion normal ya NO "
+      "es FALLO (con 1 sigma lo era, y con ella ~40% de las facturas legitimas)")
+check(guard_importe_atipico('P', 1210.00, _hist_var, nif='B2')[0] == "FALLO",
+      "pero un 10x sobre ese mismo historico se sigue detectando: se ha "
+      "quitado ruido, no capacidad de deteccion")
+
+# CONTROL: el guard sigue sin pronunciarse cuando no tiene con que.
+check(guard_importe_atipico('P', 500.0, {}, nif='B3')[0] == "NO_COMPROBADO",
+      "sin historico sigue siendo NO_COMPROBADO, nunca un OK por omision")
+check(guard_importe_atipico('P', 500.0,
+      {'B4': {'n_facturas_normales': 4, 'media': 0, 'desv': 0}}, nif='B4')[0] == "NO_COMPROBADO",
+      "con media 0 (sin escala con la que comparar) tampoco se finge un OK")
+
 print(f"\n{'='*50}")
 if FALLOS:
     print(f"❌ {len(FALLOS)} PRUEBA(S) FALLIDA(S): {FALLOS}")

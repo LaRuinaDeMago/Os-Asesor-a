@@ -7,6 +7,106 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 🔴 27-08-2026 (sesión Cloud, vigésima entrada) — `importe_atipico` tenía DOS defectos opuestos, invisibles porque el guard estaba dormido. Uno era un falso verde de manual
+
+Al comprobar las **costuras** del arreglo anterior —los cuatro guards ya
+pueden disparar, así que por primera vez importaba *cómo* deciden— aparecieron
+dos defectos en `guard_importe_atipico`, en direcciones contrarias. Los dos
+llevaban ahí desde siempre; ninguno se había visto nunca porque el guard
+estaba estructuralmente dormido en las dos mediciones con corpus real.
+
+**Cómo apareció, y merece anotarse:** no se buscaba esto. Se estaba
+verificando si `cola_revision.py` sabía traducir los guards recién
+despertados (sí sabía, sin hueco) y si `causas_de()` parseaba su motivo (sí).
+En esa comprobación, una factura de prueba con **10 veces** el importe
+habitual no aparecía en el motivo. El guard había dicho OK.
+
+### Defecto 1 — falso verde afirmativo sobre el patrón más predecible que existe
+
+La condición era `if desv > 0 and abs(total - media) > desv`. Un proveedor de
+**cuota fija** (alquiler, iguala, suscripción, cuota de mantenimiento) tiene
+desviación típica **exactamente cero**, así que la condición previa nunca se
+cumplía y el guard caía al `return "OK"` final.
+
+Verificado antes de tocar nada, con el guard real:
+
+```
+cuota fija 121,00 x4  ->  llega 1.210,00  (10x)   -> OK, "dentro de patron"
+cuota fija 121,00 x4  ->  llega 99.999,00 (825x)  -> OK, "dentro de patron"
+```
+
+No `NO_COMPROBADO`: un **VERDE afirmativo** sobre algo que no había
+comprobado. Es exactamente el falso verde que este motor existe para evitar,
+y precisamente en el patrón más regular y más fácil de auditar que hay en una
+contabilidad.
+
+### Defecto 2 — el umbral era 1σ, que no es un umbral de atipicidad
+
+`abs(total - media) > desv` es **una** desviación típica. Por definición, ~32%
+de las observaciones de una normal caen fuera de 1σ. Medido por simulación
+sobre facturas **legítimas** (misma distribución que su propio histórico,
+ninguna anómala por construcción), 400 proveedores × 12 facturas:
+
+| Umbral | Facturas legítimas marcadas FALLO |
+|---|---|
+| **1σ (el que había)** | **40,8%** |
+| 2σ | 12,7% |
+| 3σ | 4,6% |
+
+**Este defecto habría envenenado la re-medición pendiente.** Si Diego hubiera
+ejecutado `retro_semaforo.py` con el arreglo de las cachés pero con 1σ, el
+ÁMBAR se habría disparado por ruido puro y la conclusión natural habría sido
+"el arreglo empeoró el motor" — cuando el problema era el umbral. Encontrado
+antes de que eso pasara.
+
+### El arreglo: un suelo de dispersión resuelve los dos a la vez
+
+`SIGMAS_IMPORTE_ATIPICO = 3` (convención estándar de detección de atípicos, y
+el 4,6% medido arriba) y `SUELO_DISPERSION_RELATIVA = 0.05`: la desviación
+efectiva es `max(desv, media × 5%)`, así que **nunca es cero** — siempre hay
+vara de medir— y de paso protege del caso simétrico (desviación minúscula
+pero no nula, que con 3σ a secas sería igual de hipersensible). Las dos
+constantes son explícitas y con su porqué escrito, no números escondidos en
+una condición.
+
+Comportamiento resultante, validado antes de escribir el código:
+
+| Histórico | Llega | Antes | Ahora |
+|---|---|---|---|
+| Cuota fija 121,00 | 121,50 (subida de precio) | OK | **OK** — no es anomalía |
+| Cuota fija 121,00 | 1.210,00 (10x) | **OK** ← falso verde | **FALLO** |
+| Cuota fija 121,00 | 99.999,00 (825x) | **OK** ← falso verde | **FALLO** |
+| media 121,00 desv 2,07 | 124,00 (+2,5%) | **FALLO** ← ruido | **OK** |
+| media 121,00 desv 2,07 | 1.210,00 (10x) | FALLO | **FALLO** |
+
+Ruido sobre facturas legítimas con el diseño nuevo: **3,3%**, frente al 40,8%
+de antes. Se ha quitado ruido sin perder detección.
+
+### Verificación
+
+7 comprobaciones nuevas en `test_motor_veredicto.py` (**58/58**), incluidos
+los dos controles que impiden sobrecorregir: sin histórico sigue siendo
+`NO_COMPROBADO`, y con media 0 (sin escala) tampoco se finge un OK. Probado
+con sabotaje —reintroducida la condición `desv > 0` con umbral 1σ— y falla
+**exactamente en las 3 comprobaciones** que dependen del arreglo, ninguna
+más. `test_adversarial.py` 112/112, cobertura de guards 26/26, barrido de
+falsos verdes en verde, `ensayo_retro_semaforo.py` (end-to-end) en verde.
+Escáner de privacidad sin hallazgos.
+
+### La lección, que no es nueva en este proyecto
+
+Un guard **cableado y con test propio en verde** puede llevar meses siendo
+incapaz de hacer su trabajo. Aquí se juntaron las dos formas: primero estaba
+dormido (cache vacía), y cuando por fin despertó resultó que además decidía
+mal en las dos direcciones. Es la misma familia que `guard_cuenta_gasto_
+coherente` (21-08: cableado, con test, y no comparaba nada) y que el escáner
+de privacidad que decía "sin hallazgos" sobre un fichero que no había leído.
+**Y esta vez apareció mirando la costura de un arreglo anterior, no buscándolo
+de frente** — que es justo donde este proyecto lleva encontrándolos todo el
+mes.
+
+---
+
 ## 27-08-2026 (sesión Cloud, decimonovena entrada) — El cuarto candidato, resuelto: mapeo por cliente, con la contaminación cruzada demostrada antes de confiar en el diseño
 
 Cierra la entrada anterior. Diego, sin poder volver al PC, pidió seguir

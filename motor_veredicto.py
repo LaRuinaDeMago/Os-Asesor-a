@@ -455,14 +455,56 @@ def actualizar_caches_historicas(historico_proveedor, formato_cache, secuencia_c
             entry_f['n_facturas_vistas'] += 1
 
 
+#: Cuantas desviaciones tipicas hacen falta para llamar "atipico" a un importe.
+#: 1 sigma (lo que habia hasta el 27-08-2026) NO es un umbral de atipicidad: por
+#: definicion, ~32% de las observaciones de una normal caen fuera de 1 sigma.
+#: Medido por simulacion sobre facturas LEGITIMAS (misma distribucion que su
+#: propio historico, ninguna anomala por construccion): 1 sigma marcaba FALLO el
+#: 40,8%; 2 sigma el 12,7%; 3 sigma el 4,6%. 3 es ademas la convencion estandar
+#: de deteccion de atipicos. La leccion es la que este proyecto ya aprendio con
+#: scripts/privacy_scan.py: un escaner que grita demasiado deja de mirarse.
+SIGMAS_IMPORTE_ATIPICO = 3
+
+#: Suelo de dispersion, como fraccion de la media. Resuelve el defecto CONTRARIO
+#: y mas grave: un proveedor de CUOTA FIJA (alquiler, iguala, suscripcion) tiene
+#: desviacion tipica CERO, y con `desv > 0` como condicion previa el guard
+#: devolvia OK — "dentro de patron" — a CUALQUIER importe, por absurdo que fuera.
+#: Comprobado antes de tocar nada: 121,00 x4 y luego 99.999,00 (825 veces mas)
+#: daba OK. No NO_COMPROBADO: un VERDE afirmativo sobre algo que no habia
+#: comprobado, que es exactamente el falso verde que este motor existe para
+#: evitar — y justo en el patron mas predecible y mas facil de auditar que hay.
+#: Con el suelo, la dispersion efectiva nunca es 0, asi que siempre hay una vara
+#: de medir; y de paso protege del caso simetrico (desviacion minuscula pero no
+#: nula, que con 3 sigma a secas seria igual de hipersensible).
+SUELO_DISPERSION_RELATIVA = 0.05
+
+
 def guard_importe_atipico(proveedor, total, historico_proveedor, nif=None):
+    """El importe de esta factura, ¿encaja con lo que este proveedor suele
+    facturar? FALLO -> AMBAR, nunca ROJO: un importe raro no es un error
+    demostrado, es algo que mira una persona.
+
+    REESCRITO 27-08-2026 tras encontrar DOS defectos opuestos, los dos reales y
+    los dos verificados con numeros antes de tocar nada (ver las constantes de
+    arriba): era ciego con los proveedores de cuota fija (falso verde) y
+    hipersensible con todos los demas (40,8% de ruido). Ninguno de los dos se
+    habia visto nunca porque el guard estaba estructuralmente dormido: las dos
+    mediciones con corpus real le pasaban la cache vacia (hallazgo de Diego,
+    27-08-2026), asi que nunca habia llegado a pronunciarse sobre nada."""
     entry = _entrada_de_proveedor(historico_proveedor, nif, proveedor)
     if not entry or entry.get('n_facturas_normales', 0) < 3 or total <= 0:
         return "NO_COMPROBADO", "n<3 facturas normales del proveedor, umbral no fiable"
     media, desv = entry['media'], entry['desv']
-    if desv > 0 and abs(total - media) > desv:
-        return "FALLO", f"total={total} fuera de media={media} +/- desv={desv}"
-    return "OK", f"total={total} dentro de patron (media={media})"
+    if media <= 0:
+        # Sin media positiva no hay escala con la que comparar. No se finge un OK.
+        return "NO_COMPROBADO", "media del historico no utilizable como referencia"
+    desv_efectiva = max(desv, media * SUELO_DISPERSION_RELATIVA)
+    margen = SIGMAS_IMPORTE_ATIPICO * desv_efectiva
+    if abs(total - media) > margen:
+        suelo = " (suelo de dispersion: el historico no varia)" if desv_efectiva > desv else ""
+        return "FALLO", (f"total={total} fuera de media={media} +/- "
+                         f"{SIGMAS_IMPORTE_ATIPICO}x{desv_efectiva:.2f}{suelo}")
+    return "OK", f"total={total} dentro de patron (media={media} +/- {margen:.2f})"
 
 
 def calcular_veredicto(guards: dict):

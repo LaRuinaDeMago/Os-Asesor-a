@@ -182,10 +182,73 @@ motor."** Cerrado, no toca seguir picando en el retro-semáforo.
 > (`test_motor_veredicto.py`, 51/51). Detalle en `PROJECT_STATUS.md`
 > (decimonovena entrada del 27-08).
 >
-> **Con esto, los cuatro candidatos quedan cerrados** — código escrito,
-> probado y documentado. Ninguno puede afectar al ROJO. Sigue pendiente lo
-> mismo: Diego vuelve a ejecutar `retro_semaforo.py` contra el corpus real
-> cuando esté en el PC.
+> ✅ **Y un quinto hallazgo, al mirar la costura de los anteriores:
+> `importe_atipico` decidía mal en las DOS direcciones.** Era ciego con los
+> proveedores de cuota fija (desviación típica cero → devolvía **OK** a un
+> importe 825 veces mayor: un falso verde afirmativo) e hipersensible con
+> todos los demás (umbral de 1σ → marcaba FALLO el **40,8%** de facturas
+> legítimas, medido por simulación). Arreglado con un suelo de dispersión y
+> umbral de 3σ; ruido 40,8% → 3,3% sin perder detección.
+> `test_motor_veredicto.py` **58/58**, sabotaje incluido. Detalle en
+> `PROJECT_STATUS.md` (vigésima entrada del 27-08).
+>
+> **Esto último importa mucho para la re-medición:** si hubieras ejecutado el
+> retro-semáforo con las cachés arregladas pero con el umbral de 1σ, el ÁMBAR
+> se habría disparado por ruido puro y habría parecido que el arreglo empeoró
+> el motor. Cazado antes de que pasara.
+
+---
+
+### 🎯 Antes de re-ejecutar el retro-semáforo: qué esperar, escrito ANTES de verlo
+
+Misma disciplina que `SIGUIENTES_PASOS.md` §4, y por el mismo motivo: *"un
+número sin un umbral acordado de antemano no decide nada — se racionaliza"*.
+El motor ha cambiado (cuatro guards despiertos + `importe_atipico`
+recalibrado), así que el resultado hay que interpretarlo contra algo escrito
+de antemano, no después.
+
+```bash
+python retro_semaforo.py "C:\Users\SERVILAB\Desktop\100% contabilidad" --limite 2000
+```
+
+**Empieza con `--limite 2000`** (minutos, no la pasada larga): basta para las
+tres comprobaciones de abajo.
+
+**1 · La comprobación que de verdad decide si el arreglo funcionó** — y no es
+un porcentaje. En el listado de *guards no OK* del informe deben aparecer
+ahora, con recuento **mayor que cero**:
+
+```
+importe_atipico=FALLO
+estructura_reconocida=FALLO
+secuencia_documental_proveedor=FALLO
+cuenta_gasto_coherente=FALLO
+```
+
+Si los cuatro siguen a cero, **el arreglo no ha llegado al corpus real** y no
+hay que mirar ningún porcentaje: hay que averiguar por qué (lo más probable:
+las facturas reconstruidas no traen `nif`, y sin él las cachés no se indexan).
+
+**2 · El ROJO no puede moverse.** Predicción dura, verificada en código:
+ninguno de los cinco guards está en la lista `criticos`, así que sólo pueden
+mover VERDE → AMBAR. **Si el ROJO se mueve aunque sea una décima, hay algo
+que no entendemos** y eso va antes que cualquier otra lectura.
+
+**3 · El VERDE bajará y el ÁMBAR subirá en la misma cantidad.** Cuánto, no lo
+sabemos — y no se finge una predicción que no se puede sostener. Lo que sí
+está acordado de antemano es **qué significaría cada rango**:
+
+| Si el ÁMBAR sube... | Lectura acordada |
+|---|---|
+| **menos de 1 punto** | Los guards apenas encuentran nada. Posible (una contabilidad real es regular), pero comprobar antes el punto 1: puede que estén disparando poco por falta de datos, no por ausencia de anomalías |
+| **entre 1 y 15 puntos** | Lo esperado. Son facturas que antes pasaban sin que nadie las mirara y ahora piden revisión. Mirar el desglose por guard para ver cuál domina |
+| **más de 15 puntos** | Demasiado ruido para ser útil. **No se toca el umbral para que cuadre**: se mira qué guard concentra los disparos y se investiga ese caso concreto con datos, como se hizo con el 40,8% |
+
+> ⚠️ **Regla, por si el número sale incómodo:** el 3σ y el suelo del 5% se
+> fijaron con una simulación *antes* de ver el corpus real. Si el resultado no
+> gusta, se investiga la causa — **no se ajustan las constantes hasta que el
+> número quede bonito**. Eso sería exactamente la racionalización que
+> `SIGUIENTES_PASOS.md` §4 existe para impedir.
 
 Sigue abierto, y no es urgente: `cuadre_total`/`retencion_vs_error` (~800
 casos, 2,7%) y `nif_digito_control` (60 casos tras el arreglo 11, 0,2%) sin
