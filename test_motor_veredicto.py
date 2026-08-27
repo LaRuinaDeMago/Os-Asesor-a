@@ -35,6 +35,7 @@ from motor_veredicto import (
     guard_tipo_producto_iva_semantico, guard_tipo_operacion_especial,
     evaluar_fila_v4, calcular_veredicto_v4,
     construir_mapeo_cuenta_gasto, aprender_cuenta_gasto, reevaluar_tras_correccion,
+    actualizar_caches_historicas,
 )
 from nif_check import valida_nif
 
@@ -202,6 +203,88 @@ check(guard_tipo_operacion_especial('Amortizacion anual furgoneta', '600000', 'B
       "palabra 'amortizacion' en concepto -> AMBAR")
 check(guard_tipo_operacion_especial('Fra compra material', '600000', 'DE123456789')[0] == "AMBAR",
       "NIF con prefijo de pais (DE) -> AMBAR, posible intracomunitario")
+
+print("\n=== actualizar_caches_historicas (27-08-2026, hallazgo verificado de Diego) ===")
+# retro_semaforo.py y validar_captura_historica.py pasaban {}, {}, {} para
+# historico_proveedor/formato_cache/secuencia_cache EN CADA FACTURA -- nunca
+# se acumulaban entre facturas, a diferencia del maestro de proveedores. Con
+# las caches vacias, guard_importe_atipico/estructura_reconocida/secuencia_
+# documental_proveedor no pueden devolver FALLO nunca (verificado leyendo
+# cada uno): quedaban dormidos en las dos mediciones con corpus real de este
+# proyecto. Esta prueba no solo comprueba la funcion nueva -- reproduce la
+# secuencia EXACTA que los dos scripts ya ejecutan (evaluar, luego acumular)
+# y demuestra el ANTES y el DESPUES lado a lado, sobre el mismo caso.
+_NIF_HIST = "B12345674"
+_PROV_HIST = "PROVEEDOR PILOTO SL"
+
+
+def _fila_hist(total, doc):
+    base = round(total / 1.21, 2)
+    iva = round(total - base, 2)
+    return {
+        'nif': _NIF_HIST, 'proveedor': _PROV_HIST, 'nº_documento': doc,
+        'fecha_expedicion': '2026-03-15', 'verificacion': 'OK',
+        'base_21': str(base), 'base_total': str(base),
+        'iva_total': str(iva), 'total_factura': str(total),
+    }
+
+
+# 4 facturas normales del mismo proveedor, importe estable (~121, poca
+# desviacion) y numero de documento con la MISMA forma (FAC-2026-00N).
+_normales = [_fila_hist(t, f"FAC-2026-{n:03d}")
+             for n, t in enumerate([121.00, 123.42, 118.58, 122.21], start=1)]
+# La 5a es un total 10 VECES el habitual -- un atipico real, no sutil.
+_atipica_importe = _fila_hist(1210.00, "FAC-2026-005")
+# Y una 5a distinta, mismo importe normal pero con el documento en una forma
+# que no se parece a nada visto antes.
+_atipica_forma = _fila_hist(121.00, "77/XYZ")
+
+# --- ANTES del arreglo: exactamente el patron que tenian los dos scripts ---
+_v_antes = None
+for f in _normales + [_atipica_importe]:
+    _v_antes, _, _g_antes = evaluar_fila_v4(f, set(), {}, {}, {}, {}, 2020, None, 2026)
+    # {} en cada vuelta: nunca se acumula nada, exactamente el bug real.
+check(_v_antes == "VERDE",
+      f"ANTES del arreglo (caches vacias en cada vuelta): la factura con "
+      f"10x el importe habitual sigue dando VERDE ({_v_antes}) -- el bug real, reproducido")
+
+# --- DESPUES del arreglo: el patron que ya usan retro_semaforo.py y
+# validar_captura_historica.py tras la correccion de hoy ---
+_hist, _fmt, _sec = {}, {}, {}
+for f in _normales:
+    evaluar_fila_v4(f, set(), _hist, _fmt, _sec, {}, 2020, None, 2026)
+    actualizar_caches_historicas(_hist, _fmt, _sec, f)
+check(_hist.get(_NIF_HIST, {}).get('n_facturas_normales') == 4,
+      f"tras 4 facturas normales, el historico acumulado tiene n=4 "
+      f"(tiene {_hist.get(_NIF_HIST, {}).get('n_facturas_normales')})")
+
+_v_despues, _mot_despues, _g_despues = evaluar_fila_v4(
+    _atipica_importe, set(), _hist, _fmt, _sec, {}, 2020, None, 2026)
+check(_g_despues['importe_atipico'][0] == "FALLO",
+      f"DESPUES del arreglo: guard_importe_atipico SI detecta el 10x "
+      f"(dio {_g_despues['importe_atipico']})")
+check(_v_despues == "AMBAR",
+      f"y la factura ya no es VERDE: es {_v_despues} (antes del arreglo era VERDE con el mismo caso)")
+
+# --- Mismo patron, ahora aislando estructura_reconocida ---
+_hist2, _fmt2, _sec2 = {}, {}, {}
+for f in _normales:
+    evaluar_fila_v4(f, set(), _hist2, _fmt2, _sec2, {}, 2020, None, 2026)
+    actualizar_caches_historicas(_hist2, _fmt2, _sec2, f)
+_v_forma, _mot_forma, _g_forma = evaluar_fila_v4(
+    _atipica_forma, set(), _hist2, _fmt2, _sec2, {}, 2020, None, 2026)
+check(_g_forma['estructura_reconocida'][0] == "FALLO",
+      f"un numero de documento con forma nunca vista SI se detecta "
+      f"(dio {_g_forma['estructura_reconocida']})")
+check(_v_forma == "AMBAR",
+      f"y baja el veredicto a AMBAR ({_v_forma}), con importe normal -- "
+      f"aislado de importe_atipico")
+
+# secuencia_documental_proveedor no se aisla en un tercer caso aparte: usa el
+# MISMO bloque `if doc:` de actualizar_caches_historicas() que ya prueban los
+# dos casos de arriba (secuencia_cache se rellena en la misma pasada que
+# formato_cache) -- su logica propia ya tiene cobertura unitaria en la
+# FAMILIA O de test_adversarial.py con caches construidas a mano.
 
 print(f"\n{'='*50}")
 if FALLOS:

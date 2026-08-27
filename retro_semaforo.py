@@ -605,6 +605,15 @@ def main():
     vistos_clave_documental = set()
     n_duplicados_semanticos = 0
     maestro_acumulado = {}     # crece segun se avanza: ver el comentario del bucle
+    # ANADIDO 27-08-2026 (hallazgo verificado de Diego): las tres caches que
+    # evaluar_fila_v4() tambien consulta (importe atipico, formato del numero
+    # de documento, secuencia documental) se pasaban {} en cada factura --
+    # nunca se acumulaban, a diferencia del maestro de arriba. Misma tecnica:
+    # crecen segun se avanza, se actualizan DESPUES de evaluar cada fila
+    # (ver actualizar_caches_historicas() en motor_veredicto.py), nunca antes.
+    historico_acumulado = {}
+    formato_acumulado = {}
+    secuencia_acumulada = {}
     # Para el patron de cartera: lineas por cliente, indexadas por contenedor.
     # Solo se acumula si se ha pedido, para no gastar memoria de balde.
     lineas_cartera = defaultdict(list) if args.emitir_cartera else None
@@ -774,7 +783,9 @@ def main():
 
                         try:
                             v, motivo, guards = mv.evaluar_fila_v4(
-                                fila, vistos_dup, {}, {}, {}, maestro_acumulado,
+                                fila, vistos_dup, historico_acumulado,
+                                formato_acumulado, secuencia_acumulada,
+                                maestro_acumulado,
                                 alta_cliente_anio=1990,
                                 nif_cliente_titular=None,
                                 ejercicio_tanda=anio)
@@ -790,6 +801,9 @@ def main():
                                 maestro_acumulado.setdefault(fila["nif"], {
                                     "titulo": fila.get("proveedor", ""),
                                     "cuenta": "400000"})
+                            mv.actualizar_caches_historicas(
+                                historico_acumulado, formato_acumulado,
+                                secuencia_acumulada, fila)
 
                         n_reconstruidas += 1
                         veredictos[v] += 1
@@ -825,7 +839,9 @@ def main():
                             if fila_mala is not None:
                                 try:
                                     v2, _, _ = mv.evaluar_fila_v4(
-                                        fila_mala, set(), {}, {}, {}, maestro_acumulado,
+                                        fila_mala, set(), historico_acumulado,
+                                        formato_acumulado, secuencia_acumulada,
+                                        maestro_acumulado,
                                         alta_cliente_anio=1990,
                                         nif_cliente_titular=None,
                                         ejercicio_tanda=anio)

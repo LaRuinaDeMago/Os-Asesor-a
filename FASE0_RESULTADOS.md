@@ -539,6 +539,28 @@ veces por auto-revisión antes de pasárselo a Diego, no por él.
 | AMBAR | 4,84% | 9,15% | 9,26% |
 | Tasa de detección (`--inyectar`) | — | 78,99% | 78,99% (100% en 4 de 5 tipos de error; el punto débil declarado es `nif_de_otro`, 0,4% — un NIF ajeno pero con checksum válido no tiene por qué distinguirse sin el patrón de cartera) |
 
+> ⚠️ **Arreglo 12, sesión Cloud 27-08-2026 (hallazgo de Diego, verificado):
+> este RUN 11 tiene `guard_importe_atipico`, `guard_estructura_reconocida` y
+> `guard_secuencia_documental_proveedor` estructuralmente dormidos.**
+> `retro_semaforo.py` pasaba `{}, {}, {}` para las tres cachés de historial
+> en cada factura, nunca acumuladas entre facturas — a diferencia del
+> maestro de proveedores (arreglo 9, sí acumulado). Con la caché vacía,
+> ninguno de los tres puede devolver `FALLO` (verificado leyendo cada uno),
+> así que nunca han llegado a activarse en esta medición.
+>
+> **Lo que esto NO cambia, verificado en `calcular_veredicto_v4()`:**
+> ninguno de los tres está en `criticos` — solo pueden mover VERDE → AMBAR,
+> nunca a ROJO. **El `ROJO 3,03% < 5%` de arriba sigue siendo válido.**
+>
+> **Lo que sí queda abierto:** el `VERDE 87,71%` probablemente esté
+> sobreestimado — no medible desde aquí sin volver a ejecutar
+> `retro_semaforo.py` contra el corpus real, ya con `actualizar_caches_
+> historicas()` (nueva en `motor_veredicto.py`) cableada. Detalle completo,
+> con reproducción del bug antes/después sobre el mismo caso sintético, en
+> `PROJECT_STATUS.md` (decimoséptima entrada del 27-08). **Pendiente: Diego
+> vuelve a correr `retro_semaforo.py` y compara el VERDE/AMBAR nuevo contra
+> estos números.**
+
 ### La predicción de `TECHO_Y_LIMITES.md`, confirmada
 
 Escrito el 20-08-2026, cinco días antes de esta sesión:

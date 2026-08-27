@@ -7,6 +7,97 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, decimoséptima entrada) — Hallazgo de Diego, verificado: las tres caches de historial nunca se acumulaban en las dos mediciones con corpus real
+
+Diego encontró algo que va más allá de un detalle de estilo, con el mismo
+rigor que exige el motor, y pidió verificarlo antes de tocar nada. Se
+verificó leyendo el código, no de palabra, y el hallazgo es real.
+
+### El hallazgo, confirmado
+
+`evaluar_fila_v4()` recibe tres cachés — `historico_proveedor`, `formato_cache`,
+`secuencia_cache` — que alimentan `guard_importe_atipico`,
+`guard_estructura_reconocida` y `guard_secuencia_documental_proveedor`.
+Tanto `retro_semaforo.py` (el 87,71% VERDE / 3,03% ROJO ya citado en todo el
+proyecto, §14 de `FASE0_RESULTADOS.md`) como `validar_captura_historica.py`
+pasaban `{}, {}, {}` en **cada** factura, sin acumular nada entre ellas — a
+diferencia del maestro de proveedores, que sí se acumula desde el arreglo
+del 21-08. Confirmado leyendo las dos llamadas exactas en cada script.
+
+**Con la caché vacía, los tres guards son estructuralmente incapaces de
+devolver `FALLO`** (verificado leyendo cada uno): `guard_importe_atipico`
+necesita `n≥3` facturas previas para siquiera comparar; `guard_estructura_
+reconocida` y `guard_secuencia_documental_proveedor` necesitan una entrada
+previa que, con la caché vacía, nunca existe — devuelven `NO_APLICA`
+("primera vez que veo a este proveedor"), nunca `FALLO`. El motor los
+degrada correctamente (nunca fuerza un OK falso — el diseño de
+`NO_APLICA`/`NO_COMPROBADO` está bien hecho), pero el resultado práctico es
+que **los tres han estado dormidos en las dos únicas mediciones con corpus
+real que tiene este proyecto**.
+
+### Precisión importante, verificada antes de alarmar de más
+
+Diego preguntó si esto invalidaba el `ROJO 3,03% < 5%` ya cerrado. Respuesta,
+verificada en `calcular_veredicto_v4()`: **no puede afectar al ROJO.**
+Ninguno de los tres guards está en la lista `criticos` que decide ROJO — solo
+aparecen en `AMBAR_DEDICADOS`. Con las cachés activas, lo único que estos
+tres guards pueden hacer es mover una factura de **VERDE a ÁMBAR**, nunca a
+ROJO. El umbral que cerró el retro-semáforo (`SIGUIENTES_PASOS.md` §4) sigue
+siendo válido tal cual está escrito.
+
+Lo que sí queda abierto, y no se afirma sin medirlo: **el 87,71% VERDE
+probablemente esté sobreestimado** — un número no medible desde aquí sin
+volver a correr `retro_semaforo.py` contra el corpus real, ya con el arreglo.
+
+### El arreglo, no trivial por la fuga de datos que evita
+
+Reutilizar `orquestador.py::construir_historico_y_secuencia()` tal cual
+habría sido más rápido y **incorrecto**: esa función construye de golpe con
+el lote entero, así que cada factura se compararía contra una media que la
+incluye a ella misma y a facturas futuras — exactamente la fuga que
+`retro_semaforo.py` ya identificó y corrigió para el maestro el 21-08 ("el
+histórico de una factura son solo los datos anteriores a ella").
+
+Construida `actualizar_caches_historicas()` (nueva, en `motor_veredicto.py`,
+junto a `_entrada_de_proveedor()` que es su inversa): se llama **después**
+de evaluar cada fila, nunca antes, y crece de la misma forma incremental que
+ya usa `maestro_acumulado`. Cableada en los dos scripts, en el mismo punto
+(`finally`) donde ya se acumulaba el maestro.
+
+### Verificación, con el antes y el después lado a lado sobre el mismo caso
+
+Nueva sección en `test_motor_veredicto.py` (45/45 en total, 6 comprobaciones
+nuevas): reproduce el patrón exacto de los dos scripts (caché vacía en cada
+vuelta) sobre una factura con un importe 10 veces el habitual de un
+proveedor con historial limpio — **da VERDE**, el bug real, reproducido, no
+supuesto. Con el arreglo, la misma factura exacta, mismo caso: `guard_
+importe_atipico` devuelve `FALLO` y el veredicto es AMBAR. Segundo caso
+aislado para `guard_estructura_reconocida` (número de documento con forma
+nunca vista): mismo patrón, mismo resultado. `secuencia_documental_
+proveedor` no se aísla en un tercer caso porque comparte la misma línea de
+`actualizar_caches_historicas()` que ya prueban los dos casos de arriba, y
+su lógica propia ya tenía cobertura unitaria en la FAMILIA O de
+`test_adversarial.py`.
+
+`test_adversarial.py` 112/112 sin cambios (no toca ningún guard existente,
+solo añade la función que les da de comer). `ensayo_retro_semaforo.py`
+(el ensayo end-to-end completo, vía `audit_project.py`) sigue en verde tras
+el cambio. Escáner de privacidad sobre los cuatro ficheros tocados sin
+hallazgos.
+
+### Pendiente, y es de Diego, en local
+
+Volver a ejecutar `retro_semaforo.py` contra el corpus real (`--inyectar`
+incluido, para ver también si la tasa de detección cambia) y comparar el
+nuevo VERDE/ÁMBAR/ROJO contra el 87,71%/9,26%/3,03% ya citado. Si el ROJO se
+mueve de verdad, sería una señal de que algo más está pasando (no debería,
+según lo verificado arriba) y merece investigarse aparte. Si solo se mueve
+el ÁMBAR, es exactamente lo esperado: unas pocas facturas que antes pasaban
+sin que nadie las mirara ahora piden revisión humana, que es lo que estos
+tres guards existen para hacer.
+
+---
+
 ## 27-08-2026 (sesión Cloud, decimosexta entrada) — Confirmado con datos reales: SOSPECHOSA es el artefacto de continuidad temporal, no mezcla real. `consolidar_identidad.py` ya se calibra sola
 
 Cierra la entrada anterior. Diego ejecutó `diag_calibracion_sospechosa.py`

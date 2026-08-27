@@ -235,6 +235,16 @@ def main():
     aciertos_antes = fallos_antes = 0
     falsos_verdes_hoy = []
     matriz = defaultdict(Counter)
+    # ANADIDO 27-08-2026 (hallazgo verificado de Diego): igual que
+    # retro_semaforo.py, este script pasaba {}, {}, {} para las tres caches
+    # de historial en CADA factura -- nunca se acumulaban entre filas, asi
+    # que guard_importe_atipico, guard_estructura_reconocida y guard_
+    # secuencia_documental_proveedor nunca podian activarse de verdad.
+    # Crecen segun se avanza, se actualizan DESPUES de evaluar cada fila
+    # (nunca antes: el historico de una factura son solo las anteriores).
+    historico_acumulado = {}
+    formato_acumulado = {}
+    secuencia_acumulada = {}
 
     for i, fila_cruda in enumerate(filas):
         v_antes = normalizar_veredicto(fila_cruda.get(col_motor)) if col_motor else None
@@ -247,13 +257,18 @@ def main():
                 fila[canonico] = fila_cruda[col]
         try:
             v_hoy, motivo, guards = mv.evaluar_fila_v4(
-                fila, vistos, {}, {}, {}, maestro,
+                fila, vistos, historico_acumulado, formato_acumulado,
+                secuencia_acumulada, maestro,
                 alta_cliente_anio=args.alta_anio,
                 nif_cliente_titular=None,
                 ejercicio_tanda=None)
         except Exception as e:
             errores[type(e).__name__] += 1
             continue
+        finally:
+            mv.actualizar_caches_historicas(
+                historico_acumulado, formato_acumulado,
+                secuencia_acumulada, fila)
 
         hoy[v_hoy] += 1
         for g, (estado, _) in guards.items():

@@ -395,6 +395,66 @@ def _entrada_de_proveedor(cache, nif, nombre):
     return None
 
 
+def actualizar_caches_historicas(historico_proveedor, formato_cache, secuencia_cache, fila):
+    """Inverso de _entrada_de_proveedor(): escribe en las tres caches que
+    evaluar_fila_v4() consulta (historico de importes, formato del numero de
+    documento, secuencia documental), UNA fila a la vez, DESPUES de evaluarla.
+
+    ANADIDO 27-08-2026 (sesion Cloud, hallazgo verificado de Diego). Hasta
+    hoy, retro_semaforo.py y validar_captura_historica.py pasaban {}, {}, {}
+    para estas tres caches en CADA factura -- nunca se acumulaban entre
+    facturas, a diferencia del maestro de proveedores (que si se acumula,
+    arreglo del 21-08-2026). El motor las degrada correctamente a
+    NO_APLICA/NO_COMPROBADO cuando estan vacias (nunca fuerza un OK), pero el
+    resultado practico es que guard_importe_atipico, guard_estructura_
+    reconocida y guard_secuencia_documental_proveedor nunca habian llegado a
+    activarse de verdad en ninguna medicion con corpus real de este proyecto:
+    con la cache vacia, ninguno de los tres puede devolver FALLO (verificado
+    leyendo cada uno), asi que AMBAR_DEDICADOS nunca los dispara. Confirmado
+    tambien que esto NO afecta al ROJO: ninguno de los tres esta en la lista
+    `criticos` de calcular_veredicto_v4 -- solo pueden mover VERDE -> AMBAR,
+    nunca producir ROJO.
+
+    MISMA REGLA que ya aplica retro_semaforo.py al maestro_acumulado: "el
+    historico de una factura son solo los datos de las facturas anteriores a
+    ella". Por eso esta funcion se llama DESPUES de evaluar_fila_v4(), nunca
+    antes -- llamarla antes compararia la factura contra si misma (fuga de
+    datos, el mismo error que el maestro ya corrigio el 21-08). Usar
+    construir_historico_y_secuencia() de orquestador.py tal cual NO sirve
+    aqui: esa funcion construye de golpe con el lote entero, lo que fugaria
+    tambien facturas FUTURAS -- de ahi que haga falta esta version
+    incremental, no reutilizar la de lotes.
+
+    Indexa por NIF y por nombre, las dos, igual que construir_historico_y_
+    secuencia() -- el motor busca primero por NIF y cae al nombre
+    (_entrada_de_proveedor)."""
+    import statistics
+
+    claves = [k for k in ((fila.get('nif') or '').strip(), fila.get('proveedor')) if k]
+    if not claves:
+        return
+
+    dato_total = contrato_datos.parse_numero(fila.get('total_factura'))
+    total = dato_total.valor if dato_total.utilizable else None
+    doc = fila.get('nº_documento') or ''
+
+    for clave in claves:
+        if total is not None and total > 0:
+            entry = historico_proveedor.setdefault(clave, {'_totales': []})
+            entry['_totales'].append(total)
+            entry['n_facturas_normales'] = len(entry['_totales'])
+            entry['media'] = round(statistics.mean(entry['_totales']), 2)
+            entry['desv'] = (round(statistics.stdev(entry['_totales']), 2)
+                              if len(entry['_totales']) > 1 else 0)
+        if doc:
+            entry_s = secuencia_cache.setdefault(clave, {'numeros_vistos': []})
+            entry_s['numeros_vistos'].append(doc)
+
+            entry_f = formato_cache.setdefault(clave, {'ejemplos': [], 'n_facturas_vistas': 0})
+            entry_f['ejemplos'].append(doc)
+            entry_f['n_facturas_vistas'] += 1
+
+
 def guard_importe_atipico(proveedor, total, historico_proveedor, nif=None):
     entry = _entrada_de_proveedor(historico_proveedor, nif, proveedor)
     if not entry or entry.get('n_facturas_normales', 0) < 3 or total <= 0:

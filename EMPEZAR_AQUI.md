@@ -148,6 +148,26 @@ cualquier número de aquí.
 el número): ROJO 3,03% < 5% = "Verde. Se pasa al siguiente paso sin tocar el
 motor."** Cerrado, no toca seguir picando en el retro-semáforo.
 
+> ⚠️ **Arreglo 12 (27-08-2026, hallazgo de Diego, verificado): el VERDE
+> 87,71% de arriba probablemente esté sobreestimado — el ROJO 3,03% sigue
+> siendo válido tal cual.** `retro_semaforo.py` pasaba `{}, {}, {}` para tres
+> cachés de historial (importe atípico, formato del documento, secuencia
+> documental) en cada factura, nunca acumuladas — a diferencia del maestro
+> de proveedores. Con la caché vacía, esos tres guards nunca pueden devolver
+> `FALLO` (verificado leyendo cada uno): han estado dormidos en esta
+> medición. Verificado también que **no pueden afectar al ROJO** — ninguno
+> de los tres es crítico, solo mueven VERDE → AMBAR. Arreglado
+> (`actualizar_caches_historicas()`, nueva en `motor_veredicto.py`),
+> probado antes/después sobre el mismo caso sintético
+> (`test_motor_veredicto.py`, 45/45). Detalle completo en
+> `PROJECT_STATUS.md` (decimoséptima entrada del 27-08) y
+> `FASE0_RESULTADOS.md` §14.
+>
+> **👉 SIGUIENTE PASO REAL:** volver a ejecutar `retro_semaforo.py` contra
+> el corpus real y comparar el VERDE/AMBAR nuevo contra el 87,71%/9,26% de
+> arriba. Si el ROJO se mueve, es una señal nueva que investigar aparte —no
+> debería, según lo ya verificado.
+
 Sigue abierto, y no es urgente: `cuadre_total`/`retencion_vs_error` (~800
 casos, 2,7%) y `nif_digito_control` (60 casos tras el arreglo 11, 0,2%) sin
 patrón dominante ya identificable — parece señal real del histórico, no
