@@ -51,7 +51,7 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ✅ Captura <-> motor: los campos cuadran
 ✅ Corpus roto: no cuelga ni contamina
 ✅ Cruce 303: identifica sin inventar                     <- 11º auditor, 26-08
-✅ subprocess.run: encoding explicito (18 llamadas)       <- 12º auditor, 26-08
+✅ subprocess.run: encoding explicito (19 llamadas)       <- 12º auditor, 26-08
 ✅ Reconstruir 303: deriva la base, no la inventa         <- 13º auditor, 27-08
 ✅ Emparejar carpetas: por nombre, sin adivinar por palabra <- 14º auditor, 27-08
 ❌ Dependencias: faltan dbfread, anthropic, google-genai, pdfplumber   <- NORMAL, son de captura/lectura de PDF, no del motor
@@ -82,8 +82,9 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 > otra vez, corregido entonces y reabierto desde.** Todo lo de hoy (27-08:
 > el módulo de facturas emitidas, `comparar_esquema_dbf.py`, los arreglos de
 > `nif_check.py` y `emparejar_carpetas.py`, y esta misma corrección) vive
-> **solo** en la rama `claude/github-retomada-o4zyic`, 9 commits por delante
-> de `master` a fecha de hoy. **Clona o haz `git pull` sobre esa rama
+> **solo** en la rama `claude/github-retomada-o4zyic`, 10 commits por delante
+> de `master` a fecha de hoy (verificado con `git rev-list --left-right
+> --count origin/master...HEAD`). **Clona o haz `git pull` sobre esa rama
 > concreta, no sobre `master`:**
 > ```bash
 > git clone -b claude/github-retomada-o4zyic https://github.com/LaRuinaDeMago/Os-Asesor-a
