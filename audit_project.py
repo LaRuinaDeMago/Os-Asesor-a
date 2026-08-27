@@ -282,7 +282,18 @@ def check_estados_y_cobertura():
                              # ALTA de 14 a 0, porque un negocio real puede
                              # llamarse "Ferreteria General". Retirado el
                              # mismo dia; este ensayo evita que vuelva.
-                             ("ensayo_emparejar_carpetas.py", "Emparejar carpetas: por nombre, sin adivinar por palabra")):
+                             ("ensayo_emparejar_carpetas.py", "Emparejar carpetas: por nombre, sin adivinar por palabra"),
+                             # Auditor nuevo (27-08-2026). No caza un caso: caza
+                             # una FORMA de falso verde. `if x > 0 and <comp>:
+                             # return FALLO` seguido de `return OK` convierte
+                             # "no he podido comprobar" en "todo correcto".
+                             # Aparecio DOS veces, en guards distintos escritos
+                             # en momentos distintos (guard_importe_atipico y
+                             # guard_secuencia_documental_proveedor), y solo se
+                             # vio al despertarlos. Una leccion escrita en un
+                             # documento no impide que vuelva dentro de tres
+                             # meses en el guard numero 27.
+                             ("ensayo_ok_sin_comprobar.py", "Falso verde estructural: ningun OK que signifique 'no lo he comprobado'")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue

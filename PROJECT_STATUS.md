@@ -7,6 +7,92 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, vigesimosegunda entrada) — El patrón de falso verde, convertido en auditor. Y cazó a su propio autor
+
+La entrada anterior terminaba dejando escrito un patrón *"como forma a
+buscar"*. Este proyecto ya sabe que eso no basta: `audit_estados.py` existe
+porque una lección escrita no impide que el defecto vuelva. Dos razones
+concretas para automatizarlo:
+
+1. El patrón apareció **dos veces**, en guards distintos escritos en momentos
+   distintos. No fue mala suerte: es una forma que se escribe sola con buena
+   intención (evitar dividir por cero).
+2. De **26 guards, solo 5 se auditaron a mano**. Los otros 21 no los había
+   mirado nadie con esta lente.
+
+### `audit_ok_sin_comprobar.py` — caza una forma, no un caso
+
+Sobre AST, no con expresiones regulares: es la lección ya pagada en
+`check_cableado` (21-08), donde una regex declaró siete huérfanos que no lo
+eran porque solo reconocía el cableado escrito de una forma. Busca, dentro de
+funciones `guard_*` que puedan devolver `OK`, un `if` con `and` que contenga
+una comparación contra cero (`x > 0`, `x >= 0`, `x != 0`) cuyo cuerpo devuelva
+un veredicto negativo — es decir, la forma exacta en la que "no hay con qué
+comparar" acaba cayendo en un `return "OK"`.
+
+### Lo que encontró en los 21 guards no auditados: un caso, y NO era bug
+
+`guard_suma_tramos`: `if base_total_decl == 0 and suma != 0` → si ambos son
+cero, cae a `abs(0-0) < TOL` → `OK, "suma tramos=0 = base_total=0"`. Compara
+nada contra nada y lo llama correcto.
+
+**Verificado antes de tocarlo, y resultó inalcanzable:** en
+`contrato_datos.tramos()`, la rama legada solo añade un tramo `if d.valor`
+(truthy), así que un cero nunca genera tramo; y `evaluar_fila_v4` solo llama a
+este guard cuando `tramos` es truthy — luego `suma != 0` siempre. Comprobado
+además, ejecutando el motor, que una factura con tramo pero **sin**
+`base_total` no revienta: `guard_integridad_datos` la para antes. Queda como
+**excepción declarada con su motivo**, no como bug ni como silencio.
+
+### El auditor gritó cuando no tocaba — y lo cazó su propio ensayo
+
+Primera versión: las excepciones iban indexadas por `(función, variable)` y la
+caducidad se comprobaba contra el fichero que tocara analizar. Al analizar
+**cualquier fichero que no fuera `motor_veredicto.py`**, todas las excepciones
+salían "caducadas" y el auditor terminaba en rojo sin motivo.
+
+Es **exactamente** el fallo que este proyecto ya pagó con `check_cableado`
+—*"un auditor que grita cuando no toca acaba ignorándose, y entonces no avisa
+cuando sí toca"*— cometido dentro del auditor escrito para evitar esa familia
+de fallos. Lo detectó su propio ensayo antes de subir nada. Corregido
+(excepciones indexadas por fichero) y **fijado como regresión explícita** en
+el ensayo.
+
+### La caducidad, que es la otra mitad del diseño
+
+Una lista blanca que conserva entradas muertas acaba tapando un caso real —
+la misma trampa que la lista `criticos` del motor, que el propio
+`calcular_veredicto_v4` documenta como "una especificación, no un retrato de
+lo que dispara hoy". Por eso el auditor **se audita a sí mismo**: si una
+excepción declarada ya no aparece en el fichero para el que se escribió, lo
+dice y termina en error.
+
+### Verificación
+
+`ensayo_ok_sin_comprobar.py` (nuevo, **18/18**), con las dos mitades que
+exige este proyecto:
+
+- **Detecta:** reproduce los dos bugs reales con su forma exacta y los caza,
+  los dos a la vez cuando están en el mismo fichero, y en las tres formas de
+  escribir la condición (`>`, `>=`, `!=`) — la forma no debe importar.
+- **Se calla:** con los dos guards ya arreglados, con un `and`/`> 0` cuyo
+  cuerpo afirma en vez de negar, con un guard que nunca dice `OK` (no puede
+  dar falso verde por definición), y con una función que no es `guard_*`.
+  Sin esta mitad, un auditor que gritara siempre aprobaría la prueba — misma
+  lógica que la FAMILIA G de `test_adversarial.py`.
+- **De punta a punta:** el script real, con sus códigos de salida (1 con bug,
+  0 sin él), incluida la regresión del fallo de arriba.
+
+Conectado dentro de `audit_project.py`, que pasa a ejecutar **21
+comprobaciones** (contadas, no escritas a mano: de paso se quitó de
+`EMPEZAR_AQUI.md` el recuento de auditores escrito a mano, que ya había
+derivado —la tabla decía catorce y otra sesión hablaba del "15º"—, misma
+trampa que el `21/21 OK` fijo de agosto). Todo lo demás en
+verde: `test_motor_veredicto.py` 65/65, `test_adversarial.py` 112/112,
+cobertura 26/26. Escáner de privacidad sin hallazgos.
+
+---
+
 ## 27-08-2026 (sesión Cloud, vigesimoprimera entrada) — Auditados los otros tres guards dormidos: dos defectos más, y uno que NO se toca por ser decisión contable
 
 Consecuencia directa de la entrada anterior: si `importe_atipico` llevaba dos

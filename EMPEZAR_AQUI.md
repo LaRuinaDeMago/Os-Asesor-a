@@ -412,7 +412,7 @@ ceguera del instrumento, pero no está descartado del todo. Ver
 > 21-08, el hallazgo sobre `BASEIMPO` es del 25-08, y nadie había revisado
 > la pieza hermana hasta el 27-08.
 
-### Los catorce auditores, y por qué hacen falta los catorce
+### Los auditores, y por qué hacen falta todos
 
 Cada uno tapa un agujero que los demás no ven. No es redundancia:
 
@@ -432,8 +432,17 @@ Cada uno tapa un agujero que los demás no ven. No es redundancia:
 | `check_subprocess_encoding` | ¿algún `subprocess.run` sin `encoding`? | **verde en Cloud, roto en el PC real** |
 | `ensayo_reconstruir_303.py` | ¿la base se deriva o se sigue leyendo a pelo? | **base ficticia con aspecto de real** |
 | `ensayo_emparejar_carpetas.py` | ¿se filtra por palabra clave sobre un nombre real? | **negocio real descartado por su propio nombre** |
+| `ensayo_ok_sin_comprobar.py` | ¿algún guard dice OK cuando no ha podido comprobar? | **falso verde estructural, por forma y no por caso** |
 
-Los catorce corren dentro de `audit_project.py`: basta el primer comando.
+Todos corren dentro de `audit_project.py`: basta el primer comando.
+
+> **El número no se escribe aquí a mano, y es deliberado.** Esta tabla es
+> una lista comentada, no el recuento: `audit_project.py` ejecuta hoy **21
+> comprobaciones**, y ese número sale de contarlo (`python audit_project.py`),
+> no de este documento. La versión anterior sí llevaba el número escrito y
+> ya había derivado —la tabla decía catorce y la prosa de otra sesión
+> hablaba del "15º auditor"—. Es la misma trampa del `21/21 OK` que
+> `audit_project.py` imprimía como cadena fija hasta el 19-08.
 
 > El 13º es del 27-08 y cierra el hallazgo mayor de la sesión anterior: la
 > base de `303_LOCAL.json` era un cero disfrazado de dato. Reescrito DOS
