@@ -7,6 +7,57 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, decimotercera entrada) — `comparar_esquema_dbf.py` ejecutado de verdad, y una fecha nueva: migración a ContaSOL/FactuSOL a principios de 2027
+
+Diego consiguió instalar Python en un segundo equipo (no es el que documenta
+`EMPEZAR_AQUI.md` §0) y ejecutó `comparar_esquema_dbf.py` contra un `.dbf`
+real de un **segundo cliente** (distinto del "cliente piloto" original).
+Resultado: **IDÉNTICO** al layout de ContaPlus ya verificado — 98 campos,
+mismo orden, mismos anchos.
+
+### Lo que este resultado SÍ demuestra, y lo que no
+
+Antes de anotarlo como un cierre, se preguntó explícitamente de dónde salía
+el fichero — la disciplina de no dar nada por bueno sin comprobar el origen,
+no solo el contenido. Respuesta de Diego: **es de ContaPlus, el sistema que
+se usa actualmente.** No es una exportación de ContaSOL.
+
+- ✅ **Sí demuestra algo real y nuevo:** el layout de `CAMPOS`
+  (`layout_diario_contaplus.py`) ya no está verificado contra un solo
+  cliente ("cliente piloto") sino contra **dos clientes reales distintos**,
+  con resultado idéntico — el layout es estable entre empresas, no una
+  coincidencia de un caso. Es una confirmación genuina, aunque no sea la que
+  se buscaba.
+- ❌ **No demuestra nada sobre ContaSOL.** Un fichero de ContaPlus tiene el
+  layout de ContaPlus porque ese layout se derivó precisamente de ahí — es
+  circular, no una prueba. La pregunta de si ContaSOL usa el mismo layout
+  **sigue abierta**, exactamente como quedó en la entrada anterior.
+
+### El dato nuevo que sí cambia la prioridad: la fecha de migración
+
+Diego confirma: el despacho **migrará a ContaSOL y FactuSOL a principios de
+2027** (no hay fecha exacta más allá de eso). Esto no estaba anotado en
+ningún sitio del proyecto hasta hoy, y cambia dos cosas:
+
+1. **La verificación de ContaSOL deja de ser urgente, sin dejar de ser
+   necesaria.** No hay forma de conseguir un `.dbf` real de ContaSOL antes
+   de que exista una instalación de ContaSOL en marcha — eso no pasará hasta
+   la migración. `comparar_esquema_dbf.py` queda preparado y probado
+   (12/12, sabotaje incluido, y ahora también probado de extremo a extremo
+   contra un `.dbf` real aunque fuera el sistema equivocado) para el día que
+   sí haya un fichero real que comparar.
+2. **El módulo de facturas EMITIDAS** (`numeracion_correlativa.py`, entrada
+   novena de hoy) gana contexto: FactuSOL no es una opción entre varias para
+   exportar, es **el sistema que va a usarse de verdad** a partir de esa
+   fecha. La plantilla vacía de importación de FactuSOL sigue siendo el
+   bloqueante pendiente de Diego (`Utilidades > Ficheros XLS`).
+
+**Nada de esto cambia lo que se usa hoy:** ContaPlus sigue siendo el sistema
+en producción, y `escribir_xdiario()` sigue siendo la exportación real y
+verificada mientras dure.
+
+---
+
 ## 27-08-2026 (sesión Cloud, duodécima entrada) — `comparar_esquema_dbf.py`: la herramienta segura para lo que el incidente anterior intentaba hacer mal
 
 Tras el incidente de la entrada anterior, se construyó la vía correcta para

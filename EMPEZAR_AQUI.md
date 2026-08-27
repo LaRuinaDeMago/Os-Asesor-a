@@ -832,6 +832,12 @@ Distinto del motor de arriba (que valida facturas RECIBIDAS). Objetivo:
 VeriFactu`. Hoy se hace a mano en Excel. Detalle completo, con el
 razonamiento de alcance, en `PROJECT_STATUS.md` (novena entrada del 27-08).
 
+> **Confirmado el 27-08 (misma sesión, entrada decimotercera): la migración
+> a ContaSOL y FactuSOL está fechada para principios de 2027.** FactuSOL no
+> es una opción entre varias para este módulo — es el sistema que va a
+> usarse de verdad a partir de esa fecha. No urge terminarlo antes, pero
+> tampoco es un "algún día": tiene fecha.
+
 **Construido ya, en Cloud, sin datos reales:** `numeracion_correlativa.py`
 — decide el siguiente número correlativo de una serie y detecta huecos o
 duplicados antes de que lleguen a FactuSOL. 25/25 en verde
@@ -874,8 +880,22 @@ completa es segura de pegar en el chat. Ejecutar en local:
 python comparar_esquema_dbf.py "ruta\al\Diario.dbf de ContaSOL"
 ```
 
-Dice IDÉNTICO o exactamente en qué campo difiere. Detalle en
-`PROJECT_STATUS.md` (duodécima entrada del 27-08).
+Dice IDÉNTICO o exactamente en qué campo difiere.
+
+> ⚠️ **Ya se ejecutó una vez (27-08) y NO vale como respuesta — leer antes de
+> repetirlo sin necesidad.** Diego lo corrió contra un `.dbf` real de un
+> segundo cliente, y dio IDÉNTICO — pero el fichero salió de **ContaPlus**
+> (el sistema actual), no de ContaSOL. Un fichero de ContaPlus tiene el
+> layout de ContaPlus por definición: no prueba nada sobre ContaSOL, aunque
+> sí confirma que el layout es estable entre dos clientes reales distintos,
+> no una coincidencia de uno solo. Detalle completo en `PROJECT_STATUS.md`
+> (decimotercera entrada del 27-08).
+>
+> **Y hay un dato nuevo que cambia la urgencia, no la necesidad:** el
+> despacho migra a **ContaSOL y FactuSOL a principios de 2027**. Hasta que
+> exista una instalación de ContaSOL en marcha, no hay forma de conseguir un
+> `.dbf` real que comparar — no es un pendiente que se pueda adelantar antes
+> de esa fecha. La herramienta queda lista y probada para ese momento.
 
 `escribir_xdiario()` (`layout_diario_contaplus.py`) lleva desde el 20/21-08
 construido y auditado para ContaPlus, con el layout de campos verificado
