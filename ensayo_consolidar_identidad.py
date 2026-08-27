@@ -100,6 +100,14 @@ def main():
         crear_codigo(carpeta_delta, "SPDEL1_A.DAT", proveedores_delta1, "20180505")
         crear_codigo(carpeta_delta, "SPDEL2_A.DAT", proveedores_delta2, "20230920")
 
+        # --- EPSILON: nombre de EQUIPO/COPIA, tambien mezcla dos empresas --
+        # (para probar la rama "corroborada por el nombre" de la calibracion).
+        proveedores_eps1 = [cif_valido("B", 6000000 + k) for k in range(6)]
+        proveedores_eps2 = [dni_valido(70000000 + k) for k in range(6)]
+        carpeta_epsilon = os.path.join(cp, "COPIA BACKUP EQUIPO 3")
+        crear_codigo(carpeta_epsilon, "SPEPS1_A.DAT", proveedores_eps1, "20170101")
+        crear_codigo(carpeta_epsilon, "SPEPS2_A.DAT", proveedores_eps2, "20240101")
+
         # --- Documentos: un candidato claro para cada uno -------------------
         # NOTA: Windows recorta un punto final al crear una carpeta ("S.L."
         # se guarda como "S.L") -- por eso las comprobaciones de abajo leen
@@ -115,8 +123,8 @@ def main():
 
         stats, filas = consolidar(cp, doc, max_difusion=0.30, min_nifs=3)
 
-        comprobar("4 carpetas de ContaPlus vistas (ALFA, BETA, GAMMA, DELTA)",
-                  stats["n_carpetas_cp"] == 4, stats["n_carpetas_cp"])
+        comprobar("5 carpetas de ContaPlus vistas (ALFA, BETA, GAMMA, DELTA, "
+                  "EPSILON)", stats["n_carpetas_cp"] == 5, stats["n_carpetas_cp"])
 
         # --- El caso que importa: discrepancia entre hermanas ---------------
         comprobar("2 carpetas en grupo multi-carpeta (ALFA + BETA)",
@@ -150,8 +158,23 @@ def main():
         fila_delta = next(f for f in filas if f["carpeta"] == "DELTA MIXTA")
         comprobar("DELTA MIXTA se marca SOSPECHOSA (mezcla de empresas)",
                   fila_delta["sospechosa"], fila_delta)
-        comprobar("el recuento agregado de sospechosas es 1",
-                  stats["n_sospechosa"] == 1, stats["n_sospechosa"])
+        comprobar("DELTA MIXTA no suena a equipo por el nombre -> sospechosa "
+                  "SIN corroborar (posible artefacto, no descartar la carpeta "
+                  "sin mirarla)",
+                  not fila_delta["nombre_sugiere_equipo"], fila_delta)
+
+        fila_epsilon = next(f for f in filas if f["carpeta"] == "COPIA BACKUP EQUIPO 3")
+        comprobar("EPSILON (nombre 'copia'/'backup'/'equipo') tambien se "
+                  "marca sospechosa", fila_epsilon["sospechosa"], fila_epsilon)
+        comprobar("EPSILON SI suena a equipo por el nombre -> sospechosa "
+                  "CORROBORADA",
+                  fila_epsilon["nombre_sugiere_equipo"], fila_epsilon)
+
+        comprobar("el recuento agregado: 1 corroborada (EPSILON), 1 sin "
+                  "corroborar (DELTA)",
+                  stats["n_sospechosa_corroborada"] == 1
+                  and stats["n_sospechosa_sin_corroborar"] == 1,
+                  (stats["n_sospechosa_corroborada"], stats["n_sospechosa_sin_corroborar"]))
 
         # --- Fichero de detalle: orden de prioridad y marcas correctas ------
         ruta_detalle = os.path.join(tmp, "detalle_LOCAL.txt")
@@ -178,7 +201,7 @@ def main():
         comprobar("el script corre sin error desde la linea de comandos",
                   r.returncode == 0, r.stderr[-500:])
         salida = r.stdout
-        for fragmento in ("ALFA", "BETA", "GAMMA", "DELTA", "Servicios",
+        for fragmento in ("ALFA", "BETA", "GAMMA", "DELTA", "EPSILON", "Servicios",
                            "Mantenimiento", "Consulting"):
             comprobar(f"por consola NO aparece '{fragmento}'",
                       fragmento not in salida, salida)

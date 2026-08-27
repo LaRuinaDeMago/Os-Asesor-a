@@ -34,6 +34,19 @@ QUE ANADE, CONCRETAMENTE, QUE NINGUNA DE LAS TRES POR SEPARADO TENIA
   sospechoso por construccion: puede que ni siquiera exista un "el cliente"
   singular al que emparejar.
 
+ANADIDO 27-08-2026 (calibracion, tras la primera ejecucion real): la senal
+SOSPECHOSA de `diag_carpetas_multiempresa.py` dio 27 de 27 (100%) contra el
+corpus real -- una cifra que no se acepta sin comprobar, porque coincide con
+un fallo "imposible" ya documentado en la cabecera de ese script. Puede ser
+real (hay carpetas ya confirmadas que agrupan por equipo/copia) o el
+artefacto de "sin continuidad temporal entre copias" que la tercera entrada
+de hoy ya reprodujo con datos sinteticos (ver `diag_calibracion_sospechosa.py`
+para la investigacion completa). Mientras esa pregunta se resuelve con datos
+agregados, cada fila de AQUI ya lleva su propia calibracion barata: se cruza
+SOSPECHOSA contra `suena_a_equipo()` (la misma pista de nombre que ya usa
+`cuadre_303_ficha.py`) para distinguir, carpeta a carpeta, "corroborado por
+nombre" de "posible artefacto, revisar con mas cautela".
+
 DISENO DE TRES ROLES, SIN EXCEPCION
 --------------------------------------
 Este script IMPORTA las funciones ya escritas y probadas de los otros tres
@@ -57,6 +70,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from emparejar_carpetas import normalizar, jaccard_palabras, combinado, carpetas_de_nivel1
 from enlazador_clientes_303 import calcular_grupos
 from diag_carpetas_multiempresa import calcular_sospechosas
+from cuadre_303_ficha import suena_a_equipo
 
 
 def emparejar_por_nombre(carpetas_cp, carpetas_doc):
@@ -107,7 +121,8 @@ def consolidar(raiz_contaplus, raiz_documentos, max_difusion=0.30, min_nifs=3):
     filas = []
     n_con_hermanas = 0
     n_discrepancia = 0
-    n_sospechosa = 0
+    n_sospechosa_corroborada = 0
+    n_sospechosa_sin_corroborar = 0
     n_alta_sin_aviso = 0
 
     for cp in carpetas_cp:
@@ -115,6 +130,13 @@ def consolidar(raiz_contaplus, raiz_documentos, max_difusion=0.30, min_nifs=3):
         candidato_top1 = top3[0][1]
         hermanas = hermanas_de.get(cp, [])
         es_sospechosa = cp in sospechosas
+        # Calibracion barata, carpeta a carpeta: la misma pista de nombre que
+        # ya usa cuadre_303_ficha.py para saber si una carpeta agrupa por
+        # equipo/copia en vez de por cliente. No decide nada por si sola --
+        # solo distingue "sospechosa corroborada por el nombre" de
+        # "sospechosa sin corroborar, posible artefacto de continuidad
+        # temporal" (ver diag_calibracion_sospechosa.py para el porque).
+        equipo = suena_a_equipo(cp)
 
         discrepancia = False
         if hermanas:
@@ -126,7 +148,10 @@ def consolidar(raiz_contaplus, raiz_documentos, max_difusion=0.30, min_nifs=3):
         if discrepancia:
             n_discrepancia += 1
         if es_sospechosa:
-            n_sospechosa += 1
+            if equipo:
+                n_sospechosa_corroborada += 1
+            else:
+                n_sospechosa_sin_corroborar += 1
         if not hermanas and not es_sospechosa and top3[0][0] >= 0.75:
             n_alta_sin_aviso += 1
 
@@ -136,6 +161,7 @@ def consolidar(raiz_contaplus, raiz_documentos, max_difusion=0.30, min_nifs=3):
             "hermanas": hermanas,
             "discrepancia": discrepancia,
             "sospechosa": es_sospechosa,
+            "nombre_sugiere_equipo": equipo,
         })
 
     stats = {
@@ -143,7 +169,8 @@ def consolidar(raiz_contaplus, raiz_documentos, max_difusion=0.30, min_nifs=3):
         "n_carpetas_doc": len(carpetas_doc),
         "n_con_hermanas": n_con_hermanas,
         "n_discrepancia": n_discrepancia,
-        "n_sospechosa": n_sospechosa,
+        "n_sospechosa_corroborada": n_sospechosa_corroborada,
+        "n_sospechosa_sin_corroborar": n_sospechosa_sin_corroborar,
         "n_alta_sin_aviso": n_alta_sin_aviso,
     }
     return stats, filas
@@ -151,19 +178,27 @@ def consolidar(raiz_contaplus, raiz_documentos, max_difusion=0.30, min_nifs=3):
 
 def escribir_consolidado(filas, ruta_salida):
     def prioridad(fila):
-        # Primero lo que mas merece revision: discrepancia > sospechosa >
-        # confianza del candidato principal (baja primero, para no perder
-        # tiempo repasando lo que ya esta claro).
-        return (not fila["discrepancia"], not fila["sospechosa"], -fila["top3"][0][0])
+        # Primero lo que mas merece revision. Dentro de "sospechosa", la
+        # corroborada por nombre (probable mezcla real) va antes que la que
+        # no -- esta ultima puede ser el artefacto de continuidad temporal
+        # documentado el 27-08, y no conviene que compita por la atencion de
+        # Diego al mismo nivel que un caso mas probable.
+        sospechosa_corroborada = fila["sospechosa"] and fila["nombre_sugiere_equipo"]
+        sospechosa_sin_corroborar = fila["sospechosa"] and not fila["nombre_sugiere_equipo"]
+        return (not fila["discrepancia"], not sospechosa_corroborada,
+                not sospechosa_sin_corroborar, -fila["top3"][0][0])
 
     orden = sorted(filas, key=prioridad)
     with open(ruta_salida, "w", encoding="utf-8") as f:
         f.write("IDENTIDAD CONSOLIDADA: NOMBRE + GRUPO POR PROVEEDOR + AVISO DE MEZCLA\n")
         f.write("=" * 78 + "\n\n")
         f.write("Orden: primero lo que mas merece revision (discrepancia entre\n")
-        f.write("carpetas hermanas, o aviso de mezcla), despues por confianza del\n")
-        f.write("nombre (baja primero). Si una carpeta no tiene ningun aviso y el\n")
-        f.write("candidato principal es ALTA, no hace falta revisarla con calma.\n\n")
+        f.write("carpetas hermanas, despues mezcla corroborada por el nombre,\n")
+        f.write("despues mezcla SIN corroborar -- esta ultima puede ser un\n")
+        f.write("artefacto de medicion, ver diag_calibracion_sospechosa.py),\n")
+        f.write("despues por confianza del nombre (baja primero). Si una carpeta\n")
+        f.write("no tiene ningun aviso y el candidato principal es ALTA, no hace\n")
+        f.write("falta revisarla con calma.\n\n")
         f.write("-" * 78 + "\n")
         for fila in orden:
             avisos = []
@@ -171,8 +206,14 @@ def escribir_consolidado(filas, ruta_salida):
                 avisos.append("DISCREPANCIA: sus hermanas (mismo proveedor) no "
                                "eligen el mismo candidato de nombre")
             if fila["sospechosa"]:
-                avisos.append("SOSPECHOSA de mezclar varias empresas reales "
-                               "(diag_carpetas_multiempresa)")
+                if fila["nombre_sugiere_equipo"]:
+                    avisos.append("SOSPECHOSA de mezclar varias empresas reales, "
+                                   "CORROBORADA por el nombre (suena a equipo/copia)")
+                else:
+                    avisos.append("SOSPECHOSA de mezclar varias empresas reales, "
+                                   "SIN corroborar por el nombre -- posible "
+                                   "artefacto de continuidad temporal, revisar "
+                                   "con mas cautela antes de descartar la carpeta")
             marca_avisos = ("  <<< " + " | ".join(avisos)) if avisos else ""
             f.write(f"\nContaPlus: {fila['carpeta']!r}{marca_avisos}\n")
             if fila["hermanas"]:
@@ -226,8 +267,11 @@ def main():
           f"proveedor): {stats['n_con_hermanas']}")
     print(f"  de esas, con DISCREPANCIA de candidato de nombre entre "
           f"hermanas (revisar primero): {stats['n_discrepancia']}")
-    print(f"  carpetas SOSPECHOSAS de mezclar varias empresas (revisar "
-          f"primero): {stats['n_sospechosa']}")
+    print(f"  carpetas SOSPECHOSAS de mezclar empresas, CORROBORADO por el "
+          f"nombre (revisar primero): {stats['n_sospechosa_corroborada']}")
+    print(f"  carpetas SOSPECHOSAS SIN corroborar por el nombre (posible "
+          f"artefacto -- ver diag_calibracion_sospechosa.py): "
+          f"{stats['n_sospechosa_sin_corroborar']}")
     print(f"  carpetas SIN ningun aviso y con nombre en confianza ALTA "
           f"(no hace falta revisar con calma): {stats['n_alta_sin_aviso']}")
 
