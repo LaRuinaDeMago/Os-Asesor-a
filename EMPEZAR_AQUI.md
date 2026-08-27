@@ -852,3 +852,33 @@ cliente:**
 cliente y convertirlo en los datos de la factura. Mismo patrón que
 `captura_orquestador.py`/`motor_veredicto.py`: la lectura del mensaje real
 necesita que el modelo la VEA (DPA); la numeración y la exportación, no.
+
+---
+
+## 10. Verificación pendiente: el xDiario ¿sirve también para ContaSOL?
+
+`escribir_xdiario()` (`layout_diario_contaplus.py`) lleva desde el 20/21-08
+construido y auditado para ContaPlus, con el layout de campos verificado
+byte a byte contra un `Diario.dbf` real. Su docstring afirmaba, sin que
+nadie lo hubiera comprobado nunca, que también servía para ContaSOL.
+Corregido el 27-08 (sesión Cloud): ahora dice la verdad completa — qué está
+verificado (ContaPlus) y qué está bien respaldado por fuentes públicas pero
+sin comprobar contra una instalación real (ContaSOL). Detalle y fuentes en
+`PROJECT_STATUS.md` (décima entrada del 27-08).
+
+**👉 SIGUIENTE PASO REAL, y no hace falta ningún dato de cliente:**
+importar el `xDiario.txt` sintético (el que ya genera `ensayo_xdiario.py`,
+o uno nuevo hecho con `--xdiario` sobre datos de prueba) en una **empresa de
+pruebas de ContaSOL**, y confirmar que entra limpio — mismas cuentas, mismo
+IVA, sin errores de formato. Es la misma comprobación que ya se hizo para
+ContaPlus el 21-08 ("verificado hoy con una importación real"), repetida
+para el segundo programa.
+
+Si la importación funciona: el módulo ya está cerrado para los dos
+programas, no hace falta escribir nada más. Si falla: dice exactamente
+dónde, y se corrige ese punto concreto — no se reconstruye desde cero.
+
+**No es la Fase 5 (Alojamiento CONTASOL, API en tiempo real) que sigue
+descartada** (`PROJECT_STATUS.md`, "Decisiones ya cerradas") — esto es un
+fichero de exportación por lotes, la misma categoría que ya funciona para
+ContaPlus, no una integración en vivo.

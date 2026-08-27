@@ -7,6 +7,74 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, décima entrada del día) — El paso final a ContaPlus/ContaSOL: una afirmación sin comprobar, corregida antes de construir nada nuevo
+
+Diego pidió trabajar el último tramo del motor: exportar los asientos
+validados a ContaPlus **y** ContaSOL. Antes de escribir código nuevo, se
+revisó lo que ya existe (`layout_diario_contaplus.py`, `escribir_xdiario()`,
+construido y auditado desde el 20/21-08) — y apareció algo que corregir
+antes de construir nada más.
+
+### No es una decisión reabierta
+
+`PROJECT_STATUS.md` tiene una decisión cerrada: *"Alojamiento CONTASOL (API
+en tiempo real): descartado por ahora, no es el cuello de botella."* **Eso
+sigue en pie y no se toca.** Es una decisión sobre una integración API en
+vivo. Lo de hoy es un fichero de exportación por lotes (`xDiario.txt`), el
+mismo mecanismo ya construido para ContaPlus — categoría distinta, no la
+misma pregunta.
+
+### El hallazgo: una afirmación de compatibilidad, nunca comprobada
+
+El docstring de `escribir_xdiario()` decía, desde que se escribió: *"listo
+para el importador nativo de ContaPlus/ContaSOL"*. Buscado en el propio
+repositorio: **esa afirmación aparecía en un solo sitio, sin ningún test ni
+entrada de este fichero que dijera "verificado"** — ni siquiera mencionada
+en `ensayo_xdiario.py`. Es la misma clase de fallo que este proyecto lleva
+meses cazando en otros sitios (el escáner de privacidad que decía "sin
+hallazgos" sobre un fichero que no había leído, el `21/21 OK` escrito a mano):
+un texto que declara algo cierto sin haberlo comprobado.
+
+**Investigado antes de corregir el texto, no solo borrado:** varias fuentes
+públicas independientes (ayuda oficial de ContaSOL, foros técnicos)
+coinciden en que ContaSOL tiene un modo de importación dedicado y compatible
+— `Utilidades > Importaciones > ContaPlus > Ficheros de ContaPlus` — que
+acepta los mismos `xSubcta.txt`/`xDiario.txt` que ya genera este proyecto
+para ContaPlus. Es una base razonable, no una suposición sin apoyo. **Pero
+no es lo mismo que haberlo comprobado contra una instalación real**, que es
+exactamente el nivel de rigor que sí se aplicó para ContaPlus (el layout de
+campos está verificado byte a byte contra un `Diario.dbf` real; la
+importación en sí se verificó "hoy, con una importación real" el 21-08).
+
+Corregido el docstring para decir la verdad completa: qué está verificado
+(ContaPlus, byte a byte), qué está bien respaldado pero sin comprobar
+(ContaSOL, con las fuentes citadas dentro del propio código), y cuál es el
+siguiente paso concreto para cerrarlo.
+
+### Lo que NO se construyó, y por qué eso es lo correcto
+
+**Si la compatibilidad se confirma, no hace falta escribir ningún exportador
+nuevo para ContaSOL** — el que ya existe, ya auditado, ya probado con
+sabotaje, sirve para los dos. Escribir un segundo exportador especulativo
+"por si acaso" antes de saber si hace falta sería exactamente el error que
+`DIRECCION_PRODUCTO.md` ya nombró (*"construir a lo ancho antes de
+medir"*), aplicado al código en vez de al producto.
+
+### Siguiente paso real, y es de Diego
+
+Importar el `xDiario.txt` sintético que ya genera `ensayo_xdiario.py` (sin
+ningún dato real, se borra al terminar el ensayo — o generar uno nuevo con
+`--xdiario` sobre datos de prueba) en una **empresa de pruebas de ContaSOL**
+y confirmar que entra limpio, con las cuentas y el IVA en su sitio. Es la
+misma comprobación que ya se hizo para ContaPlus, repetida para el segundo
+programa. Ningún dato de cliente hace falta para esta prueba.
+
+`test_motor_veredicto.py` 39/39, `test_adversarial.py` 112/112 y el ensayo
+de xDiario en verde, sin cambios de comportamiento (solo se corrigió el
+docstring). Escáner de privacidad sin hallazgos.
+
+---
+
 ## 27-08-2026 (sesión Cloud, novena entrada del día) — Arranca el módulo de facturas EMITIDAS: numeración correlativa, primera pieza
 
 Diego pidió empezar a tantear el terreno de un módulo nuevo, distinto del
