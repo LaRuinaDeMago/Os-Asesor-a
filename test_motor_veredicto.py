@@ -90,7 +90,7 @@ check(valida_nif("B1234567")[0] is None, "letra+7 digitos (CIF sin control): SIN
 # de mas.
 check(valida_nif("1234567")[0] == False, "7 digitos sigue siendo FALLO (no se ha ampliado de mas)")
 
-print("\n=== Nivel 1: DNI con el 0 inicial perdido (28-08-2026, sesion Cloud) ===")
+print("\n=== Nivel 1: DNI con el 0 inicial perdido (27-08-2026, sesion Cloud) ===")
 # Distinto de los dos SIN_DATO de arriba: ahi falta el UNICO caracter que
 # permite comprobar (el digito de control), aqui no falta nada -- el cero
 # inicial no cambia el valor de num % 23, asi que SI se puede verificar

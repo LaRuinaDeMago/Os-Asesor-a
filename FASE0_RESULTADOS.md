@@ -566,7 +566,7 @@ delante.
   encajaban en ninguna forma). Misma lectura que el resto: parece señal real
   del histórico, no ceguera del instrumento.
 
-  > **Arreglo 12, sesión Cloud 28-08-2026, sobre los "2 de longitud 8 que no
+  > **Arreglo 12, sesión Cloud 27-08-2026, sobre los "2 de longitud 8 que no
   > encajaban en ninguna forma".** Hipótesis concreta, verificada con
   > aritmética sintética antes de tocar código: `nif_check.py` cubría dos
   > formas de longitud 8 (8 dígitos sin letra; letra+7 dígitos) pero no una

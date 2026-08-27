@@ -7,6 +7,43 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, octava entrada del día) — `EMPEZAR_AQUI.md` §4: la pregunta llevaba semanas contestada, sin decirlo
+
+Diego pidió seguir avanzando "lo que podamos hacer aquí en Cloud". Antes de
+buscar otro arreglo de código, se leyó `SIGUIENTES_PASOS.md` completo — y
+su propio §6 avisa explícitamente: *"la siguiente hora de trabajo más
+valiosa del proyecto no es escribir nada... seguir buscando defectos [de
+código] es una trampa"*. Se lo dijo así a Diego en vez de forzar un tercer
+arreglo de código sin un hallazgo concreto que lo pidiera — la misma
+disciplina que ya paró antes de tocar `cuadre_total`/`retencion_vs_error`
+sin hipótesis (entrada anterior).
+
+En su lugar, se encontró algo distinto y legítimo: documentación desactualizada,
+no código. `EMPEZAR_AQUI.md` §4 seguía planteando, desde el 19-08, "¿cuándo se
+cierra el motor?" como pregunta sin contestar, con una lista para discutir.
+**Esa pregunta ya se había contestado** — `SIGUIENTES_PASOS.md` §4 (21-08) fija
+el umbral ANTES de ver el número (ROJO retro-semáforo < 5% = verde) — **y esa
+respuesta ya se había aplicado**: `FASE0_RESULTADOS.md` §14 (25-08) declara
+`ROJO 3,03% < 5%` → *"Verde. Se pasa al siguiente paso sin tocar el motor"*.
+Tres sesiones distintas, tres documentos distintos, la misma decisión resuelta
+tres veces sin que nadie tachara la pregunta original.
+
+Verificado punto por punto contra el código actual antes de reescribir nada
+(no se dio nada por hecho): de los cuatro ítems de la lista del 19-08, uno
+está superado (adversariales: 112, no 25), uno está resuelto de verdad
+(`guard_cuenta_gasto_coherente` ya recibe `mapeo_gasto` real desde
+`orquestador.py`, no `{}`) y dos siguen abiertos **a propósito**, no por
+descuido (`categoria_producto` sin producir, `MEDIA` de
+`guard_confianza_captura` inalcanzable — los dos declarados como deuda
+consciente, no como bug). `EMPEZAR_AQUI.md` §4 reescrita con esta tabla y
+apuntando a la pregunta real que queda: pasar facturas reales de punta a
+punta, que es de Diego, en local.
+
+`test_motor_veredicto.py` 39/39, `test_adversarial.py` 112/112 (sin cambios,
+no se tocó código), escáner de privacidad sin hallazgos.
+
+---
+
 ## 27-08-2026 (sesión Cloud, séptima entrada del día) — `nif_check.py`: tercera forma de longitud 8, recuperable de verdad (no solo SIN_DATO)
 
 Diego preguntó si se podía "pulir" también el semáforo (`retro_semaforo.py`),

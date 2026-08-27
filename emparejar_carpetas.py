@@ -25,7 +25,7 @@ emparejados) va a un fichero `_LOCAL` que Diego revisa el mismo, en su
 pantalla. Por consola solo salen RECUENTOS: cuantas propuestas salieron con
 confianza alta, media o baja -- nunca un nombre.
 
-ANADIDO 28-08-2026 (sesion Cloud): la comparacion ya no es solo por texto
+ANADIDO 27-08-2026 (sesion Cloud): la comparacion ya no es solo por texto
 seguido (difflib.SequenceMatcher). Las razones sociales espanolas cambian de
 orden con frecuencia -- 'Hermanos Perez SL' en ContaPlus y 'Perez Hermanos'
 en Documentos es el mismo cliente, pero por texto seguido solo puntuaban
@@ -82,7 +82,7 @@ def normalizar(nombre):
 
 def jaccard_palabras(n1, n2):
     """Coincidencia por CONJUNTO de palabras, no por texto seguido. Anadido
-    28-08-2026: el emparejamiento original solo usaba difflib.SequenceMatcher
+    27-08-2026: el emparejamiento original solo usaba difflib.SequenceMatcher
     (similitud de caracteres en el MISMO orden), y las razones sociales
     espanolas cambian de orden con mucha frecuencia -- 'Hermanos Perez SL' en
     ContaPlus y 'Perez Hermanos' en Documentos es el mismo cliente, pero
@@ -148,7 +148,7 @@ def main():
     # genericas, con 140 candidatos hace falta mas contexto para que Diego
     # decida el mismo, en vez de intentar adivinarlo por palabra clave.
     #
-    # ANADIDO 28-08-2026: la seleccion y el orden de los 3 candidatos ya usan
+    # ANADIDO 27-08-2026: la seleccion y el orden de los 3 candidatos ya usan
     # combinado() (texto seguido + palabras), no solo texto seguido. Antes,
     # un candidato correcto con las palabras en otro orden podia quedar FUERA
     # del top-3 por su char_ratio bajo, y Diego nunca llegaba a verlo -- el
@@ -193,7 +193,7 @@ def main():
 
     ambiguos = sum(1 for _c, t in resultados if es_ambiguo(t[0][3], t[1][3]))
 
-    # ANADIDO 28-08-2026: colisiones -- dos carpetas de ContaPlus DISTINTAS
+    # ANADIDO 27-08-2026: colisiones -- dos carpetas de ContaPlus DISTINTAS
     # eligiendo la MISMA carpeta de Documentos como su candidato principal.
     # No lo detectaba nada antes. No es necesariamente un error (puede ser
     # una empresa con dos altas en ContaPlus, o una carpeta que agrupa a

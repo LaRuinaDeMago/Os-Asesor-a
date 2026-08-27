@@ -91,12 +91,12 @@ def main():
         # debe quedar en confianza baja, nunca emparejada con seguridad.
         # CASO 4: el mismo cliente con DOS carpetas legitimas en Documentos
         # (actual + historica) no debe marcarse como "ambiguo".
-        # CASO 5 (28-08-2026, senal nueva): el MISMO nombre con las palabras
+        # CASO 5 (27-08-2026, senal nueva): el MISMO nombre con las palabras
         # en OTRO orden ('Hermanos Perez SL' / 'Perez Hermanos') debe
         # rescatarse a confianza ALTA por coincidencia de palabras, aunque
         # por texto seguido solo de 0.57 (MEDIA). Caso real, no inventado
         # para que cuadre: es justo el ejemplo con el que se detecto el hueco.
-        # CASO 6 (28-08-2026, deteccion nueva): dos carpetas de ContaPlus que
+        # CASO 6 (27-08-2026, deteccion nueva): dos carpetas de ContaPlus que
         # normalizan IGUAL (con/sin sufijo societario escrito distinto) deben
         # marcarse como COLISION al competir por la misma carpeta de
         # Documentos -- antes no se detectaba nada.

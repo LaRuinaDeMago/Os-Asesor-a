@@ -37,7 +37,7 @@ def valida_nif(nif):
         if nif[0].isalpha() and nif[1:8].isdigit():
             return (None, "SIN_DATO",
                     "letra+7 digitos: forma de CIF al que le falta el digito de control, no verificable")
-        # AÑADIDO 28-08-2026 (sesion Cloud, sobre el residuo declarado en
+        # AÑADIDO 27-08-2026 (sesion Cloud, sobre el residuo declarado en
         # FASE0_RESULTADOS.md §14: "2 de longitud 8 que no encajaban en
         # ninguna forma"). 7 digitos + letra AL FINAL es una tercera forma de
         # longitud 8 que las dos de arriba no cubren -- y a diferencia de

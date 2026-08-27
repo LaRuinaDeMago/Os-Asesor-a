@@ -110,7 +110,7 @@ patrón dominante ya identificable — parece señal real del histórico, no
 ceguera del instrumento, pero no está descartado del todo. Ver
 `FASE0_RESULTADOS.md` §14 para el desglose.
 
-> **Arreglo 12 (28-08-2026, sesión Cloud, con aritmética sintética, no con el
+> **Arreglo 12 (27-08-2026, sesión Cloud, con aritmética sintética, no con el
 > corpus real):** `nif_check.py` ya recupera una tercera forma de longitud 8
 > ("2 de longitud 8 que no encajaban en ninguna forma" del párrafo de
 > arriba) — un DNI al que se le perdió el cero inicial, verificable del todo
@@ -683,28 +683,35 @@ cubo 3 está *caracterizado* (se sabe qué tipos caen ahí, no solo cuántos), y
 tasa de falsos verdes **dentro del cubo 1** está medida y bajo el umbral fijado
 de antemano.
 
-## 4. La decisión que hay que tomar hoy, antes de seguir tocando el motor
+## 4. ✅ RESUELTO — "¿cuándo se cierra el motor?" ya tiene respuesta, y ya se aplicó
 
-**Acordado el 19-08:** primero se cierra bien el motor, después se valida. Decisión
-de Diego y es defendible: medir la tasa de falsos verdes de un motor que va a
-cambiar produce un número que caduca.
+> **Corregido 27-08-2026 (sesión Cloud).** Esta sección llevaba desde el 19-08
+> planteando como pregunta abierta "¿qué tiene que ser cierto para decir que
+> el motor está cerrado?", con una lista para discutir. La pregunta **ya se
+> contestó** — con un umbral fijado ANTES de ver el número
+> (`SIGUIENTES_PASOS.md` §4, 21-08) — y esa respuesta **ya se aplicó**: `ROJO
+> 3,03% < 5%` → *"Verde. Se pasa al siguiente paso sin tocar el motor"*
+> (`FASE0_RESULTADOS.md` §14, 25-08, ver también §1 de arriba). Dejarla como
+> "pendiente de decidir hoy" era la misma clase de fallo que este proyecto
+> lleva meses cazando en otros sitios: un texto que dice "sin resolver" sobre
+> algo que el código y los números ya resolvieron.
 
-**Lo que falta y hay que escribir HOY:** la línea de meta. *"Cerrar bien el motor"*
-sin criterio absorbe tiempo indefinido, igual que le pasaba a *"pulir el inventario
-hasta fiarnos"* antes de fijar el 5%.
+**Repaso, punto por punto, de la lista de aquel día — verificado contra el
+código actual, no supuesto:**
 
-> **Escribir, antes de tocar un guard más: ¿qué tiene que ser cierto para decir
-> que el motor está cerrado?**
+| Punto de la lista del 19-08 | Estado hoy |
+|---|---|
+| Pruebas adversariales en verde | Superado: 112 (`test_adversarial.py`), no 25 |
+| `guard_cuenta_gasto_coherente` recibiendo el mapeo real, no `{}` | ✅ **Resuelto** — `orquestador.py` le pasa `mapeo_cuenta_gasto=mapeo_gasto`, construido de verdad desde `--diario` |
+| `categoria_producto` (deuda declarada) | 🟡 **Sigue abierta, a propósito** — la captura sigue sin producir ese campo, `tipo_producto_iva_semantico` sigue exento por diseño, no por descuido |
+| `MEDIA` de `guard_confianza_captura` (`OK_INFERIDO`) | 🟡 **Sigue inalcanzable, a propósito** — el prompt de captura solo pide `OK`/`DUDA`. Arreglarlo bien exige confianza por campo (`DISENO_APRENDIZAJE.md` §4), no parchear el prompt |
+| Un número de facturas reales de punta a punta | 🔴 **Sigue siendo el hueco real** — y es exactamente lo que `SIGUIENTES_PASOS.md` §2-3 ya identificó como lo único que de verdad falta, sin depender de nada (ni DPA, ni Workspace): sentarse en el PC de la asesoría y ejecutar `retro_semaforo.py` / `validar_captura_historica.py` / `reconstruir_303.py` |
 
-Sugerencia de partida, para discutir, no para aceptar sin más:
-
-- Las 25 pruebas adversariales en verde (ya lo están).
-- Los guards que hoy dependen de datos que nadie produce, resueltos o declarados:
-  `categoria_producto` (deuda ya anotada) y el estado `MEDIA` de
-  `guard_confianza_captura`, hoy inalcanzable.
-- El histórico conectado a la decisión de verdad: `guard_cuenta_gasto_coherente`
-  ya está cableado, pero recibiendo el mapeo real, no `{}`.
-- **Y un número de facturas reales pasadas de punta a punta.** Aunque sea 20.
+**La lección de fondo, que `SIGUIENTES_PASOS.md` §6 ya deja escrita y conviene
+no olvidar:** *"la siguiente hora de trabajo más valiosa del proyecto no es
+escribir nada. Es abrir un terminal en el PC de la asesoría."* Seguir buscando
+más defectos de código a estas alturas, sin un hallazgo concreto que lo pida,
+es exactamente la trampa que ese párrafo nombra.
 
 ---
 
