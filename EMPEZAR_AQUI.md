@@ -551,7 +551,8 @@ Sería el primer número real, sacado de trabajo ya hecho. Mirar esto antes que 
 **Y ya está la herramienta esperándolo:**
 
 ```bash
-python validar_captura_historica.py "ruta/al/fichero.csv"
+python validar_captura_historica.py "ruta/al/fichero.csv" \
+    --nif-titular "NIF_DEL_CLIENTE" --ejercicio 2026
 ```
 
 No hace falta que el CSV tenga ningún formato concreto: detecta las columnas

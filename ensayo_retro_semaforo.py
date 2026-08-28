@@ -574,7 +574,8 @@ def main():
 
     #: Diferencias aceptadas, con su motivo. No es "esto da igual": es POR QUE
     #: la medicion tiene que apartarse de produccion en este punto concreto.
-    DIVERGENCIAS_DECLARADAS = {
+    DIVERGENCIAS_DECLARADAS = {}
+    DIVERGENCIAS_DECLARADAS["retro_semaforo.py"] = {
         "alta_cliente_anio": (
             "Fijado a 1990 a proposito. Produccion lo lee del config de CADA "
             "cliente; el corpus historico mezcla ~24 clientes cuyo año de alta "
@@ -626,6 +627,24 @@ def main():
             "contar un acierto que contarlo por la razon que no es."
         ),
     }
+    # El OTRO script de medicion, el que va a producir el numero de FALSOS
+    # VERDES -- la metrica que SIGUIENTES_PASOS.md §4 dice que decide el
+    # proyecto, con un umbral de "≥ 1 falso verde -> se para la
+    # automatizacion". El 27-08-2026 se le anadieron --nif-titular,
+    # --ejercicio y --mapeo-gasto-json, que NO tenia: sin ellos, guards que
+    # produccion si corre quedaban en NO_APLICA y la medicion salia mas
+    # pesimista que el motor real.
+    DIVERGENCIAS_DECLARADAS["validar_captura_historica.py"] = {
+        "mapeo_cartera": (
+            "Mismo motivo que en retro_semaforo.py: guard_patron_cartera nunca "
+            "devuelve OK y esta en `exentos`, asi que no cambia el veredicto. "
+            "Comprobado empiricamente el 27-08-2026."
+        ),
+        "plazos_cache": (
+            "Omitido; el motor hace `plazos_cache or {}`, asi que es "
+            "EQUIVALENTE al {} que pasa produccion."
+        ),
+    }
 
     def _args_de_llamada(fichero):
         """Nombre de parametro -> expresion, para cada llamada a
@@ -648,12 +667,14 @@ def main():
         return llamadas
 
     prod = _args_de_llamada("orquestador.py")
-    medicion = _args_de_llamada("retro_semaforo.py")
-    comprobar("se encuentran las llamadas al motor en los dos ficheros",
-              len(prod) >= 1 and len(medicion) >= 1,
-              f"produccion={len(prod)}, medicion={len(medicion)}")
+    comprobar("se encuentra la llamada al motor en produccion", len(prod) >= 1,
+              f"produccion={len(prod)}")
 
-    if prod and medicion:
+    for fichero, declaradas in DIVERGENCIAS_DECLARADAS.items():
+      medicion = _args_de_llamada(fichero)
+      comprobar(f"{fichero}: se encuentra su llamada al motor", len(medicion) >= 1,
+                f"medicion={len(medicion)}")
+      if prod and medicion:
         params_prod = set(prod[0])
         divergencias = set()
         for llamada in medicion:
@@ -668,14 +689,14 @@ def main():
                     except (ValueError, SyntaxError):
                         pass          # otra variable: no es una constante fija
 
-        sin_declarar = sorted(divergencias - set(DIVERGENCIAS_DECLARADAS))
-        comprobar("toda divergencia con produccion esta declarada con su motivo",
+        sin_declarar = sorted(divergencias - set(declaradas))
+        comprobar(f"{fichero}: toda divergencia con produccion esta declarada",
                   not sin_declarar,
                   f"SIN DECLARAR: {sin_declarar} — cada una cambia lo que "
                   f"significa el numero de la medicion")
 
-        caducadas = sorted(set(DIVERGENCIAS_DECLARADAS) - divergencias)
-        comprobar("no hay divergencias declaradas que ya no existan",
+        caducadas = sorted(set(declaradas) - divergencias)
+        comprobar(f"{fichero}: sin divergencias declaradas que ya no existan",
                   not caducadas,
                   f"CADUCADAS: {caducadas} — una lista que conserva entradas "
                   f"muertas acaba tapando una divergencia real")

@@ -74,7 +74,8 @@ presentaron, todo lo demás es discutir el color de una pared que hay que tirar.
 ### 3.2 · Después: las 91 facturas fotografiadas (una tarde)
 
 ```bash
-python validar_captura_historica.py "ruta/al/fichero.csv" --columna-humano CORRECTO
+python validar_captura_historica.py "ruta/al/fichero.csv" --columna-humano CORRECTO \
+    --nif-titular "NIF_DEL_CLIENTE" --ejercicio 2026
 ```
 
 **Va segunda porque es lo único que puede hablar de FALSOS VERDES**, que es

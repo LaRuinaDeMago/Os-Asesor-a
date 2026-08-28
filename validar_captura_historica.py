@@ -153,6 +153,30 @@ def main():
     ap.add_argument("--alta-anio", type=int, default=1990,
                     help="Ano de alta del cliente. Por defecto uno muy antiguo, para que "
                          "el guard de fecha no penalice por falta de dato de configuracion")
+    # ANADIDO 27-08-2026 (comprobacion de paridad medicion<->produccion). Estos
+    # tres parametros los pasa orquestador.py y este script NO tenia forma de
+    # darlos, asi que sus guards quedaban en NO_APLICA de forma estructural.
+    # Y el sesgo va en la direccion que mas duele: un guard apagado deja pasar
+    # a VERDE algo que produccion SI marca, y este script mide precisamente
+    # FALSOS VERDES, con un umbral de "≥ 1 falso verde -> se para la
+    # automatizacion". Verificado con un caso concreto el 27-08: una factura
+    # de otro ejercicio sale VERDE aqui y ROJO en produccion.
+    #
+    # Todos OPCIONALES y con el comportamiento de siempre por defecto: sin
+    # ellos el script hace exactamente lo que hacia, pero ahora lo DICE.
+    ap.add_argument("--nif-titular",
+                    help="NIF del cliente titular de la tanda. Sin el, "
+                         "guard_sentido_compra_venta no puede detectar que la "
+                         "factura la emitio el propio cliente (una venta "
+                         "archivada como compra)")
+    ap.add_argument("--ejercicio", type=int,
+                    help="Ejercicio de la tanda. Sin el, guard_ejercicio_coherente "
+                         "queda en NO_APLICA y una factura de otro ano pasa a VERDE "
+                         "-- en produccion se marca ROJO")
+    ap.add_argument("--mapeo-gasto-json",
+                    help="Mapeo cuenta de proveedor -> cuenta de gasto habitual "
+                         "(el que emite orquestador.py con cache_cuenta_gasto). "
+                         "Sin el, guard_cuenta_gasto_coherente queda en NO_APLICA")
     args = ap.parse_args()
 
     if not os.path.exists(args.csv):
@@ -223,6 +247,43 @@ def main():
         except Exception as e:
             print(f"  maestro no cargado ({type(e).__name__})")
 
+    mapeo_gasto = {}
+    if args.mapeo_gasto_json and os.path.exists(args.mapeo_gasto_json):
+        try:
+            mapeo_gasto = json.load(open(args.mapeo_gasto_json, encoding="utf-8"))
+            print(f"  mapeo de cuenta de gasto : {len(mapeo_gasto)} proveedores")
+        except Exception as e:
+            print(f"  mapeo de gasto no cargado ({type(e).__name__})")
+
+    # ANADIDO 27-08-2026. Este script mide FALSOS VERDES, y el umbral acordado
+    # en SIGUIENTES_PASOS.md §4 es durisimo: "≥ 1 falso verde -> se para la
+    # automatizacion". Con un guard estructuralmente apagado, una factura que
+    # produccion marcaria sale VERDE aqui, y si el humano dice que estaba mal
+    # se cuenta como falso verde de un motor que en produccion SI la caza.
+    # Eso podria parar el proyecto por un artefacto del instrumento.
+    #
+    # Se avisa ANTES de medir, no despues -- mismo patron que ya usa
+    # orquestador.py con alta_cliente_anio.
+    apagados = []
+    if not args.nif_titular:
+        apagados.append("sentido_compra_venta (falta --nif-titular): no puede "
+                        "detectar una VENTA archivada como compra")
+    if args.ejercicio is None:
+        apagados.append("ejercicio_coherente (falta --ejercicio): una factura de "
+                        "otro ano sale VERDE aqui y ROJO en produccion")
+    if not mapeo_gasto:
+        apagados.append("cuenta_gasto_coherente (falta --mapeo-gasto-json): no "
+                        "compara la cuenta contra el patron historico")
+    if apagados:
+        print()
+        print("  AVISO — guards APAGADOS en esta medicion, que en produccion SI corren.")
+        print("  Cada uno hace la medicion MAS PESIMISTA que el motor real:")
+        for a in apagados:
+            print(f"     - {a}")
+        print("  Si sale algun falso verde, comprobar primero si lo explica uno de")
+        print("  estos antes de dar por malo el motor. No es un fallo del script:")
+        print("  es que faltan datos de configuracion que produccion si tiene.")
+
     # ---- Reevaluar con el motor de HOY ----
     vistos = set()
     hoy = Counter()
@@ -260,8 +321,9 @@ def main():
                 fila, vistos, historico_acumulado, formato_acumulado,
                 secuencia_acumulada, maestro,
                 alta_cliente_anio=args.alta_anio,
-                nif_cliente_titular=None,
-                ejercicio_tanda=None)
+                nif_cliente_titular=args.nif_titular,
+                ejercicio_tanda=args.ejercicio,
+                mapeo_cuenta_gasto=mapeo_gasto)
         except Exception as e:
             errores[type(e).__name__] += 1
             continue

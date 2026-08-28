@@ -7,6 +7,78 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 🔴 27-08-2026 (sesión Cloud, vigesimoquinta entrada) — El script que mide FALSOS VERDES tenía tres guards apagados, y el sesgo iba hacia parar el proyecto
+
+La comprobación de paridad de la entrada anterior solo miraba
+`retro_semaforo.py`. Pero **`validar_captura_historica.py` también llama al
+motor** — y es el que va a producir el número de **falsos verdes**, la
+métrica que `SIGUIENTES_PASOS.md` §4 dice que decide el proyecto. Nunca se
+había comprobado su paridad.
+
+### Tres parámetros que producción usa y el script no tenía forma de dar
+
+No era que estuvieran mal pasados: **no existían las opciones de línea de
+comandos**. `nif_cliente_titular`, `ejercicio_tanda` y `mapeo_cuenta_gasto`
+iban fijos a `None`/ausentes, así que `sentido_compra_venta`,
+`ejercicio_coherente` y `cuenta_gasto_coherente` quedaban en `NO_APLICA` de
+forma estructural.
+
+### Por qué esto era grave: el sesgo va en la dirección que más duele
+
+Un guard apagado deja pasar a **VERDE** algo que producción sí marca. Y este
+script mide falsos verdes, con un umbral durísimo acordado de antemano:
+**«≥ 1 falso verde → se para la automatización»**.
+
+Verificado con un caso concreto, ejecutando el script de verdad:
+
+| Una factura de otro ejercicio | Veredicto |
+|---|---|
+| Medición, como estaba (`--ejercicio` inexistente) | **VERDE** |
+| Producción (`orquestador.py` con `ejercicio_tanda`) | **ROJO** |
+
+Si un humano marcara esa factura como incorrecta, se contaría como **falso
+verde de un motor que en producción sí la caza** — y podría parar el
+proyecto por un artefacto del instrumento.
+
+### Una alarma mía que resultó exagerada, y la comprobé antes de escribirla
+
+Supuse que `nif_cliente_titular=None` dejaría pasar una **venta archivada
+como compra**. Probado: **sale ROJO igualmente**, porque `nif_casa_historico`
+la caza por otra vía (el NIF del titular no está en el maestro de
+proveedores). El guard queda debilitado, no mudo. Lo digo así en vez de
+apuntarme un hallazgo más grande de lo que es.
+
+### Arreglo
+
+Añadidas `--nif-titular`, `--ejercicio` y `--mapeo-gasto-json`, **todas
+opcionales y con el comportamiento de siempre por defecto**: sin ellas el
+script hace exactamente lo que hacía. La diferencia es que ahora **lo dice
+antes de medir**, no después — mismo patrón que ya usa `orquestador.py` con
+`alta_cliente_anio`:
+
+```
+AVISO — guards APAGADOS en esta medicion, que en produccion SI corren.
+Cada uno hace la medicion MAS PESIMISTA que el motor real:
+   - ejercicio_coherente (falta --ejercicio): una factura de otro ano
+     sale VERDE aqui y ROJO en produccion
+   ...
+Si sale algun falso verde, comprobar primero si lo explica uno de estos
+antes de dar por malo el motor.
+```
+
+### Verificación
+
+La comprobación de paridad se generalizó: ahora cubre **los dos** scripts de
+medición, cada uno con su lista de divergencias declaradas. Probado con
+sabotaje —volviendo a fijar `nif_cliente_titular=None`— y lo señala por su
+nombre y por su fichero. Probado también de punta a punta: la misma factura
+sintética da VERDE sin `--ejercicio` y ROJO con él.
+
+`test_motor_veredicto.py` 65/65, `test_adversarial.py` 112/112, escáner de
+privacidad sin hallazgos.
+
+---
+
 ## 27-08-2026 (sesión Cloud, vigesimocuarta entrada) — Paridad medición↔producción: cinco divergencias, y una protegía en silencio la tasa de detección
 
 El error de la entrada anterior (alcance de las cachés) era **una** divergencia
