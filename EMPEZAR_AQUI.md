@@ -67,13 +67,19 @@ plantilla dijo `39/39` cuando la suite ya iba por 65.
 captura y de lectura de PDF, ninguna del motor). **Cualquier otro ❌ manda
 sobre todo lo demás**: se arregla antes de tocar nada.
 
-> **27-08-2026:** dos módulos nuevos, independientes del motor, **a propósito
-> sin cablear a `audit_project.py`** (son código que empieza ese día, no la
-> pieza ya estable y auditada muchas veces que es el motor — mezclarlos ahí
+> **27-08-2026:** módulos nuevos, independientes del motor, **a propósito sin
+> cablear a `audit_project.py`** (son código que empieza ese día, no la pieza
+> ya estable y auditada muchas veces que es el motor — mezclarlos ahí
 > fingiría una madurez que no tienen). Se verifican con su propio comando —
-> **ninguno de los dos sale en la lista de arriba, y es correcto**:
+> **ninguno sale en la lista de arriba, y es correcto**:
 > - `python test_numeracion_correlativa.py` — 25/25 (numeración correlativa
 >   para el módulo de facturas EMITIDAS, ver §9).
+> - `python diff_comportamiento_motor.py` — **cuando toques el motor**: dice
+>   qué factura cambia de veredicto con tu cambio, y avisa si mueve un caso
+>   de control (un efecto colateral). Con el árbol limpio no encuentra nada, y
+>   por eso **no está cableado a la auditoría diaria**: allí sería una línea
+>   verde que no comprueba nada. `--ref 408952f` enseña todo lo que cambió el
+>   27-08.
 > - `python test_comparar_esquema_dbf.py` — 12/12 (compara el layout de un
 >   `.dbf` real contra ContaPlus sin exponer ningún dato, ver §10).
 >

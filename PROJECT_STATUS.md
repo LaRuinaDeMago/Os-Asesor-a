@@ -7,6 +7,87 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, vigesimoséptima entrada) — Medido el cambio de comportamiento REAL del motor tras seis cambios en un día
+
+Cierre de la sesión con la pregunta que ninguna suite en verde contesta. Hoy
+el motor recibió **seis cambios** (`actualizar_caches_historicas`,
+`actualizar_mapeo_cuenta_gasto`, `guard_importe_atipico` reescrito, `_forma`,
+`guard_secuencia_documental_proveedor`, `nif_check`). Cada uno con su prueba y
+su sabotaje, y toda la batería en verde. Pero eso responde a *"¿sigue pasando
+lo que ya probábamos?"*, no a lo que de verdad importa tras un día así:
+
+> **¿QUÉ factura cambia de veredicto, y es un cambio que queríamos?**
+
+Un cambio intencionado y uno accidental **se parecen mucho en un test en
+verde: los dos pasan.** La única forma de distinguirlos es coger las mismas
+facturas, pasarlas por las dos versiones y enumerar las diferencias.
+
+### `diff_comportamiento_motor.py`
+
+Monta el motor de una referencia de git y el del árbol actual en **procesos
+separados** —los dos módulos se llaman igual y cargarlos juntos los mezclaría
+sin avisar— y compara veredicto y estado de cada guard sobre 16 facturas
+sintéticas: seis que tocan cada cambio del día y **diez de control que no
+debían moverse**.
+
+**El resultado del día, medido y no supuesto:**
+
+| | |
+|---|---|
+| Cambian de veredicto | **5** — los cinco intencionados |
+| Cambian de guard sin mover el veredicto | **1** — `secuencia_documental`, de un OK falso a `NO_COMPROBADO` |
+| Idénticas en veredicto y en guards | **10 de 16** — los diez controles |
+
+**Ningún caso de control se movió.** Los seis cambios hacen lo que dicen y
+nada más.
+
+### Nueve pasadas de auditoría sobre la propia herramienta
+
+Se auditó repetidamente antes de guardarla, y cada pasada encontró algo:
+
+1. **Primera ejecución:** solo aparecían 5 de los 6 cambios. Faltaba
+   `secuencia_documental`, porque su guard está en `exentos` y su paso de
+   `OK` a `NO_COMPROBADO` **no mueve el veredicto**. Una herramienta que solo
+   mira veredictos se lo tragaba entero — justo el cambio más importante de
+   los seis (un falso OK convertido en respuesta honesta). Añadida la sección
+   de cambios a nivel de guard.
+2. **Un control que se moviera solo a nivel de guard no hacía fallar**, por el
+   mismo motivo. Corregido: las dos formas de moverse cuentan.
+3. **`zip()` habría truncado en silencio** si las dos versiones devolvieran
+   distinto número de resultados. Ahora sale con error: comparar listas de
+   distinto tamaño sería inventar.
+4. **Sabotaje** con una regresión real (`cuadre_total` desactivado): la caza
+   —y la caza a nivel de guard, aunque el veredicto siguiera en ROJO por otro
+   motivo. Sin la corrección 1, habría sido invisible.
+5. **Fallo de diseño de fondo:** el `--ref` por defecto apuntaba al inicio de
+   *hoy*, lo que la convertía en un artefacto de un día. Cambiado a `HEAD`,
+   que es la pregunta reutilizable: *"el cambio que acabo de escribir, ¿qué
+   mueve?"*.
+6. **Mensaje deshonesto** cuando nada se movía (decía "todo lo que se mueve
+   está en casos que se querían cambiar" sin que se moviera nada). Ahora dice
+   que el motor se comporta idéntico, y avisa: *"si esperabas un cambio, tu
+   cambio no está llegando al motor"*.
+7. Una referencia de git inválida daba **traceback**; ahora, error claro y
+   código de salida 2.
+8. **El escáner de privacidad saltó** sobre un CIF literal escrito a mano.
+   **No se amplió su lista blanca** —una lista escrita a mano rota, y hoy ya
+   se han limpiado dos por haber derivado—: el CIF inválido ahora se **deriva**
+   del válido, así que el fichero no contiene ni una cadena con forma de NIF y
+   no hace falta excepción ninguna. Verificado que sigue siendo inválido de
+   verdad (el guard lo rechaza).
+9. Batería completa, los dos módulos no cableados, y escáner de privacidad
+   sobre **todos** los ficheros trackeados: sin hallazgos.
+
+### Deliberadamente NO cableada a `audit_project.py`
+
+Con el árbol limpio siempre diría "sin cambios", así que en la auditoría
+diaria sería **una línea en verde que no comprueba nada** — exactamente el
+falso verde que este proyecto persigue. Es una herramienta para cuando se
+toca el motor, no un vigilante permanente. Escrito en su propio docstring
+para que nadie la cablee sin pensarlo.
+
+---
+
 ## 27-08-2026 (sesión Cloud, vigesimosexta entrada) — `EMPEZAR_AQUI.md` había derivado durante la propia sesión: decía 39/39 cuando la suite iba por 65
 
 Auditoría del punto de entrada, y el motivo es honesto: **lo he editado unas
