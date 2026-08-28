@@ -557,6 +557,129 @@ def main():
                   "si no, acumula mezclando clientes y la medicion deja de "
                   "describir lo que hara produccion")
 
+    # --- Paridad de llamada: medicion vs produccion -------------------------
+    # ANADIDO 27-08-2026. La medicion existe para predecir que hara el motor en
+    # produccion, asi que TODA diferencia entre como le llama retro_semaforo.py
+    # y como le llama orquestador.py cambia lo que significa el numero. Se
+    # exige que cada diferencia este DECLARADA con su motivo.
+    #
+    # HONESTIDAD SOBRE EL ALCANCE, para que nadie confie de mas en esto: esta
+    # comprobacion NO habria cazado el error de las caches de arriba. Alli los
+    # parametros SI se pasaban —con el alcance equivocado—, y el alcance no se
+    # ve en el punto de llamada. De eso se ocupa la comprobacion anterior. Lo
+    # que esta si caza, y no cubre nada mas hoy: un parametro que produccion
+    # pasa y la medicion omite, y una CONSTANTE fija donde produccion usa un
+    # dato real.
+    print("\n--- Paridad de llamada al motor: medicion vs produccion ---")
+
+    #: Diferencias aceptadas, con su motivo. No es "esto da igual": es POR QUE
+    #: la medicion tiene que apartarse de produccion en este punto concreto.
+    DIVERGENCIAS_DECLARADAS = {
+        "alta_cliente_anio": (
+            "Fijado a 1990 a proposito. Produccion lo lee del config de CADA "
+            "cliente; el corpus historico mezcla ~24 clientes cuyo año de alta "
+            "no se conoce, y no hay de donde sacarlo. Con 1990, ninguna factura "
+            "del corpus (2011-2026) es anterior al alta, asi que "
+            "guard_fecha_posterior_alta no dispara nunca y no contamina la "
+            "medicion con un ROJO que solo dice 'no se el año de alta'. "
+            "Consecuencia declarada: esta medicion NO dice nada sobre ese guard."
+        ),
+        "nif_cliente_titular": (
+            "None a proposito: el diario no trae el NIF del titular. Ya estaba "
+            "declarado en AMBAR_DEL_INSTRUMENTO de retro_semaforo.py, que "
+            "cuenta como 'ambar del instrumento' —no de la factura— el "
+            "sentido_compra_venta que esto deja sin comprobar."
+        ),
+        "mapeo_cartera": (
+            "No se pasa. Comprobado empiricamente el 27-08-2026 que NO cambia "
+            "el veredicto: guard_patron_cartera nunca devuelve OK (a proposito, "
+            "un patron es una hipotesis) y esta en `exentos`, asi que su "
+            "NO_APLICA no baja a AMBAR. Solo enriquece el MOTIVO. Ademas, el "
+            "patron de cartera de retro_semaforo se construye con el corpus "
+            "ENTERO y usarlo durante la evaluacion seria una fuga de datos "
+            "(facturas futuras informando decisiones pasadas), el mismo error "
+            "que ya se corrigio para el maestro el 21-08."
+        ),
+        "plazos_cache": (
+            "La medicion lo omite y produccion pasa {}. EQUIVALENTE: el motor "
+            "hace `plazos_cache = plazos_cache or {}`, asi que omitirlo da el "
+            "mismo {} exacto. Se declara igualmente para que la lista sea el "
+            "retrato COMPLETO de las diferencias y no haya que volver a "
+            "averiguar si esta es inocua."
+        ),
+        "vistos_duplicado": (
+            "Solo en la llamada de --inyectar, que pasa un set() nuevo en vez "
+            "del acumulado. Es DELIBERADO y protege la tasa de deteccion, "
+            "aunque no estaba escrito en ninguna parte hasta el 27-08-2026:\n"
+            "  La clave documental es (nif, nº_documento, fecha, total). El "
+            "error inyectado 'tipo_iva_cambiado' altera SOLO el IVA, asi que "
+            "los cuatro campos de la clave quedan IDENTICOS a los de la factura "
+            "original, que ya esta en el acumulado. Con el set compartido, "
+            "anti_duplicado dispararia -> ROJO -> se contaria como DETECTADO, "
+            "pero por el motivo equivocado: el motor no habria visto el IVA "
+            "mal, habria visto un duplicado que solo existe porque la propia "
+            "medicion fabrico la copia.\n"
+            "  Con set() nuevo, cada inyeccion se juzga por su propio defecto. "
+            "Ninguno de los cinco tipos inyectados es un duplicado, asi que no "
+            "se pierde deteccion de nada: solo se evita apuntarse una que no "
+            "es. Es la misma disciplina que el resto del proyecto: mas vale no "
+            "contar un acierto que contarlo por la razon que no es."
+        ),
+    }
+
+    def _args_de_llamada(fichero):
+        """Nombre de parametro -> expresion, para cada llamada a
+        evaluar_fila_v4. Normaliza posicionales a su nombre de parametro."""
+        POS = ['fila', 'vistos_duplicado', 'historico_proveedor', 'formato_cache',
+               'secuencia_cache', 'maestro_proveedores', 'alta_cliente_anio',
+               'nif_cliente_titular', 'ejercicio_tanda', 'plazos_cache',
+               'mapeo_cuenta_gasto', 'mapeo_cartera']
+        llamadas = []
+        arbol_f = ast.parse(open(os.path.join(AQUI, fichero), encoding="utf-8").read())
+        for n in ast.walk(arbol_f):
+            if not isinstance(n, ast.Call):
+                continue
+            nombre = getattr(n.func, 'attr', None) or getattr(n.func, 'id', None)
+            if nombre != 'evaluar_fila_v4':
+                continue
+            args = {POS[i]: ast.unparse(a) for i, a in enumerate(n.args) if i < len(POS)}
+            args.update({k.arg: ast.unparse(k.value) for k in n.keywords if k.arg})
+            llamadas.append(args)
+        return llamadas
+
+    prod = _args_de_llamada("orquestador.py")
+    medicion = _args_de_llamada("retro_semaforo.py")
+    comprobar("se encuentran las llamadas al motor en los dos ficheros",
+              len(prod) >= 1 and len(medicion) >= 1,
+              f"produccion={len(prod)}, medicion={len(medicion)}")
+
+    if prod and medicion:
+        params_prod = set(prod[0])
+        divergencias = set()
+        for llamada in medicion:
+            # 1. Parametros que produccion pasa y la medicion omite.
+            divergencias |= (params_prod - set(llamada))
+            # 2. Constantes fijas donde produccion usa una variable.
+            for p, expr in llamada.items():
+                if p in params_prod and expr != prod[0].get(p):
+                    try:
+                        ast.literal_eval(expr)
+                        divergencias.add(p)
+                    except (ValueError, SyntaxError):
+                        pass          # otra variable: no es una constante fija
+
+        sin_declarar = sorted(divergencias - set(DIVERGENCIAS_DECLARADAS))
+        comprobar("toda divergencia con produccion esta declarada con su motivo",
+                  not sin_declarar,
+                  f"SIN DECLARAR: {sin_declarar} — cada una cambia lo que "
+                  f"significa el numero de la medicion")
+
+        caducadas = sorted(set(DIVERGENCIAS_DECLARADAS) - divergencias)
+        comprobar("no hay divergencias declaradas que ya no existan",
+                  not caducadas,
+                  f"CADUCADAS: {caducadas} — una lista que conserva entradas "
+                  f"muertas acaba tapando una divergencia real")
+
     print()
     if fallos:
         print(f"FALLAN {len(fallos)}: {fallos}")

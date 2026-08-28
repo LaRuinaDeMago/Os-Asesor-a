@@ -7,6 +7,84 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, vigesimocuarta entrada) — Paridad medición↔producción: cinco divergencias, y una protegía en silencio la tasa de detección
+
+El error de la entrada anterior (alcance de las cachés) era **una** divergencia
+entre cómo llama al motor la medición y cómo lo llama producción. La pregunta
+rigurosa era si había más. Se compararon los dos puntos de llamada, argumento
+por argumento, sobre AST.
+
+**Aparecieron cinco.** Ninguna estaba declarada en ningún sitio, y una resultó
+ser mucho más importante de lo que parecía.
+
+### El hallazgo que merece la pena: `vistos_duplicado=set()` en `--inyectar`
+
+La llamada de inyección pasa un `set()` nuevo en vez del acumulado. Parecía un
+detalle. **No lo es: está protegiendo la integridad del 78,99% de tasa de
+detección**, y no había una sola línea que lo explicara.
+
+La clave documental es `(nif, nº_documento, fecha, total)`. El error inyectado
+`tipo_iva_cambiado` altera **solo el IVA**, así que los cuatro campos de la
+clave quedan **idénticos** a los de la factura original, que ya está en el
+acumulado. Con el set compartido, `anti_duplicado` dispararía → ROJO → se
+contaría como **detectado** — pero por el motivo equivocado: el motor no
+habría visto el IVA mal, habría visto un duplicado que solo existe porque la
+propia medición fabricó la copia.
+
+Con `set()` nuevo, cada inyección se juzga por su propio defecto. Verificado
+que **ninguno de los cinco tipos inyectados es un duplicado**, así que no se
+pierde detección de nada: solo se evita apuntarse un acierto que no lo es.
+
+### Una hipótesis mía que resultó FALSA, y la verifiqué antes de actuar
+
+Producción pasa `mapeo_cartera` y la medición no. `FASE0_RESULTADOS.md` §14
+declara que el punto débil de detección es `nif_de_otro` *"que no tiene por
+qué distinguirse **sin el patrón de cartera**"*, así que parecía que la
+medición estuviera infravalorando la detección por no pasarlo.
+
+**Comprobado empíricamente: no cambia el veredicto.** `guard_patron_cartera`
+nunca devuelve OK (a propósito — un patrón es una hipótesis, no un hecho) y
+está en `exentos`, así que su `NO_APLICA` no baja a ÁMBAR. Solo enriquece el
+motivo. La frase de §14 habla de que **el humano** distinga con la evidencia
+delante, no de que el guard cambie el veredicto. Divergencia real pero inocua
+para los porcentajes — y además, usar la cartera durante la evaluación sería
+una fuga de datos (se construye con el corpus entero).
+
+### Las otras tres
+
+- `alta_cliente_anio=1990` — deliberado y **sin un solo comentario**: el corpus
+  mezcla ~24 clientes cuyo año de alta se desconoce, y con 1990 ninguna factura
+  (2011-2026) es anterior al alta. Consecuencia declarada ahora: **esta
+  medición no dice nada sobre `guard_fecha_posterior_alta`**.
+- `nif_cliente_titular=None` — ya estaba declarado indirectamente vía
+  `AMBAR_DEL_INSTRUMENTO`.
+- `plazos_cache` omitido — **equivalente**: el motor hace `plazos_cache or {}`.
+  Se declara igualmente para que la lista sea el retrato completo y nadie
+  tenga que volver a averiguar si es inocua.
+
+### Honestidad sobre lo que esta comprobación NO cubre
+
+Se dice en el propio código, para que nadie confíe de más: **la paridad de
+llamada NO habría cazado el error de las cachés de ayer.** Allí los parámetros
+sí se pasaban —con el alcance equivocado—, y el alcance no se ve en el punto
+de llamada. De eso se ocupa la comprobación de reseteo por cliente, que es
+otra. Son dos redes distintas y hacen falta las dos.
+
+### Verificación
+
+Cuatro comprobaciones nuevas en `ensayo_retro_semaforo.py`. Probado con
+sabotaje **en las dos direcciones**: una divergencia nueva sin declarar
+(`ejercicio_tanda` fijado a una constante) → la señala por su nombre; y una
+declaración que ya no corresponde a nada → la marca como caducada. Igual que
+el auditor del patrón de falso verde, la lista de divergencias **se audita a
+sí misma**: una lista que conserva entradas muertas acaba tapando una
+divergencia real.
+
+`test_motor_veredicto.py` 65/65, `test_adversarial.py` 112/112, escáner de
+privacidad sin hallazgos.
+
+---
+
 ## 🔴 27-08-2026 (sesión Cloud, vigesimotercera entrada) — Error propio, del día anterior: las cachés acumulaban mezclando TODOS los clientes
 
 Al buscar si quedaba alguna otra familia de defecto conocida (la de `float()`

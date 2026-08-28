@@ -253,6 +253,19 @@ está acordado de antemano es **qué significaría cada rango**:
 | **entre 1 y 15 puntos** | Lo esperado. Son facturas que antes pasaban sin que nadie las mirara y ahora piden revisión. Mirar el desglose por guard para ver cuál domina |
 | **más de 15 puntos** | Demasiado ruido para ser útil. **No se toca el umbral para que cuadre**: se mira qué guard concentra los disparos y se investiga ese caso concreto con datos, como se hizo con el 40,8% |
 
+**3-bis · Lo que esta medición NO dice, declarado de antemano.** Al comparar
+la llamada al motor de la medición contra la de producción aparecieron cinco
+divergencias, todas ahora declaradas y con su motivo en
+`ensayo_retro_semaforo.py`. Dos afectan a cómo hay que leer el número:
+
+- **`alta_cliente_anio` va fijado a 1990**, porque el corpus mezcla ~24
+  clientes cuyo año de alta se desconoce. Consecuencia: **esta medición no
+  dice absolutamente nada sobre `guard_fecha_posterior_alta`** — no es que
+  salga bien, es que no se comprueba.
+- **`nif_cliente_titular` va a `None`**, porque el diario no lo trae. Igual:
+  `sentido_compra_venta` no se está midiendo (ya contaba como "ámbar del
+  instrumento").
+
 **4 · Y si el que domina es `cuenta_gasto_coherente`, NO es un bug.** Está
 medido (`PROJECT_STATUS.md`, vigesimoprimera entrada): 0% de disparos en
 proveedores de una sola actividad, pero **47% en un proveedor mixto** — una
