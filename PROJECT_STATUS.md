@@ -7,6 +7,75 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 28-08-2026 (sesión Cloud, vigesimoctava entrada) — Orden cronológico en `validar_captura_historica.py`, y una lección de proceso propia sobre `git fetch`
+
+**Aviso de proceso, antes que nada, por ser exactamente la misma lección que
+ya documenta la entrada quinta de este archivo:** esta sesión empezó a
+diagnosticar el hueco de las tres cachés de historial (`historico_proveedor`,
+`formato_cache`, `secuencia_cache` nunca acumuladas) **sin haber hecho `git
+fetch` primero**, sobre un checkout que resultó estar **11 commits por detrás**
+de `origin` (el mismo hallazgo que la entrada decimoséptima ya había cerrado
+ese mismo día, con `motor_veredicto.actualizar_caches_historicas()`, cableada
+en `retro_semaforo.py` y en este mismo script). El trabajo propio equivalente
+(`HistoricoIncremental` en `orquestador.py`) se completó, se probó y se auditó
+en verde — y solo entonces, al hacer `git fetch --all` para investigar una
+discrepancia de otro tipo (ver abajo), apareció el rango real. Comparado
+contra `actualizar_caches_historicas()` ya mergeada: mismo hallazgo, mismo
+diseño (acumular en `finally`, después de evaluar, nunca antes), pero la
+versión ya fusionada es más completa (cableada también en `retro_semaforo.py`,
+que la propia no tocaba). **Descartado sin commitear** (`git stash`, comparado,
+`git stash drop`) — no aporta nada que la versión ya mergeada no tuviera.
+
+### Lo que sí seguía siendo un hueco real, incluso con el arreglo ya mergeado
+
+`actualizar_caches_historicas()` acumula en el **orden en que llegan las
+filas**. Para `retro_semaforo.py` eso es correcto de por sí: los asientos de
+ContaPlus vienen ordenados por `ASIEN`, cronológico por construcción. Para
+`validar_captura_historica.py` **no hay esa garantía**: es un CSV de facturas
+capturadas, que puede llegar en cualquier orden (por proveedor, por lote de
+subida, alfabético). Si se acumula en orden de fichero y el fichero no es
+cronológico, una factura puede "ver" en su histórico facturas que en la
+realidad son **posteriores** a ella — la misma fuga de datos que el maestro de
+proveedores ya corrigió el 21-08-2026 para el *alcance* (por cliente), aplicada
+aquí al *orden*.
+
+**Arreglo:** las filas se ordenan por `fecha_expedicion` ascendente (usando
+`contrato_datos.parse_fecha()`, ya con la traducción de alias de columna
+aplicada) antes de acumular nada; las filas sin fecha válida van al final —
+se evalúan igual, pero nunca aportan su propio dato al histórico de una
+factura de fecha conocida, para no fingir un orden que no se conoce.
+
+### Verificación
+
+`ensayo_validar_captura_historica.py` (nuevo — el script no tenía ningún
+ensayo propio, pese a ser el que calcula la tasa de acierto y los falsos
+verdes que decide el proyecto): 3 casos, de punta a punta contra el script
+real vía `subprocess`. El caso clave coloca la factura con un importe 10
+veces el habitual **primera en el fichero** pero con la **fecha más tardía**:
+si el script acumulase por orden de fichero, esa factura se evaluaría sin
+histórico (no se detectaría) y las cuatro normales, procesadas después,
+verían un histórico contaminado por ella. El resultado correcto es el
+contrario, y es lo que se mide. Probado con sabotaje (orden de fichero en vez
+de cronológico): falla **exactamente** en las 2 comprobaciones que dependen
+del arreglo, ninguna más. Incluye también la regresión ya conocida del bug
+del separador (21-08-2026), que tampoco tenía ensayo propio hasta ahora.
+
+`test_motor_veredicto.py` 65/65, `test_adversarial.py` 112/112,
+`audit_project.py` en verde salvo la excepción esperada en Cloud
+(`anthropic`/`google-genai`). Escáner de privacidad sobre los ficheros
+tocados y sobre el repositorio completo: sin hallazgos.
+
+### Pendiente, y es de Diego, en local
+
+No hay nada nuevo que ejecutar específicamente por este cambio (no altera el
+resultado cuando el CSV ya viene ordenado por fecha, que es el caso más
+común). Sigue en pie lo mismo que ya pedía la entrada decimoséptima: volver a
+ejecutar `retro_semaforo.py` y `validar_captura_historica.py` contra datos
+reales con las cachés de historial ya activas, y comparar el nuevo
+VERDE/ÁMBAR/ROJO contra el 87,71%/9,26%/3,03% ya citado.
+
+---
+
 ## 27-08-2026 (sesión Cloud, vigesimoséptima entrada) — Medido el cambio de comportamiento REAL del motor tras seis cambios en un día
 
 Cierre de la sesión con la pregunta que ninguna suite en verde contesta. Hoy

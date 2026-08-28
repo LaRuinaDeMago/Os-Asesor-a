@@ -38,6 +38,22 @@ Si falta algo, lo dice; no adivina.
     python validar_captura_historica.py "ruta/al/fichero.csv"
     python validar_captura_historica.py "ruta.csv" --columna-humano CORRECTO
 
+ANADIDO 28-08-2026 (auditoria propia, sobre el hallazgo ya cerrado de Diego
+del 27-08 -- `actualizar_caches_historicas()` en motor_veredicto.py, que
+arreglo que las tres caches de historial no se acumulaban). Ese arreglo
+supone que procesar las filas EN EL ORDEN EN QUE VIENEN construye un
+historico valido -- cierto para retro_semaforo.py (los asientos de ContaPlus
+vienen en orden de ASIEN, que es cronologico por construccion), pero NO
+garantizado para un CSV de captura como este: un fichero de facturas
+fotografiadas puede llegar en cualquier orden (por proveedor, por lote de
+subida, alfabetico...). Si se acumula en orden de fichero, una factura
+"ve" en su historico facturas que en la realidad son POSTERIORES a ella --
+la misma fuga de datos que el maestro de proveedores ya corrigio el
+21-08-2026, aplicada aqui al orden en vez de al alcance. Arreglado: las
+filas se procesan por `fecha_expedicion` ascendente antes de acumular nada;
+las filas sin fecha valida van al FINAL (se evaluan igual, pero no fingen
+un orden que no se conoce). Ver `ensayo_validar_captura_historica.py`.
+
 REGLA DE DATOS
 --------------
 El CSV tiene NIF y nombres reales. Este script:
@@ -52,7 +68,9 @@ import json
 import os
 import sys
 from collections import Counter, defaultdict
+from datetime import date
 
+import contrato_datos
 import motor_veredicto as mv
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -307,7 +325,22 @@ def main():
     formato_acumulado = {}
     secuencia_acumulada = {}
 
-    for i, fila_cruda in enumerate(filas):
+    # ---- Orden cronologico, no orden del fichero (28-08-2026) -------------
+    # Un CSV de captura no viene garantizado en orden de fecha (ver docstring).
+    # Las filas sin fecha valida van al FINAL: se evaluan igual, pero nunca
+    # aportan su propio dato al historico de una factura de fecha conocida.
+    def clave_orden(par):
+        i, fila_cruda = par
+        cruda_fecha = fila_cruda.get("fecha_expedicion")
+        for col, canonico in traduccion.items():
+            if canonico == "fecha_expedicion" and fila_cruda.get(col):
+                cruda_fecha = fila_cruda[col]
+        dato = contrato_datos.parse_fecha(cruda_fecha)
+        return (0, dato.valor, i) if dato.utilizable else (1, date.max, i)
+
+    orden_cronologico = sorted(enumerate(filas), key=clave_orden)
+
+    for i, fila_cruda in orden_cronologico:
         v_antes = normalizar_veredicto(fila_cruda.get(col_motor)) if col_motor else None
         v_humano = normalizar_veredicto(fila_cruda.get(col_humano)) if col_humano else None
         # La traduccion AÑADE la clave canonica, no borra la original: si el
