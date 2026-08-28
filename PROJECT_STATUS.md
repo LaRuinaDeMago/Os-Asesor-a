@@ -7,6 +7,129 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 28-08-2026 (sesión LOCAL, trigesimoprimera entrada) — `clave_cliente()`: revertida una regresión de tres días — la carpeta de ContaPlus no es el cliente, es una copia de seguridad con hasta 70 empresas dentro
+
+Al preparar la comparación manual del 303 (`§3.3`), Diego señaló algo que
+`consolidar_identidad.py` y `reconstruir_303.py` daban por sentado sin
+comprobarlo de nuevo: las carpetas de nivel 1 de `100% contabilidad` no son
+"una por cliente" — son copias de seguridad por fecha, con **todos los
+clientes de ese momento dentro**. Los clientes reales se identificaron
+durante el inventario a partir del propio `.DAT`, no de la carpeta.
+
+### No es un hallazgo nuevo — es revertir una regresión de tres días, y la introdujo un acuerdo con Diego, no un descuido
+
+`FASE0_RESULTADOS.md §12` (12-08-2026) ya había resuelto esto, con 5/5
+auditorías cruzadas en verde: el identificador real vive en el **nombre del
+fichero `.DAT`** — `SP_C_##[letra]`, donde `##` es el código de empresa
+*dentro de esa copia* (una combinación empresa+ejercicio: ContaPlus crea una
+"empresa" nueva cada ejercicio, incluso para el mismo cliente real, §11.1) y
+la letra final (si existe) es solo una plantilla vacía del backup, no otra
+empresa. Regla dura, ya escrita entonces: *"dentro de una misma carpeta, dos
+códigos distintos son dos empresas distintas, nunca se fusionan."*
+
+El commit `e35b585` (25-08-2026) cambió `clave_cliente()` de `carpeta+código`
+a `solo carpeta` — de 507 "clientes" a 24. **No fue un descuido**: el propio
+mensaje del commit registra que Diego confirmó entonces que organizaba las
+carpetas una por cliente, y la verificación (`diag_verificar_carpeta_cliente.py`,
+solape de NIF de contrapartes entre códigos de una misma carpeta, 90-100%)
+parecía sólida. Pero es la **misma técnica** que el propio proyecto ya había
+invalidado el 12-08 por fusionar empresas distintas (`§11.0`), y el mismo
+artefacto que `SOSPECHOSA` volvió a demostrar el 27-08: proveedores comunes
+(banco, suministros) inflan el solape entre empresas que no tienen nada que
+ver entre sí. Verificado hoy contra el corpus real: 27 de 28 carpetas de
+nivel 1 tienen los `.DAT` **directamente dentro**, sin subcarpeta por
+cliente — y el propio corpus confirma hasta **70 códigos de empresa
+distintos en una sola carpeta** (consistente con una copia multi-año, ~33
+empresas × 2 ejercicios).
+
+### Verificado contra el corpus real antes de tocar código
+
+- 100% de los 3.857 `.DAT` siguen el patrón `SP_C_##[letra]` exacto, código
+  siempre de 2 dígitos — cero excepciones.
+- 1.287 sin letra (el fichero con `Diario.dbf`) + 2.570 con letra A/B
+  (plantillas vacías) = 3.857 — coincide exactamente con `§12`.
+- Distribución de códigos distintos por carpeta: mediana 40, máximo 70 —
+  coherente con "empresas × ejercicios cubiertos por esa copia", no con "una
+  empresa por carpeta".
+
+### El arreglo
+
+`reconstruir_303.py::clave_cliente()` y el reseteo de las cuatro cachés de
+`retro_semaforo.py` vuelven a usar `(carpeta, código de 7 caracteres del
+nombre del fichero)` — la clave *anterior* al commit del 25-08, restaurada
+con el contexto de hoy. **Lo que esto NO resuelve, y sigue abierto desde el
+12-08:** enlazar el mismo cliente real entre carpetas o ejercicios distintos
+(código 04 en una copia, código 12 en otra) — `enlazador_clientes_303.py` ya
+lo intenta con cautela (solo fusiona *entre* carpetas, nunca dentro de una),
+y su propia medición de entonces (umbral 0,5 → 140 grupos de los 33 reales)
+ya deja escrito que no lo cierra del todo. Sin ese enlace, un mismo cliente
+real puede seguir contando varias veces con claves distintas en el
+agregado — infraestima la continuidad, nunca la inventa, que es el lado
+seguro del error.
+
+### Efecto colateral encontrado y corregido: `ensayo_reconstruir_303.py` tenía sus propias claves de cliente escritas a mano
+
+Sus lookups (`datos.get("CLIENTE_UNO", ...)`) usaban el formato antiguo
+(solo carpeta) y quedaron en rojo con el cambio — el mecanismo de
+deduplicación por huella de contenido (independiente de `clave_cliente()`)
+seguía funcionando bien; solo el *lookup* del test apuntaba a una clave que
+ya no existía. Corregido a `"CARPETA::COPIA_A"`, el formato real.
+
+### Verificación
+
+- Regresión directa de `clave_cliente()`: dos códigos de empresa en la
+  misma carpeta dan claves distintas; la letra final del backup no cambia
+  la clave (nuevo, en `ensayo_retro_semaforo.py`).
+- Regresión de extremo a extremo: una carpeta sintética con **dos empresas
+  reales** (dos códigos, un proveedor propio y coherente cada una, pero
+  compartiendo por coincidencia la misma subcuenta de acreedor —lo normal,
+  cada ContaPlus numera de forma independiente) no produce
+  `cuenta_gasto_coherente=FALLO` para ninguna. Probado con sabotaje (vuelta
+  al reseteo por sola carpeta): falla exactamente esa comprobación, ninguna
+  otra.
+- Corregido el `nodo.test.left.id == "carpeta_ruta"` de la comprobación AST
+  ya existente (buscaba el nombre de variable viejo tras el renombrado; sin
+  arreglarlo, las 4 comprobaciones de alcance de caché habrían fallado por
+  un motivo que no es el que deben probar).
+- `test_motor_veredicto.py` 65/65, `test_adversarial.py` 112/112,
+  `ensayo_reconstruir_303.py` y `ensayo_retro_semaforo.py` en verde,
+  `audit_project.py` sin huérfanos, escáner de privacidad sin hallazgos.
+
+### Pendiente, y es de Diego
+
+Volver a ejecutar `retro_semaforo.py --inyectar` y `reconstruir_303.py
+--detalle 303_LOCAL.json` contra el corpus real. El resultado de la
+trigésima entrada de hoy (AMBAR 18,23%, 24 "cubos" en `reconstruir_303.py`)
+probablemente estaba todavía contaminado por esta mezcla más profunda —
+ahora con la identidad correcta, es la primera medición que describe de
+verdad "por empresa", no "por copia de seguridad".
+
+---
+
+## 28-08-2026 (sesión LOCAL, trigésima entrada) — Confirmado: el CSV de las 91-93 facturas fotografiadas NO existe. `§3.2` queda bloqueado por dato, no por búsqueda
+
+Diego confirma, tras revisar: no hay ningún fichero con las facturas de la
+prueba antigua (motor de entonces + veredicto humano) — ni en el repositorio,
+ni anonimizado, ni real. Lo que existe son **las 93 fotos originales, sin
+procesar**. Comprobado también que el repositorio no lleva ningún CSV con
+esa forma (`git ls-files` — solo el script y su ensayo sintético).
+
+**Esto cambia el estado de `SIGUIENTES_PASOS.md §2`** de "bloqueado por:
+encontrar el fichero" (implica que buscar podría resolverlo) a **bloqueado
+por dato: el fichero nunca se creó.** Convertir las 93 fotos en algo que
+`validar_captura_historica.py` pueda usar exige pasarlas por el pipeline de
+captura por IA (`captura_orquestador.py`) — el modelo tiene que **ver** la
+factura, que es exactamente el paso detrás de la puerta del DPA
+(`.claude/rules/datos.md`). No se hace hoy sin esa decisión tomada por
+Diego. `§3.2` queda aparcado, sin fecha, hasta que exista DPA y se decida
+procesar esas 93 fotos — no es un pendiente de esta sesión.
+
+**Siguiente paso real, sin depender de esto:** `SIGUIENTES_PASOS.md §3.3`,
+el cuadre contra el 303 presentado — no bloqueado por nada del DPA, solo
+por localizar los modelos ya presentados.
+
+---
+
 ## 28-08-2026 (sesión LOCAL, vigesimonovena entrada) — Primera medición real con las cachés de historial activas: ROJO estable, ÁMBAR investigado a fondo, y un bug real encontrado y cerrado
 
 Diego ejecutó `retro_semaforo.py --inyectar` contra el corpus real completo

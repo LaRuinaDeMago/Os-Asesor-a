@@ -237,6 +237,20 @@ motor."** Cerrado, no toca seguir picando en el retro-semáforo.
 > 2.212, AMBAR 28,28% → **18,23%** — dentro del rango "1-15 puntos: lo
 > esperado". Detalle en `PROJECT_STATUS.md` (vigesimonovena entrada) y
 > `FASE0_RESULTADOS.md §14` (arreglo 13).
+>
+> 🔴 **Séptimo hallazgo, mismo día: el "cliente" de arriba (24 pares) no era
+> un cliente — era una copia de seguridad con hasta 70 empresas dentro.**
+> Las carpetas de nivel 1 de `100% contabilidad` NO son una por cliente
+> (`FASE0_RESULTADOS.md §12` ya lo había resuelto el 12-08 con 5/5
+> auditorías: el identificador real es el código `SP_C_##` del nombre del
+> fichero — una empresa+ejercicio dentro de esa copia). Un commit del 25-08
+> revirtió esto a "solo carpeta", verificado entonces con una técnica de
+> solape de NIF que ya se sabía que fusiona empresas distintas.
+> `clave_cliente()` y el reseteo de `retro_semaforo.py` vuelven a
+> `carpeta+código`. **El 18,23% del sexto hallazgo queda pendiente de
+> remedir** — probablemente seguía contaminado por esta mezcla más
+> profunda, un nivel por encima de la que ese arreglo ya había resuelto.
+> Detalle en `PROJECT_STATUS.md` (trigesimoprimera entrada).
 
 ---
 

@@ -214,6 +214,58 @@ def generar_corpus(raiz, n_clientes=3, asientos_por_cliente=40, semilla=21082026
     return total_asientos
 
 
+def generar_corpus_multiempresa_una_carpeta(raiz):
+    """UNA SOLA carpeta con DOS empresas reales distintas dentro (dos codigos
+    SP_C_XX), cada una con 4 facturas de un proveedor propio y coherente --
+    pero las dos usan, por COINCIDENCIA, la misma subcuenta de acreedor
+    ("410001"), como pasaria si dos clientes distintos numeraran sus propias
+    cuentas de forma independiente (que es lo normal: cada ContaPlus arranca
+    su propia numeracion).
+
+    ANADIDO 28-08-2026 (regresion del hallazgo de Diego, verificado contra
+    FASE0_RESULTADOS.md §12): retro_semaforo.py reseteaba sus cuatro caches
+    por CARPETA, no por (carpeta, codigo de empresa) -- una carpeta de
+    ContaPlus real puede contener docenas de empresas reales distintas
+    (una copia de seguridad de una fecha, no un cliente). Sin el arreglo,
+    las dos empresas de aqui comparten la cache de mapeo_cuenta_gasto bajo
+    la misma clave "410001", y cada una ve el patron de la OTRA como ruido:
+    las 8 facturas (4+4), perfectamente coherentes cada una con su propia
+    empresa, producirian cuenta_gasto_coherente=FALLO en la practica
+    totalidad. Con el arreglo (reseteo por (carpeta, codigo)), ninguna."""
+    carpeta = os.path.join(raiz, "COPIA_MULTIEMPRESA_UNA_CARPETA")
+    os.makedirs(carpeta, exist_ok=True)
+    tipo, sub_acreedor = 21, "410001"
+
+    def filas_empresa(nif, cuenta_gasto, asien_inicio):
+        filas = []
+        asien = asien_inicio
+        for i in range(4):
+            asien += 1
+            base = 100.0 + i
+            cuota = round(base * tipo / 100.0, 2)
+            total = round(base + cuota, 2)
+            fecha = f"2026010{i + 1}"
+            comun = {"ASIEN": asien, "TERNIF": nif, "FECHA": fecha,
+                      "DOCUMENTO": f"F{i + 1}"}
+            filas.append({**comun, "SUBCTA": cuenta_gasto, "EURODEBE": base,
+                          "EUROHABER": 0, "IVA": 0, "BASEIMPO": 0, "RECEQUIV": 0})
+            filas.append({**comun, "SUBCTA": "472000", "EURODEBE": cuota,
+                          "EUROHABER": 0, "IVA": tipo, "BASEIMPO": 0, "RECEQUIV": 0})
+            filas.append({**comun, "SUBCTA": sub_acreedor, "EURODEBE": 0,
+                          "EUROHABER": total, "IVA": 0, "BASEIMPO": 0, "RECEQUIV": 0})
+        return filas
+
+    for codigo, nif, cuenta_gasto in (
+            ("01", dni_valido(11111111), "621000"),
+            ("02", dni_valido(22222222), "600000")):
+        dbf = os.path.join(carpeta, "Diario.dbf")
+        escribir_dbf(dbf, filas_empresa(nif, cuenta_gasto, asien_inicio=0))
+        with zipfile.ZipFile(os.path.join(carpeta, f"SP_C_{codigo}.DAT"), "w") as z:
+            z.write(dbf, "Diario.dbf")
+        os.remove(dbf)
+    return carpeta
+
+
 # --- Comprobaciones ----------------------------------------------------------
 fallos = []
 
@@ -285,6 +337,23 @@ def main():
               and isinstance(fila_b, dict) and fila_b.get("cuenta_debe") == "621",
               f"a={fila_a and fila_a.get('cuenta_debe')!r} "
               f"b={fila_b and fila_b.get('cuenta_debe')!r}")
+
+    # ANADIDO 28-08-2026: clave_cliente() de reconstruir_303.py, regresion
+    # directa del mismo hallazgo. Dos "empresas" (codigos SP_C_01 y SP_C_02)
+    # dentro de la MISMA carpeta deben dar claves de cliente DISTINTAS --
+    # antes del arreglo, clave_cliente() solo miraba la carpeta y las habria
+    # fusionado en una.
+    from reconstruir_303 import clave_cliente
+    raiz_falsa = tempfile.gettempdir()
+    clave_1 = clave_cliente(os.path.join(raiz_falsa, "CARPETA_X", "SP_C_01.DAT"))
+    clave_1_otra_plantilla = clave_cliente(os.path.join(raiz_falsa, "CARPETA_X", "SP_C_01A.DAT"))
+    clave_2 = clave_cliente(os.path.join(raiz_falsa, "CARPETA_X", "SP_C_02A.DAT"))
+    comprobar("clave_cliente(): dos codigos de empresa en la MISMA carpeta "
+              "dan claves DISTINTAS",
+              clave_1 != clave_2, f"clave_1={clave_1!r} clave_2={clave_2!r}")
+    comprobar("clave_cliente(): la letra final del backup (A/B/C) no cambia "
+              "la clave -- es la misma empresa, otra plantilla del backup",
+              clave_1_otra_plantilla == clave_1, clave_1_otra_plantilla)
 
     tmp = tempfile.mkdtemp(prefix="ensayo_retro_")
     try:
@@ -586,10 +655,12 @@ def main():
     arbol = ast.parse(fuente)
     reseteadas = set()
     for nodo in ast.walk(arbol):
-        # El bloque `if carpeta_ruta != cliente_actual:` es el cambio de cliente
+        # El bloque `if clave_cliente_actual != cliente_actual:` es el cambio
+        # de cliente (renombrado 28-08-2026: ya no es solo la carpeta, ver
+        # el hallazgo de Diego sobre clave_cliente en reconstruir_303.py).
         if not (isinstance(nodo, ast.If) and isinstance(nodo.test, ast.Compare)
                 and isinstance(nodo.test.left, ast.Name)
-                and nodo.test.left.id == "carpeta_ruta"):
+                and nodo.test.left.id == "clave_cliente_actual"):
             continue
         for asig in ast.walk(nodo):
             if isinstance(asig, ast.Assign) and isinstance(asig.value, ast.Dict) \
@@ -602,6 +673,34 @@ def main():
                   cache in reseteadas,
                   "si no, acumula mezclando clientes y la medicion deja de "
                   "describir lo que hara produccion")
+
+    # --- Una carpeta, dos empresas reales -- regresion de extremo a extremo -
+    # ANADIDO 28-08-2026. El bloque de arriba comprueba que el reseteo EXISTE
+    # (estructural, sobre AST); esto comprueba que dispara en el momento
+    # correcto de verdad, ejecutando el script real contra un corpus donde
+    # UNA carpeta contiene DOS codigos de empresa (SP_C_01, SP_C_02) -- la
+    # forma real del corpus, verificada hoy (28 carpetas, 3.857 ficheros,
+    # hasta 70 codigos distintos por carpeta). Antes del arreglo, resetear
+    # solo por carpeta mezclaba las dos empresas bajo la misma subcuenta de
+    # acreedor (coincidencia realista: cada ContaPlus numera de forma
+    # independiente) y producia cuenta_gasto_coherente=FALLO en la practica
+    # totalidad de sus 8 facturas, cada una perfectamente coherente con su
+    # propia empresa.
+    tmp_me = tempfile.mkdtemp(prefix="ensayo_multiempresa_")
+    try:
+        raiz_me = generar_corpus_multiempresa_una_carpeta(tmp_me)
+        r_me = subprocess.run([sys.executable, os.path.join(AQUI, "retro_semaforo.py"),
+                                raiz_me], capture_output=True, text=True,
+                               encoding="utf-8", errors="replace")
+        s_me = r_me.stdout or ""
+        comprobar("una carpeta con dos empresas reales: el script corre sin error",
+                  r_me.returncode == 0, r_me.stderr[-400:])
+        comprobar("las dos empresas (8 facturas, cada una coherente consigo "
+                  "misma) NO se contaminan entre si: cuenta_gasto_coherente=FALLO "
+                  "no aparece",
+                  "cuenta_gasto_coherente=FALLO" not in s_me, s_me)
+    finally:
+        shutil.rmtree(tmp_me, ignore_errors=True)
 
     # --- Paridad de llamada: medicion vs produccion -------------------------
     # ANADIDO 27-08-2026. La medicion existe para predecir que hara el motor en

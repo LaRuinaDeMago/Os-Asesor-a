@@ -112,33 +112,42 @@ def trimestre_de(fecha_aaaammdd):
 
 
 def clave_cliente(ruta):
-    """El cliente es la carpeta de NIVEL 1 bajo la raiz del corpus -- la que
-    Diego organizo el uno por cliente, con todas sus copias de ContaPlus a
-    lo largo de los anios dentro.
+    """El cliente NO es la carpeta de nivel 1: es (carpeta, codigo de
+    empresa dentro del nombre del fichero).
 
-    CORREGIDO 25-08-2026 (ver diag_profundidad_carpetas.py y
-    diag_verificar_carpeta_cliente.py). La version anterior usaba la carpeta
-    INMEDIATA del contenedor mas los 7 primeros caracteres del nombre del
-    fichero (el "codigo" que ContaPlus le pone a cada copia de seguridad).
-    Eso fragmentaba: measured 977 "clientes" cuando solo hay 33 reales, uno
-    por cada codigo distinto que ContaPlus asigna en cada copia -- el mismo
-    cliente puede tener 15-40 codigos distintos a lo largo de una decada de
-    copias, todos dentro de SU MISMA carpeta.
+    REVERTIDO 28-08-2026 (hallazgo de Diego, verificado contra
+    FASE0_RESULTADOS.md §12 -- resultado ya cerrado el 12-08-2026 con 5/5
+    auditorias en verde, que nunca llego a propagarse aqui). La version del
+    25-08 (solo la carpeta) se verifico con solape de proveedores entre
+    codigos de una misma carpeta -- la MISMA tecnica que el propio §11.0 ya
+    habia invalidado ese mismo 12-08 por fusionar empresas distintas (el
+    mismo artefacto que "SOSPECHOSA" volvio a demostrar el 27-08: proveedores
+    comunes -banco, suministros- inflan el solape entre empresas que no
+    tienen nada que ver). La carpeta de nivel 1 es una COPIA DE SEGURIDAD de
+    una fecha, con hasta 70 codigos de empresa dentro -- una por cada
+    combinacion empresa+ejercicio, porque ContaPlus crea una "empresa" nueva
+    en cada ejercicio incluso para el mismo cliente real (§11.1).
 
-    Verificado antes de cambiarlo: la carpeta de nivel 1 da 28 carpetas
-    distintas (el numero real conocido es 33), y dentro de cada una, el
-    codigo mejor conectado con los demas de la misma carpeta contiene el
-    90-100% de sus contrapartes en el resto -- coherente con "misma empresa,
-    copias distintas", no con dos empresas compartiendo carpeta. Solo el
-    codigo PEOR conectado de cada carpeta suele salir a cero, compatible con
-    plantillas casi vacias o un asiento de apertura suelto, no con una
-    segunda empresa real escondida.
+    El identificador real, ya verificado el 12-08 con auditoria cruzada
+    (V1-V6, 5/5 en verde: 1.287 codigos == 1.287 contenedores con Diario.dbf;
+    33 empresas en la copia de 2025, confirmado por el titular): el patron
+    `SP_C_##[letra]` del NOMBRE DEL FICHERO. El numero es el codigo de
+    empresa DENTRO de esa copia; la letra final (si existe) es solo la
+    plantilla vacia del backup, no una empresa distinta. Regla dura ya
+    establecida entonces: "dentro de una misma carpeta, dos codigos
+    distintos son dos empresas distintas, nunca se fusionan."
 
-    LO QUE ESTO NO CIERRA DEL TODO: no hay garantia formal de que ninguna de
-    las 28 carpetas mezcle dos empresas reales. Si al comparar un trimestre
-    contra el 303 presentado el numero no cuadra sin explicacion, esa
-    carpeta concreta es la primera sospechosa a revisar."""
-    return os.path.basename(os.path.dirname(ruta))
+    LO QUE ESTO NO CIERRA (sigue siendo un problema aparte, mas dificil, sin
+    cerrar desde el 12-08): enlazar el mismo cliente real entre carpetas o
+    ejercicios distintos (codigo 04 en una copia, codigo 12 en otra). Sin
+    ese enlace, un mismo cliente real puede aparecer varias veces en el
+    agregado, con claves distintas -- infraestima la continuidad, nunca la
+    inventa, que es el lado seguro del error. `enlazador_clientes_303.py` lo
+    intenta con la misma cautela (solo fusiona ENTRE carpetas, nunca dentro
+    de una)."""
+    carpeta = os.path.basename(os.path.dirname(ruta))
+    codigo = os.path.basename(ruta)[:7]
+    return f"{carpeta}::{codigo}"
 
 
 def derivar_bases_por_tipo(ivas):

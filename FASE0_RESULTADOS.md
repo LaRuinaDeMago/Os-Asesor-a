@@ -490,6 +490,20 @@ Más **9 contenedores sin ejercicio detectable** (diario vacío o con fechas fue
 cliente-año sí (decide qué se usa para entrenar y qué para validar). Los `.wma` y `.jpg`
 no. Los `.cat` están sin determinar y por eso se miran.
 
+> ⚠️ **REVERTIDO 28-08-2026: el commit `e35b585` (25-08) deshizo este mismo
+> hallazgo, sin querer.** Cambió `clave_cliente()` de `carpeta+código` (lo de
+> arriba, verificado con 5/5 auditorías) a `solo carpeta`, verificado
+> entonces con solape de NIF entre códigos — la misma técnica que este
+> propio §11.0 ya había invalidado por fusionar empresas distintas. Una
+> carpeta de nivel 1 no es un cliente: es una copia de seguridad con hasta
+> **70 códigos de empresa distintos dentro** (empresa × ejercicio —
+> ContaPlus crea una "empresa" nueva cada año, §11.1), verificado hoy contra
+> el corpus real (100% de 3.857 `.DAT` siguen el patrón `SP_C_##[letra]`).
+> `clave_cliente()` y el reseteo de cachés de `retro_semaforo.py` vuelven a
+> `carpeta+código`. Detalle completo en `PROJECT_STATUS.md` (trigesimoprimera
+> entrada, 28-08-2026). **Lo que sigue sin resolver, igual que entonces:**
+> enlazar el mismo cliente real entre carpetas distintas.
+
 ---
 
 ## 14. El motor sobre el histórico real: retro-semáforo (25-08-2026)
@@ -590,6 +604,16 @@ veces por auto-revisión antes de pasárselo a Diego, no por él.
 > esperado" sobre el 9,26% base). Probado con sabotaje en
 > `ensayo_retro_semaforo.py`. Detalle completo en `PROJECT_STATUS.md`
 > (vigesimonovena entrada, 28-08-2026).
+>
+> ⚠️ **El 18,23% de arriba queda PENDIENTE de remedir.** El mismo día se
+> encontró (trigesimoprimera entrada, `PROJECT_STATUS.md`) que las "24
+> carpetas cliente" de este arreglo 13 eran en realidad copias de seguridad
+> con hasta 70 empresas reales cada una — el mismo tipo de mezcla que el
+> arreglo 13 acababa de arreglar a otro nivel (cuenta_proveedor), pero un
+> nivel más arriba (identidad de cliente). Corregido también; pendiente de
+> Diego volver a ejecutar `retro_semaforo.py --inyectar` con los dos
+> arreglos ya encima para tener el número que de verdad describe "por
+> empresa".
 
 ### La predicción de `TECHO_Y_LIMITES.md`, confirmada
 

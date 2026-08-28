@@ -738,9 +738,28 @@ def main():
         if n_cont % paso_aviso == 0 or n_cont == len(dats):
             print(f"  ... {n_cont}/{len(dats)} contenedores  "
                   f"({n_asientos:,} asientos leidos)", flush=True)
-        # dats.sort() (arriba) agrupa los ficheros por carpeta de cliente de
-        # forma contigua -- comparar el directorio padre basta para saber si
-        # se ha cambiado de cliente.
+        # CORREGIDO 28-08-2026 (hallazgo de Diego, verificado contra
+        # FASE0_RESULTADOS.md §12 -- 5/5 auditorias en verde el 12-08-2026,
+        # nunca propagado hasta aqui). La CARPETA no es el cliente: es una
+        # copia de seguridad de una fecha, con hasta 70 empresas reales
+        # dentro (una por cada combinacion empresa+ejercicio -- ContaPlus
+        # crea una "empresa" nueva por cada ejercicio, incluso para el mismo
+        # cliente real, ver §11.1). El identificador real de empresa vive en
+        # el NOMBRE DEL FICHERO: SP_C_##[letra], donde ## es el codigo de
+        # empresa DENTRO de esa copia y la letra (si existe) es solo la
+        # plantilla vacia del backup -- verificado en el corpus real de hoy:
+        # 3.857 ficheros, el 100% con este patron exacto, codigo siempre de
+        # 2 digitos. Regla dura ya establecida el 12-08: "dentro de una
+        # misma carpeta, dos codigos distintos son dos empresas distintas,
+        # nunca se fusionan" -- asi que (carpeta, codigo) SI es una clave de
+        # cliente valida, aunque no resuelva enlazar el mismo cliente real
+        # entre carpetas/ejercicios distintos (ese es un problema aparte y
+        # sin cerrar, el que enlazador_clientes_303.py intenta).
+        #
+        # dats.sort() agrupa los ficheros por carpeta de forma contigua,
+        # pero DENTRO de una carpeta el orden de los codigos no esta
+        # garantizado -- por eso se compara la clave completa (carpeta,
+        # codigo), no solo si cambio respecto al anterior visto.
         #
         # Las CUATRO caches se resetean juntas y en el mismo sitio a
         # proposito: las cuatro alimentan guards cuyo historico, en
@@ -749,9 +768,11 @@ def main():
         # distintos haria que la medicion no describiera a produccion, que es
         # justo lo unico que este script sirve para predecir.
         carpeta_ruta = os.path.dirname(ruta)
-        carpetas_distintas_cliente.add(carpeta_ruta)
-        if carpeta_ruta != cliente_actual:
-            cliente_actual = carpeta_ruta
+        codigo_empresa = os.path.basename(ruta)[:7]
+        clave_cliente_actual = (carpeta_ruta, codigo_empresa)
+        carpetas_distintas_cliente.add(clave_cliente_actual)
+        if clave_cliente_actual != cliente_actual:
+            cliente_actual = clave_cliente_actual
             n_resets_cliente += 1
             mapeo_cuenta_gasto_cliente = {}
             historico_acumulado = {}

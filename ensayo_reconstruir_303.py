@@ -155,7 +155,13 @@ def main():
         datos, incidencias = leer(raiz)
 
         # --- Verificaciones ------------------------------------------------
-        c1 = datos.get("CLIENTE_UNO", {}).get("2022T1", {}).get("deducible", {}).get("21", {})
+        # ANADIDO 28-08-2026: clave_cliente() ya no es solo el nombre de la
+        # carpeta -- es "carpeta::codigo", donde el codigo son los 7 primeros
+        # caracteres del nombre del fichero .DAT (hallazgo de Diego,
+        # verificado contra FASE0_RESULTADOS.md §12). Cada caso sintetico de
+        # aqui usa "COPIA_A.DAT" como unico contenedor de datos, asi que su
+        # clave real es "<CARPETA>::COPIA_A".
+        c1 = datos.get("CLIENTE_UNO::COPIA_A", {}).get("2022T1", {}).get("deducible", {}).get("21", {})
         comprobar("caso 1: base = cuota/tipo = 1000,00 (NO el gasto, que es 1300)",
                   c1.get("base") == 1000.0, c1)
         comprobar("caso 1: cuota = 210,00 (directa, nunca se deriva)",
@@ -163,19 +169,19 @@ def main():
         comprobar("caso 1: 1 apunte (no 2, por la deduplicacion del caso 5)",
                   c1.get("apuntes") == 1, c1)
 
-        c2 = datos.get("CLIENTE_DOS", {}).get("2022T2", {}).get("deducible", {}).get("21", {})
+        c2 = datos.get("CLIENTE_DOS::COPIA_A", {}).get("2022T2", {}).get("deducible", {}).get("21", {})
         comprobar("caso 2 (BASEIMPO=500 relleno): GANA sobre cuota/tipo y sobre el gasto",
                   c2.get("base") == 500.0, c2)
 
-        c3d = datos.get("CLIENTE_TRES", {}).get("2022T3", {}).get("deducible", {})
+        c3d = datos.get("CLIENTE_TRES::COPIA_A", {}).get("2022T3", {}).get("deducible", {})
         b21, b10 = c3d.get("21", {}).get("base"), c3d.get("10", {}).get("base")
         comprobar("caso 3 (multi-tipo): 21% = 1000,00 exacto, SIN reescalar al gasto (1700)",
                   b21 == 1000.0, b21)
         comprobar("caso 3 (multi-tipo): 10% = 500,00 exacto, SIN reescalar al gasto",
                   b10 == 500.0, b10)
 
-        c4d = datos.get("CLIENTE_CUATRO", {}).get("2022T4", {}).get("deducible", {}).get("21", {})
-        c4v = datos.get("CLIENTE_CUATRO", {}).get("2022T4", {}).get("devengado", {}).get("21", {})
+        c4d = datos.get("CLIENTE_CUATRO::COPIA_A", {}).get("2022T4", {}).get("deducible", {}).get("21", {})
+        c4v = datos.get("CLIENTE_CUATRO::COPIA_A", {}).get("2022T4", {}).get("devengado", {}).get("21", {})
         comprobar("caso 4 (ISP, lado deducible): base = 2000,00 desde cuota/tipo",
                   c4d.get("base") == 2000.0, c4d)
         comprobar("caso 4 (ISP, lado devengado, SIN venta 7xx detras): "
