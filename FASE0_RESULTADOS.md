@@ -546,12 +546,21 @@ veces por auto-revisión antes de pasárselo a Diego, no por él.
 
 ### El resultado final de la sesión
 
-| | RUN 4 (tras arreglo 3) | RUN 10 (tras arreglo 10) | RUN 11 (tras arreglo 11) | RUN 12 (28-08, cachés + arreglo 13) |
+| | RUN 4 (tras arreglo 3) | RUN 10 (tras arreglo 10) | RUN 11 (tras arreglo 11) | RUN 12 (28-08, cachés + arreglos 13-14) |
 |---|---|---|---|---|
-| VERDE | 49,19% | 87,71% | 87,71% | **68,69% → 78,74%** (ver abajo) |
-| ROJO | 45,97% | 3,15% | 3,03% | **3,03%** (sin mover, confirmado con datos reales) |
-| AMBAR | 4,84% | 9,15% | 9,26% | 28,28% → **18,23%** (ver abajo) |
-| Tasa de detección (`--inyectar`) | — | 78,99% | 78,99% (100% en 4 de 5 tipos de error; el punto débil declarado es `nif_de_otro`, 0,4% — un NIF ajeno pero con checksum válido no tiene por qué distinguirse sin el patrón de cartera) | 83,42% (`nif_de_otro` sube a 21,57-21,28%, el resto sigue al 100%) |
+| VERDE | 49,19% | 87,71% | 87,71% | 68,69% → 78,74% → **84,14%** (ver abajo) |
+| ROJO | 45,97% | 3,15% | 3,03% | **3,03%** (sin mover — confirmado en TRES pasadas seguidas) |
+| AMBAR | 4,84% | 9,15% | 9,26% | 28,28% → 18,23% → **12,82%** (+3,56 pts sobre el 9,26% base) |
+| Tasa de detección (`--inyectar`) | — | 78,99% | 78,99% (100% en 4 de 5 tipos de error; el punto débil declarado es `nif_de_otro`, 0,4% — un NIF ajeno pero con checksum válido no tiene por qué distinguirse sin el patrón de cartera) | 79,79% (`nif_de_otro`: 21,57% → 21,28% → **4,21%**, ver arreglo 14; el resto sigue al 100%) |
+
+> **RUN 12 es la medición final del día, en tres pasadas sucesivas, cada una
+> con un arreglo real encima de la anterior** (arreglo 12: cachés activas;
+> arreglo 13: `cuenta_proveedor` sin truncar; arreglo 14: `clave_cliente`
+> por carpeta+código). El indicador más limpio de que el tercer arreglo
+> quedó bien cerrado: el contador de "carpetas tratadas como cliente
+> distinto" dio **1.287** — la misma cifra, exacta, que `§12` ya había
+> verificado con 5 auditorías cruzadas independientes el 12-08-2026 como
+> "contenedores con `Diario.dbf`".
 
 > **RUN 12 tiene DOS números** porque pasaron dos cosas ese mismo día, no una:
 > primero se activaron las tres cachés dormidas (arreglo 12, abajo), y el
@@ -605,15 +614,26 @@ veces por auto-revisión antes de pasárselo a Diego, no por él.
 > `ensayo_retro_semaforo.py`. Detalle completo en `PROJECT_STATUS.md`
 > (vigesimonovena entrada, 28-08-2026).
 >
-> ⚠️ **El 18,23% de arriba queda PENDIENTE de remedir.** El mismo día se
-> encontró (trigesimoprimera entrada, `PROJECT_STATUS.md`) que las "24
-> carpetas cliente" de este arreglo 13 eran en realidad copias de seguridad
-> con hasta 70 empresas reales cada una — el mismo tipo de mezcla que el
-> arreglo 13 acababa de arreglar a otro nivel (cuenta_proveedor), pero un
-> nivel más arriba (identidad de cliente). Corregido también; pendiente de
-> Diego volver a ejecutar `retro_semaforo.py --inyectar` con los dos
-> arreglos ya encima para tener el número que de verdad describe "por
-> empresa".
+> ⚠️ **Arreglo 14, mismo día: las "24 carpetas cliente" del arreglo 13 eran
+> en realidad copias de seguridad con hasta 70 empresas reales cada una.**
+> `FASE0_RESULTADOS.md §12` ya lo había resuelto el 12-08-2026 con 5/5
+> auditorías cruzadas: el identificador real vive en el nombre del fichero
+> `.DAT` (`SP_C_##[letra]`), no en la carpeta. Un commit del 25-08
+> (`e35b585`) revirtió esto a "solo carpeta" — confirmado con Diego entonces,
+> verificado con una técnica de solape de NIF que el propio `§11.0` ya había
+> invalidado por fusionar empresas distintas. `clave_cliente()` y el reseteo
+> de `retro_semaforo.py` vuelven a `carpeta+código`. Detalle completo, con
+> la verificación contra el corpus real (100% de 3.857 `.DAT` siguen el
+> patrón exacto), en `PROJECT_STATUS.md` (trigesimoprimera entrada).
+>
+> ✅ **RESUELTO 28-08-2026: Diego volvió a medir con los dos arreglos (13 y
+> 14) ya encima.** ROJO 3,03% — tercera confirmación seguida, sin mover.
+> AMBAR 12,82% (+3,56 puntos sobre el 9,26% base — claramente "1-15: lo
+> esperado"). `cuenta_gasto_coherente=FALLO`: 5.875 → 2.212 → **245**; tasa
+> ≥70% (mapeo inestable): 32,7% → 1,6% → **0,16%** de los proveedores — ya
+> es ruido de borde normal, no una señal sistemática. El contador de
+> reseteos por cliente dio **1.287**, exacto contra `§12`. Detalle completo
+> en `PROJECT_STATUS.md` (trigesimosegunda entrada).
 
 ### La predicción de `TECHO_Y_LIMITES.md`, confirmada
 

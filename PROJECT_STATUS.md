@@ -7,6 +7,75 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 28-08-2026 (sesión LOCAL, trigesimosegunda entrada) — Cierre limpio del día: ROJO confirmado tres veces, ÁMBAR de 28,28% a 12,82%, identidad de cliente resuelta con precisión exacta
+
+Diego volvió a ejecutar `retro_semaforo.py --inyectar` y `reconstruir_303.py`
+con los dos arreglos de hoy (cuenta_proveedor sin truncar + clave_cliente por
+carpeta+código) ya encima.
+
+### La confirmación más limpia del día
+
+El contador de "carpetas tratadas como cliente distinto" (añadido para
+diagnosticar el hallazgo de la 29ª entrada) da ahora **1.287 reseteos** —
+exactamente el número que `FASE0_RESULTADOS.md §12` ya había verificado el
+12-08-2026 con 5 auditorías cruzadas independientes como "contenedores con
+`Diario.dbf`". No es una cifra parecida: es la misma cifra, por dos caminos
+de medición completamente distintos. Confirma que el reseteo ahora dispara
+exactamente una vez por empresa real, ni más ni menos.
+
+### Los números, con los dos arreglos de hoy aplicados
+
+| | Antes de hoy | Arreglo `cuenta_proveedor` | + Arreglo `clave_cliente` |
+|---|---|---|---|
+| ROJO | 3,03% | 3,03% | **3,03%** |
+| AMBAR | 28,28% | 18,23% | **12,82%** (+3,56 pts sobre el 9,26% base — "1-15: lo esperado") |
+| `cuenta_gasto_coherente=FALLO` | 5.875 | 2.212 | **245** |
+| Tasa ≥70% (mapeo inestable) | 198/606 (32,7%) | 18/1.129 (1,6%) | **3/1.851 (0,16%)** |
+| Tasa <10% (sano) | — | 70,6% | **95,4%** |
+| Detección `nif_de_otro` | 21,57% | 21,28% | **4,21%** |
+
+### `nif_de_otro`: una caída que confirma una sospecha, no abre un problema
+
+El 21,28% de la entrada anterior quedó anotado como hipótesis sin cerrar
+("puede ser un efecto colateral bueno del histórico ya activo"). Con la
+identidad de cliente corregida, cae a **4,21%** — confirma que la subida SÍ
+era, al menos en parte, un artefacto de mezclar hasta 70 empresas bajo el
+mismo histórico (más "material" con el que `importe_atipico` topaba con el
+NIF ajeno por casualidad, no detección real). Sigue por encima del 0,4%
+original de `RUN 11` — no es una regresión, es que el punto débil ya
+documentado desde el 25-08 (*"un NIF ajeno con checksum válido no tiene por
+qué distinguirse sin el patrón de cartera"*) sigue siendo el mismo. Los
+otros cuatro tipos de error inyectado siguen al 100%.
+
+### `reconstruir_303.py`: la fragmentación ahora es la real, no la oculta
+
+509 combinaciones (carpeta, código) — antes 24 "carpetas-cliente" que en
+realidad mezclaban docenas de empresas. 1.204 trimestres reconstruidos
+(antes 139). **88.959 apuntes de IVA agregados — idéntico a antes del
+arreglo**, confirmando que el cambio solo reagrupa, nunca pierde ni duplica
+un apunte.
+
+La fragmentación 509 vs ~33 clientes reales **es la esperada y no es un
+defecto de hoy**: un mismo cliente real sigue apareciendo con claves
+distintas en copias de fechas distintas, porque enlazar esas claves entre sí
+sigue siendo el problema abierto desde el 12-08 (`enlazador_clientes_303.py`
+lo intenta con cautela, sin cerrarlo del todo).
+
+### Siguiente paso real para `§3.3` (comparación manual contra el 303 presentado)
+
+Dado que enlazar entre carpetas sigue sin resolverse, el camino práctico no
+es intentar identificar un cliente a través de varias copias: es elegir
+**una sola carpeta** (una copia de una fecha concreta, con todas las
+empresas de ese momento dentro — p. ej. la copia más reciente de 2026) y,
+dentro de `303_LOCAL.json`, localizar las entradas de esa carpeta. Cada
+código distinto dentro de ella SÍ identifica una empresa real distinta
+(verificado, §12) — Diego puede reconocer a cuál corresponde cada código
+abriendo esa misma copia en ContaPlus, sin que ningún dato salga de su
+máquina. Con uno identificado, comparar sus casillas 01-09/28-29 contra el
+303 que esa empresa presentó ese mismo trimestre.
+
+---
+
 ## 28-08-2026 (sesión LOCAL, trigesimoprimera entrada) — `clave_cliente()`: revertida una regresión de tres días — la carpeta de ContaPlus no es el cliente, es una copia de seguridad con hasta 70 empresas dentro
 
 Al preparar la comparación manual del 303 (`§3.3`), Diego señaló algo que
