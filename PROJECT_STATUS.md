@@ -7,6 +7,125 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 28-08-2026 (sesión LOCAL, vigesimonovena entrada) — Primera medición real con las cachés de historial activas: ROJO estable, ÁMBAR investigado a fondo, y un bug real encontrado y cerrado
+
+Diego ejecutó `retro_semaforo.py --inyectar` contra el corpus real completo
+por primera vez con `actualizar_caches_historicas()` ya activa (arreglo de la
+17ª entrada). Es la comprobación que llevaba pendiente desde entonces.
+
+### 1 · El ROJO no se movió — predicción confirmada con datos reales, no solo con código
+
+**3,03%**, idéntico al `RUN 11` de `FASE0_RESULTADOS.md §14`. Ninguno de los
+guards despertados está en `criticos`; solo pueden mover VERDE→ÁMBAR. Sigue
+en pie el `ROJO 3,03% < 5%` que cerró el retro-semáforo el 25-08.
+
+### 2 · El ÁMBAR subió 19 puntos (9,26%→28,28%) — y eso activó la regla del `>15 puntos` de `SIGUIENTES_PASOS.md §4`
+
+*"Demasiado ruido para ser útil. No se ajusta el umbral: se investiga qué
+guard concentra los disparos."* `cuenta_gasto_coherente` dominaba con el 70%
+del ÁMBAR de la factura (5.549 de 7.920).
+
+### 3 · La investigación, capa por capa, con una herramienta nueva en cada paso
+
+Se añadió a `retro_semaforo.py` (opcional, aditivo, sin cambiar el
+comportamiento por defecto — mismo patrón que `--emitir-cartera`) un
+contador de concentración por proveedor. Primera versión: agrupaba por el
+hash de NIF que el propio script ya anonimiza. Resultado: 509 proveedores,
+198 (32,7%) con tasa de FALLO ≥70% — demasiado alto para ser negocio mixto
+real (el 21-08 caracterizó ese caso en ~47%, no en ≥70% masivo).
+
+**Hipótesis 1, descartada con datos:** ¿se estaban fragmentando las cuatro
+cachés por un reseteo de cliente mal calibrado (la misma clase de artefacto
+de continuidad temporal que `SOSPECHOSA` ya demostró esta semana)? Añadido
+un contador de carpetas tratadas como cliente distinto: **28**, un número
+razonable frente a los ~33-37 clientes reales ya conocidos por
+`emparejar_carpetas.py`. Descartada.
+
+**El error real, encontrado leyendo el código, no adivinando:**
+`guard_cuenta_gasto_coherente` y `actualizar_mapeo_cuenta_gasto()` indexan
+por `cuenta_proveedor` — la subcuenta del acreedor —, **no por NIF**. Pero
+`reconstruir_compra()` construía `fila['cuenta_proveedor']` a partir de
+`cuenta()`, una función que trunca a **3 dígitos** (existe para clasificar
+el TIPO de línea: acreedor 400/401/410/411, gasto 6xx, IVA 472 — uso
+correcto ahí). Reutilizado ese mismo valor truncado como identidad de
+proveedor, **todos los acreedores de un cliente bajo el mismo grupo PGC
+(p. ej. todos los "410")** se trataban como una única entidad: el guard
+comparaba la cuenta de gasto de un proveedor concreto contra la mezcla de
+docenas de proveedores distintos.
+
+Confirmado agrupando por `(cliente, cuenta_proveedor)` en vez de por NIF:
+**solo 24 pares en todo el corpus (28 clientes) concentraban el 100% de los
+5.875 FALLO, el 90% en solo 10.** Con `--detalle-cuenta-gasto` (nuevo,
+fichero `_LOCAL`, nunca abierto por Claude), Diego confirmó que los códigos
+dominantes eran `410`/`400` — cuentas de grupo, no subcuentas. Su propia
+explicación cierra el diagnóstico: esas cuentas "pueden englobar algunas
+compras/gastos donde no está claro el proveedor... se contabilizan como
+'proveedor'/'acreedor' a secas".
+
+### 4 · El arreglo
+
+`reconstruir_compra()` ahora guarda la subcuenta COMPLETA (sin truncar) como
+un campo nuevo en la tupla de línea, y `cuenta_proveedor` se construye a
+partir de ella — nunca del valor de 3 dígitos usado para clasificar.
+`cuenta_debe` se queda intencionadamente truncado: el propio guard compara
+`habitual[:3] == propuesta[:3]` (por diseño, "629000 y 629001 son la misma
+decisión"), así que pasarlo ya truncado no cambia nada y no era la causa.
+
+### 5 · Resultado, medido de nuevo tras el arreglo
+
+| | Antes del arreglo | Después |
+|---|---|---|
+| ROJO | 3,03% | **3,03%** (sin mover) |
+| AMBAR | 28,28% | **18,23%** |
+| `cuenta_gasto_coherente=FALLO` | 5.875 | **2.212** (−62%) |
+| Proveedores distintos (agrupado bien) | 24 | **424** |
+| Concentración top-10 | 90,1% | **12,8%** |
+| Tasa ≥70% (mapeo inestable) | 198/606 (32,7%) | **18/1.129 (1,6%)** |
+| Tasa 30-70% (negocio mixto, ~47% sintético) | 63/606 (10,4%) | **211/1.129 (18,7%)** |
+
+**El número que decide:** el ÁMBAR sube 8,97 puntos sobre el 9,26% base
+(no 19). Eso cae dentro del rango **"1-15 puntos: lo esperado"** de
+`SIGUIENTES_PASOS.md §4`, no en el ">15: demasiado ruido" que había
+disparado esta investigación. La regla se cumplió tal como estaba escrita:
+no se tocó ningún umbral, se investigó, y el número confirmó que la
+investigación iba en la dirección correcta.
+
+### Verificación
+
+`ensayo_retro_semaforo.py` ampliado con una regresión directa sobre
+`reconstruir_compra()`: dos proveedores sintéticos distintos bajo el mismo
+grupo de acreedor (`410`) deben recibir `cuenta_proveedor` distinta.
+Probado con sabotaje (vuelta al valor truncado): falla **exactamente** las
+2 comprobaciones que dependen del arreglo, ninguna más. `test_motor_
+veredicto.py` 65/65, `test_adversarial.py` 112/112, `audit_project.py` en
+verde salvo la excepción esperada, escáner de privacidad sin hallazgos.
+
+### Lo que queda abierto, sin bloquear nada
+
+**`estructura_reconocida` y `secuencia_documental_proveedor` siguen en CERO
+FALLO** pese a tener histórico disponible (27.797 y 5.823 evaluaciones
+respectivamente). Hipótesis sin confirmar: `retro_semaforo.py` lee asientos
+ya contabilizados por un humano desde una factura real, no facturas
+fotografiadas con OCR — el tipo de anomalía de formato/secuencia que estos
+guards cazan es mucho más propio de una lectura por IA que de una
+transcripción manual ya limpia. No es crítico (ninguno de los dos puede
+mover ROJO) y no se investiga más hoy sin una hipótesis mejor que la
+aritmética por sí sola pueda falsar.
+
+**El residual del 1,6% (18 proveedores) con tasa ≥70%** no se investiga
+más — es un tamaño de muestra normal para casos límite genuinos, no la
+señal sistemática que llevó a esta investigación.
+
+### Pendiente, siguiente paso real
+
+Seguir el orden ya acordado en `SIGUIENTES_PASOS.md §3`: localizar el CSV
+de las 91 facturas fotografiadas de la prueba antigua y ejecutar
+`validar_captura_historica.py` (§3.2) — es la única medición del proyecto
+que puede hablar de FALSOS VERDES, que el retro-semáforo no puede tocar
+por construcción.
+
+---
+
 ## 28-08-2026 (sesión Cloud, vigesimoctava entrada) — Orden cronológico en `validar_captura_historica.py`, y una lección de proceso propia sobre `git fetch`
 
 **Aviso de proceso, antes que nada, por ser exactamente la misma lección que

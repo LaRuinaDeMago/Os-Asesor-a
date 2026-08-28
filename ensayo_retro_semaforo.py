@@ -240,6 +240,52 @@ def main():
     comprobar("los NIF inventados pasan el digito de control del propio motor",
               not malos, f"invalidos: {len(malos)}")
 
+    # ANADIDO 28-08-2026 (regresion de bug real, medido contra el corpus real:
+    # 198 de 606 "proveedores" con tasa de FALLO >=70% en cuenta_gasto_coherente,
+    # resulto ser el mismo puñado de codigos de GRUPO (400/410) repetido en
+    # cada cliente, no proveedores reales). reconstruir_compra() usaba l[0]
+    # (subcuenta truncada a 3 digitos, solo sirve para CLASIFICAR el tipo de
+    # linea) como cuenta_proveedor -- asi que dos proveedores DISTINTOS bajo
+    # el mismo grupo de acreedor (410) se veian como UNA sola entidad para
+    # guard_cuenta_gasto_coherente. Prueba directa de reconstruir_compra(),
+    # sin pasar por DBF/ZIP: mas simple y prueba exactamente la funcion que
+    # tenia el bug.
+    from retro_semaforo import reconstruir_compra
+
+    def _linea(subcta_trunc, debe, haber, iva, nif, base, subcta_completa):
+        return (subcta_trunc, debe, haber, iva, nif, base, "20260115", "F1", 0,
+                b"", subcta_completa)
+
+    lineas_prov_a = [
+        _linea("600", 82.64, 0, 0, "", 82.64, "60000000"),
+        _linea("472", 17.35, 0, 21, "", 0, "47200000"),
+        _linea("410", 0, 99.99, 0, dni_valido(11111111), 0, "41000023"),
+    ]
+    lineas_prov_b = [
+        _linea("621", 41.32, 0, 0, "", 41.32, "62100000"),
+        _linea("472", 8.68, 0, 21, "", 0, "47200000"),
+        _linea("410", 0, 50.00, 0, dni_valido(22222222), 0, "41000099"),
+    ]
+    fila_a = reconstruir_compra(lineas_prov_a)
+    fila_b = reconstruir_compra(lineas_prov_b)
+    comprobar("dos proveedores DISTINTOS bajo el mismo grupo de acreedor (410) "
+              "reciben cuenta_proveedor DISTINTA",
+              isinstance(fila_a, dict) and isinstance(fila_b, dict)
+              and fila_a.get("cuenta_proveedor") != fila_b.get("cuenta_proveedor"),
+              f"a={fila_a and fila_a.get('cuenta_proveedor')!r} "
+              f"b={fila_b and fila_b.get('cuenta_proveedor')!r}")
+    comprobar("cuenta_proveedor es la subcuenta COMPLETA, no el grupo truncado a 3",
+              isinstance(fila_a, dict) and fila_a.get("cuenta_proveedor") == "41000023"
+              and isinstance(fila_b, dict) and fila_b.get("cuenta_proveedor") == "41000099",
+              f"a={fila_a and fila_a.get('cuenta_proveedor')!r} "
+              f"b={fila_b and fila_b.get('cuenta_proveedor')!r}")
+    comprobar("cuenta_debe SIGUE siendo el grupo (3 digitos): el guard ya trunca "
+              "el gasto el mismo al comparar, pasarlo completo no aporta nada",
+              isinstance(fila_a, dict) and fila_a.get("cuenta_debe") == "600"
+              and isinstance(fila_b, dict) and fila_b.get("cuenta_debe") == "621",
+              f"a={fila_a and fila_a.get('cuenta_debe')!r} "
+              f"b={fila_b and fila_b.get('cuenta_debe')!r}")
+
     tmp = tempfile.mkdtemp(prefix="ensayo_retro_")
     try:
         n = generar_corpus(tmp)

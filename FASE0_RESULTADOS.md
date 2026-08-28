@@ -532,12 +532,22 @@ veces por auto-revisión antes de pasárselo a Diego, no por él.
 
 ### El resultado final de la sesión
 
-| | RUN 4 (tras arreglo 3) | RUN 10 (tras arreglo 10) | RUN 11 (tras arreglo 11) |
-|---|---|---|---|
-| VERDE | 49,19% | 87,71% | **87,71%** |
-| ROJO | 45,97% | 3,15% | **3,03%** |
-| AMBAR | 4,84% | 9,15% | 9,26% |
-| Tasa de detección (`--inyectar`) | — | 78,99% | 78,99% (100% en 4 de 5 tipos de error; el punto débil declarado es `nif_de_otro`, 0,4% — un NIF ajeno pero con checksum válido no tiene por qué distinguirse sin el patrón de cartera) |
+| | RUN 4 (tras arreglo 3) | RUN 10 (tras arreglo 10) | RUN 11 (tras arreglo 11) | RUN 12 (28-08, cachés + arreglo 13) |
+|---|---|---|---|---|
+| VERDE | 49,19% | 87,71% | 87,71% | **68,69% → 78,74%** (ver abajo) |
+| ROJO | 45,97% | 3,15% | 3,03% | **3,03%** (sin mover, confirmado con datos reales) |
+| AMBAR | 4,84% | 9,15% | 9,26% | 28,28% → **18,23%** (ver abajo) |
+| Tasa de detección (`--inyectar`) | — | 78,99% | 78,99% (100% en 4 de 5 tipos de error; el punto débil declarado es `nif_de_otro`, 0,4% — un NIF ajeno pero con checksum válido no tiene por qué distinguirse sin el patrón de cartera) | 83,42% (`nif_de_otro` sube a 21,57-21,28%, el resto sigue al 100%) |
+
+> **RUN 12 tiene DOS números** porque pasaron dos cosas ese mismo día, no una:
+> primero se activaron las tres cachés dormidas (arreglo 12, abajo), y el
+> ÁMBAR subió a 28,28% — más de lo esperado. Investigado (no ajustado el
+> umbral): un bug real en `cuenta_proveedor` (arreglo 13, nuevo) inflaba
+> `cuenta_gasto_coherente` mezclando proveedores distintos bajo el mismo
+> grupo de cuenta. Arreglado, medido de nuevo: ÁMBAR 18,23%, dentro del
+> rango "1-15 puntos sobre el 9,26% base: lo esperado" de
+> `SIGUIENTES_PASOS.md §4`. Detalle completo, con el diagnóstico capa por
+> capa, en `PROJECT_STATUS.md` (vigesimonovena entrada, 28-08-2026).
 
 > ⚠️ **Arreglo 12, sesión Cloud 27-08-2026 (hallazgo de Diego, verificado):
 > este RUN 11 tiene `guard_importe_atipico`, `guard_estructura_reconocida` y
@@ -557,9 +567,29 @@ veces por auto-revisión antes de pasárselo a Diego, no por él.
 > `retro_semaforo.py` contra el corpus real, ya con `actualizar_caches_
 > historicas()` (nueva en `motor_veredicto.py`) cableada. Detalle completo,
 > con reproducción del bug antes/después sobre el mismo caso sintético, en
-> `PROJECT_STATUS.md` (decimoséptima entrada del 27-08). **Pendiente: Diego
-> vuelve a correr `retro_semaforo.py` y compara el VERDE/AMBAR nuevo contra
-> estos números.**
+> `PROJECT_STATUS.md` (decimoséptima entrada del 27-08).
+>
+> ✅ **RESUELTO 28-08-2026: Diego volvió a correr `retro_semaforo.py --inyectar`
+> contra el corpus real completo.** ROJO 3,03% confirmado sin mover. AMBAR
+> subió a 28,28% — más de lo esperado, ver arreglo 13 justo abajo.
+
+> ⚠️ **Arreglo 13, sesión LOCAL 28-08-2026 (hallazgo propio, investigando por
+> qué el AMBAR de arriba subía más de lo esperado):** `reconstruir_compra()`
+> construía `fila['cuenta_proveedor']` con la subcuenta TRUNCADA a 3 dígitos
+> (la misma función que clasifica si una línea es acreedor 400/401/410/411,
+> gasto o IVA — correcto para eso, incorrecto reutilizada como identidad de
+> proveedor). `guard_cuenta_gasto_coherente` indexa por ese campo, así que
+> **todos los acreedores de un cliente bajo el mismo grupo PGC** (todos los
+> "410", por ejemplo) se trataban como un único proveedor. Confirmado
+> agrupando por (cliente, cuenta_proveedor): 24 pares en 28 clientes
+> concentraban el 100% de los 5.875 `FALLO`, el 90% en solo 10 — y resultaron
+> ser cuentas de grupo genéricas (410/400), no subcuentas de proveedor.
+> Arreglado: `cuenta_proveedor` ahora usa la subcuenta completa sin truncar.
+> Medido antes/después: `cuenta_gasto_coherente=FALLO` 5.875 → **2.212**
+> (−62%), AMBAR 28,28% → **18,23%** (dentro del rango "1-15 puntos: lo
+> esperado" sobre el 9,26% base). Probado con sabotaje en
+> `ensayo_retro_semaforo.py`. Detalle completo en `PROJECT_STATUS.md`
+> (vigesimonovena entrada, 28-08-2026).
 
 ### La predicción de `TECHO_Y_LIMITES.md`, confirmada
 

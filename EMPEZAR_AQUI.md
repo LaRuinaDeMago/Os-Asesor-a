@@ -179,10 +179,12 @@ motor."** Cerrado, no toca seguir picando en el retro-semáforo.
 > `PROJECT_STATUS.md` (decimoséptima entrada del 27-08) y
 > `FASE0_RESULTADOS.md` §14.
 >
-> **👉 SIGUIENTE PASO REAL:** volver a ejecutar `retro_semaforo.py` contra
-> el corpus real y comparar el VERDE/AMBAR nuevo contra el 87,71%/9,26% de
-> arriba. Si el ROJO se mueve, es una señal nueva que investigar aparte —no
-> debería, según lo ya verificado.
+> ✅ **RESUELTO 28-08-2026 (sesión LOCAL):** Diego volvió a ejecutar
+> `retro_semaforo.py --inyectar` contra el corpus real completo. ROJO
+> **3,03%**, confirmado sin mover. AMBAR subió a 28,28% — más de lo
+> esperado (regla del ">15 puntos" de `SIGUIENTES_PASOS.md §4`), investigado
+> a fondo y encontrado un bug real (ver el sexto hallazgo, más abajo).
+> Detalle completo en `PROJECT_STATUS.md` (vigesimonovena entrada).
 >
 > ✅ **Cuarto candidato, encontrado y RESUELTO el mismo día:
 > `guard_cuenta_gasto_coherente`.** Se indexa por código de cuenta
@@ -221,6 +223,20 @@ motor."** Cerrado, no toca seguir picando en el retro-semáforo.
 > cliente, con la invariante fijada en `ensayo_retro_semaforo.py`. Si esto no
 > se hubiera visto, el número de la re-medición habría sido **inservible sin
 > que nada lo delatara**.
+>
+> 🔴 **Sexto hallazgo, 28-08-2026 (sesión LOCAL): `cuenta_gasto_coherente`
+> mezclaba proveedores DISTINTOS bajo el mismo grupo de acreedor.**
+> `reconstruir_compra()` construía `cuenta_proveedor` con la subcuenta
+> truncada a 3 dígitos (correcto para clasificar TIPO de línea, incorrecto
+> reutilizada como identidad) — así que todos los acreedores de un cliente
+> bajo, p. ej., "410" se comparaban entre sí como si fueran un único
+> proveedor. Confirmado con datos reales: 24 pares (cliente, código)
+> concentraban el 100% del ruido de este guard, y resultaron ser cuentas de
+> grupo genéricas, no subcuentas. Arreglado (subcuenta completa, sin
+> truncar); medido antes/después: `cuenta_gasto_coherente=FALLO` 5.875 →
+> 2.212, AMBAR 28,28% → **18,23%** — dentro del rango "1-15 puntos: lo
+> esperado". Detalle en `PROJECT_STATUS.md` (vigesimonovena entrada) y
+> `FASE0_RESULTADOS.md §14` (arreglo 13).
 
 ---
 

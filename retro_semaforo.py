@@ -265,7 +265,16 @@ def numero_documento(rec, cNFACTICK, cDOCUMENTO, cFACTURA):
 # --------------------------------------------------------------------------
 def reconstruir_compra(lineas):
     """Devuelve la fila para el motor, o None si el asiento no es una compra
-    reconstruible. `lineas` = [(subcta, debe, haber, iva, nif, base, fecha, doc)].
+    reconstruible. `lineas` = [(subcta_TRUNCADA_a_3, debe, haber, iva, nif, base,
+    fecha, doc, recequiv, hash_linea, subcta_COMPLETA)].
+
+    Dos versiones de la subcuenta, a proposito (ver comentario donde se
+    construye `lineas`, mas arriba): la truncada a 3 (l[0]) sirve para
+    CLASIFICAR el tipo de linea (acreedor/gasto/iva); la completa (l[10]) es
+    la que identifica a un proveedor CONCRETO, y es la que necesita
+    guard_cuenta_gasto_coherente -- usar la truncada ahi mezclaba a todos los
+    proveedores de un mismo grupo PGC (400/410/401/411) bajo una unica
+    identidad (arreglo 28-08-2026).
 
     NO inventa nada: si un campo no esta en el asiento, no se rellena, y el
     contrato de datos lo marcara MISSING. Esa es justamente la gracia.
@@ -311,7 +320,24 @@ def reconstruir_compra(lineas):
     # cuentas de gasto en un mismo asiento (tramos de IVA distintos con
     # gastos en cuentas distintas, caso raro) esto es una aproximacion, no
     # una perdida de rigor nueva -- el guard es AMBAR/asesor, nunca ROJO.
-    fila['cuenta_proveedor'] = acree[0][0]
+    #
+    # CORREGIDO 28-08-2026 (bug real, medido con datos reales, no supuesto):
+    # aqui se usaba l[0] (subcuenta truncada a 3 digitos -- 400/410/etc, el
+    # GRUPO, no el proveedor). guard_cuenta_gasto_coherente indexa su
+    # historico por esto, asi que con el truncado TODOS los proveedores de un
+    # cliente bajo el mismo grupo de acreedor compartian una unica entrada de
+    # "habitual" -- comparando la cuenta de gasto de un proveedor contra la
+    # mezcla de TODOS los demas. Medido el efecto: 198 de 606 "proveedores"
+    # con tasa de FALLO >=70%, y resulto ser el mismo puñado de codigos de
+    # grupo repetido en cada cliente del corpus (28 clientes, 24 pares
+    # cliente+codigo concentraban el 100% de los 5.875 FALLO, 90% en solo 10).
+    # Usa l[10] (subcuenta COMPLETA) SOLO para cuenta_proveedor: es una clave
+    # de diccionario exacta (mapeo_cuenta_gasto[cuenta_proveedor]), nunca se
+    # vuelve a truncar. cuenta_debe se queda con l[0] (grupo, 3 digitos): el
+    # propio guard compara habitual[:3] == propuesta[:3] SIEMPRE, truncando
+    # el valor que reciba -- pasarlo ya truncado es equivalente y no es lo
+    # que causaba el bug medido.
+    fila['cuenta_proveedor'] = acree[0][10]
     fila['cuenta_debe'] = gastos[0][0]
     # Bases por tipo de IVA: cada linea de IVA trae su tipo en el campo IVA y su
     # base imponible en BASEIMPO. Si BASEIMPO viene vacio, se deriva de la cuota.
@@ -548,6 +574,13 @@ def main():
                          "gasto mas usada en toda la cartera) al fichero indicado. "
                          "Aprovecha que esta pasada ya recorre el corpus entero. "
                          "El fichero lleva NIF reales: usar un nombre con _LOCAL.")
+    ap.add_argument("--detalle-cuenta-gasto", metavar="RUTA",
+                    help="Ademas de medir, emite el desglose de cuenta_gasto_coherente=FALLO "
+                         "por (carpeta de cliente, codigo de cuenta) al fichero indicado -- "
+                         "para investigar si el ruido dominante viene de un proveedor real "
+                         "diversificado o de una cuenta generica compartida por varios "
+                         "proveedores sin subcuenta propia. El fichero lleva rutas de carpeta "
+                         "reales: usar un nombre con _LOCAL.")
     args = ap.parse_args()
 
     raiz = os.path.abspath(args.carpeta)
@@ -568,6 +601,24 @@ def main():
     guards_no_ok = Counter()
     ambar_instrumento = Counter()
     ambar_factura = Counter()
+    # ANADIDO 28-08-2026 (sesion LOCAL, tras medir ROJO estable y AMBAR +19
+    # puntos sobre corpus real): SIGUIENTES_PASOS.md §4 exige, cuando el AMBAR
+    # sube mas de 15 puntos, investigar que guard concentra los disparos --
+    # nunca ajustar el umbral para que cuadre. cuenta_gasto_coherente ya
+    # domina (70% del AMBAR de la factura). Falta saber si esta concentrado
+    # en pocos proveedores (esperado: negocios mixtos reales, ya caracterizado
+    # el 21-08 con datos sinteticos) o disperso entre muchos (senal de un
+    # problema del propio mapeo). Cuenta por el hash `PROV_xxxx` que este
+    # mismo script ya genera mas arriba -- nunca el NIF -- asi que solo
+    # produce un histograma de recuentos, nunca una identidad.
+    concentracion_cuenta_gasto = Counter()
+    # Denominador de la tasa por proveedor: OK+FALLO del mismo guard (nunca
+    # NO_APLICA, que es "sin patron todavia", no una evaluacion real). Un
+    # recuento absoluto de FALLO no distingue "proveedor de alto volumen con
+    # una tasa baja" de "proveedor con pocas facturas, casi todas FALLO" --
+    # la tasa (el mismo criterio que ya caracterizo el 21-08 con datos
+    # sinteticos: 0% actividad unica, 47% mixto al 50%) si lo distingue.
+    evaluado_cuenta_gasto = Counter()
     errores = Counter()
     n_asientos = n_compras = n_reconstruidas = n_sin_iva = n_isp = 0
     vistos_dup = set()
@@ -650,9 +701,25 @@ def main():
     # de cliente que las tres de arriba.
     mapeo_cuenta_gasto_cliente = {}
     cliente_actual = None
+    # ANADIDO 28-08-2026 (hipotesis a comprobar, tras ver que el 32.7% de los
+    # proveedores tiene tasa de FALLO >=70% en cuenta_gasto_coherente -- mucho
+    # mas alto que el ~10% esperable de negocios genuinamente mixtos). El
+    # reseteo de las cuatro caches asume que UNA carpeta = UN cliente. Este
+    # mismo proyecto ya demostro esta semana, con SOSPECHOSA y emparejar_
+    # carpetas.py, que eso NO es cierto en este corpus: un cliente real puede
+    # tener su historico repartido en varias carpetas de copia de seguridad.
+    # Si el reseteo fragmenta el historico de un mismo cliente en muchas
+    # ventanas pequenas, "habitual" nunca llega a estabilizarse -- ni una sola
+    # carpeta se imprime, solo el RECUENTO de carpetas distintas frente a los
+    # ~33-37 clientes reales ya conocidos por emparejar_carpetas.py.
+    carpetas_distintas_cliente = set()
+    n_resets_cliente = 0
     # Para el patron de cartera: lineas por cliente, indexadas por contenedor.
     # Solo se acumula si se ha pedido, para no gastar memoria de balde.
     lineas_cartera = defaultdict(list) if args.emitir_cartera else None
+    # Solo se rellena si se pide -- guarda la carpeta REAL, nunca se imprime
+    # por consola ni entra en el JSON agregado (ver informe de mas abajo).
+    detalle_cuenta_gasto = {} if args.detalle_cuenta_gasto else None
     detalle_local = []
     nifs_pool = []
     parar = False
@@ -682,8 +749,10 @@ def main():
         # distintos haria que la medicion no describiera a produccion, que es
         # justo lo unico que este script sirve para predecir.
         carpeta_ruta = os.path.dirname(ruta)
+        carpetas_distintas_cliente.add(carpeta_ruta)
         if carpeta_ruta != cliente_actual:
             cliente_actual = carpeta_ruta
+            n_resets_cliente += 1
             mapeo_cuenta_gasto_cliente = {}
             historico_acumulado = {}
             formato_acumulado = {}
@@ -738,6 +807,28 @@ def main():
                             numero_documento(rec, cNFACTICK, cDOCUMENTO, cFACTURA),
                             num(rec, cREC),
                             h_linea,
+                            # ANADIDO 28-08-2026 (bug real, hallazgo propio tras
+                            # medir con datos reales): subcuenta COMPLETA, sin
+                            # truncar a 3 digitos. l[0] de arriba (cuenta()) SOLO
+                            # sirve para clasificar el TIPO de linea (acreedor
+                            # 400/401/410/411, gasto 6xx, iva 472) -- comparar
+                            # "400" contra "410" para saber si es un acreedor es
+                            # correcto. Pero reconstruir_compra() reutilizaba ese
+                            # MISMO valor truncado como cuenta_proveedor/
+                            # cuenta_debe para guard_cuenta_gasto_coherente, que
+                            # necesita distinguir UN proveedor concreto de otro,
+                            # no su grupo PGC. Con el truncado, TODOS los
+                            # acreedores de un cliente bajo "410" (docenas de
+                            # proveedores reales distintos, mas los que Diego
+                            # confirma que se contabilizan asi "a secas" cuando
+                            # no esta claro el proveedor) se tratan como si
+                            # fueran UNO SOLO. Ver diagnostico completo en
+                            # PROJECT_STATUS.md (28-08-2026): 198 de 606
+                            # "proveedores" con tasa de FALLO >=70%, y resulto
+                            # ser el mismo puñado de codigos de grupo truncados
+                            # repetido en cada cliente del corpus, no proveedores
+                            # reales.
+                            txt(rec, cS),
                         ))
                         del rec
 
@@ -867,6 +958,42 @@ def main():
                         for g, (estado, _) in guards.items():
                             if estado not in ("OK", "NO_APLICA", "ALTA"):
                                 guards_no_ok[f"{g}={estado}"] += 1
+                        # CORREGIDO 28-08-2026 (auditoria propia, antes de dar
+                        # el 32.7% >=70% por bueno): guard_cuenta_gasto_coherente
+                        # y actualizar_mapeo_cuenta_gasto() se indexan por
+                        # `cuenta_proveedor` (codigo de subcuenta, ej. "400015"),
+                        # NUNCA por NIF -- verificado leyendo motor_veredicto.py.
+                        # La primera version de este contador agrupaba por
+                        # `fila["proveedor"]` (hash del NIF), que es una unidad
+                        # DISTINTA: si el mismo NIF real se contabiliza alguna
+                        # vez bajo un codigo de cuenta generico ademas de su
+                        # cuenta dedicada, el guard los trata como dos entidades
+                        # separadas -- pero el contador por NIF los mezclaba,
+                        # inflando artificialmente la tasa. Se agrupa por la
+                        # MISMA clave que usa el guard.
+                        # Y `cuenta_proveedor` TAMPOCO es identidad estable ENTRE
+                        # clientes (FASE0_RESULTADOS.md §10.1: el mismo codigo
+                        # puede ser dos proveedores distintos en dos clientes) --
+                        # por eso mapeo_cuenta_gasto_cliente se resetea por
+                        # cliente. Este contador es global a toda la ejecucion,
+                        # asi que compone la clave con n_resets_cliente (un
+                        # indice anonimo, nunca la ruta real) para no mezclar el
+                        # mismo codigo de dos clientes distintos bajo una unica
+                        # entrada.
+                        estado_cgc = guards.get("cuenta_gasto_coherente", (None, None))[0]
+                        if estado_cgc in ("OK", "FALLO"):
+                            clave_cgc = (n_resets_cliente, fila.get("cuenta_proveedor", ""))
+                            evaluado_cuenta_gasto[clave_cgc] += 1
+                            if estado_cgc == "FALLO":
+                                concentracion_cuenta_gasto[clave_cgc] += 1
+                            if detalle_cuenta_gasto is not None:
+                                entry_dcg = detalle_cuenta_gasto.setdefault(
+                                    clave_cgc, {"carpeta": cliente_actual,
+                                                "cuenta_proveedor": fila.get("cuenta_proveedor", ""),
+                                                "n_fallos": 0, "n_evaluado": 0})
+                                entry_dcg["n_evaluado"] += 1
+                                if estado_cgc == "FALLO":
+                                    entry_dcg["n_fallos"] += 1
                         if v == "AMBAR":
                             # Las causas se sacan del MOTIVO, no de la lista de
                             # guards no benignos. Parece lo mismo y no lo es: hay
@@ -974,6 +1101,77 @@ def main():
     for g, n in guards_no_ok.most_common(12):
         print(f"    {g:<45} {n:>8,}")
 
+    print()
+    print(f"CARPETAS QUE EL RESETEO POR CLIENTE HA TRATADO COMO DISTINTAS: "
+          f"{len(carpetas_distintas_cliente):,} ({n_resets_cliente:,} reseteos)")
+    print("    emparejar_carpetas.py ya conto ~33-37 clientes reales en este")
+    print("    corpus. Si el numero de arriba es mucho mayor, las cuatro caches")
+    print("    de historial se estan fragmentando dentro del mismo cliente, no")
+    print("    solo entre clientes distintos -- ver la seccion de concentracion")
+    print("    de mas abajo para el efecto practico.")
+
+    # Ver el comentario en la inicializacion de concentracion_cuenta_gasto:
+    # solo se imprime si el guard ha disparado alguna vez, y solo como
+    # recuentos por bucket -- nunca el hash ni el NIF.
+    total_cgc = sum(concentracion_cuenta_gasto.values())
+    if total_cgc:
+        n_proveedores = len(concentracion_cuenta_gasto)
+        buckets = Counter()
+        for c in concentracion_cuenta_gasto.values():
+            if c == 1:
+                buckets["1 disparo"] += 1
+            elif c <= 5:
+                buckets["2-5 disparos"] += 1
+            elif c <= 20:
+                buckets["6-20 disparos"] += 1
+            else:
+                buckets["21+ disparos"] += 1
+        top_n = 10
+        top_acumulado = sum(c for _, c in concentracion_cuenta_gasto.most_common(top_n))
+        print()
+        print(f"CONCENTRACION de cuenta_gasto_coherente=FALLO ({total_cgc:,} casos, "
+              f"{n_proveedores:,} proveedores distintos):")
+        for b in ("1 disparo", "2-5 disparos", "6-20 disparos", "21+ disparos"):
+            if buckets.get(b):
+                print(f"    {b:<16} {buckets[b]:>6,} proveedores")
+        print(f"    Los {min(top_n, n_proveedores)} proveedores con mas disparos "
+              f"acumulan {pct(top_acumulado, total_cgc)}% del total.")
+
+        # El recuento absoluto de arriba no distingue "proveedor de alto
+        # volumen con una tasa baja" de "proveedor con pocas facturas, casi
+        # todas FALLO". La TASA por proveedor (FALLO / (OK+FALLO) de ESE
+        # proveedor) si lo distingue, con el mismo criterio ya medido el
+        # 21-08 con datos sinteticos: 0% en actividad unica, 47% en mixto al
+        # 50%. Solo se calcula sobre proveedores con 3+ evaluaciones (mismo
+        # umbral MIN_ASIENTOS_PATRON_GASTO que el propio guard exige antes de
+        # fiarse de un patron) -- con menos, una tasa de "1 de 1" no dice nada.
+        buckets_tasa = Counter()
+        proveedores_con_tasa = 0
+        for prov, evaluado in evaluado_cuenta_gasto.items():
+            if evaluado < 3:
+                continue
+            proveedores_con_tasa += 1
+            tasa = concentracion_cuenta_gasto.get(prov, 0) / evaluado
+            if tasa < 0.10:
+                buckets_tasa["<10%"] += 1
+            elif tasa < 0.30:
+                buckets_tasa["10-30%"] += 1
+            elif tasa < 0.70:
+                buckets_tasa["30-70% (rango del proveedor mixto sintetico, ~47%)"] += 1
+            else:
+                buckets_tasa[">=70%"] += 1
+        print()
+        print(f"    TASA por proveedor (solo los {proveedores_con_tasa:,} con 3+ "
+              f"evaluaciones del guard):")
+        for b in ("<10%", "10-30%", "30-70% (rango del proveedor mixto sintetico, ~47%)", ">=70%"):
+            if buckets_tasa.get(b):
+                print(f"      {b:<55} {buckets_tasa[b]:>6,} proveedores")
+        print("    <10%/10-30% = ruido normal de un proveedor mayormente de una")
+        print("    actividad. 30-70% = coherente con negocio mixto real, igual que")
+        print("    el 47% sintetico del 21-08. >=70% = el mapeo casi nunca acierta")
+        print("    con ESE proveedor -- si hay muchos aqui, no es negocio mixto,")
+        print("    es que 'habitual' no se esta estabilizando para el.")
+
     if args.inyectar:
         total_iny = sum(det_veredictos.values())
         cazados = total_iny - det_veredictos.get("VERDE", 0)
@@ -1018,10 +1216,21 @@ def main():
         "ambar_de_la_factura": dict(ambar_factura.most_common(15)),
         "motivos": dict(motivos.most_common(20)),
         "errores_por_tipo": dict(errores),
+        "carpetas_distintas_tratadas_como_cliente": len(carpetas_distintas_cliente),
+        "resets_cache_por_cliente": n_resets_cliente,
         "nota": ("Mide falsos ROJOS y ruido sobre datos reales. NO mide falsos "
                  "verdes: que un asiento se contabilizara asi demuestra que se "
                  "hizo asi, no que fuera correcto."),
     }
+    if total_cgc:
+        agregado["concentracion_cuenta_gasto"] = {
+            "total_fallos": total_cgc,
+            "proveedores_distintos": n_proveedores,
+            "buckets": dict(buckets),
+            "pct_top_10_proveedores": pct(top_acumulado, total_cgc),
+            "proveedores_con_tasa_3mas_evaluaciones": proveedores_con_tasa,
+            "buckets_tasa": dict(buckets_tasa),
+        }
     if args.inyectar:
         total_iny = sum(det_veredictos.values())
         agregado["deteccion"] = {
@@ -1070,6 +1279,33 @@ def main():
             print("    ⚠️  ESTE FICHERO LLEVA NIF REALES y su nombre no dice _LOCAL.")
             print("        Renombrarlo antes de nada: .gitignore protege *_LOCAL.*,")
             print("        y con otro nombre puede acabar en un commit.")
+
+    # --- Desglose de cuenta_gasto_coherente=FALLO, por (carpeta, cuenta) ----
+    # 28-08-2026: el ruido dominante de cuenta_gasto_coherente resulto estar
+    # concentrado en un puñado de pares (cliente, codigo de cuenta), no
+    # disperso -- pero desde aqui no se puede distinguir un proveedor real muy
+    # diversificado de una cuenta generica ("Proveedores varios") compartida
+    # por muchos proveedores sin subcuenta propia. Ese fichero SI lleva la
+    # ruta real de la carpeta -- lo abre Diego, nunca Claude.
+    if args.detalle_cuenta_gasto and detalle_cuenta_gasto is not None:
+        filas_dcg = sorted(detalle_cuenta_gasto.values(),
+                            key=lambda d: d["n_fallos"], reverse=True)
+        ruta_dcg = os.path.abspath(args.detalle_cuenta_gasto)
+        with open(ruta_dcg, "w", encoding="utf-8") as f:
+            json.dump(filas_dcg, f, ensure_ascii=False, indent=2)
+        print()
+        print("DESGLOSE de cuenta_gasto_coherente=FALLO por (carpeta, cuenta):")
+        print(f"    pares (cliente, cuenta) con 1+ fallo : {len(filas_dcg):,}")
+        print(f"    escrito en                            : {ruta_dcg}")
+        print("    Mira los primeros del fichero (los de mas n_fallos): si el")
+        print("    mismo codigo de cuenta aparece con pocos asientos por")
+        print("    proveedor pero muchos proveedores DISTINTOS detras (una")
+        print("    cuenta generica compartida), el guard no esta detectando")
+        print("    nada real ahi. Si es un proveedor concreto con actividad")
+        print("    genuinamente mixta, es el caso ya caracterizado el 21-08.")
+        if "_LOCAL" not in os.path.basename(ruta_dcg):
+            print("    ⚠️  ESTE FICHERO LLEVA RUTAS DE CARPETA REALES y su nombre")
+            print("        no dice _LOCAL. Renombrarlo antes de nada.")
 
     print()
     print(f"Agregado (se puede subir)  : {SALIDA_AGREGADA}")
