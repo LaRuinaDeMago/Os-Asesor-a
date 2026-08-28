@@ -7,6 +7,50 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 27-08-2026 (sesión Cloud, vigesimosexta entrada) — `EMPEZAR_AQUI.md` había derivado durante la propia sesión: decía 39/39 cuando la suite iba por 65
+
+Auditoría del punto de entrada, y el motivo es honesto: **lo he editado unas
+ocho veces hoy**. Ese fichero es lo primero que lee la próxima sesión; si
+quedó incoherente, la sesión arranca mal. Comprobado contra la realidad
+ejecutando los comandos, no leyendo.
+
+**Lo encontrado:** la plantilla de "salida esperada" decía `39/39 checks en
+verde`. La realidad son **65/65**. Yo mismo la subí de 36 a 39 al principio
+de la sesión, añadí 26 comprobaciones más a lo largo del día, y no volví.
+Faltaba además la línea del auditor nuevo y el recuento de `subprocess.run`
+estaba viejo.
+
+**Por qué importa más de lo que parece:** esa plantilla es exactamente contra
+lo que la próxima sesión compara. Con `39/39` escrito y `65/65` en pantalla,
+la lectura natural es "algo se ha roto" — cuando lo roto era el documento.
+
+### El arreglo no es cambiar 39 por 65
+
+Es la **segunda vez en el mismo día** que un número escrito a mano en ese
+fichero deriva (la primera fue el recuento de auditores). Cambiarlo por 65
+solo aplaza el problema a la próxima vez que alguien añada una prueba.
+
+La plantilla se ha reescrito para no llevar **ningún** recuento: ahora
+enseña la **forma** —qué líneas tienen que salir en ✅— y dice explícitamente
+que los números los da el comando, no el documento. Se han neutralizado
+también los ordinales de auditor que quedaban en prosa ("13º", "15º"), que
+fueron parte de la deriva anterior. Verificado línea a línea que la
+plantilla y la salida real coinciden: 20 contra 20.
+
+### Y una cosa que se decidió NO hacer, con su motivo
+
+Se planteó automatizar esta comprobación (un check que compare la plantilla
+contra la salida real). **Descartado**, y conviene dejar escrito por qué:
+`audit_project.py` tendría que comprobar su propia salida contra el
+documento, y ese check se añadiría a sí mismo a la lista que compara —
+un problema de recursión por un beneficio ya pequeño, porque la plantilla
+nueva es por **nombres de línea**, no por números, y los nombres cambian
+mucho menos. Se prefiere no tener el auditor que tenerlo enredado. Es la
+misma decisión que con el auditor de `float()` de esta mañana: no construir
+también es una respuesta.
+
+---
+
 ## 🔴 27-08-2026 (sesión Cloud, vigesimoquinta entrada) — El script que mide FALSOS VERDES tenía tres guards apagados, y el sesgo iba hacia parar el proyecto
 
 La comprobación de paridad de la entrada anterior solo miraba

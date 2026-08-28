@@ -33,35 +33,45 @@ python diag_baseimpo.py "C:\Users\SERVILAB\Desktop\100% contabilidad" --limite 1
 python audit_project.py
 ```
 
-Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
+**Lo que tiene que salir NO es un número: es que TODAS estas líneas empiecen
+por ✅, con dos excepciones conocidas.** Los recuentos exactos (cuántos checks,
+cuántos guards) los da el propio comando — no se escriben aquí, porque un
+número escrito a mano deriva y acaba mintiendo. Ya pasó dos veces el 27-08:
+la tabla de auditores decía "catorce" cuando eran otros tantos, y esta misma
+plantilla dijo `39/39` cuando la suite ya iba por 65.
 
 ```
-✅ Sintaxis de todos los .py (recursivo)
-✅ Cableado de guards (sin huérfanos): 26 guards, todos consultados
-✅ Modulos sin conectar: ninguno
-✅ Suite de pruebas (test_motor_veredicto.py): 39/39 checks en verde
-✅ Bateria adversarial (test_adversarial.py): 112 en verde, 0 fallan
-✅ Estados: sin ramas muertas ni guards mudos
-✅ Cobertura: guards probados de verdad — 26/26 (100%)
-✅ Ensayo en seco: retro_semaforo + orquestador
-✅ Historico del orquestador: no pierde facturas por formato   <- 10º auditor, nuevo
-✅ Barrido: ningun falso verde sin explicar
-✅ Barrera de privacidad: bloquea lo que debe
-✅ xDiario: ningun asiento descuadrado
-✅ Captura <-> motor: los campos cuadran
-✅ Corpus roto: no cuelga ni contamina
-✅ Cruce 303: identifica sin inventar                     <- 11º auditor, 26-08
-✅ subprocess.run: encoding explicito (19 llamadas)       <- 12º auditor, 26-08
-✅ Reconstruir 303: deriva la base, no la inventa         <- 13º auditor, 27-08
-✅ Emparejar carpetas: por nombre, sin adivinar por palabra <- 14º auditor, 27-08
-❌ Dependencias: faltan dbfread, anthropic, google-genai, pdfplumber   <- NORMAL, son de captura/lectura de PDF, no del motor
+✅ Sintaxis de todos los .py
+✅ Cableado de guards (sin huérfanos)
+✅ Modulos sin conectar (ni importados ni ejecutables)
+❌ Dependencias instaladas          <- NORMAL en Cloud: son de captura y de leer PDF
+✅ Suite de pruebas (test_motor_veredicto.py)
+✅ Bateria adversarial (test_adversarial.py)
+✅ Estados
+✅ Cobertura
+✅ Ensayo en seco
+✅ Historico del orquestador
+✅ Barrido
+✅ Barrera de privacidad
+✅ xDiario
+✅ Captura <-> motor
+✅ Corpus roto
+❌ Cruce 303                        <- NORMAL sin pdfplumber instalado
+✅ Reconstruir 303
+✅ Emparejar carpetas
+✅ Falso verde estructural
+✅ subprocess.run
 ```
 
-> **27-08-2026 (sesión Cloud, cierre de sesión):** dos módulos nuevos,
-> independientes del motor, **a propósito sin cablear a `audit_project.py`
-> todavía** (son código que empieza hoy, no la pieza ya estable y auditada
-> 14 veces que es el motor — mezclarlos ahí fingiría una madurez que no
-> tienen). Se verifican con su propio comando:
+**Los dos ❌ de arriba son esperados y no bloquean nada** (dependencias de
+captura y de lectura de PDF, ninguna del motor). **Cualquier otro ❌ manda
+sobre todo lo demás**: se arregla antes de tocar nada.
+
+> **27-08-2026:** dos módulos nuevos, independientes del motor, **a propósito
+> sin cablear a `audit_project.py`** (son código que empieza ese día, no la
+> pieza ya estable y auditada muchas veces que es el motor — mezclarlos ahí
+> fingiría una madurez que no tienen). Se verifican con su propio comando —
+> **ninguno de los dos sale en la lista de arriba, y es correcto**:
 > - `python test_numeracion_correlativa.py` — 25/25 (numeración correlativa
 >   para el módulo de facturas EMITIDAS, ver §9).
 > - `python test_comparar_esquema_dbf.py` — 12/12 (compara el layout de un
@@ -325,7 +335,7 @@ ceguera del instrumento, pero no está descartado del todo. Ver
 > Probado con `ensayo_reconstruir_303.py` (10/10, casos diseñados para que
 > el gasto/ingreso contable NO coincida con cuota/tipo — si algo reintrodujera
 > la derivación desde la contabilidad, lo cazarían) y con el bug reintroducido
-> a propósito: 6 comprobaciones exactas en rojo. 13º auditor, dentro de
+> a propósito: 6 comprobaciones exactas en rojo. Auditor propio, dentro de
 > `audit_project.py`.
 >
 > **👉 SIGUIENTE PASO REAL: regenerar `303_LOCAL.json` OTRA VEZ.** El que
@@ -369,7 +379,7 @@ ceguera del instrumento, pero no está descartado del todo. Ver
 > Tuvo un error real por el camino (un filtro por palabra clave para
 > descartar carpetas "genéricas" hizo caer las coincidencias buenas de 14 a
 > 0 — un negocio real puede llamarse "Ferretería General"). Retirado el
-> mismo día, con `ensayo_emparejar_carpetas.py` (nuevo, **15º auditor**)
+> mismo día, con `ensayo_emparejar_carpetas.py` (nuevo auditor)
 > fijando esa regresión en código para que no vuelva. Detalle completo en
 > `PROJECT_STATUS.md`, cuarta entrada del 27-08.
 >
