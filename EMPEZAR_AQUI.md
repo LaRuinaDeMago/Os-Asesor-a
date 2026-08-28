@@ -1,4 +1,4 @@
-# EMPEZAR AQUÍ — 27-08-2026
+# EMPEZAR AQUÍ — 28-08-2026
 
 Punto de entrada único. Corto a propósito: `PROJECT_STATUS.md` sirve para
 consultar, no para arrancar. Esto sirve para arrancar.
@@ -591,6 +591,17 @@ solo y dice lo que ha encontrado antes de calcular nada. Compara **tres cosas**:
 
 > Es un fichero **local con datos reales**: lo abre Diego, no Claude. A Claude se
 > le pasan recuentos, nunca filas.
+
+> **28-08-2026 (sesión Cloud, vigesimoctava entrada):** el histórico que
+> alimenta `importe_atipico`/`estructura_reconocida`/`secuencia_documental_
+> proveedor` ahora se acumula por **`fecha_expedicion` ascendente**, no por
+> el orden en que vienen las filas del CSV — un CSV de captura no tiene
+> garantía de venir ordenado cronológicamente, a diferencia de los asientos
+> de ContaPlus que lee `retro_semaforo.py`. Sin fecha válida, la fila se
+> evalúa igual pero va al final (no aporta su dato al histórico de una
+> factura de fecha conocida). Nuevo `ensayo_validar_captura_historica.py`
+> (el script no tenía ningún ensayo propio) prueba esto de punta a punta,
+> con sabotaje. Detalle en `PROJECT_STATUS.md`, misma fecha.
 
 ### 📊 A-bis — El retro-semáforo (esto puede dar el primer número real HOY)
 
