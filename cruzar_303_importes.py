@@ -366,6 +366,91 @@ def filtrar_difusos(por_celda, max_difusion):
     return limpio, len(difusos), len(carpetas)
 
 
+def cruzar(contabilidad, por_celda, min_importe, min_aciertos):
+    """El nucleo del cruce, separado de main() (28-08-2026) para poder
+    ensayarlo en seco con datos sinteticos -- este script nunca habia tenido
+    un ensayo propio, ni siquiera sintetico, pese a producir un cruce
+    cliente<->contabilidad del que Diego se fiaria para decisiones reales.
+    La lectura de PDF (importes_del_pdf) no se toca ni se ensaya aqui: esa
+    parte reutiliza el patron ya medido en extraer_303_pdf.py (98-99% de
+    reconocimiento sobre 1.168 documentos). Lo que nunca se habia probado es
+    este algoritmo de cruce en si -- exactamente lo que faltaba.
+
+    Devuelve un dict con el `resultado` (cubo -> mejor carpeta candidata) y
+    los histogramas/diagnosticos que main() imprime."""
+    aciertos = defaultdict(Counter)
+    casados = defaultdict(Counter)
+    trimestres_contabilidad = 0
+    mejor_solape_por_trimestre = Counter()
+    trimestres_sin_pdf = 0
+    solape_por_tolerancia = {nombre: [0, 0] for nombre, _a, _r in TOLERANCIAS}
+    ordenados_por_celda = {clave: sorted(importes)
+                           for clave, importes in por_celda.items()}
+
+    for cubo, trimestres in contabilidad.items():
+        for tri, lados in trimestres.items():
+            objetivo = importes_significativos(lados, min_importe)
+            if not objetivo:
+                continue
+            trimestres_contabilidad += 1
+            hubo_pdf = False
+            mejor_aqui = 0
+            mejor_por_tol = {nombre: 0 for nombre, _a, _r in TOLERANCIAS}
+            for (carpeta, tri_pdf), importes in por_celda.items():
+                if tri_pdf != tri:
+                    continue
+                hubo_pdf = True
+                n = len(objetivo & importes)
+                mejor_aqui = max(mejor_aqui, n)
+                if n:
+                    aciertos[cubo][carpeta] += n
+                    if n >= min_aciertos:
+                        casados[cubo][carpeta] += 1
+                ordenados = ordenados_por_celda[(carpeta, tri_pdf)]
+                for nombre, tol_abs, tol_rel in TOLERANCIAS:
+                    m = solape(objetivo, ordenados, tol_abs, tol_rel)
+                    if m > mejor_por_tol[nombre]:
+                        mejor_por_tol[nombre] = m
+            if hubo_pdf:
+                mejor_solape_por_trimestre[mejor_aqui] += 1
+                for nombre in mejor_por_tol:
+                    solape_por_tolerancia[nombre][0] += mejor_por_tol[nombre]
+                    solape_por_tolerancia[nombre][1] += len(objetivo)
+            else:
+                trimestres_sin_pdf += 1
+
+    resultado = {}
+    hist_trimestres = Counter()
+    hist_separacion = Counter()
+    for cubo in contabilidad:
+        marcador = casados.get(cubo, Counter())
+        if not marcador:
+            resultado[cubo] = {"carpeta": None, "motivo": "ningun trimestre casado"}
+            hist_trimestres[0] += 1
+            continue
+        orden = marcador.most_common()
+        mejor, n_mejor = orden[0]
+        n_segundo = orden[1][1] if len(orden) > 1 else 0
+        hist_trimestres[n_mejor] += 1
+        hist_separacion[n_mejor - n_segundo] += 1
+        resultado[cubo] = {
+            "carpeta": mejor,
+            "trimestres_casados": n_mejor,
+            "trimestres_del_segundo": n_segundo,
+            "aciertos_totales": aciertos[cubo][mejor],
+        }
+
+    return {
+        "resultado": resultado,
+        "hist_trimestres": hist_trimestres,
+        "hist_separacion": hist_separacion,
+        "trimestres_contabilidad": trimestres_contabilidad,
+        "trimestres_sin_pdf": trimestres_sin_pdf,
+        "mejor_solape_por_trimestre": mejor_solape_por_trimestre,
+        "solape_por_tolerancia": solape_por_tolerancia,
+    }
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("documentos", help="Raiz del archivo de modelos presentados")
@@ -418,83 +503,16 @@ def main():
           f"cliente en el archivo")
     print(f"{n_difusos:,} importes descartados por aparecer en demasiadas carpetas.")
 
-    # --- El cruce -----------------------------------------------------------
-    # aciertos[cubo][carpeta] = total de importes distintos que coinciden
-    # casados[cubo][carpeta]  = trimestres en los que coincidieron >= min
-    aciertos = defaultdict(Counter)
-    casados = defaultdict(Counter)
-    trimestres_contabilidad = 0
-    # El diagnostico que faltaba en la primera version: el MEJOR solape
-    # conseguido para cada trimestre, aunque no llegue al minimo. Distingue
-    # "nos quedamos cerca" (mejor = 1 o 2) de "esto no funciona" (mejor = 0),
-    # que son dos problemas distintos con dos soluciones distintas. Sin esto,
-    # un cero global no dice cual de los dos es.
-    mejor_solape_por_trimestre = Counter()
-    trimestres_sin_pdf = 0
-    # Para cada nivel de tolerancia: cuantos importes del trimestre llegaron a
-    # tener pareja, en el mejor caso, y sobre cuantos buscados. Es la medida
-    # que decide si el problema es de precision o de identidad.
-    solape_por_tolerancia = {nombre: [0, 0] for nombre, _a, _r in TOLERANCIAS}
-
-    # Los importes de cada celda, ordenados una sola vez: se consultan una vez
-    # por cubo y trimestre, y ordenarlos dentro del bucle seria cuadratico
-    # (el mismo error que hizo el retro-semaforo tardar 15 minutos).
-    ordenados_por_celda = {clave: sorted(importes)
-                           for clave, importes in por_celda.items()}
-
-    for cubo, trimestres in contabilidad.items():
-        for tri, lados in trimestres.items():
-            objetivo = importes_significativos(lados, args.min_importe)
-            if not objetivo:
-                continue
-            trimestres_contabilidad += 1
-            hubo_pdf = False
-            mejor_aqui = 0
-            mejor_por_tol = {nombre: 0 for nombre, _a, _r in TOLERANCIAS}
-            for (carpeta, tri_pdf), importes in por_celda.items():
-                if tri_pdf != tri:
-                    continue
-                hubo_pdf = True
-                n = len(objetivo & importes)
-                mejor_aqui = max(mejor_aqui, n)
-                if n:
-                    aciertos[cubo][carpeta] += n
-                    if n >= args.min_aciertos:
-                        casados[cubo][carpeta] += 1
-                ordenados = ordenados_por_celda[(carpeta, tri_pdf)]
-                for nombre, tol_abs, tol_rel in TOLERANCIAS:
-                    m = solape(objetivo, ordenados, tol_abs, tol_rel)
-                    if m > mejor_por_tol[nombre]:
-                        mejor_por_tol[nombre] = m
-            if hubo_pdf:
-                mejor_solape_por_trimestre[mejor_aqui] += 1
-                for nombre in mejor_por_tol:
-                    solape_por_tolerancia[nombre][0] += mejor_por_tol[nombre]
-                    solape_por_tolerancia[nombre][1] += len(objetivo)
-            else:
-                trimestres_sin_pdf += 1
-
-    # --- Veredicto por cubo, con la distancia al segundo --------------------
-    resultado = {}
-    hist_trimestres = Counter()
-    hist_separacion = Counter()
-    for cubo in contabilidad:
-        marcador = casados.get(cubo, Counter())
-        if not marcador:
-            resultado[cubo] = {"carpeta": None, "motivo": "ningun trimestre casado"}
-            hist_trimestres[0] += 1
-            continue
-        orden = marcador.most_common()
-        mejor, n_mejor = orden[0]
-        n_segundo = orden[1][1] if len(orden) > 1 else 0
-        hist_trimestres[n_mejor] += 1
-        hist_separacion[n_mejor - n_segundo] += 1
-        resultado[cubo] = {
-            "carpeta": mejor,
-            "trimestres_casados": n_mejor,
-            "trimestres_del_segundo": n_segundo,
-            "aciertos_totales": aciertos[cubo][mejor],
-        }
+    # --- El cruce -------------------------------------------------------
+    # Nucleo extraido a cruzar() (28-08-2026) para poder ensayarlo en seco.
+    cr = cruzar(contabilidad, por_celda, args.min_importe, args.min_aciertos)
+    resultado = cr["resultado"]
+    hist_trimestres = cr["hist_trimestres"]
+    hist_separacion = cr["hist_separacion"]
+    trimestres_contabilidad = cr["trimestres_contabilidad"]
+    trimestres_sin_pdf = cr["trimestres_sin_pdf"]
+    mejor_solape_por_trimestre = cr["mejor_solape_por_trimestre"]
+    solape_por_tolerancia = cr["solape_por_tolerancia"]
 
     con_match = [r for r in resultado.values() if r.get("carpeta")]
     solidos = [r for r in con_match
