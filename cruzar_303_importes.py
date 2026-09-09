@@ -98,8 +98,31 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
 try:
     import pdfplumber
 except ImportError:
-    print("Falta pdfplumber. Instalar con: pip install pdfplumber")
-    sys.exit(1)
+    # NO se sale aqui. Corregido el 09-09-2026: un `sys.exit(1)` en el CUERPO
+    # del modulo mata a cualquiera que lo importe, aunque no vaya a abrir un
+    # PDF. Eso tenia desactivado a `ensayo_cruce_303.py` (11o auditor) en todo
+    # clon sin pdfplumber — y ese ensayo, por su propio diseno, no lee ni un
+    # PDF: sustituye `importes_del_pdf`. Un auditor apagado por una dependencia
+    # que no usa es la version de "OK por omision" que este proyecto tiene
+    # prohibida, con el color cambiado: un rojo que no significa nada.
+    # La exigencia se traslada a `exigir_pdfplumber()`, en el punto donde de
+    # verdad hace falta: al arrancar el script como programa.
+    pdfplumber = None
+
+
+def exigir_pdfplumber():
+    """Corta la ejecucion si falta pdfplumber. Se llama desde
+    `importes_del_pdf()` — el UNICO punto donde se abre un PDF de verdad — y
+    no al importar ni al arrancar main().
+
+    Por que ahi y no antes: `ensayo_cruce_303.py` prueba la logica del cruce
+    sustituyendo `importes_del_pdf` por una funcion que devuelve importes
+    inventados, sin abrir ni un fichero. Exigir la biblioteca antes de saber
+    si se va a usar apagaba ese ensayo entero por una dependencia que ese
+    camino no llega a tocar."""
+    if pdfplumber is None:
+        print("Falta pdfplumber. Instalar con: pip install pdfplumber")
+        sys.exit(1)
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 SALIDA_AGREGADA = os.path.join(AQUI, "cruce_303_agregado.json")
@@ -176,6 +199,7 @@ def importes_del_pdf(ruta):
     """Todos los importes en formato espanol que aparecen en el PDF, como
     conjunto de valores absolutos redondeados. No se mira DONDE aparecen: esa
     es justamente la parte que no funciona y que este enfoque no necesita."""
+    exigir_pdfplumber()
     with pdfplumber.open(ruta) as pdf:
         texto = "\n".join((p.extract_text() or "") for p in pdf.pages)
     if len(texto.strip()) < 20:

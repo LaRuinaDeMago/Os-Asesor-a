@@ -34,8 +34,25 @@ from collections import Counter
 try:
     import pdfplumber
 except ImportError:
-    print("Falta pdfplumber. Instalar con: pip install pdfplumber")
-    sys.exit(1)
+    # NO se sale aqui. Corregido el 09-09-2026: un `sys.exit(1)` en el CUERPO
+    # del modulo mata a cualquiera que lo importe, aunque no vaya a abrir un
+    # PDF. Eso tenia desactivado a `ensayo_cruce_303.py` (11o auditor) en todo
+    # clon sin pdfplumber — y ese ensayo, por su propio diseno, no lee ni un
+    # PDF: sustituye `importes_del_pdf`. Un auditor apagado por una dependencia
+    # que no usa es la version de "OK por omision" que este proyecto tiene
+    # prohibida, con el color cambiado: un rojo que no significa nada.
+    # La exigencia se traslada a `exigir_pdfplumber()`, en el punto donde de
+    # verdad hace falta: al arrancar el script como programa.
+    pdfplumber = None
+
+
+def exigir_pdfplumber():
+    """Corta la ejecucion si falta pdfplumber. Se llama al empezar main(), no
+    al importar: importar el modulo para probar su logica tiene que seguir
+    siendo posible sin la biblioteca de lectura de PDF."""
+    if pdfplumber is None:
+        print("Falta pdfplumber. Instalar con: pip install pdfplumber")
+        sys.exit(1)
 
 # Ordinal en varias formas: 1er/1º/1o/primer, 2º/2do/segundo, etc. Flexible
 # a proposito porque el nombre real puede variar de un fichero a otro.
@@ -71,6 +88,7 @@ PATRONES_TEXTO = {
 
 
 def main():
+    exigir_pdfplumber()
     raiz = os.path.abspath(sys.argv[1])
     if not os.path.isdir(raiz):
         print(f"No existe o no es una carpeta: (ruta dada por parametro)")

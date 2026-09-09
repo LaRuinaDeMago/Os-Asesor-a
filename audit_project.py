@@ -27,10 +27,36 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
 RESULTADO = {"fecha": datetime.now().isoformat(timespec="seconds"), "checks": {}}
 
 
-def check(nombre, ok, detalle=""):
-    RESULTADO["checks"][nombre] = {"ok": ok, "detalle": detalle}
-    marca = "✅" if ok else "❌"
-    print(f"{marca} {nombre}: {detalle}")
+#: Los mismos tres estados que usa el motor. La auditoria no puede permitirse
+#: menos precision que lo que audita: hasta el 09-09-2026 solo tenia ✅ y ❌, y
+#: eso obligaba a pintar de rojo cosas que nadie habia llegado a comprobar
+#: (una dependencia ausente), indistinguibles de un defecto real. El resultado
+#: practico era peor que el bug: `EMPEZAR_AQUI.md` documentaba la salida
+#: esperada de la auditoria CON un ❌ dentro y la anotaba "NORMAL". Un rojo que
+#: se enseña a ignorar deja de ser un rojo, y el siguiente rojo de verdad se
+#: va con el.
+OK = "OK"
+FALLO = "FALLO"
+NO_COMPROBADO = "NO_COMPROBADO"
+
+MARCA = {OK: "✅", FALLO: "❌", NO_COMPROBADO: "⚠️"}
+
+
+def check(nombre, ok, detalle="", estado=None):
+    """`ok` sigue aceptando un booleano para no tocar las diez llamadas que ya
+    existen. `estado=NO_COMPROBADO` es la tercera via: ni afirma que esta bien
+    ni acusa de estar mal — dice que no se ha podido mirar, que es la verdad y
+    no aparecia por ningun sitio."""
+    if estado is None:
+        estado = OK if ok else FALLO
+    RESULTADO["checks"][nombre] = {
+        # Se conserva `ok` booleano: `.audit_historico.json` de ejecuciones
+        # anteriores lo tiene, y comparar_con_anterior() lo lee.
+        "ok": estado == OK,
+        "estado": estado,
+        "detalle": detalle,
+    }
+    print(f"{MARCA[estado]} {nombre}: {detalle}")
 
 
 def check_sintaxis():
@@ -309,8 +335,16 @@ def check_dependencias():
             __import__(modulo)
         except ImportError:
             faltan.append(paquete)
-    check("Dependencias instaladas", len(faltan) == 0,
-          "todas presentes" if not faltan else f"faltan: {faltan}")
+    # Una dependencia que no esta instalada NO es un defecto del proyecto: es
+    # una condicion del entorno. Marcarla ❌ ponia la auditoria entera en rojo
+    # permanente en cualquier maquina sin los SDK de captura (que ademas no se
+    # pueden usar sin DPA, ver .claude/rules/datos.md), y de paso hacia que el
+    # codigo de salida no distinguiera "hay un defecto" de "falta un pip
+    # install". Ahora es NO_COMPROBADO y sale por su propia puerta.
+    check("Dependencias instaladas", not faltan,
+          "todas presentes" if not faltan else
+          f"sin instalar (no es un defecto del codigo, es el entorno): {faltan}",
+          estado=None if not faltan else NO_COMPROBADO)
 
 
 def check_subprocess_encoding():
@@ -365,6 +399,92 @@ def check_subprocess_encoding():
           f"sin encoding (revientan en consola cp1252): {', '.join(fallos)}")
 
 
+def check_salida_al_importar():
+    """ANADIDO 09-09-2026. Ningun modulo que otro fichero importe puede
+    llamar a sys.exit() al ser importado.
+
+    POR QUE ES UN AUDITOR Y NO UN ARREGLO PUNTUAL: `cruzar_303_importes.py`
+    tenia un `sys.exit(1)` en el cuerpo del modulo, dentro del `except
+    ImportError` de pdfplumber. Consecuencia: `ensayo_cruce_303.py` —el 11o
+    auditor, el unico que prueba la logica del cruce— moria en su linea de
+    import en TODO clon sin pdfplumber, sin llegar a ejecutar ni una de sus 22
+    comprobaciones. Y ese ensayo, por diseno explicito, no abre ni un PDF:
+    sustituye `importes_del_pdf` por una funcion que devuelve importes
+    inventados. Estaba apagado por una dependencia que su camino no toca.
+
+    Lo grave no es el fallo, es la forma que tomaba: la auditoria lo mostraba
+    como un ❌ rojo indistinguible de "el ensayo ha encontrado un defecto".
+    Es el mismo error que el escaner de privacidad cometio el 19-08 con el
+    color cambiado — alli un OK que significaba "no lo he mirado", aqui un
+    FALLO que significa lo mismo. En un motor cuyo principio es que un estado
+    nunca puede afirmar lo que no ha comprobado, la auditoria tampoco.
+
+    Solo se acusa a los modulos que ALGUIEN IMPORTA. Un script suelto como
+    `test_adversarial.py` termina con `sys.exit(0/1)` a nivel de modulo a
+    proposito y eso es correcto: nadie lo importa, se ejecuta. Acusarlo seria
+    repetir la leccion del 21-08 con check_cableado — un auditor que mira la
+    FORMA acusa a inocentes.
+    """
+    ficheros = [p for p in Path(".").rglob("*.py") if ".git" not in p.parts]
+
+    # 1. Que modulos del proyecto importa alguien. Es un hecho del AST, no una
+    #    lista escrita a mano que se quede desfasada.
+    importados = set()
+    arboles = {}
+    for f in ficheros:
+        try:
+            arboles[f] = ast.parse(f.read_text(encoding="utf-8"))
+        except SyntaxError:
+            continue                       # ya lo reporta check_sintaxis()
+    for f, arbol in arboles.items():
+        for nodo in ast.walk(arbol):
+            if isinstance(nodo, ast.Import):
+                for alias in nodo.names:
+                    importados.add(alias.name.split(".")[0])
+            elif isinstance(nodo, ast.ImportFrom) and nodo.level == 0 and nodo.module:
+                importados.add(nodo.module.split(".")[0])
+
+    # 2. Sentencias que se ejecutan DE VERDAD al importar: el cuerpo del modulo
+    #    y lo anidado dentro de try/if/for, pero nunca el interior de una
+    #    funcion o clase (eso no corre hasta que se llama) ni el bloque
+    #    `if __name__ == "__main__"` (eso no corre al importar, por definicion).
+    def sentencias_de_import(cuerpo):
+        for nodo in cuerpo:
+            if isinstance(nodo, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            if isinstance(nodo, ast.If) and "__main__" in ast.dump(nodo.test):
+                continue
+            yield nodo
+            for campo in ("body", "orelse", "finalbody"):
+                sub = getattr(nodo, campo, None)
+                if isinstance(sub, list):
+                    yield from sentencias_de_import(sub)
+            for manejador in getattr(nodo, "handlers", []) or []:
+                yield from sentencias_de_import(manejador.body)
+
+    fallos = []
+    revisados = 0
+    for f, arbol in arboles.items():
+        if f.stem not in importados:
+            continue                       # nadie lo importa: es un script
+        revisados += 1
+        vistos = set()
+        for nodo in sentencias_de_import(arbol.body):
+            for sub in ast.walk(nodo):
+                if (isinstance(sub, ast.Call) and isinstance(sub.func, ast.Attribute)
+                        and sub.func.attr == "exit"
+                        and isinstance(sub.func.value, ast.Name)
+                        and sub.func.value.id == "sys"
+                        and sub.lineno not in vistos):
+                    vistos.add(sub.lineno)
+                    fallos.append(f"{f.name}:{sub.lineno}")
+
+    check("Modulos importables: ninguno se sale al importarse", not fallos,
+          f"{revisados} modulos importados por alguien, ninguno llama a sys.exit() al cargarse"
+          if not fallos else
+          f"matan a quien los importe (y apagan su ensayo en silencio): {', '.join(sorted(fallos))}")
+
+
 def comparar_con_anterior():
     path_historico = ".audit_historico.json"
     anterior = None
@@ -391,9 +511,29 @@ if __name__ == "__main__":
     check_adversarial()
     check_estados_y_cobertura()
     check_subprocess_encoding()
+    check_salida_al_importar()
     comparar_con_anterior()
 
-    todos_ok = all(c["ok"] for c in RESULTADO["checks"].values())
+    estados = [c.get("estado", OK if c["ok"] else FALLO)
+               for c in RESULTADO["checks"].values()]
+    fallos = [n for n, c in RESULTADO["checks"].items()
+              if c.get("estado", OK if c["ok"] else FALLO) == FALLO]
+    sin_comprobar = [n for n, c in RESULTADO["checks"].items()
+                     if c.get("estado") == NO_COMPROBADO]
+
     print(f"\n{'='*40}")
-    print("✅ TODO CORRECTO" if todos_ok else "❌ HAY PROBLEMAS QUE REVISAR")
-    sys.exit(0 if todos_ok else 1)
+    if fallos:
+        print("❌ HAY PROBLEMAS QUE REVISAR")
+        for n in fallos:
+            print(f"   ❌ {n}")
+    if sin_comprobar:
+        print("⚠️  Y ESTO NO SE HA PODIDO COMPROBAR (no es un aprobado):")
+        for n in sin_comprobar:
+            print(f"   ⚠️  {n}")
+    if not fallos and not sin_comprobar:
+        print("✅ TODO CORRECTO")
+
+    # 0 = todo comprobado y en verde · 1 = hay un defecto · 2 = nada falla,
+    # pero queda algo sin comprobar. Tres desenlaces distintos porque son tres
+    # cosas distintas, y hasta hoy 1 significaba las dos ultimas a la vez.
+    sys.exit(1 if fallos else (2 if sin_comprobar else 0))

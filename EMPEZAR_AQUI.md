@@ -1,4 +1,4 @@
-# EMPEZAR AQUÍ — 27-08-2026
+# EMPEZAR AQUÍ — 09-09-2026
 
 Punto de entrada único. Corto a propósito: `PROJECT_STATUS.md` sirve para
 consultar, no para arrancar. Esto sirve para arrancar.
@@ -39,23 +39,50 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ✅ Sintaxis de todos los .py (recursivo)
 ✅ Cableado de guards (sin huérfanos): 26 guards, todos consultados
 ✅ Modulos sin conectar: ninguno
+⚠️ Dependencias instaladas: sin instalar: [...]    <- ver nota de abajo
 ✅ Suite de pruebas (test_motor_veredicto.py): 36/36 checks en verde
 ✅ Bateria adversarial (test_adversarial.py): 112 en verde, 0 fallan
 ✅ Estados: sin ramas muertas ni guards mudos
 ✅ Cobertura: guards probados de verdad — 26/26 (100%)
 ✅ Ensayo en seco: retro_semaforo + orquestador
-✅ Historico del orquestador: no pierde facturas por formato   <- 10º auditor, nuevo
+✅ Historico del orquestador: no pierde facturas por formato
 ✅ Barrido: ningun falso verde sin explicar
 ✅ Barrera de privacidad: bloquea lo que debe
 ✅ xDiario: ningun asiento descuadrado
 ✅ Captura <-> motor: los campos cuadran
 ✅ Corpus roto: no cuelga ni contamina
 ✅ Cruce 303: identifica sin inventar                     <- 11º auditor, 26-08
-✅ subprocess.run: encoding explicito (18 llamadas)       <- 12º auditor, 26-08
+✅ subprocess.run: encoding explicito (19 llamadas)       <- 12º auditor, 26-08
 ✅ Reconstruir 303: deriva la base, no la inventa         <- 13º auditor, 27-08
 ✅ Emparejar carpetas: por nombre, sin adivinar por palabra <- 14º auditor, 27-08
-❌ Dependencias: faltan anthropic, google-genai   <- NORMAL, son de captura
+✅ Modulos importables: ninguno se sale al importarse     <- 15º auditor, 09-09
 ```
+
+**El código de salida dice cuál de los tres desenlaces es, y son tres cosas
+distintas** (cambiado el 09-09-2026; antes solo había dos y el 1 significaba
+las dos últimas a la vez):
+
+| Código | Significa | Qué hacer |
+|---|---|---|
+| **0** | todo comprobado y en verde | seguir |
+| **1** | **hay un defecto real** | eso manda sobre todo lo demás |
+| **2** | nada falla, pero algo no se ha podido comprobar | leer qué, y decidir |
+
+> ⚠️ **El ⚠️ de dependencias no es un aprobado, y tampoco es un defecto.** Los
+> paquetes de captura (`anthropic`, `google-genai`) no se pueden usar sin DPA
+> (`.claude/rules/datos.md`), así que faltan a propósito en cualquier máquina
+> que no sea la sesión de captura real. `dbfread` y `pdfplumber` sí hacen falta
+> en el PC de la asesoría: `pip install -r requirements.txt`.
+>
+> **Por qué esto cambió el 09-09-2026, y no es cosmético:** hasta esa fecha una
+> dependencia ausente salía ❌ y ponía la auditoría entera en rojo. Este mismo
+> documento describía la salida esperada **con un ❌ dentro, anotado
+> "NORMAL"** — es decir, enseñaba a ignorar un rojo. Un rojo que se enseña a
+> ignorar deja de ser un rojo, y el siguiente rojo de verdad se va con él. Es
+> exactamente el fallo del escáner de privacidad del 19-08 con el color
+> cambiado: allí un OK que significaba "no lo he mirado", aquí un FALLO que
+> significaba lo mismo. La auditoría tiene ahora los mismos tres estados que
+> el motor: **OK · FALLO · NO_COMPROBADO.**
 
 > ⚠️ **Si `audit_project.py` muere con `UnicodeDecodeError` a mitad de la
 > lista, tu copia es anterior al 26-08-2026.** Los tres `subprocess.run` no
@@ -179,7 +206,7 @@ ceguera del instrumento, pero no está descartado del todo. Ver
 > Tuvo un error real por el camino (un filtro por palabra clave para
 > descartar carpetas "genéricas" hizo caer las coincidencias buenas de 14 a
 > 0 — un negocio real puede llamarse "Ferretería General"). Retirado el
-> mismo día, con `ensayo_emparejar_carpetas.py` (nuevo, **15º auditor**)
+> mismo día, con `ensayo_emparejar_carpetas.py` (nuevo, **14º auditor**)
 > fijando esa regresión en código para que no vuelva. Detalle completo en
 > `PROJECT_STATUS.md`, cuarta entrada del 27-08.
 >
@@ -232,7 +259,7 @@ ceguera del instrumento, pero no está descartado del todo. Ver
 > 21-08, el hallazgo sobre `BASEIMPO` es del 25-08, y nadie había revisado
 > la pieza hermana hasta el 27-08.
 
-### Los catorce auditores, y por qué hacen falta los catorce
+### Los quince auditores, y por qué hacen falta los quince
 
 Cada uno tapa un agujero que los demás no ven. No es redundancia:
 
@@ -252,8 +279,9 @@ Cada uno tapa un agujero que los demás no ven. No es redundancia:
 | `check_subprocess_encoding` | ¿algún `subprocess.run` sin `encoding`? | **verde en Cloud, roto en el PC real** |
 | `ensayo_reconstruir_303.py` | ¿la base se deriva o se sigue leyendo a pelo? | **base ficticia con aspecto de real** |
 | `ensayo_emparejar_carpetas.py` | ¿se filtra por palabra clave sobre un nombre real? | **negocio real descartado por su propio nombre** |
+| `check_salida_al_importar` | ¿un módulo mata a quien lo importe? | **auditor apagado en silencio por una dependencia que su camino no usa** |
 
-Los catorce corren dentro de `audit_project.py`: basta el primer comando.
+Los quince corren dentro de `audit_project.py`: basta el primer comando.
 
 > El 13º es del 27-08 y cierra el hallazgo mayor de la sesión anterior: la
 > base de `303_LOCAL.json` era un cero disfrazado de dato. Reescrito DOS
@@ -283,6 +311,32 @@ Los catorce corren dentro de `audit_project.py`: basta el primer comando.
 > exactamente ese caso como regresión: probado con el filtro reintroducido a
 > propósito, se pone rojo solo en esa comprobación, ninguna otra — confirma
 > que apunta a la causa exacta.
+
+> El 15º es del 09-09-2026 y nace de encontrar al 11º **apagado**. El ensayo
+> del cruce 303 llevaba desde el 26-08 sin ejecutar ni una de sus 22
+> comprobaciones en ningún clon sin `pdfplumber`: `cruzar_303_importes.py`
+> tenía un `sys.exit(1)` en el **cuerpo** del módulo, dentro del `except
+> ImportError`, y eso mata a cualquiera que lo importe. Lo absurdo del caso es
+> que ese ensayo **no abre ni un PDF por diseño explícito** — sustituye
+> `importes_del_pdf` por una función que devuelve importes inventados. Estaba
+> apagado por una dependencia que su camino no llega a tocar.
+>
+> Arreglado moviendo la exigencia al **punto de uso** (`importes_del_pdf()`,
+> lo único que abre un PDF de verdad) en vez de al import. Ejecutar el script
+> como programa sin `pdfplumber` sigue cortando con el mismo mensaje y el
+> mismo código 1; importarlo para probar su lógica ya no.
+>
+> **Y la lección, que es la de siempre en este proyecto:** la auditoría
+> mostraba esto como un ❌ rojo indistinguible de "el ensayo ha encontrado un
+> defecto". No era eso: era "el ensayo no ha llegado a correr". Un auditor que
+> no distingue *falla* de *no lo he podido comprobar* miente en la dirección
+> que parece prudente, y por eso cuesta verlo. De ahí el tercer estado, arriba.
+>
+> Solo acusa a los módulos que **alguien importa**: `test_adversarial.py`
+> termina con `sys.exit()` a nivel de módulo a propósito y eso es correcto,
+> porque nadie lo importa. Acusarlo sería repetir la lección del 21-08 con
+> `check_cableado` — un auditor que mira la FORMA acusa a inocentes. Probado
+> con el bug reintroducido a propósito: rojo, con fichero y línea exactos.
 
 > El 12º es del 26-08 y nace de un bug que ya había mordido: `audit_project.py`
 > **se rompía a la mitad en el PC de la asesoría** y no en Cloud, porque

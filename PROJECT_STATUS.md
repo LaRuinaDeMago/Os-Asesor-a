@@ -7,6 +7,131 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 09-09-2026 (sesión Cloud) — Escáner completo del repositorio: el 11º auditor llevaba dos semanas apagado, y la auditoría no sabía decirlo
+
+Sesión de reincorporación tras trece días parados. Escáner completo del
+repositorio antes de tocar nada, con la jerarquía de `CLAUDE.md` (Código →
+Tests → Git → este archivo): se ejecutó todo, no se leyó nada como estado.
+
+### Lo que el escáner confirmó en verde
+
+`test_motor_veredicto.py` **36/36**. `test_adversarial.py` **112/112, 0 P0**.
+Escáner de privacidad sobre los **113 ficheros versionados**: sin hallazgos.
+Rama `claude/repo-full-scan-wns90w` sincronizada con `origin/master`, árbol
+limpio, sin divergencia. Nada de lo cerrado el 27-08 se ha movido.
+
+### El hallazgo: un auditor apagado, y disfrazado de auditor rojo
+
+`audit_project.py` daba **❌ Cruce 303: identifica sin inventar — Falta
+pdfplumber**. Leído en frío parece "el ensayo del cruce ha encontrado un
+defecto". No era eso: **el ensayo no había llegado a ejecutar ni una sola de
+sus 22 comprobaciones**, y llevaba así desde que se escribió el 26-08 en
+cualquier clon sin `pdfplumber` instalado.
+
+**Causa:** `cruzar_303_importes.py` tenía un `sys.exit(1)` en el **cuerpo del
+módulo**, dentro del `except ImportError` de `pdfplumber`. Eso no corta el
+script: corta a **cualquiera que lo importe**. Y quien lo importa es
+`ensayo_cruce_303.py`, el 11º auditor — que por diseño explícito, escrito en
+su propio docstring, **no abre ni un PDF**: sustituye `importes_del_pdf` por
+una función que devuelve importes inventados. Estaba apagado por una
+dependencia que su camino no llega a tocar.
+
+Es el mismo patrón que el proyecto lleva persiguiendo, una vuelta más arriba:
+**la barrera decidía en el sitio equivocado.** No en el punto donde se usa la
+biblioteca, sino en el punto donde se nombra.
+
+**Arreglo (los tres scripts de PDF, mismo patrón):** el `except ImportError`
+deja `pdfplumber = None` y la exigencia pasa a `exigir_pdfplumber()`, llamada
+**donde se abre el PDF de verdad** — `importes_del_pdf()` en
+`cruzar_303_importes.py`, `main()` en `extraer_303_pdf.py` y
+`reconocer_303_pdf.py`, que es donde ellos lo abren. Verificado en las dos
+direcciones: los tres siguen cortando con el mismo mensaje y el mismo código 1
+al ejecutarse como programa sin la biblioteca, y los tres se importan sin
+morir. **`ensayo_cruce_303.py` pasa ahora sus 22 comprobaciones sin
+`pdfplumber` instalado.**
+
+### El defecto de fondo, que importa más que el bug
+
+**La auditoría solo tenía dos estados, ✅ y ❌**, en un proyecto cuyo principio
+entero es que un estado nunca puede afirmar lo que no ha comprobado. Con dos
+estados, "no lo he podido comprobar" tenía que pintarse de rojo — y el
+resultado práctico era peor que el bug:
+
+> `EMPEZAR_AQUI.md` documentaba la salida esperada de la auditoría **con un ❌
+> dentro, anotado "NORMAL, son de captura"**. Es decir: el documento de
+> arranque del proyecto enseñaba a ignorar un rojo. **Un rojo que se enseña a
+> ignorar deja de ser un rojo, y el siguiente rojo de verdad se va con él** —
+> que es exactamente lo que pasó con el del cruce 303.
+
+Es el fallo del escáner de privacidad del 19-08 con el color cambiado: allí un
+OK que significaba "no lo he mirado", aquí un FALLO que significaba lo mismo.
+
+**Arreglo:** `audit_project.py` tiene ahora los mismos tres estados que el
+motor — **OK · FALLO · NO_COMPROBADO** (⚠️) — y tres códigos de salida, porque
+son tres cosas distintas y el 1 significaba dos de ellas a la vez:
+
+| Código | Significa |
+|---|---|
+| 0 | todo comprobado y en verde |
+| 1 | hay un defecto real |
+| 2 | nada falla, pero algo no se ha podido comprobar |
+
+Una dependencia ausente ya no es ❌: no es un defecto del código, es una
+condición del entorno. Sale por su propia puerta, con su propio código, y sin
+poder confundirse con un aprobado.
+
+### 15º auditor: `check_salida_al_importar`
+
+Para que esto no vuelva. Comprueba sobre el **AST** que ningún módulo que
+alguien importe llame a `sys.exit()` al cargarse. Solo acusa a los módulos que
+**alguien importa de verdad** —conjunto derivado del propio AST, no una lista
+escrita a mano que se quede desfasada—: `test_adversarial.py` termina con
+`sys.exit()` a nivel de módulo a propósito y es correcto, porque nadie lo
+importa. Acusarlo sería repetir la lección del 21-08 con `check_cableado`: un
+auditor que mira la FORMA acusa a inocentes.
+
+Probado con el bug reintroducido a propósito: se pone rojo señalando
+`cruzar_303_importes.py` y la línea exacta; restaurado, vuelve a verde.
+
+### Estado de la auditoría tras la sesión
+
+**19 ✅ · 1 ⚠️ · 0 ❌**, código de salida 2. El único ⚠️ son las cuatro
+dependencias sin instalar en este contenedor Cloud (`dbfread`, `anthropic`,
+`google-genai`, `pdfplumber`) — no se instaló ninguna: el arreglo hace que no
+hagan falta para auditar, que era justamente el punto. En el PC de la asesoría,
+`pip install -r requirements.txt` deja el ⚠️ en ✅ y el código en 0.
+
+### Corregido de paso: la numeración de auditores se contradecía a sí misma
+
+`EMPEZAR_AQUI.md` llamaba a `ensayo_emparejar_carpetas.py` "15º auditor" en un
+sitio y "14º" en la tabla; la tabla decía "los catorce" con catorce filas.
+Unificado a 14º, y el nuevo entra como 15º. (Queda una discrepancia menor sin
+tocar: este archivo llama "10º auditor" a `ensayo_cruce_303.py` y
+`EMPEZAR_AQUI.md` "11º" — el orden bueno es el de `EMPEZAR_AQUI.md`, que lista
+uno por uno.)
+
+### Lo que NO se tocó, a propósito
+
+`motor_veredicto.py`, `layout_diario_contaplus.py` y `orquestador.py` no se han
+modificado. Ningún guard nuevo: no ha aparecido ningún caso real que lo pida.
+Nada de esto necesitó datos reales ni corpus local — todo verificable con
+`python audit_project.py` en cualquier clon.
+
+### Sigue pendiente y no ha cambiado (es trabajo de sesión LOCAL)
+
+1. Diego revisa `emparejado_LOCAL.txt`: confirmar las 14 de confianza alta,
+   decidir las 23 restantes entre 2-3 candidatos nombrados.
+2. Con eso, repetir `cruzar_303_importes.py` con una base de clientes fiable.
+3. Las 91 facturas fotografiadas (`validar_captura_historica.py`) — lo único
+   que puede hablar de **falsos verdes**, que es lo que el retro-semáforo no
+   puede tocar por construcción.
+4. Los pendientes que no son código: **cifrar el USB de copia** (15 minutos,
+   abierto desde el 12-08, lo de mayor impacto por coste de toda la lista),
+   clave de recuperación fuera del equipo, y confirmar si la copia incluye
+   modelos/escrituras/DNI o solo contabilidad.
+
+---
+
 ## 27-08-2026 (sesión LOCAL, cuarta entrada del día) — `emparejar_carpetas.py`: la identidad se resuelve por NOMBRE, no por estadística, y sin DPA
 
 Cierra el hilo de la tercera entrada de hoy. Tras tres intentos estadísticos
