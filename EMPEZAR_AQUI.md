@@ -51,37 +51,42 @@ es exactamente como se pierden cosas). Si algo se termina, se tacha ahí.
 python audit_project.py
 ```
 
-Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
+**Lo que tiene que salir NO es un número: es que TODAS estas líneas empiecen
+por ✅, con dos excepciones conocidas.** Los recuentos exactos (cuántos checks,
+cuántos guards) los da el propio comando — no se escriben aquí, porque un
+número escrito a mano deriva y acaba mintiendo. Ya pasó dos veces el 27-08:
+la tabla de auditores decía "catorce" cuando eran otros tantos, y esta misma
+plantilla dijo `39/39` cuando la suite ya iba por 65.
 
 ```
-✅ Sintaxis de todos los .py (recursivo)
-✅ Cableado de guards (sin huérfanos): 26 guards, todos consultados
-✅ Modulos sin conectar: ninguno
-⚠️ Dependencias instaladas: sin instalar: [...]    <- ver nota de abajo
-✅ Suite de pruebas (test_motor_veredicto.py): 36/36 checks en verde
-✅ Bateria adversarial (test_adversarial.py): 112 en verde, 0 fallan
-✅ Estados: sin ramas muertas ni guards mudos
-✅ Cobertura: guards probados de verdad — 26/26 (100%)
-✅ Ensayo en seco: retro_semaforo + orquestador
-✅ Historico del orquestador: no pierde facturas por formato
-✅ Barrido: ningun falso verde sin explicar
-✅ Barrera de privacidad: bloquea lo que debe
-✅ xDiario: ningun asiento descuadrado
-✅ Captura <-> motor: los campos cuadran
-✅ Corpus roto: no cuelga ni contamina
-✅ Cruce 303: identifica sin inventar                     <- 11º auditor, 26-08
-✅ subprocess.run: encoding explicito (19 llamadas)       <- 12º auditor, 26-08
-✅ Reconstruir 303: deriva la base, no la inventa         <- 13º auditor, 27-08
-✅ Emparejar carpetas: por nombre, sin adivinar por palabra <- 14º auditor, 27-08
-✅ Falsos verdes: los cuenta, no los inventa              <- 16º auditor, 09-09
-✅ Ficha de cuadre 303: el numero elegido es la carpeta   <- 17º auditor, 09-09
-✅ Arranque de sesion: no revienta, no toca datos          <- 18º auditor, 10-09
-✅ Modulos importables: ninguno se sale al importarse     <- 15º auditor, 09-09
+✅ Sintaxis de todos los .py
+✅ Cableado de guards (sin huérfanos)
+✅ Modulos sin conectar (ni importados ni ejecutables)
+⚠️ Dependencias instaladas          <- ver la nota de abajo. NO es un fallo
+✅ Suite de pruebas (test_motor_veredicto.py)
+✅ Bateria adversarial (test_adversarial.py)
+✅ Estados
+✅ Cobertura
+✅ Ensayo en seco
+✅ Historico del orquestador
+✅ Barrido
+✅ Barrera de privacidad
+✅ xDiario
+✅ Captura <-> motor
+✅ Corpus roto
+✅ Cruce 303                        <- ya NO necesita pdfplumber (09-09)
+✅ Reconstruir 303
+✅ Emparejar carpetas
+✅ Falso verde estructural
+✅ Falsos verdes: los cuenta, no los inventa
+✅ Ficha de cuadre 303: el numero elegido es la carpeta prometida
+✅ Arranque de sesion: no revienta, no toca datos
+✅ Modulos importables: ninguno se sale al importarse
+✅ subprocess.run
 ```
 
-**El código de salida dice cuál de los tres desenlaces es, y son tres cosas
-distintas** (cambiado el 09-09-2026; antes solo había dos y el 1 significaba
-las dos últimas a la vez):
+**El código de salida dice cuál de los tres desenlaces es** (cambiado el
+09-09-2026; antes sólo había dos y el `1` significaba las dos últimas a la vez):
 
 | Código | Significa | Qué hacer |
 |---|---|---|
@@ -89,21 +94,62 @@ las dos últimas a la vez):
 | **1** | **hay un defecto real** | eso manda sobre todo lo demás |
 | **2** | nada falla, pero algo no se ha podido comprobar | leer qué, y decidir |
 
-> ⚠️ **El ⚠️ de dependencias no es un aprobado, y tampoco es un defecto.** Los
-> paquetes de captura (`anthropic`, `google-genai`) no se pueden usar sin DPA
-> (`.claude/rules/datos.md`), así que faltan a propósito en cualquier máquina
-> que no sea la sesión de captura real. `dbfread` y `pdfplumber` sí hacen falta
-> en el PC de la asesoría: `pip install -r requirements.txt`.
+> ⚠️ **El ⚠️ de dependencias no es un aprobado, y tampoco es un defecto.**
+> `anthropic` y `google-genai` no se pueden usar sin DPA, así que faltan a
+> propósito fuera de la sesión de captura real. `dbfread` y `pdfplumber` sí
+> hacen falta en el PC de la asesoría: `pip install -r requirements.txt`.
 >
-> **Por qué esto cambió el 09-09-2026, y no es cosmético:** hasta esa fecha una
-> dependencia ausente salía ❌ y ponía la auditoría entera en rojo. Este mismo
-> documento describía la salida esperada **con un ❌ dentro, anotado
-> "NORMAL"** — es decir, enseñaba a ignorar un rojo. Un rojo que se enseña a
-> ignorar deja de ser un rojo, y el siguiente rojo de verdad se va con él. Es
-> exactamente el fallo del escáner de privacidad del 19-08 con el color
-> cambiado: allí un OK que significaba "no lo he mirado", aquí un FALLO que
-> significaba lo mismo. La auditoría tiene ahora los mismos tres estados que
-> el motor: **OK · FALLO · NO_COMPROBADO.**
+> **Por qué esto cambió:** hasta el 09-09-2026 una dependencia ausente salía
+> ❌, y este mismo documento describía la salida esperada **con dos ❌ dentro,
+> anotados "NORMAL"**. Un rojo que se enseña a ignorar deja de ser un rojo, y
+> el siguiente rojo de verdad se va con él — que es exactamente lo que le pasó
+> al del cruce 303, apagado dos semanas sin que nadie lo viera. La auditoría
+> tiene ahora los mismos tres estados que el motor: **OK · FALLO ·
+> NO_COMPROBADO.**
+
+> **27-08-2026:** módulos nuevos, independientes del motor, **a propósito sin
+> cablear a `audit_project.py`** (son código que empieza ese día, no la pieza
+> ya estable y auditada muchas veces que es el motor — mezclarlos ahí
+> fingiría una madurez que no tienen). Se verifican con su propio comando —
+> **ninguno sale en la lista de arriba, y es correcto**:
+> - `python test_numeracion_correlativa.py` — 25/25 (numeración correlativa
+>   para el módulo de facturas EMITIDAS, ver §9).
+> - `python diff_comportamiento_motor.py` — **cuando toques el motor**: dice
+>   qué factura cambia de veredicto con tu cambio, y avisa si mueve un caso
+>   de control (un efecto colateral). Con el árbol limpio no encuentra nada, y
+>   por eso **no está cableado a la auditoría diaria**: allí sería una línea
+>   verde que no comprueba nada. `--ref 408952f` enseña todo lo que cambió el
+>   27-08.
+> - `python test_comparar_esquema_dbf.py` — 12/12 (compara el layout de un
+>   `.dbf` real contra ContaPlus sin exponer ningún dato, ver §10).
+>
+> **27-08-2026 (sesión Cloud, decimocuarta entrada):** `consolidar_identidad.py`
+> (nuevo) cruza las tres señales de identidad cliente↔carpeta del 27-08
+> (`emparejar_carpetas.py`, `enlazador_clientes_303.py`,
+> `diag_carpetas_multiempresa.py`) en una sola vista ordenada por prioridad
+> de revisión — detalle completo en `PROJECT_STATUS.md`, misma fecha. Tres
+> ensayos nuevos, también sin cablear a `audit_project.py` todavía:
+> - `python ensayo_enlazador_clientes_303.py`
+> - `python ensayo_diag_carpetas_multiempresa.py`
+> - `python ensayo_consolidar_identidad.py`
+>
+> **27-08-2026 (sesión Cloud, decimosexta entrada):** ejecutado contra el
+> corpus real -- confirmado que SOSPECHOSA es el artefacto de continuidad
+> temporal ya sospechado (100% de sospechosas también entre carpetas con
+> nombre de cliente concreto, no solo entre las de equipo/copia).
+> `diag_calibracion_sospechosa.py` (nuevo) mide esto con una tabla de
+> contingencia, y `consolidar_identidad.py` ya llama a ese cálculo solo:
+> si sale NO INFORMATIVA, deja de usar SOSPECHOSA para priorizar la revisión
+> (se sigue mostrando, marcada). Detalle completo en `PROJECT_STATUS.md`.
+> - `python ensayo_diag_calibracion_sospechosa.py`
+>
+> **Ya no hace falta ejecutar `diag_calibracion_sospechosa.py` aparte** --
+> `consolidar_identidad.py` se calibra solo en cada corrida. Repetir el
+> cruce con el código actual (opcional, solo si quieres el fichero
+> `consolidado_LOCAL.txt` actualizado con la calibración ya integrada):
+> ```bash
+> python consolidar_identidad.py "C:\Users\SERVILAB\Desktop\100% contabilidad" "\\PC01\Documentos" --detalle consolidado_LOCAL.txt
+> ```
 
 > ⚠️ **Si `audit_project.py` muere con `UnicodeDecodeError` a mitad de la
 > lista, tu copia es anterior al 26-08-2026.** Los tres `subprocess.run` no
@@ -111,18 +157,24 @@ las dos últimas a la vez):
 > auditor reventaba al leer la salida UTF-8 de los scripts hijos. Pasaba en
 > el PC de la asesoría y no en Cloud. Ya está arreglado: haz `git pull`.
 
-> **Números actualizados el 26-08-2026 (cierre de sesión, tras la mega-auditoría
-> propia).** Si tu `audit_project.py` da otros números de test, no asumas que
-> algo se rompió: mandan los tests que corren delante de ti, no esta plantilla
-> — puede quedarse desfasada según se añaden pruebas.
+> **Números actualizados el 27-08-2026 (cierre de sesión Cloud).** Si tu
+> `audit_project.py` da otros números de test, no asumas que algo se rompió:
+> mandan los tests que corren delante de ti, no esta plantilla — puede
+> quedarse desfasada según se añaden pruebas.
 >
-> ⚠️ **Si vienes de clonar el repositorio hoy o antes, vuelve a clonarlo o haz
-> `git pull` en `master` antes de nada.** Hasta el cierre de esta sesión,
-> `master` (la rama por defecto) llevaba desde el primer commit sin recibir
-> ninguna de las correcciones — todo vivía en ramas `claude/*`, nunca
-> fusionadas. Ya está arreglado (`PROJECT_STATUS.md`, entrada de cierre real
-> de sesión), pero si tu copia local es de antes de hoy, es la versión vieja
-> de una sola pieza sin `contrato_datos.py`.
+> ⚠️ **`master` vuelve a estar desactualizado — el mismo problema del 26-08,
+> otra vez, corregido entonces y reabierto desde.** Todo lo de hoy (27-08:
+> el módulo de facturas emitidas, `comparar_esquema_dbf.py`, los arreglos de
+> `nif_check.py` y `emparejar_carpetas.py`, y esta misma corrección) vive
+> **solo** en la rama `claude/github-retomada-o4zyic`, 10 commits por delante
+> de `master` a fecha de hoy (verificado con `git rev-list --left-right
+> --count origin/master...HEAD`). **Clona o haz `git pull` sobre esa rama
+> concreta, no sobre `master`:**
+> ```bash
+> git clone -b claude/github-retomada-o4zyic https://github.com/LaRuinaDeMago/Os-Asesor-a
+> ```
+> Fusionar a `master` es una decisión de Diego, no automática — se deja
+> anotado aquí para que no se repita la misma sorpresa una tercera vez.
 >
 > **Esta sesión (26-08) fue casi toda auditoría, no producto — y encontró y
 > arregló defectos reales:** cinco rondas de auditoría externa (verificadas
@@ -152,11 +204,187 @@ cualquier número de aquí.
 el número): ROJO 3,03% < 5% = "Verde. Se pasa al siguiente paso sin tocar el
 motor."** Cerrado, no toca seguir picando en el retro-semáforo.
 
+> ⚠️ **Arreglo 12 (27-08-2026, hallazgo de Diego, verificado): el VERDE
+> 87,71% de arriba probablemente esté sobreestimado — el ROJO 3,03% sigue
+> siendo válido tal cual.** `retro_semaforo.py` pasaba `{}, {}, {}` para tres
+> cachés de historial (importe atípico, formato del documento, secuencia
+> documental) en cada factura, nunca acumuladas — a diferencia del maestro
+> de proveedores. Con la caché vacía, esos tres guards nunca pueden devolver
+> `FALLO` (verificado leyendo cada uno): han estado dormidos en esta
+> medición. Verificado también que **no pueden afectar al ROJO** — ninguno
+> de los tres es crítico, solo mueven VERDE → AMBAR. Arreglado
+> (`actualizar_caches_historicas()`, nueva en `motor_veredicto.py`),
+> probado antes/después sobre el mismo caso sintético
+> (`test_motor_veredicto.py`, 45/45). Detalle completo en
+> `PROJECT_STATUS.md` (decimoséptima entrada del 27-08) y
+> `FASE0_RESULTADOS.md` §14.
+>
+> ✅ **RESUELTO 28-08-2026 (sesión LOCAL):** Diego volvió a ejecutar
+> `retro_semaforo.py --inyectar` contra el corpus real completo. ROJO
+> **3,03%**, confirmado sin mover. AMBAR subió a 28,28% — más de lo
+> esperado (regla del ">15 puntos" de `SIGUIENTES_PASOS.md §4`), investigado
+> a fondo y encontrado un bug real (ver el sexto hallazgo, más abajo).
+> Detalle completo en `PROJECT_STATUS.md` (vigesimonovena entrada).
+>
+> ✅ **Cuarto candidato, encontrado y RESUELTO el mismo día:
+> `guard_cuenta_gasto_coherente`.** Se indexa por código de cuenta
+> (`400015`), no por NIF — y `FASE0_RESULTADOS.md` §10.1 ya demostró que el
+> código de cuenta no es identidad estable entre clientes. El diseño ya
+> existía: `orquestador.py` construye este mismo mapeo por cliente desde
+> hace tiempo. `retro_semaforo.py` ya hace lo mismo ahora — resetea
+> `mapeo_cuenta_gasto_cliente` a `{}` cada vez que cambia de carpeta de
+> cliente (`dats.sort()` los agrupa de forma contigua). Probado con el
+> riesgo real demostrado, no solo evitado de palabra: sin resetear, una
+> factura coherente con el patrón de SU cliente sale `FALLO` por
+> contaminarse con el patrón de otro cliente que comparte código
+> (`test_motor_veredicto.py`, 51/51). Detalle en `PROJECT_STATUS.md`
+> (decimonovena entrada del 27-08).
+>
+> ✅ **Y un quinto hallazgo, al mirar la costura de los anteriores:
+> `importe_atipico` decidía mal en las DOS direcciones.** Era ciego con los
+> proveedores de cuota fija (desviación típica cero → devolvía **OK** a un
+> importe 825 veces mayor: un falso verde afirmativo) e hipersensible con
+> todos los demás (umbral de 1σ → marcaba FALLO el **40,8%** de facturas
+> legítimas, medido por simulación). Arreglado con un suelo de dispersión y
+> umbral de 3σ; ruido 40,8% → 3,3% sin perder detección.
+> `test_motor_veredicto.py` **58/58**, sabotaje incluido. Detalle en
+> `PROJECT_STATUS.md` (vigésima entrada del 27-08).
+>
+> **Esto último importa mucho para la re-medición:** si hubieras ejecutado el
+> retro-semáforo con las cachés arregladas pero con el umbral de 1σ, el ÁMBAR
+> se habría disparado por ruido puro y habría parecido que el arreglo empeoró
+> el motor. Cazado antes de que pasara.
+>
+> 🔴 **Y un error propio, corregido el mismo día:** las tres cachés se
+> acumulaban **mezclando todos los clientes** del corpus, cuando producción
+> (`orquestador.py`) construye el histórico con las facturas de **un solo
+> cliente**. Un instrumento que no se comporta como el sistema que mide da un
+> número que no describe nada. Ya se resetean las cuatro en la frontera de
+> cliente, con la invariante fijada en `ensayo_retro_semaforo.py`. Si esto no
+> se hubiera visto, el número de la re-medición habría sido **inservible sin
+> que nada lo delatara**.
+>
+> 🔴 **Sexto hallazgo, 28-08-2026 (sesión LOCAL): `cuenta_gasto_coherente`
+> mezclaba proveedores DISTINTOS bajo el mismo grupo de acreedor.**
+> `reconstruir_compra()` construía `cuenta_proveedor` con la subcuenta
+> truncada a 3 dígitos (correcto para clasificar TIPO de línea, incorrecto
+> reutilizada como identidad) — así que todos los acreedores de un cliente
+> bajo, p. ej., "410" se comparaban entre sí como si fueran un único
+> proveedor. Confirmado con datos reales: 24 pares (cliente, código)
+> concentraban el 100% del ruido de este guard, y resultaron ser cuentas de
+> grupo genéricas, no subcuentas. Arreglado (subcuenta completa, sin
+> truncar); medido antes/después: `cuenta_gasto_coherente=FALLO` 5.875 →
+> 2.212, AMBAR 28,28% → **18,23%** — dentro del rango "1-15 puntos: lo
+> esperado". Detalle en `PROJECT_STATUS.md` (vigesimonovena entrada) y
+> `FASE0_RESULTADOS.md §14` (arreglo 13).
+>
+> 🔴 **Séptimo hallazgo, mismo día: el "cliente" de arriba (24 pares) no era
+> un cliente — era una copia de seguridad con hasta 70 empresas dentro.**
+> Las carpetas de nivel 1 de `100% contabilidad` NO son una por cliente
+> (`FASE0_RESULTADOS.md §12` ya lo había resuelto el 12-08 con 5/5
+> auditorías: el identificador real es el código `SP_C_##` del nombre del
+> fichero — una empresa+ejercicio dentro de esa copia). Un commit del 25-08
+> revirtió esto a "solo carpeta", verificado entonces con una técnica de
+> solape de NIF que ya se sabía que fusiona empresas distintas.
+> `clave_cliente()` y el reseteo de `retro_semaforo.py` vuelven a
+> `carpeta+código`. **El 18,23% del sexto hallazgo queda pendiente de
+> remedir** — probablemente seguía contaminado por esta mezcla más
+> profunda, un nivel por encima de la que ese arreglo ya había resuelto.
+> Detalle en `PROJECT_STATUS.md` (trigesimoprimera entrada).
+
+---
+
+### 🎯 Antes de re-ejecutar el retro-semáforo: qué esperar, escrito ANTES de verlo
+
+Misma disciplina que `SIGUIENTES_PASOS.md` §4, y por el mismo motivo: *"un
+número sin un umbral acordado de antemano no decide nada — se racionaliza"*.
+El motor ha cambiado (cuatro guards despiertos + `importe_atipico`
+recalibrado), así que el resultado hay que interpretarlo contra algo escrito
+de antemano, no después.
+
+```bash
+python retro_semaforo.py "C:\Users\SERVILAB\Desktop\100% contabilidad" --limite 2000
+```
+
+**Empieza con `--limite 2000`** (minutos, no la pasada larga): basta para las
+tres comprobaciones de abajo.
+
+**1 · La comprobación que de verdad decide si el arreglo funcionó** — y no es
+un porcentaje. En el listado de *guards no OK* del informe deben aparecer
+ahora, con recuento **mayor que cero**:
+
+```
+importe_atipico=FALLO
+estructura_reconocida=FALLO
+secuencia_documental_proveedor=FALLO
+cuenta_gasto_coherente=FALLO
+```
+
+Si los cuatro siguen a cero, **el arreglo no ha llegado al corpus real** y no
+hay que mirar ningún porcentaje: hay que averiguar por qué (lo más probable:
+las facturas reconstruidas no traen `nif`, y sin él las cachés no se indexan).
+
+**2 · El ROJO no puede moverse.** Predicción dura, verificada en código:
+ninguno de los cinco guards está en la lista `criticos`, así que sólo pueden
+mover VERDE → AMBAR. **Si el ROJO se mueve aunque sea una décima, hay algo
+que no entendemos** y eso va antes que cualquier otra lectura.
+
+**3 · El VERDE bajará y el ÁMBAR subirá en la misma cantidad.** Cuánto, no lo
+sabemos — y no se finge una predicción que no se puede sostener. Lo que sí
+está acordado de antemano es **qué significaría cada rango**:
+
+| Si el ÁMBAR sube... | Lectura acordada |
+|---|---|
+| **menos de 1 punto** | Los guards apenas encuentran nada. Posible (una contabilidad real es regular), pero comprobar antes el punto 1: puede que estén disparando poco por falta de datos, no por ausencia de anomalías |
+| **entre 1 y 15 puntos** | Lo esperado. Son facturas que antes pasaban sin que nadie las mirara y ahora piden revisión. Mirar el desglose por guard para ver cuál domina |
+| **más de 15 puntos** | Demasiado ruido para ser útil. **No se toca el umbral para que cuadre**: se mira qué guard concentra los disparos y se investiga ese caso concreto con datos, como se hizo con el 40,8% |
+
+**3-bis · Lo que esta medición NO dice, declarado de antemano.** Al comparar
+la llamada al motor de la medición contra la de producción aparecieron cinco
+divergencias, todas ahora declaradas y con su motivo en
+`ensayo_retro_semaforo.py`. Dos afectan a cómo hay que leer el número:
+
+- **`alta_cliente_anio` va fijado a 1990**, porque el corpus mezcla ~24
+  clientes cuyo año de alta se desconoce. Consecuencia: **esta medición no
+  dice absolutamente nada sobre `guard_fecha_posterior_alta`** — no es que
+  salga bien, es que no se comprueba.
+- **`nif_cliente_titular` va a `None`**, porque el diario no lo trae. Igual:
+  `sentido_compra_venta` no se está midiendo (ya contaba como "ámbar del
+  instrumento").
+
+**4 · Y si el que domina es `cuenta_gasto_coherente`, NO es un bug.** Está
+medido (`PROJECT_STATUS.md`, vigesimoprimera entrada): 0% de disparos en
+proveedores de una sola actividad, pero **47% en un proveedor mixto** — una
+ferretería que además te repara. Cada aviso es técnicamente cierto: esta
+factura va a una cuenta distinta de la habitual, y lo dice como `[CRITERIO]`,
+*"decide tú"*. **La pregunta que hay que contestar entonces no es técnica
+sino contable, y es tuya:** ¿quieres que te pregunte cada vez en un proveedor
+que legítimamente factura de dos cosas, o "habitual" debería admitir varios
+grupos establecidos? Los tres guards restantes ya están calibrados con
+números; este se dejó a propósito sin tocar esperando esa respuesta.
+
+> ⚠️ **Regla, por si el número sale incómodo:** el 3σ y el suelo del 5% se
+> fijaron con una simulación *antes* de ver el corpus real. Si el resultado no
+> gusta, se investiga la causa — **no se ajustan las constantes hasta que el
+> número quede bonito**. Eso sería exactamente la racionalización que
+> `SIGUIENTES_PASOS.md` §4 existe para impedir.
+
 Sigue abierto, y no es urgente: `cuadre_total`/`retencion_vs_error` (~800
 casos, 2,7%) y `nif_digito_control` (60 casos tras el arreglo 11, 0,2%) sin
 patrón dominante ya identificable — parece señal real del histórico, no
 ceguera del instrumento, pero no está descartado del todo. Ver
 `FASE0_RESULTADOS.md` §14 para el desglose.
+
+> **Arreglo 12 (27-08-2026, sesión Cloud, con aritmética sintética, no con el
+> corpus real):** `nif_check.py` ya recupera una tercera forma de longitud 8
+> ("2 de longitud 8 que no encajaban en ninguna forma" del párrafo de
+> arriba) — un DNI al que se le perdió el cero inicial, verificable del todo
+> porque el cero no cambia `num % 23`. **Los 60 casos de arriba siguen siendo
+> el último número real medido** — este arreglo todavía no se ha confirmado
+> contra el corpus: la próxima vez que corras `diag_nif_otro_residual.py` en
+> local, el bucket de longitud 8 debería bajar. Detalle en
+> `FASE0_RESULTADOS.md` §14 y `PROJECT_STATUS.md` (séptima entrada Cloud del
+> 27-08).
 
 > ✅ **RESUELTO EL 27-08-2026 (segunda versión — la primera mejoró pero no
 > bastó).** El bloqueo de abajo (histórico, no lo borres: explica por qué
@@ -183,7 +411,7 @@ ceguera del instrumento, pero no está descartado del todo. Ver
 > Probado con `ensayo_reconstruir_303.py` (10/10, casos diseñados para que
 > el gasto/ingreso contable NO coincida con cuota/tipo — si algo reintrodujera
 > la derivación desde la contabilidad, lo cazarían) y con el bug reintroducido
-> a propósito: 6 comprobaciones exactas en rojo. 13º auditor, dentro de
+> a propósito: 6 comprobaciones exactas en rojo. Auditor propio, dentro de
 > `audit_project.py`.
 >
 > **👉 SIGUIENTE PASO REAL: regenerar `303_LOCAL.json` OTRA VEZ.** El que
@@ -227,21 +455,33 @@ ceguera del instrumento, pero no está descartado del todo. Ver
 > Tuvo un error real por el camino (un filtro por palabra clave para
 > descartar carpetas "genéricas" hizo caer las coincidencias buenas de 14 a
 > 0 — un negocio real puede llamarse "Ferretería General"). Retirado el
-> mismo día, con `ensayo_emparejar_carpetas.py` (nuevo, **14º auditor**)
+> mismo día, con `ensayo_emparejar_carpetas.py` (nuevo auditor)
 > fijando esa regresión en código para que no vuelva. Detalle completo en
 > `PROJECT_STATUS.md`, cuarta entrada del 27-08.
 >
-> **👉 SIGUIENTE PASO REAL:**
+> **👉 SIGUIENTE PASO REAL:** vuelve a ejecutar el comando, no uses el
+> `emparejado_LOCAL.txt` de ayer — el script mejoró el 27-08 en Cloud, con
+> datos sintéticos, antes de que invirtieras tiempo revisando las 23:
 >
 > ```bash
 > python emparejar_carpetas.py "C:\Users\SERVILAB\Desktop\100% contabilidad" "\\PC01\Documentos"
 > ```
 >
-> Resultado ya obtenido: **14 de 37 con confianza alta** (prácticamente
-> resueltas, confirmar en segundos) y **23 que necesitan que Diego elija
-> entre 2-3 candidatos nombrados** — mucho más manejable que revisar 140
-> nombres a ciegas. Abre `emparejado_LOCAL.txt`, confirma las 14 altas, y
-> decide las 23 con calma — no bloquean nada mientras tanto.
+> **Qué cambió (detalle completo en `PROJECT_STATUS.md`, sexta entrada Cloud
+> del 27-08):** ahora compara también por CONJUNTO de palabras, no solo por
+> texto seguido — una razón social con las palabras en otro orden
+> ('Hermanos Perez SL' / 'Perez Hermanos') ya no se queda en MEDIA. Es un
+> rescate, nunca un recorte: ningún candidato que antes veías desaparece, la
+> puntuación solo puede subir. Es probable que **algunas de las 23 MEDIA de
+> ayer hayan subido a ALTA** — mira la nota `[por palabras]` en el detalle
+> para saber por qué. También nuevo: una línea de **COLISIONES** en el
+> resumen — dos carpetas de ContaPlus compitiendo por la misma carpeta de
+> Documentos. No es necesariamente un error, pero revísalo siempre a mano.
+>
+> Resultado de ayer, antes de esta mejora, para comparar: **14 de 37 con
+> confianza alta**, 23 a decidir entre 2-3 candidatos. Con la mejora debería
+> quedar igual o mejor, nunca peor — si algo que ayer estaba en ALTA hoy no
+> lo está, es un fallo y hay que avisar, no seguir adelante.
 >
 > Con eso resuelto, `cruzar_303_importes.py` puede repetirse con una base de
 > clientes fiable.
@@ -280,7 +520,7 @@ ceguera del instrumento, pero no está descartado del todo. Ver
 > 21-08, el hallazgo sobre `BASEIMPO` es del 25-08, y nadie había revisado
 > la pieza hermana hasta el 27-08.
 
-### Los dieciocho auditores, y por qué hacen falta los dieciocho
+### Los auditores, y por qué hacen falta todos
 
 Cada uno tapa un agujero que los demás no ven. No es redundancia:
 
@@ -300,6 +540,17 @@ Cada uno tapa un agujero que los demás no ven. No es redundancia:
 | `check_subprocess_encoding` | ¿algún `subprocess.run` sin `encoding`? | **verde en Cloud, roto en el PC real** |
 | `ensayo_reconstruir_303.py` | ¿la base se deriva o se sigue leyendo a pelo? | **base ficticia con aspecto de real** |
 | `ensayo_emparejar_carpetas.py` | ¿se filtra por palabra clave sobre un nombre real? | **negocio real descartado por su propio nombre** |
+| `ensayo_ok_sin_comprobar.py` | ¿algún guard dice OK cuando no ha podido comprobar? | **falso verde estructural, por forma y no por caso** |
+
+Todos corren dentro de `audit_project.py`: basta el primer comando.
+
+> **El número no se escribe aquí a mano, y es deliberado.** Esta tabla es
+> una lista comentada, no el recuento: `audit_project.py` ejecuta hoy **21
+> comprobaciones**, y ese número sale de contarlo (`python audit_project.py`),
+> no de este documento. La versión anterior sí llevaba el número escrito y
+> ya había derivado —la tabla decía catorce y la prosa de otra sesión
+> hablaba del "15º auditor"—. Es la misma trampa del `21/21 OK` que
+> `audit_project.py` imprimía como cadena fija hasta el 19-08.
 | `check_salida_al_importar` | ¿un módulo mata a quien lo importe? | **auditor apagado en silencio por una dependencia que su camino no usa** |
 | `ensayo_validar_captura.py` | ¿sabe **encontrar** un falso verde, no solo arrancar? | **el número que para el proyecto, contado de menos** |
 | `ensayo_cuadre_ficha.py` | ¿el número elegido es la carpeta que la lista prometía? | **comparar la contabilidad de un cliente contra el 303 de otro** |
@@ -462,15 +713,18 @@ propósito, lo señala en menos de un segundo.
 
 ---
 
-## 2. Dónde quedó todo (20-08-2026)
+## 2. Dónde quedó todo (actualizado 27-08-2026)
 
 | | |
 |---|---|
-| **Motor** | 26 guards cableados. Los 8 falsos verdes P0 **cerrados**. Resiste 87 ataques + controles positivos. Cobertura útil 26/26 |
+| **Motor** | 26 guards cableados. Los 8 falsos verdes P0 **cerrados**. Resiste 112 ataques adversariales + controles positivos. Cobertura útil 26/26 |
 | **Contrato de datos** | `contrato_datos.py`. `MISSING` ≠ `ZERO` ≠ `INVALID`. La ausencia ya no vale 0 |
-| **Barrera de privacidad** | Agujero del `.DAT` **cerrado**: decide por contenido, no por extensión |
-| **Inventario del histórico** | Falta poco. Es el trabajo de hoy |
-| **Facturas reales por el pipeline** | **Cero.** Nada se ha validado todavía contra la realidad |
+| **Barrera de privacidad** | Agujero del `.DAT` **cerrado**: decide por contenido, no por extensión. Regla nueva 27-08: ningún fichero real se adjunta a Cloud, ni con "no lo leas" (§10, incidente documentado en `PROJECT_STATUS.md`) |
+| **Retro-semáforo contra el histórico real** | **Hecho y cerrado** (25-08): ROJO 3,03% < 5% del umbral fijado de antemano — el motor no molesta con lo que ya estaba bien |
+| **Falsos verdes sobre facturas reales** | **Sigue en cero.** Es la métrica que decide el proyecto, y no depende del motor: depende de contratar API/Consola con DPA y pasar facturas reales de punta a punta (§4) |
+| **Exportación a ContaPlus** | Sólida — layout verificado contra dos clientes reales, importación real verificada una vez |
+| **Exportación a ContaSOL** | Sin urgencia — migración fechada a principios de 2027, herramienta (`comparar_esquema_dbf.py`) lista y esperando un `.dbf` real de ContaSOL (§10) |
+| **Módulo de facturas EMITIDAS** | Arrancado hoy (§9): numeración correlativa construida y probada, exportación a FactuSOL pendiente de su plantilla real |
 
 ---
 
@@ -488,7 +742,8 @@ Sería el primer número real, sacado de trabajo ya hecho. Mirar esto antes que 
 **Y ya está la herramienta esperándolo:**
 
 ```bash
-python validar_captura_historica.py "ruta/al/fichero.csv"
+python validar_captura_historica.py "ruta/al/fichero.csv" \
+    --nif-titular "NIF_DEL_CLIENTE" --ejercicio 2026
 ```
 
 No hace falta que el CSV tenga ningún formato concreto: detecta las columnas
@@ -511,6 +766,17 @@ solo y dice lo que ha encontrado antes de calcular nada. Compara **tres cosas**:
 
 > Es un fichero **local con datos reales**: lo abre Diego, no Claude. A Claude se
 > le pasan recuentos, nunca filas.
+
+> **28-08-2026 (sesión Cloud, vigesimoctava entrada):** el histórico que
+> alimenta `importe_atipico`/`estructura_reconocida`/`secuencia_documental_
+> proveedor` ahora se acumula por **`fecha_expedicion` ascendente**, no por
+> el orden en que vienen las filas del CSV — un CSV de captura no tiene
+> garantía de venir ordenado cronológicamente, a diferencia de los asientos
+> de ContaPlus que lee `retro_semaforo.py`. Sin fecha válida, la fila se
+> evalúa igual pero va al final (no aporta su dato al histórico de una
+> factura de fecha conocida). Nuevo `ensayo_validar_captura_historica.py`
+> (el script no tenía ningún ensayo propio) prueba esto de punta a punta,
+> con sabotaje. Detalle en `PROJECT_STATUS.md`, misma fecha.
 
 ### 📊 A-bis — El retro-semáforo (esto puede dar el primer número real HOY)
 
@@ -811,28 +1077,35 @@ cubo 3 está *caracterizado* (se sabe qué tipos caen ahí, no solo cuántos), y
 tasa de falsos verdes **dentro del cubo 1** está medida y bajo el umbral fijado
 de antemano.
 
-## 4. La decisión que hay que tomar hoy, antes de seguir tocando el motor
+## 4. ✅ RESUELTO — "¿cuándo se cierra el motor?" ya tiene respuesta, y ya se aplicó
 
-**Acordado el 19-08:** primero se cierra bien el motor, después se valida. Decisión
-de Diego y es defendible: medir la tasa de falsos verdes de un motor que va a
-cambiar produce un número que caduca.
+> **Corregido 27-08-2026 (sesión Cloud).** Esta sección llevaba desde el 19-08
+> planteando como pregunta abierta "¿qué tiene que ser cierto para decir que
+> el motor está cerrado?", con una lista para discutir. La pregunta **ya se
+> contestó** — con un umbral fijado ANTES de ver el número
+> (`SIGUIENTES_PASOS.md` §4, 21-08) — y esa respuesta **ya se aplicó**: `ROJO
+> 3,03% < 5%` → *"Verde. Se pasa al siguiente paso sin tocar el motor"*
+> (`FASE0_RESULTADOS.md` §14, 25-08, ver también §1 de arriba). Dejarla como
+> "pendiente de decidir hoy" era la misma clase de fallo que este proyecto
+> lleva meses cazando en otros sitios: un texto que dice "sin resolver" sobre
+> algo que el código y los números ya resolvieron.
 
-**Lo que falta y hay que escribir HOY:** la línea de meta. *"Cerrar bien el motor"*
-sin criterio absorbe tiempo indefinido, igual que le pasaba a *"pulir el inventario
-hasta fiarnos"* antes de fijar el 5%.
+**Repaso, punto por punto, de la lista de aquel día — verificado contra el
+código actual, no supuesto:**
 
-> **Escribir, antes de tocar un guard más: ¿qué tiene que ser cierto para decir
-> que el motor está cerrado?**
+| Punto de la lista del 19-08 | Estado hoy |
+|---|---|
+| Pruebas adversariales en verde | Superado: 112 (`test_adversarial.py`), no 25 |
+| `guard_cuenta_gasto_coherente` recibiendo el mapeo real, no `{}` | ✅ **Resuelto** — `orquestador.py` le pasa `mapeo_cuenta_gasto=mapeo_gasto`, construido de verdad desde `--diario` |
+| `categoria_producto` (deuda declarada) | 🟡 **Sigue abierta, a propósito** — la captura sigue sin producir ese campo, `tipo_producto_iva_semantico` sigue exento por diseño, no por descuido |
+| `MEDIA` de `guard_confianza_captura` (`OK_INFERIDO`) | 🟡 **Sigue inalcanzable, a propósito** — el prompt de captura solo pide `OK`/`DUDA`. Arreglarlo bien exige confianza por campo (`DISENO_APRENDIZAJE.md` §4), no parchear el prompt |
+| Un número de facturas reales de punta a punta | 🔴 **Sigue siendo el hueco real** — y es exactamente lo que `SIGUIENTES_PASOS.md` §2-3 ya identificó como lo único que de verdad falta, sin depender de nada (ni DPA, ni Workspace): sentarse en el PC de la asesoría y ejecutar `retro_semaforo.py` / `validar_captura_historica.py` / `reconstruir_303.py` |
 
-Sugerencia de partida, para discutir, no para aceptar sin más:
-
-- Las 25 pruebas adversariales en verde (ya lo están).
-- Los guards que hoy dependen de datos que nadie produce, resueltos o declarados:
-  `categoria_producto` (deuda ya anotada) y el estado `MEDIA` de
-  `guard_confianza_captura`, hoy inalcanzable.
-- El histórico conectado a la decisión de verdad: `guard_cuenta_gasto_coherente`
-  ya está cableado, pero recibiendo el mapeo real, no `{}`.
-- **Y un número de facturas reales pasadas de punta a punta.** Aunque sea 20.
+**La lección de fondo, que `SIGUIENTES_PASOS.md` §6 ya deja escrita y conviene
+no olvidar:** *"la siguiente hora de trabajo más valiosa del proyecto no es
+escribir nada. Es abrir un terminal en el PC de la asesoría."* Seguir buscando
+más defectos de código a estas alturas, sin un hallazgo concreto que lo pida,
+es exactamente la trampa que ese párrafo nombra.
 
 ---
 
@@ -878,10 +1151,37 @@ Cerrado, ya no hace falta repasarlo:
   `TRIAJE_RONDA_2026-07-13.md` — **eliminados del repositorio.** Si hacen
   falta, viven fuera de este proyecto.
 
-Sigue pendiente de verificar (no urgente, no bloquea nada): que el
-identificador de modelo `modelo="claude-sonnet-4-6"` en la rama `--proveedor
-claude` de `captura_orquestador.py` (opción secundaria, no la que se usa por
-defecto) siga vigente si alguna vez se usa esa rama.
+✅ **RESUELTO 27-08-2026 (sesión Cloud):** el identificador de modelo en la
+rama `--proveedor claude` de `captura_orquestador.py` (opción secundaria, no
+la que se usa por defecto) era `"claude-sonnet-4-6"` — no corresponde a
+ningún modelo real de la familia Claude vigente. Corregido a
+`"claude-sonnet-5"`. Sin caso real para probarlo (necesita `ANTHROPIC_API_KEY`
+y una factura, y esa rama sigue sin ser la que se usa por defecto), pero el
+identificador viejo habría fallado con un error de la API en cuanto alguien
+la hubiera usado — no era una preferencia, era un dato incorrecto.
+
+🟡 **Encontrado 27-08-2026 (sesión Cloud), no arreglado a propósito — es una
+aclaración de config, no un bug:** `config.example.json` declara
+`cache_maestro_proveedores`, `cache_iva_por_concepto` y
+`salida_csv_veredicto`. Verificado contra el código (`grep` en
+`orquestador.py`, no contra este texto): ninguna de las tres se lee.
+- `cache_maestro_proveedores` está superada por un mecanismo mejor que ya
+  existe: `--maestro-json` (fusiona con `--subcuentas`, distingue proveedores
+  activos de históricos). No falta conectarla — el diseño cambió y la clave
+  vieja se quedó en el ejemplo.
+- `salida_csv_veredicto` está superada por `--salida` (argumento de línea de
+  comandos, más simple).
+- `cache_iva_por_concepto` es la única de las tres que es un hueco real, no
+  solo una clave vieja: `construir_cache_iva_por_concepto()` existe en
+  `motor_veredicto.py` y aprende tipo de IVA por concepto a partir de
+  facturas ya verificadas, pero **nada la llama, nada la persiste, y ningún
+  guard la consume** — `guard_tipo_producto_iva_semantico` decide contra la
+  tabla oficial fija (`TABLA_IVA_4`), no contra este aprendizaje. No se ha
+  cableado aquí porque cablearla exige decidir qué guard la consumiría y con
+  qué prioridad frente a la tabla oficial — eso es diseño nuevo, no conectar
+  algo ya decidido, y `CLAUDE.md` pide no añadir eso sin un caso real
+  concreto. `config.example.json` anotado con las tres aclaraciones para que
+  nadie las dé por activas.
 
 ## 6. Lo que NO se hace hoy
 
@@ -919,3 +1219,103 @@ defecto) siga vigente si alguna vez se usa esa rama.
 | `FASE0_RESULTADOS.md` | Los números medidos del histórico |
 | `TECHO_Y_LIMITES.md` | Qué hay por encima del motor actual, medido |
 | `.claude/rules/datos.md` | La frontera de datos. Manda sobre todo lo demás |
+
+---
+
+## 9. Módulo nuevo, arrancado el 27-08-2026: facturas EMITIDAS
+
+Distinto del motor de arriba (que valida facturas RECIBIDAS). Objetivo:
+`WhatsApp del cliente → factura correlativa bien construida → FactuSOL →
+VeriFactu`. Hoy se hace a mano en Excel. Detalle completo, con el
+razonamiento de alcance, en `PROJECT_STATUS.md` (novena entrada del 27-08).
+
+> **Confirmado el 27-08 (misma sesión, entrada decimotercera): la migración
+> a ContaSOL y FactuSOL está fechada para principios de 2027.** FactuSOL no
+> es una opción entre varias para este módulo — es el sistema que va a
+> usarse de verdad a partir de esa fecha. No urge terminarlo antes, pero
+> tampoco es un "algún día": tiene fecha.
+
+**Construido ya, en Cloud, sin datos reales:** `numeracion_correlativa.py`
+— decide el siguiente número correlativo de una serie y detecta huecos o
+duplicados antes de que lleguen a FactuSOL. 25/25 en verde
+(`test_numeracion_correlativa.py`).
+
+**Bloqueado, y necesita dos cosas concretas de Diego, ninguna con dato de
+cliente:**
+1. La plantilla vacía de importación de FactuSOL (`Utilidades > Ficheros
+   XLS`, sin ninguna factura dentro) — la documentación pública no la deja
+   verificar con confianza (páginas bloqueadas / PDF de imagen), y este
+   proyecto no adivina un formato de datos.
+2. La forma del número que ya se usa hoy en el Excel (serie, dígitos, si
+   resetea por año) — sin eso, el módulo nuevo podría empezar una
+   numeración distinta de la que ya está en curso, que sería exactamente el
+   hueco que existe para evitar.
+
+**Sigue detrás de la puerta del DPA, sin cambios:** leer el WhatsApp del
+cliente y convertirlo en los datos de la factura. Mismo patrón que
+`captura_orquestador.py`/`motor_veredicto.py`: la lectura del mensaje real
+necesita que el modelo la VEA (DPA); la numeración y la exportación, no.
+
+---
+
+## 10. Verificación pendiente: el xDiario ¿sirve también para ContaSOL?
+
+> 🔴 **Incidente el mismo día, leer antes de intentar esto:** al intentar
+> avanzar esta verificación, se adjuntaron 4 ficheros reales a esta
+> conversación Cloud pidiendo "no los leas" — y el mecanismo de adjuntos los
+> mostró igual, antes de que hubiera ocasión de actuar. Detalle sin datos
+> reales en `PROJECT_STATUS.md` (entrada "INCIDENTE") y regla nueva en
+> `.claude/rules/datos.md`: **ningún fichero real se adjunta a Cloud, nunca,
+> ni con instrucciones de "no lo leas"**. La barrera tiene que estar antes.
+
+**👉 Por eso existe `comparar_esquema_dbf.py` (nuevo, mismo día):** responde
+si un `.dbf` tiene el mismo layout que ContaPlus leyendo **solo su
+cabecera** (nombres de campo, anchos — nunca una fila), así que su salida
+completa es segura de pegar en el chat. Ejecutar en local:
+
+```bash
+python comparar_esquema_dbf.py "ruta\al\Diario.dbf de ContaSOL"
+```
+
+Dice IDÉNTICO o exactamente en qué campo difiere.
+
+> ⚠️ **Ya se ejecutó una vez (27-08) y NO vale como respuesta — leer antes de
+> repetirlo sin necesidad.** Diego lo corrió contra un `.dbf` real de un
+> segundo cliente, y dio IDÉNTICO — pero el fichero salió de **ContaPlus**
+> (el sistema actual), no de ContaSOL. Un fichero de ContaPlus tiene el
+> layout de ContaPlus por definición: no prueba nada sobre ContaSOL, aunque
+> sí confirma que el layout es estable entre dos clientes reales distintos,
+> no una coincidencia de uno solo. Detalle completo en `PROJECT_STATUS.md`
+> (decimotercera entrada del 27-08).
+>
+> **Y hay un dato nuevo que cambia la urgencia, no la necesidad:** el
+> despacho migra a **ContaSOL y FactuSOL a principios de 2027**. Hasta que
+> exista una instalación de ContaSOL en marcha, no hay forma de conseguir un
+> `.dbf` real que comparar — no es un pendiente que se pueda adelantar antes
+> de esa fecha. La herramienta queda lista y probada para ese momento.
+
+`escribir_xdiario()` (`layout_diario_contaplus.py`) lleva desde el 20/21-08
+construido y auditado para ContaPlus, con el layout de campos verificado
+byte a byte contra un `Diario.dbf` real. Su docstring afirmaba, sin que
+nadie lo hubiera comprobado nunca, que también servía para ContaSOL.
+Corregido el 27-08 (sesión Cloud): ahora dice la verdad completa — qué está
+verificado (ContaPlus) y qué está bien respaldado por fuentes públicas pero
+sin comprobar contra una instalación real (ContaSOL). Detalle y fuentes en
+`PROJECT_STATUS.md` (décima entrada del 27-08).
+
+**👉 SIGUIENTE PASO REAL, y no hace falta ningún dato de cliente:**
+importar el `xDiario.txt` sintético (el que ya genera `ensayo_xdiario.py`,
+o uno nuevo hecho con `--xdiario` sobre datos de prueba) en una **empresa de
+pruebas de ContaSOL**, y confirmar que entra limpio — mismas cuentas, mismo
+IVA, sin errores de formato. Es la misma comprobación que ya se hizo para
+ContaPlus el 21-08 ("verificado hoy con una importación real"), repetida
+para el segundo programa.
+
+Si la importación funciona: el módulo ya está cerrado para los dos
+programas, no hace falta escribir nada más. Si falla: dice exactamente
+dónde, y se corrige ese punto concreto — no se reconstruye desde cero.
+
+**No es la Fase 5 (Alojamiento CONTASOL, API en tiempo real) que sigue
+descartada** (`PROJECT_STATUS.md`, "Decisiones ya cerradas") — esto es un
+fichero de exportación por lotes, la misma categoría que ya funciona para
+ContaPlus, no una integración en vivo.

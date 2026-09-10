@@ -35,6 +35,7 @@ from motor_veredicto import (
     guard_tipo_producto_iva_semantico, guard_tipo_operacion_especial,
     evaluar_fila_v4, calcular_veredicto_v4,
     construir_mapeo_cuenta_gasto, aprender_cuenta_gasto, reevaluar_tras_correccion,
+    actualizar_caches_historicas, actualizar_mapeo_cuenta_gasto,
 )
 from nif_check import valida_nif
 
@@ -89,6 +90,20 @@ check(valida_nif("B1234567")[0] is None, "letra+7 digitos (CIF sin control): SIN
 # digito de control) y sigue cayendo en DESCONOCIDO -> FALLO, sin ampliarse
 # de mas.
 check(valida_nif("1234567")[0] == False, "7 digitos sigue siendo FALLO (no se ha ampliado de mas)")
+
+print("\n=== Nivel 1: DNI con el 0 inicial perdido (27-08-2026, sesion Cloud) ===")
+# Distinto de los dos SIN_DATO de arriba: ahi falta el UNICO caracter que
+# permite comprobar (el digito de control), aqui no falta nada -- el cero
+# inicial no cambia el valor de num % 23, asi que SI se puede verificar
+# del todo. DNI sintetico: '01234567' -> letra 'L' (checksum matematicamente
+# valido, nunca un dato real). '1234567L' es lo que llega si algo leyo el
+# campo como numero y se comio el cero inicial.
+check(valida_nif("1234567L")[0] == True,
+      "7 digitos + letra (DNI con el 0 inicial perdido): recuperable, se verifica de verdad")
+check(valida_nif("1234567L")[1] == "DNI",
+      "se clasifica como DNI, no como SIN_DATO -- no falta informacion, solo se escribio distinto")
+check(valida_nif("1234567M")[0] == False,
+      "7 digitos + letra incorrecta: sigue detectandose como FALLO (L real vs M puesta a proposito)")
 
 print("\n=== Nivel 4: retencion_vs_error (caso real anonimizado) ===")
 # base 661.15, iva 138.84, irpf -125.62, total 674.37 -> retencion 19%
@@ -188,6 +203,246 @@ check(guard_tipo_operacion_especial('Amortizacion anual furgoneta', '600000', 'B
       "palabra 'amortizacion' en concepto -> AMBAR")
 check(guard_tipo_operacion_especial('Fra compra material', '600000', 'DE123456789')[0] == "AMBAR",
       "NIF con prefijo de pais (DE) -> AMBAR, posible intracomunitario")
+
+print("\n=== actualizar_caches_historicas (27-08-2026, hallazgo verificado de Diego) ===")
+# retro_semaforo.py y validar_captura_historica.py pasaban {}, {}, {} para
+# historico_proveedor/formato_cache/secuencia_cache EN CADA FACTURA -- nunca
+# se acumulaban entre facturas, a diferencia del maestro de proveedores. Con
+# las caches vacias, guard_importe_atipico/estructura_reconocida/secuencia_
+# documental_proveedor no pueden devolver FALLO nunca (verificado leyendo
+# cada uno): quedaban dormidos en las dos mediciones con corpus real de este
+# proyecto. Esta prueba no solo comprueba la funcion nueva -- reproduce la
+# secuencia EXACTA que los dos scripts ya ejecutan (evaluar, luego acumular)
+# y demuestra el ANTES y el DESPUES lado a lado, sobre el mismo caso.
+_NIF_HIST = "B12345674"
+_PROV_HIST = "PROVEEDOR PILOTO SL"
+
+
+def _fila_hist(total, doc):
+    base = round(total / 1.21, 2)
+    iva = round(total - base, 2)
+    return {
+        'nif': _NIF_HIST, 'proveedor': _PROV_HIST, 'nº_documento': doc,
+        'fecha_expedicion': '2026-03-15', 'verificacion': 'OK',
+        'base_21': str(base), 'base_total': str(base),
+        'iva_total': str(iva), 'total_factura': str(total),
+    }
+
+
+# 4 facturas normales del mismo proveedor, importe estable (~121, poca
+# desviacion) y numero de documento con la MISMA forma (FAC-2026-00N).
+_normales = [_fila_hist(t, f"FAC-2026-{n:03d}")
+             for n, t in enumerate([121.00, 123.42, 118.58, 122.21], start=1)]
+# La 5a es un total 10 VECES el habitual -- un atipico real, no sutil.
+_atipica_importe = _fila_hist(1210.00, "FAC-2026-005")
+# Y una 5a distinta, mismo importe normal pero con el documento en una forma
+# que no se parece a nada visto antes.
+_atipica_forma = _fila_hist(121.00, "77/XYZ")
+
+# --- ANTES del arreglo: exactamente el patron que tenian los dos scripts ---
+_v_antes = None
+for f in _normales + [_atipica_importe]:
+    _v_antes, _, _g_antes = evaluar_fila_v4(f, set(), {}, {}, {}, {}, 2020, None, 2026)
+    # {} en cada vuelta: nunca se acumula nada, exactamente el bug real.
+check(_v_antes == "VERDE",
+      f"ANTES del arreglo (caches vacias en cada vuelta): la factura con "
+      f"10x el importe habitual sigue dando VERDE ({_v_antes}) -- el bug real, reproducido")
+
+# --- DESPUES del arreglo: el patron que ya usan retro_semaforo.py y
+# validar_captura_historica.py tras la correccion de hoy ---
+_hist, _fmt, _sec = {}, {}, {}
+for f in _normales:
+    evaluar_fila_v4(f, set(), _hist, _fmt, _sec, {}, 2020, None, 2026)
+    actualizar_caches_historicas(_hist, _fmt, _sec, f)
+check(_hist.get(_NIF_HIST, {}).get('n_facturas_normales') == 4,
+      f"tras 4 facturas normales, el historico acumulado tiene n=4 "
+      f"(tiene {_hist.get(_NIF_HIST, {}).get('n_facturas_normales')})")
+
+_v_despues, _mot_despues, _g_despues = evaluar_fila_v4(
+    _atipica_importe, set(), _hist, _fmt, _sec, {}, 2020, None, 2026)
+check(_g_despues['importe_atipico'][0] == "FALLO",
+      f"DESPUES del arreglo: guard_importe_atipico SI detecta el 10x "
+      f"(dio {_g_despues['importe_atipico']})")
+check(_v_despues == "AMBAR",
+      f"y la factura ya no es VERDE: es {_v_despues} (antes del arreglo era VERDE con el mismo caso)")
+
+# --- Mismo patron, ahora aislando estructura_reconocida ---
+_hist2, _fmt2, _sec2 = {}, {}, {}
+for f in _normales:
+    evaluar_fila_v4(f, set(), _hist2, _fmt2, _sec2, {}, 2020, None, 2026)
+    actualizar_caches_historicas(_hist2, _fmt2, _sec2, f)
+_v_forma, _mot_forma, _g_forma = evaluar_fila_v4(
+    _atipica_forma, set(), _hist2, _fmt2, _sec2, {}, 2020, None, 2026)
+check(_g_forma['estructura_reconocida'][0] == "FALLO",
+      f"un numero de documento con forma nunca vista SI se detecta "
+      f"(dio {_g_forma['estructura_reconocida']})")
+check(_v_forma == "AMBAR",
+      f"y baja el veredicto a AMBAR ({_v_forma}), con importe normal -- "
+      f"aislado de importe_atipico")
+
+# secuencia_documental_proveedor no se aisla en un tercer caso aparte: usa el
+# MISMO bloque `if doc:` de actualizar_caches_historicas() que ya prueban los
+# dos casos de arriba (secuencia_cache se rellena en la misma pasada que
+# formato_cache) -- su logica propia ya tiene cobertura unitaria en la
+# FAMILIA O de test_adversarial.py con caches construidas a mano.
+
+print("\n=== actualizar_mapeo_cuenta_gasto (cuarto candidato, 27-08-2026) ===")
+# guard_cuenta_gasto_coherente se indexa por CODIGO DE CUENTA (400015), no
+# por NIF -- y el codigo de cuenta NO es identidad estable entre clientes
+# distintos (FASE0_RESULTADOS.md §10.1). Esta prueba demuestra las dos
+# mitades: (1) el mapeo incremental funciona igual que las caches de arriba,
+# y (2) RESETEARLO al cambiar de cliente evita mezclar el patron de dos
+# clientes distintos bajo el mismo codigo -- que es la razon por la que este
+# arreglo no es identico al de las tres caches anteriores.
+_CTA_PROV = "400015"  # mismo codigo, DOS clientes distintos abajo
+
+
+def _fila_gasto(cuenta_debe, total=121.00, doc_n=1):
+    return {**_fila_hist(total, f"FAC-2026-{doc_n:03d}"),
+            'cuenta_proveedor': _CTA_PROV, 'cuenta_debe': cuenta_debe}
+
+
+# --- Cliente A: 3 facturas a 621000 (arrendamientos), luego una a 600000 ---
+_mapeo_a = {}
+for f in [_fila_gasto("621000", doc_n=n) for n in range(1, 4)]:
+    evaluar_fila_v4(f, set(), {}, {}, {}, {}, 2020, None, 2026, mapeo_cuenta_gasto=_mapeo_a)
+    actualizar_mapeo_cuenta_gasto(_mapeo_a, f)
+check(_mapeo_a[_CTA_PROV]['cuenta_gasto'] == "621000" and _mapeo_a[_CTA_PROV]['n_asientos'] == 3,
+      f"tras 3 facturas a 621000, el mapeo del cliente A dice 621000/n=3 "
+      f"(dice {_mapeo_a[_CTA_PROV]['cuenta_gasto']}/{_mapeo_a[_CTA_PROV]['n_asientos']})")
+
+_v_a, _mot_a, _g_a = evaluar_fila_v4(
+    _fila_gasto("600000", doc_n=4), set(), {}, {}, {}, {}, 2020, None, 2026,
+    mapeo_cuenta_gasto=_mapeo_a)
+check(_g_a['cuenta_gasto_coherente'][0] == "FALLO",
+      f"una 4a factura del mismo proveedor a una cuenta DISTINTA (600000) "
+      f"SI se detecta (dio {_g_a['cuenta_gasto_coherente']})")
+check(_v_a == "AMBAR", f"y baja el veredicto a AMBAR (dio {_v_a})")
+
+# --- Cliente B, MISMO codigo de cuenta 400015, patron distinto: 600000 ---
+# SIN resetear (el bug que este reseteo evita): reutilizar _mapeo_a mezclaria
+# el 621000 de A con el 600000 de B bajo la misma clave "400015". CON
+# resetear (lo que hace retro_semaforo.py ahora, un dict nuevo por cliente):
+# el patron de B se juzga solo contra B.
+_mapeo_b = {}   # dict NUEVO -- esto es literalmente el reseteo por cliente
+for f in [_fila_gasto("600000", doc_n=n) for n in range(1, 4)]:
+    evaluar_fila_v4(f, set(), {}, {}, {}, {}, 2020, None, 2026, mapeo_cuenta_gasto=_mapeo_b)
+    actualizar_mapeo_cuenta_gasto(_mapeo_b, f)
+
+_v_b, _mot_b, _g_b = evaluar_fila_v4(
+    _fila_gasto("600000", doc_n=4), set(), {}, {}, {}, {}, 2020, None, 2026,
+    mapeo_cuenta_gasto=_mapeo_b)
+check(_g_b['cuenta_gasto_coherente'][0] == "OK",
+      f"con el mapeo reseteado, la 4a factura de B (tambien a 600000, "
+      f"coherente con SU propio patron) da OK (dio {_g_b['cuenta_gasto_coherente']})")
+check(_v_b == "VERDE" or (_v_b == "AMBAR" and "cuenta_gasto_coherente" not in _mot_b),
+      f"y no se contamina con el patron de A -- veredicto {_v_b}, motivo {_mot_b[:60]}")
+
+# --- Y la prueba de que el reseteo es lo que lo salva: SIN resetear ---
+# Fresco de verdad (no una copia superficial de _mapeo_a, que compartiria el
+# diccionario interno y corromperia las comprobaciones de arriba): se
+# reconstruye desde cero, A y B en el MISMO diccionario, para simular
+# exactamente lo que pasaria si retro_semaforo.py no reseteara entre clientes.
+_mapeo_sin_resetear = {}
+for f in [_fila_gasto("621000", doc_n=n) for n in range(1, 4)]:
+    actualizar_mapeo_cuenta_gasto(_mapeo_sin_resetear, f)
+for f in [_fila_gasto("600000", doc_n=n) for n in range(4, 7)]:
+    actualizar_mapeo_cuenta_gasto(_mapeo_sin_resetear, f)
+_v_mezcla, _mot_mezcla, _g_mezcla = evaluar_fila_v4(
+    _fila_gasto("600000", doc_n=7), set(), {}, {}, {}, {}, 2020, None, 2026,
+    mapeo_cuenta_gasto=_mapeo_sin_resetear)
+# La propia factura de B (600000, coherente con SU patron) se juzga contra un
+# historico contaminado con las de A -- el riesgo real no es que el guard se
+# quede callado, es que puede acusar de "no coherente" a una factura que SI
+# lo es dentro de su propio cliente, solo porque comparte codigo de cuenta
+# con otro cliente que tiene un patron distinto. Con 3+3 empatados, gana el
+# primero insertado (621000, de A) como "habitual", y la de B (600000) no
+# coincide con esa habitual ajena -- FALLO, pero un FALLO que acusa a la
+# factura equivocada por la razon equivocada.
+check(_g_mezcla['cuenta_gasto_coherente'][0] == "FALLO"
+      and "621000" in _g_mezcla['cuenta_gasto_coherente'][1],
+      f"SIN resetear: una factura de B, coherente con el patron DE B, sale "
+      f"FALLO por comparar contra el patron de A que comparte el mismo "
+      f"codigo de cuenta (dio {_g_mezcla['cuenta_gasto_coherente']}) -- "
+      f"el riesgo real que el reseteo por cliente evita no es silencio, es "
+      f"acusar a la factura correcta")
+
+print("\n=== importe_atipico: los dos defectos opuestos (27-08-2026) ===")
+# Encontrados al comprobar las COSTURAS del arreglo de las caches: los cuatro
+# guards ya pueden disparar, asi que por primera vez importaba COMO deciden.
+# Los dos defectos llevaban ahi desde siempre, invisibles porque el guard
+# estaba dormido (cache vacia) en las dos mediciones con corpus real.
+
+# DEFECTO 1 (falso verde, el grave): un proveedor de CUOTA FIJA tiene desv=0,
+# y la condicion previa `desv > 0` hacia que CUALQUIER importe diera OK.
+_hist_fijo = {'B1': {'n_facturas_normales': 4, 'media': 121.00, 'desv': 0}}
+_est, _det = guard_importe_atipico('P', 99999.00, _hist_fijo, nif='B1')
+check(_est == "FALLO",
+      f"cuota fija de 121,00 x4 y llega una de 99.999,00 (825x): FALLO, no un "
+      f"OK afirmativo (dio {_est}: {_det})")
+check(guard_importe_atipico('P', 1210.00, _hist_fijo, nif='B1')[0] == "FALLO",
+      "misma cuota fija, un 10x tambien se detecta")
+# ...pero sin volverse quisquilloso: una subida de precio normal NO es anomalia.
+check(guard_importe_atipico('P', 121.50, _hist_fijo, nif='B1')[0] == "OK",
+      "la misma cuota fija con una subida de 0,50 EUR sigue siendo OK: "
+      "una actualizacion de precio no es una anomalia")
+
+# DEFECTO 2 (ruido, el que habria envenenado la re-medicion): el umbral era
+# 1 sigma, que no es un umbral de atipicidad -- marcaba FALLO el 40,8% de
+# facturas legitimas (medido por simulacion antes de tocar nada).
+_hist_var = {'B2': {'n_facturas_normales': 4, 'media': 121.00, 'desv': 2.07}}
+check(guard_importe_atipico('P', 124.00, _hist_var, nif='B2')[0] == "OK",
+      "una desviacion del 2,5% sobre un historico con variacion normal ya NO "
+      "es FALLO (con 1 sigma lo era, y con ella ~40% de las facturas legitimas)")
+check(guard_importe_atipico('P', 1210.00, _hist_var, nif='B2')[0] == "FALLO",
+      "pero un 10x sobre ese mismo historico se sigue detectando: se ha "
+      "quitado ruido, no capacidad de deteccion")
+
+# CONTROL: el guard sigue sin pronunciarse cuando no tiene con que.
+check(guard_importe_atipico('P', 500.0, {}, nif='B3')[0] == "NO_COMPROBADO",
+      "sin historico sigue siendo NO_COMPROBADO, nunca un OK por omision")
+check(guard_importe_atipico('P', 500.0,
+      {'B4': {'n_facturas_normales': 4, 'media': 0, 'desv': 0}}, nif='B4')[0] == "NO_COMPROBADO",
+      "con media 0 (sin escala con la que comparar) tampoco se finge un OK")
+
+print("\n=== estructura_reconocida y secuencia_documental: misma auditoria (27-08-2026) ===")
+# Auditados a proposito despues de encontrar los dos defectos de
+# importe_atipico: los tres estaban dormidos por la misma causa, asi que su
+# logica de decision tampoco se habia ejercitado nunca contra datos realistas.
+
+# DEFECTO 3 -- estructura_reconocida contaba DIGITOS. 'FAC-99' -> 'LLL-DD' y
+# 'FAC-100' -> 'LLL-DDD': el primer numero que cruzaba un limite de digitos
+# salia FALLO siendo legitimo. Medido: 9,1% de ruido con numeracion sin ceros
+# a la izquierda (lo normal en software de pyme), 0,0% con ceros -- o sea,
+# TODO el ruido venia de contar digitos.
+_fmt = {'B5': {'ejemplos': ['FAC-97', 'FAC-98', 'FAC-99'], 'n_facturas_vistas': 3}}
+check(guard_estructura_reconocida('P', 'FAC-100', _fmt, nif='B5')[0] == "OK",
+      "cruzar de FAC-99 a FAC-100 (mismo formato, un digito mas) ya NO es "
+      "FALLO: una tirada de digitos cuenta como una sola 'D'")
+check(guard_estructura_reconocida('P', 'FAC-123456', _fmt, nif='B5')[0] == "OK",
+      "y da igual cuantos digitos: de la MAGNITUD se ocupa el guard de "
+      "secuencia, no el de forma")
+# ...sin aflojar la deteccion: una forma genuinamente distinta sigue saltando.
+check(guard_estructura_reconocida('P', '77/XYZ', _fmt, nif='B5')[0] == "FALLO",
+      "una forma realmente distinta (77/XYZ) sigue detectandose")
+check(guard_estructura_reconocida('P', 'ALBARAN 12', _fmt, nif='B5')[0] == "FALLO",
+      "y un prefijo de letras distinto tambien: las letras NO se colapsan, "
+      "ahi la longitud si es senal")
+
+# DEFECTO 4 -- secuencia_documental, misma familia que el desv=0: si todos los
+# numeros previos son iguales, salto_medio=0 y el guard afirmaba "coherente"
+# sobre cualquier numero.
+_sec = {'B6': {'numeros_vistos': ['A-100', 'B-100']}}
+_est_s, _det_s = guard_secuencia_documental_proveedor('P', 'C-999999', _sec, nif='B6')
+check(_est_s == "NO_COMPROBADO",
+      f"con numeros previos identicos (sin secuencia con la que comparar), un "
+      f"nº 999999 es NO_COMPROBADO, no un OK afirmativo (dio {_est_s})")
+# Y con secuencia real sigue funcionando en los dos sentidos.
+_sec2 = {'B7': {'numeros_vistos': ['F-100', 'F-110', 'F-120']}}
+check(guard_secuencia_documental_proveedor('P', 'F-130', _sec2, nif='B7')[0] == "OK",
+      "con secuencia real, el siguiente numero razonable sigue siendo OK")
+check(guard_secuencia_documental_proveedor('P', 'F-99000', _sec2, nif='B7')[0] == "FALLO",
+      "y uno absurdamente lejano sigue siendo FALLO")
 
 print(f"\n{'='*50}")
 if FALLOS:

@@ -490,6 +490,20 @@ Más **9 contenedores sin ejercicio detectable** (diario vacío o con fechas fue
 cliente-año sí (decide qué se usa para entrenar y qué para validar). Los `.wma` y `.jpg`
 no. Los `.cat` están sin determinar y por eso se miran.
 
+> ⚠️ **REVERTIDO 28-08-2026: el commit `e35b585` (25-08) deshizo este mismo
+> hallazgo, sin querer.** Cambió `clave_cliente()` de `carpeta+código` (lo de
+> arriba, verificado con 5/5 auditorías) a `solo carpeta`, verificado
+> entonces con solape de NIF entre códigos — la misma técnica que este
+> propio §11.0 ya había invalidado por fusionar empresas distintas. Una
+> carpeta de nivel 1 no es un cliente: es una copia de seguridad con hasta
+> **70 códigos de empresa distintos dentro** (empresa × ejercicio —
+> ContaPlus crea una "empresa" nueva cada año, §11.1), verificado hoy contra
+> el corpus real (100% de 3.857 `.DAT` siguen el patrón `SP_C_##[letra]`).
+> `clave_cliente()` y el reseteo de cachés de `retro_semaforo.py` vuelven a
+> `carpeta+código`. Detalle completo en `PROJECT_STATUS.md` (trigesimoprimera
+> entrada, 28-08-2026). **Lo que sigue sin resolver, igual que entonces:**
+> enlazar el mismo cliente real entre carpetas distintas.
+
 ---
 
 ## 14. El motor sobre el histórico real: retro-semáforo (25-08-2026)
@@ -532,12 +546,94 @@ veces por auto-revisión antes de pasárselo a Diego, no por él.
 
 ### El resultado final de la sesión
 
-| | RUN 4 (tras arreglo 3) | RUN 10 (tras arreglo 10) | RUN 11 (tras arreglo 11) |
-|---|---|---|---|
-| VERDE | 49,19% | 87,71% | **87,71%** |
-| ROJO | 45,97% | 3,15% | **3,03%** |
-| AMBAR | 4,84% | 9,15% | 9,26% |
-| Tasa de detección (`--inyectar`) | — | 78,99% | 78,99% (100% en 4 de 5 tipos de error; el punto débil declarado es `nif_de_otro`, 0,4% — un NIF ajeno pero con checksum válido no tiene por qué distinguirse sin el patrón de cartera) |
+| | RUN 4 (tras arreglo 3) | RUN 10 (tras arreglo 10) | RUN 11 (tras arreglo 11) | RUN 12 (28-08, cachés + arreglos 13-14) |
+|---|---|---|---|---|
+| VERDE | 49,19% | 87,71% | 87,71% | 68,69% → 78,74% → **84,14%** (ver abajo) |
+| ROJO | 45,97% | 3,15% | 3,03% | **3,03%** (sin mover — confirmado en TRES pasadas seguidas) |
+| AMBAR | 4,84% | 9,15% | 9,26% | 28,28% → 18,23% → **12,82%** (+3,56 pts sobre el 9,26% base) |
+| Tasa de detección (`--inyectar`) | — | 78,99% | 78,99% (100% en 4 de 5 tipos de error; el punto débil declarado es `nif_de_otro`, 0,4% — un NIF ajeno pero con checksum válido no tiene por qué distinguirse sin el patrón de cartera) | 79,79% (`nif_de_otro`: 21,57% → 21,28% → **4,21%**, ver arreglo 14; el resto sigue al 100%) |
+
+> **RUN 12 es la medición final del día, en tres pasadas sucesivas, cada una
+> con un arreglo real encima de la anterior** (arreglo 12: cachés activas;
+> arreglo 13: `cuenta_proveedor` sin truncar; arreglo 14: `clave_cliente`
+> por carpeta+código). El indicador más limpio de que el tercer arreglo
+> quedó bien cerrado: el contador de "carpetas tratadas como cliente
+> distinto" dio **1.287** — la misma cifra, exacta, que `§12` ya había
+> verificado con 5 auditorías cruzadas independientes el 12-08-2026 como
+> "contenedores con `Diario.dbf`".
+
+> **RUN 12 tiene DOS números** porque pasaron dos cosas ese mismo día, no una:
+> primero se activaron las tres cachés dormidas (arreglo 12, abajo), y el
+> ÁMBAR subió a 28,28% — más de lo esperado. Investigado (no ajustado el
+> umbral): un bug real en `cuenta_proveedor` (arreglo 13, nuevo) inflaba
+> `cuenta_gasto_coherente` mezclando proveedores distintos bajo el mismo
+> grupo de cuenta. Arreglado, medido de nuevo: ÁMBAR 18,23%, dentro del
+> rango "1-15 puntos sobre el 9,26% base: lo esperado" de
+> `SIGUIENTES_PASOS.md §4`. Detalle completo, con el diagnóstico capa por
+> capa, en `PROJECT_STATUS.md` (vigesimonovena entrada, 28-08-2026).
+
+> ⚠️ **Arreglo 12, sesión Cloud 27-08-2026 (hallazgo de Diego, verificado):
+> este RUN 11 tiene `guard_importe_atipico`, `guard_estructura_reconocida` y
+> `guard_secuencia_documental_proveedor` estructuralmente dormidos.**
+> `retro_semaforo.py` pasaba `{}, {}, {}` para las tres cachés de historial
+> en cada factura, nunca acumuladas entre facturas — a diferencia del
+> maestro de proveedores (arreglo 9, sí acumulado). Con la caché vacía,
+> ninguno de los tres puede devolver `FALLO` (verificado leyendo cada uno),
+> así que nunca han llegado a activarse en esta medición.
+>
+> **Lo que esto NO cambia, verificado en `calcular_veredicto_v4()`:**
+> ninguno de los tres está en `criticos` — solo pueden mover VERDE → AMBAR,
+> nunca a ROJO. **El `ROJO 3,03% < 5%` de arriba sigue siendo válido.**
+>
+> **Lo que sí queda abierto:** el `VERDE 87,71%` probablemente esté
+> sobreestimado — no medible desde aquí sin volver a ejecutar
+> `retro_semaforo.py` contra el corpus real, ya con `actualizar_caches_
+> historicas()` (nueva en `motor_veredicto.py`) cableada. Detalle completo,
+> con reproducción del bug antes/después sobre el mismo caso sintético, en
+> `PROJECT_STATUS.md` (decimoséptima entrada del 27-08).
+>
+> ✅ **RESUELTO 28-08-2026: Diego volvió a correr `retro_semaforo.py --inyectar`
+> contra el corpus real completo.** ROJO 3,03% confirmado sin mover. AMBAR
+> subió a 28,28% — más de lo esperado, ver arreglo 13 justo abajo.
+
+> ⚠️ **Arreglo 13, sesión LOCAL 28-08-2026 (hallazgo propio, investigando por
+> qué el AMBAR de arriba subía más de lo esperado):** `reconstruir_compra()`
+> construía `fila['cuenta_proveedor']` con la subcuenta TRUNCADA a 3 dígitos
+> (la misma función que clasifica si una línea es acreedor 400/401/410/411,
+> gasto o IVA — correcto para eso, incorrecto reutilizada como identidad de
+> proveedor). `guard_cuenta_gasto_coherente` indexa por ese campo, así que
+> **todos los acreedores de un cliente bajo el mismo grupo PGC** (todos los
+> "410", por ejemplo) se trataban como un único proveedor. Confirmado
+> agrupando por (cliente, cuenta_proveedor): 24 pares en 28 clientes
+> concentraban el 100% de los 5.875 `FALLO`, el 90% en solo 10 — y resultaron
+> ser cuentas de grupo genéricas (410/400), no subcuentas de proveedor.
+> Arreglado: `cuenta_proveedor` ahora usa la subcuenta completa sin truncar.
+> Medido antes/después: `cuenta_gasto_coherente=FALLO` 5.875 → **2.212**
+> (−62%), AMBAR 28,28% → **18,23%** (dentro del rango "1-15 puntos: lo
+> esperado" sobre el 9,26% base). Probado con sabotaje en
+> `ensayo_retro_semaforo.py`. Detalle completo en `PROJECT_STATUS.md`
+> (vigesimonovena entrada, 28-08-2026).
+>
+> ⚠️ **Arreglo 14, mismo día: las "24 carpetas cliente" del arreglo 13 eran
+> en realidad copias de seguridad con hasta 70 empresas reales cada una.**
+> `FASE0_RESULTADOS.md §12` ya lo había resuelto el 12-08-2026 con 5/5
+> auditorías cruzadas: el identificador real vive en el nombre del fichero
+> `.DAT` (`SP_C_##[letra]`), no en la carpeta. Un commit del 25-08
+> (`e35b585`) revirtió esto a "solo carpeta" — confirmado con Diego entonces,
+> verificado con una técnica de solape de NIF que el propio `§11.0` ya había
+> invalidado por fusionar empresas distintas. `clave_cliente()` y el reseteo
+> de `retro_semaforo.py` vuelven a `carpeta+código`. Detalle completo, con
+> la verificación contra el corpus real (100% de 3.857 `.DAT` siguen el
+> patrón exacto), en `PROJECT_STATUS.md` (trigesimoprimera entrada).
+>
+> ✅ **RESUELTO 28-08-2026: Diego volvió a medir con los dos arreglos (13 y
+> 14) ya encima.** ROJO 3,03% — tercera confirmación seguida, sin mover.
+> AMBAR 12,82% (+3,56 puntos sobre el 9,26% base — claramente "1-15: lo
+> esperado"). `cuenta_gasto_coherente=FALLO`: 5.875 → 2.212 → **245**; tasa
+> ≥70% (mapeo inestable): 32,7% → 1,6% → **0,16%** de los proveedores — ya
+> es ruido de borde normal, no una señal sistemática. El contador de
+> reseteos por cliente dio **1.287**, exacto contra `§12`. Detalle completo
+> en `PROJECT_STATUS.md` (trigesimosegunda entrada).
 
 ### La predicción de `TECHO_Y_LIMITES.md`, confirmada
 
@@ -565,6 +661,26 @@ delante.
   cortos sin patrón reconocible (longitud 7 y 10, y 2 de longitud 8 que no
   encajaban en ninguna forma). Misma lectura que el resto: parece señal real
   del histórico, no ceguera del instrumento.
+
+  > **Arreglo 12, sesión Cloud 27-08-2026, sobre los "2 de longitud 8 que no
+  > encajaban en ninguna forma".** Hipótesis concreta, verificada con
+  > aritmética sintética antes de tocar código: `nif_check.py` cubría dos
+  > formas de longitud 8 (8 dígitos sin letra; letra+7 dígitos) pero no una
+  > tercera — **7 dígitos + letra al final**, la forma exacta de un DNI de 9
+  > caracteres al que se le perdió el **cero inicial** al leerlo como número
+  > (típico de una hoja de cálculo). A diferencia de las otras dos formas,
+  > esta SÍ es verificable del todo: `int('01234567') == int('1234567')`, el
+  > cero inicial no cambia `num % 23`, así que la letra de control se calcula
+  > exactamente igual que en un DNI completo — no se declara `SIN_DATO`, se
+  > verifica de verdad. Implementado y probado con DNI sintéticos (checksum
+  > matemáticamente válido, ningún dato real) en `test_motor_veredicto.py`;
+  > probado con sabotaje (rama desactivada a propósito) — falla exactamente
+  > en las 2 comprobaciones nuevas, ninguna otra. **Pendiente de confirmar
+  > contra el residuo real:** la próxima vez que se ejecute
+  > `diag_nif_otro_residual.py` en local, el bucket `longitud 8 / otra_mezcla`
+  > debería bajar (idealmente a 0, si la hipótesis es correcta) — si no baja,
+  > la hipótesis queda refutada y no hay que darla por buena solo porque la
+  > aritmética cuadre en sintético.
 
 ### 14-bis. El 303 presentado: identidad de cliente corregida, cuadre pendiente
 

@@ -43,6 +43,7 @@ al terminar: ningun .DAT toca este repositorio, ni por accidente.
 
 Uso:  python3 ensayo_retro_semaforo.py
 """
+import ast
 import json
 import os
 import random
@@ -213,6 +214,58 @@ def generar_corpus(raiz, n_clientes=3, asientos_por_cliente=40, semilla=21082026
     return total_asientos
 
 
+def generar_corpus_multiempresa_una_carpeta(raiz):
+    """UNA SOLA carpeta con DOS empresas reales distintas dentro (dos codigos
+    SP_C_XX), cada una con 4 facturas de un proveedor propio y coherente --
+    pero las dos usan, por COINCIDENCIA, la misma subcuenta de acreedor
+    ("410001"), como pasaria si dos clientes distintos numeraran sus propias
+    cuentas de forma independiente (que es lo normal: cada ContaPlus arranca
+    su propia numeracion).
+
+    ANADIDO 28-08-2026 (regresion del hallazgo de Diego, verificado contra
+    FASE0_RESULTADOS.md §12): retro_semaforo.py reseteaba sus cuatro caches
+    por CARPETA, no por (carpeta, codigo de empresa) -- una carpeta de
+    ContaPlus real puede contener docenas de empresas reales distintas
+    (una copia de seguridad de una fecha, no un cliente). Sin el arreglo,
+    las dos empresas de aqui comparten la cache de mapeo_cuenta_gasto bajo
+    la misma clave "410001", y cada una ve el patron de la OTRA como ruido:
+    las 8 facturas (4+4), perfectamente coherentes cada una con su propia
+    empresa, producirian cuenta_gasto_coherente=FALLO en la practica
+    totalidad. Con el arreglo (reseteo por (carpeta, codigo)), ninguna."""
+    carpeta = os.path.join(raiz, "COPIA_MULTIEMPRESA_UNA_CARPETA")
+    os.makedirs(carpeta, exist_ok=True)
+    tipo, sub_acreedor = 21, "410001"
+
+    def filas_empresa(nif, cuenta_gasto, asien_inicio):
+        filas = []
+        asien = asien_inicio
+        for i in range(4):
+            asien += 1
+            base = 100.0 + i
+            cuota = round(base * tipo / 100.0, 2)
+            total = round(base + cuota, 2)
+            fecha = f"2026010{i + 1}"
+            comun = {"ASIEN": asien, "TERNIF": nif, "FECHA": fecha,
+                      "DOCUMENTO": f"F{i + 1}"}
+            filas.append({**comun, "SUBCTA": cuenta_gasto, "EURODEBE": base,
+                          "EUROHABER": 0, "IVA": 0, "BASEIMPO": 0, "RECEQUIV": 0})
+            filas.append({**comun, "SUBCTA": "472000", "EURODEBE": cuota,
+                          "EUROHABER": 0, "IVA": tipo, "BASEIMPO": 0, "RECEQUIV": 0})
+            filas.append({**comun, "SUBCTA": sub_acreedor, "EURODEBE": 0,
+                          "EUROHABER": total, "IVA": 0, "BASEIMPO": 0, "RECEQUIV": 0})
+        return filas
+
+    for codigo, nif, cuenta_gasto in (
+            ("01", dni_valido(11111111), "621000"),
+            ("02", dni_valido(22222222), "600000")):
+        dbf = os.path.join(carpeta, "Diario.dbf")
+        escribir_dbf(dbf, filas_empresa(nif, cuenta_gasto, asien_inicio=0))
+        with zipfile.ZipFile(os.path.join(carpeta, f"SP_C_{codigo}.DAT"), "w") as z:
+            z.write(dbf, "Diario.dbf")
+        os.remove(dbf)
+    return carpeta
+
+
 # --- Comprobaciones ----------------------------------------------------------
 fallos = []
 
@@ -248,6 +301,69 @@ def main():
              if not valida_nif(x)[0]]
     comprobar("los NIF inventados pasan el digito de control del propio motor",
               not malos, f"invalidos: {len(malos)}")
+
+    # ANADIDO 28-08-2026 (regresion de bug real, medido contra el corpus real:
+    # 198 de 606 "proveedores" con tasa de FALLO >=70% en cuenta_gasto_coherente,
+    # resulto ser el mismo puñado de codigos de GRUPO (400/410) repetido en
+    # cada cliente, no proveedores reales). reconstruir_compra() usaba l[0]
+    # (subcuenta truncada a 3 digitos, solo sirve para CLASIFICAR el tipo de
+    # linea) como cuenta_proveedor -- asi que dos proveedores DISTINTOS bajo
+    # el mismo grupo de acreedor (410) se veian como UNA sola entidad para
+    # guard_cuenta_gasto_coherente. Prueba directa de reconstruir_compra(),
+    # sin pasar por DBF/ZIP: mas simple y prueba exactamente la funcion que
+    # tenia el bug.
+    from retro_semaforo import reconstruir_compra
+
+    def _linea(subcta_trunc, debe, haber, iva, nif, base, subcta_completa):
+        return (subcta_trunc, debe, haber, iva, nif, base, "20260115", "F1", 0,
+                b"", subcta_completa)
+
+    lineas_prov_a = [
+        _linea("600", 82.64, 0, 0, "", 82.64, "60000000"),
+        _linea("472", 17.35, 0, 21, "", 0, "47200000"),
+        _linea("410", 0, 99.99, 0, dni_valido(11111111), 0, "41000023"),
+    ]
+    lineas_prov_b = [
+        _linea("621", 41.32, 0, 0, "", 41.32, "62100000"),
+        _linea("472", 8.68, 0, 21, "", 0, "47200000"),
+        _linea("410", 0, 50.00, 0, dni_valido(22222222), 0, "41000099"),
+    ]
+    fila_a = reconstruir_compra(lineas_prov_a)
+    fila_b = reconstruir_compra(lineas_prov_b)
+    comprobar("dos proveedores DISTINTOS bajo el mismo grupo de acreedor (410) "
+              "reciben cuenta_proveedor DISTINTA",
+              isinstance(fila_a, dict) and isinstance(fila_b, dict)
+              and fila_a.get("cuenta_proveedor") != fila_b.get("cuenta_proveedor"),
+              f"a={fila_a and fila_a.get('cuenta_proveedor')!r} "
+              f"b={fila_b and fila_b.get('cuenta_proveedor')!r}")
+    comprobar("cuenta_proveedor es la subcuenta COMPLETA, no el grupo truncado a 3",
+              isinstance(fila_a, dict) and fila_a.get("cuenta_proveedor") == "41000023"
+              and isinstance(fila_b, dict) and fila_b.get("cuenta_proveedor") == "41000099",
+              f"a={fila_a and fila_a.get('cuenta_proveedor')!r} "
+              f"b={fila_b and fila_b.get('cuenta_proveedor')!r}")
+    comprobar("cuenta_debe SIGUE siendo el grupo (3 digitos): el guard ya trunca "
+              "el gasto el mismo al comparar, pasarlo completo no aporta nada",
+              isinstance(fila_a, dict) and fila_a.get("cuenta_debe") == "600"
+              and isinstance(fila_b, dict) and fila_b.get("cuenta_debe") == "621",
+              f"a={fila_a and fila_a.get('cuenta_debe')!r} "
+              f"b={fila_b and fila_b.get('cuenta_debe')!r}")
+
+    # ANADIDO 28-08-2026: clave_cliente() de reconstruir_303.py, regresion
+    # directa del mismo hallazgo. Dos "empresas" (codigos SP_C_01 y SP_C_02)
+    # dentro de la MISMA carpeta deben dar claves de cliente DISTINTAS --
+    # antes del arreglo, clave_cliente() solo miraba la carpeta y las habria
+    # fusionado en una.
+    from reconstruir_303 import clave_cliente
+    raiz_falsa = tempfile.gettempdir()
+    clave_1 = clave_cliente(os.path.join(raiz_falsa, "CARPETA_X", "SP_C_01.DAT"))
+    clave_1_otra_plantilla = clave_cliente(os.path.join(raiz_falsa, "CARPETA_X", "SP_C_01A.DAT"))
+    clave_2 = clave_cliente(os.path.join(raiz_falsa, "CARPETA_X", "SP_C_02A.DAT"))
+    comprobar("clave_cliente(): dos codigos de empresa en la MISMA carpeta "
+              "dan claves DISTINTAS",
+              clave_1 != clave_2, f"clave_1={clave_1!r} clave_2={clave_2!r}")
+    comprobar("clave_cliente(): la letra final del backup (A/B/C) no cambia "
+              "la clave -- es la misma empresa, otra plantilla del backup",
+              clave_1_otra_plantilla == clave_1, clave_1_otra_plantilla)
 
     # ANADIDO 09-09-2026. Este ensayo BORRABA estas salidas al terminar, sin
     # mirar si ya estaban. En el PC de la asesoria pueden ser una medicion real
@@ -544,6 +660,217 @@ def main():
         # Y lo que hubiera antes vuelve a su sitio.
         for original, copia in respaldo.items():
             shutil.move(copia, original)
+
+    # --- El ALCANCE de las caches: por cliente, igual que produccion --------
+    # ANADIDO 27-08-2026, y corrige un error introducido ese mismo dia: las
+    # tres caches de historial se inicializaban FUERA del bucle de
+    # contenedores, asi que acumulaban mezclando todos los clientes del
+    # corpus. Produccion no hace eso: orquestador.py construye el historico
+    # con las facturas de UNA tanda (un cliente). Un instrumento que no se
+    # comporta como el sistema que mide da un numero que no describe nada.
+    #
+    # Se comprueba sobre el AST y no ejecutando: el reseteo ocurre dentro de
+    # main(), y lo que hay que garantizar es estructural — que NINGUNA cache
+    # de historial se quede fuera del bloque de cambio de cliente. Es facil
+    # añadir una quinta y olvidarla, y el sintoma seria un numero
+    # silenciosamente equivocado, no un error.
+    print("\n--- Alcance de las caches de historial (por cliente, no global) ---")
+    CACHES = ("historico_acumulado", "formato_acumulado", "secuencia_acumulada",
+              "mapeo_cuenta_gasto_cliente")
+    fuente = open(os.path.join(AQUI, "retro_semaforo.py"), encoding="utf-8").read()
+    arbol = ast.parse(fuente)
+    reseteadas = set()
+    for nodo in ast.walk(arbol):
+        # El bloque `if clave_cliente_actual != cliente_actual:` es el cambio
+        # de cliente (renombrado 28-08-2026: ya no es solo la carpeta, ver
+        # el hallazgo de Diego sobre clave_cliente en reconstruir_303.py).
+        if not (isinstance(nodo, ast.If) and isinstance(nodo.test, ast.Compare)
+                and isinstance(nodo.test.left, ast.Name)
+                and nodo.test.left.id == "clave_cliente_actual"):
+            continue
+        for asig in ast.walk(nodo):
+            if isinstance(asig, ast.Assign) and isinstance(asig.value, ast.Dict) \
+                    and not asig.value.keys:
+                for t in asig.targets:
+                    if isinstance(t, ast.Name):
+                        reseteadas.add(t.id)
+    for cache in CACHES:
+        comprobar(f"'{cache}' se resetea al cambiar de cliente",
+                  cache in reseteadas,
+                  "si no, acumula mezclando clientes y la medicion deja de "
+                  "describir lo que hara produccion")
+
+    # --- Una carpeta, dos empresas reales -- regresion de extremo a extremo -
+    # ANADIDO 28-08-2026. El bloque de arriba comprueba que el reseteo EXISTE
+    # (estructural, sobre AST); esto comprueba que dispara en el momento
+    # correcto de verdad, ejecutando el script real contra un corpus donde
+    # UNA carpeta contiene DOS codigos de empresa (SP_C_01, SP_C_02) -- la
+    # forma real del corpus, verificada hoy (28 carpetas, 3.857 ficheros,
+    # hasta 70 codigos distintos por carpeta). Antes del arreglo, resetear
+    # solo por carpeta mezclaba las dos empresas bajo la misma subcuenta de
+    # acreedor (coincidencia realista: cada ContaPlus numera de forma
+    # independiente) y producia cuenta_gasto_coherente=FALLO en la practica
+    # totalidad de sus 8 facturas, cada una perfectamente coherente con su
+    # propia empresa.
+    tmp_me = tempfile.mkdtemp(prefix="ensayo_multiempresa_")
+    try:
+        raiz_me = generar_corpus_multiempresa_una_carpeta(tmp_me)
+        r_me = subprocess.run([sys.executable, os.path.join(AQUI, "retro_semaforo.py"),
+                                raiz_me], capture_output=True, text=True,
+                               encoding="utf-8", errors="replace")
+        s_me = r_me.stdout or ""
+        comprobar("una carpeta con dos empresas reales: el script corre sin error",
+                  r_me.returncode == 0, r_me.stderr[-400:])
+        comprobar("las dos empresas (8 facturas, cada una coherente consigo "
+                  "misma) NO se contaminan entre si: cuenta_gasto_coherente=FALLO "
+                  "no aparece",
+                  "cuenta_gasto_coherente=FALLO" not in s_me, s_me)
+    finally:
+        shutil.rmtree(tmp_me, ignore_errors=True)
+
+    # --- Paridad de llamada: medicion vs produccion -------------------------
+    # ANADIDO 27-08-2026. La medicion existe para predecir que hara el motor en
+    # produccion, asi que TODA diferencia entre como le llama retro_semaforo.py
+    # y como le llama orquestador.py cambia lo que significa el numero. Se
+    # exige que cada diferencia este DECLARADA con su motivo.
+    #
+    # HONESTIDAD SOBRE EL ALCANCE, para que nadie confie de mas en esto: esta
+    # comprobacion NO habria cazado el error de las caches de arriba. Alli los
+    # parametros SI se pasaban —con el alcance equivocado—, y el alcance no se
+    # ve en el punto de llamada. De eso se ocupa la comprobacion anterior. Lo
+    # que esta si caza, y no cubre nada mas hoy: un parametro que produccion
+    # pasa y la medicion omite, y una CONSTANTE fija donde produccion usa un
+    # dato real.
+    print("\n--- Paridad de llamada al motor: medicion vs produccion ---")
+
+    #: Diferencias aceptadas, con su motivo. No es "esto da igual": es POR QUE
+    #: la medicion tiene que apartarse de produccion en este punto concreto.
+    DIVERGENCIAS_DECLARADAS = {}
+    DIVERGENCIAS_DECLARADAS["retro_semaforo.py"] = {
+        "alta_cliente_anio": (
+            "Fijado a 1990 a proposito. Produccion lo lee del config de CADA "
+            "cliente; el corpus historico mezcla ~24 clientes cuyo año de alta "
+            "no se conoce, y no hay de donde sacarlo. Con 1990, ninguna factura "
+            "del corpus (2011-2026) es anterior al alta, asi que "
+            "guard_fecha_posterior_alta no dispara nunca y no contamina la "
+            "medicion con un ROJO que solo dice 'no se el año de alta'. "
+            "Consecuencia declarada: esta medicion NO dice nada sobre ese guard."
+        ),
+        "nif_cliente_titular": (
+            "None a proposito: el diario no trae el NIF del titular. Ya estaba "
+            "declarado en AMBAR_DEL_INSTRUMENTO de retro_semaforo.py, que "
+            "cuenta como 'ambar del instrumento' —no de la factura— el "
+            "sentido_compra_venta que esto deja sin comprobar."
+        ),
+        "mapeo_cartera": (
+            "No se pasa. Comprobado empiricamente el 27-08-2026 que NO cambia "
+            "el veredicto: guard_patron_cartera nunca devuelve OK (a proposito, "
+            "un patron es una hipotesis) y esta en `exentos`, asi que su "
+            "NO_APLICA no baja a AMBAR. Solo enriquece el MOTIVO. Ademas, el "
+            "patron de cartera de retro_semaforo se construye con el corpus "
+            "ENTERO y usarlo durante la evaluacion seria una fuga de datos "
+            "(facturas futuras informando decisiones pasadas), el mismo error "
+            "que ya se corrigio para el maestro el 21-08."
+        ),
+        "plazos_cache": (
+            "La medicion lo omite y produccion pasa {}. EQUIVALENTE: el motor "
+            "hace `plazos_cache = plazos_cache or {}`, asi que omitirlo da el "
+            "mismo {} exacto. Se declara igualmente para que la lista sea el "
+            "retrato COMPLETO de las diferencias y no haya que volver a "
+            "averiguar si esta es inocua."
+        ),
+        "vistos_duplicado": (
+            "Solo en la llamada de --inyectar, que pasa un set() nuevo en vez "
+            "del acumulado. Es DELIBERADO y protege la tasa de deteccion, "
+            "aunque no estaba escrito en ninguna parte hasta el 27-08-2026:\n"
+            "  La clave documental es (nif, nº_documento, fecha, total). El "
+            "error inyectado 'tipo_iva_cambiado' altera SOLO el IVA, asi que "
+            "los cuatro campos de la clave quedan IDENTICOS a los de la factura "
+            "original, que ya esta en el acumulado. Con el set compartido, "
+            "anti_duplicado dispararia -> ROJO -> se contaria como DETECTADO, "
+            "pero por el motivo equivocado: el motor no habria visto el IVA "
+            "mal, habria visto un duplicado que solo existe porque la propia "
+            "medicion fabrico la copia.\n"
+            "  Con set() nuevo, cada inyeccion se juzga por su propio defecto. "
+            "Ninguno de los cinco tipos inyectados es un duplicado, asi que no "
+            "se pierde deteccion de nada: solo se evita apuntarse una que no "
+            "es. Es la misma disciplina que el resto del proyecto: mas vale no "
+            "contar un acierto que contarlo por la razon que no es."
+        ),
+    }
+    # El OTRO script de medicion, el que va a producir el numero de FALSOS
+    # VERDES -- la metrica que SIGUIENTES_PASOS.md §4 dice que decide el
+    # proyecto, con un umbral de "≥ 1 falso verde -> se para la
+    # automatizacion". El 27-08-2026 se le anadieron --nif-titular,
+    # --ejercicio y --mapeo-gasto-json, que NO tenia: sin ellos, guards que
+    # produccion si corre quedaban en NO_APLICA y la medicion salia mas
+    # pesimista que el motor real.
+    DIVERGENCIAS_DECLARADAS["validar_captura_historica.py"] = {
+        "mapeo_cartera": (
+            "Mismo motivo que en retro_semaforo.py: guard_patron_cartera nunca "
+            "devuelve OK y esta en `exentos`, asi que no cambia el veredicto. "
+            "Comprobado empiricamente el 27-08-2026."
+        ),
+        "plazos_cache": (
+            "Omitido; el motor hace `plazos_cache or {}`, asi que es "
+            "EQUIVALENTE al {} que pasa produccion."
+        ),
+    }
+
+    def _args_de_llamada(fichero):
+        """Nombre de parametro -> expresion, para cada llamada a
+        evaluar_fila_v4. Normaliza posicionales a su nombre de parametro."""
+        POS = ['fila', 'vistos_duplicado', 'historico_proveedor', 'formato_cache',
+               'secuencia_cache', 'maestro_proveedores', 'alta_cliente_anio',
+               'nif_cliente_titular', 'ejercicio_tanda', 'plazos_cache',
+               'mapeo_cuenta_gasto', 'mapeo_cartera']
+        llamadas = []
+        arbol_f = ast.parse(open(os.path.join(AQUI, fichero), encoding="utf-8").read())
+        for n in ast.walk(arbol_f):
+            if not isinstance(n, ast.Call):
+                continue
+            nombre = getattr(n.func, 'attr', None) or getattr(n.func, 'id', None)
+            if nombre != 'evaluar_fila_v4':
+                continue
+            args = {POS[i]: ast.unparse(a) for i, a in enumerate(n.args) if i < len(POS)}
+            args.update({k.arg: ast.unparse(k.value) for k in n.keywords if k.arg})
+            llamadas.append(args)
+        return llamadas
+
+    prod = _args_de_llamada("orquestador.py")
+    comprobar("se encuentra la llamada al motor en produccion", len(prod) >= 1,
+              f"produccion={len(prod)}")
+
+    for fichero, declaradas in DIVERGENCIAS_DECLARADAS.items():
+      medicion = _args_de_llamada(fichero)
+      comprobar(f"{fichero}: se encuentra su llamada al motor", len(medicion) >= 1,
+                f"medicion={len(medicion)}")
+      if prod and medicion:
+        params_prod = set(prod[0])
+        divergencias = set()
+        for llamada in medicion:
+            # 1. Parametros que produccion pasa y la medicion omite.
+            divergencias |= (params_prod - set(llamada))
+            # 2. Constantes fijas donde produccion usa una variable.
+            for p, expr in llamada.items():
+                if p in params_prod and expr != prod[0].get(p):
+                    try:
+                        ast.literal_eval(expr)
+                        divergencias.add(p)
+                    except (ValueError, SyntaxError):
+                        pass          # otra variable: no es una constante fija
+
+        sin_declarar = sorted(divergencias - set(declaradas))
+        comprobar(f"{fichero}: toda divergencia con produccion esta declarada",
+                  not sin_declarar,
+                  f"SIN DECLARAR: {sin_declarar} — cada una cambia lo que "
+                  f"significa el numero de la medicion")
+
+        caducadas = sorted(set(declaradas) - divergencias)
+        comprobar(f"{fichero}: sin divergencias declaradas que ya no existan",
+                  not caducadas,
+                  f"CADUCADAS: {caducadas} — una lista que conserva entradas "
+                  f"muertas acaba tapando una divergencia real")
 
     print()
     if fallos:

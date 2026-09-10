@@ -38,6 +38,22 @@ Si falta algo, lo dice; no adivina.
     python validar_captura_historica.py "ruta/al/fichero.csv"
     python validar_captura_historica.py "ruta.csv" --columna-humano CORRECTO
 
+ANADIDO 28-08-2026 (auditoria propia, sobre el hallazgo ya cerrado de Diego
+del 27-08 -- `actualizar_caches_historicas()` en motor_veredicto.py, que
+arreglo que las tres caches de historial no se acumulaban). Ese arreglo
+supone que procesar las filas EN EL ORDEN EN QUE VIENEN construye un
+historico valido -- cierto para retro_semaforo.py (los asientos de ContaPlus
+vienen en orden de ASIEN, que es cronologico por construccion), pero NO
+garantizado para un CSV de captura como este: un fichero de facturas
+fotografiadas puede llegar en cualquier orden (por proveedor, por lote de
+subida, alfabetico...). Si se acumula en orden de fichero, una factura
+"ve" en su historico facturas que en la realidad son POSTERIORES a ella --
+la misma fuga de datos que el maestro de proveedores ya corrigio el
+21-08-2026, aplicada aqui al orden en vez de al alcance. Arreglado: las
+filas se procesan por `fecha_expedicion` ascendente antes de acumular nada;
+las filas sin fecha valida van al FINAL (se evaluan igual, pero no fingen
+un orden que no se conoce). Ver `ensayo_validar_captura_historica.py`.
+
 REGLA DE DATOS
 --------------
 El CSV tiene NIF y nombres reales. Este script:
@@ -52,7 +68,9 @@ import json
 import os
 import sys
 from collections import Counter, defaultdict
+from datetime import date
 
+import contrato_datos
 import motor_veredicto as mv
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
@@ -153,6 +171,30 @@ def main():
     ap.add_argument("--alta-anio", type=int, default=1990,
                     help="Ano de alta del cliente. Por defecto uno muy antiguo, para que "
                          "el guard de fecha no penalice por falta de dato de configuracion")
+    # ANADIDO 27-08-2026 (comprobacion de paridad medicion<->produccion). Estos
+    # tres parametros los pasa orquestador.py y este script NO tenia forma de
+    # darlos, asi que sus guards quedaban en NO_APLICA de forma estructural.
+    # Y el sesgo va en la direccion que mas duele: un guard apagado deja pasar
+    # a VERDE algo que produccion SI marca, y este script mide precisamente
+    # FALSOS VERDES, con un umbral de "≥ 1 falso verde -> se para la
+    # automatizacion". Verificado con un caso concreto el 27-08: una factura
+    # de otro ejercicio sale VERDE aqui y ROJO en produccion.
+    #
+    # Todos OPCIONALES y con el comportamiento de siempre por defecto: sin
+    # ellos el script hace exactamente lo que hacia, pero ahora lo DICE.
+    ap.add_argument("--nif-titular",
+                    help="NIF del cliente titular de la tanda. Sin el, "
+                         "guard_sentido_compra_venta no puede detectar que la "
+                         "factura la emitio el propio cliente (una venta "
+                         "archivada como compra)")
+    ap.add_argument("--ejercicio", type=int,
+                    help="Ejercicio de la tanda. Sin el, guard_ejercicio_coherente "
+                         "queda en NO_APLICA y una factura de otro ano pasa a VERDE "
+                         "-- en produccion se marca ROJO")
+    ap.add_argument("--mapeo-gasto-json",
+                    help="Mapeo cuenta de proveedor -> cuenta de gasto habitual "
+                         "(el que emite orquestador.py con cache_cuenta_gasto). "
+                         "Sin el, guard_cuenta_gasto_coherente queda en NO_APLICA")
     args = ap.parse_args()
 
     if not os.path.exists(args.csv):
@@ -223,6 +265,43 @@ def main():
         except Exception as e:
             print(f"  maestro no cargado ({type(e).__name__})")
 
+    mapeo_gasto = {}
+    if args.mapeo_gasto_json and os.path.exists(args.mapeo_gasto_json):
+        try:
+            mapeo_gasto = json.load(open(args.mapeo_gasto_json, encoding="utf-8"))
+            print(f"  mapeo de cuenta de gasto : {len(mapeo_gasto)} proveedores")
+        except Exception as e:
+            print(f"  mapeo de gasto no cargado ({type(e).__name__})")
+
+    # ANADIDO 27-08-2026. Este script mide FALSOS VERDES, y el umbral acordado
+    # en SIGUIENTES_PASOS.md §4 es durisimo: "≥ 1 falso verde -> se para la
+    # automatizacion". Con un guard estructuralmente apagado, una factura que
+    # produccion marcaria sale VERDE aqui, y si el humano dice que estaba mal
+    # se cuenta como falso verde de un motor que en produccion SI la caza.
+    # Eso podria parar el proyecto por un artefacto del instrumento.
+    #
+    # Se avisa ANTES de medir, no despues -- mismo patron que ya usa
+    # orquestador.py con alta_cliente_anio.
+    apagados = []
+    if not args.nif_titular:
+        apagados.append("sentido_compra_venta (falta --nif-titular): no puede "
+                        "detectar una VENTA archivada como compra")
+    if args.ejercicio is None:
+        apagados.append("ejercicio_coherente (falta --ejercicio): una factura de "
+                        "otro ano sale VERDE aqui y ROJO en produccion")
+    if not mapeo_gasto:
+        apagados.append("cuenta_gasto_coherente (falta --mapeo-gasto-json): no "
+                        "compara la cuenta contra el patron historico")
+    if apagados:
+        print()
+        print("  AVISO — guards APAGADOS en esta medicion, que en produccion SI corren.")
+        print("  Cada uno hace la medicion MAS PESIMISTA que el motor real:")
+        for a in apagados:
+            print(f"     - {a}")
+        print("  Si sale algun falso verde, comprobar primero si lo explica uno de")
+        print("  estos antes de dar por malo el motor. No es un fallo del script:")
+        print("  es que faltan datos de configuracion que produccion si tiene.")
+
     # ---- Reevaluar con el motor de HOY ----
     vistos = set()
     hoy = Counter()
@@ -235,6 +314,16 @@ def main():
     aciertos_antes = fallos_antes = 0
     falsos_verdes_hoy = []
     matriz = defaultdict(Counter)
+    # ANADIDO 27-08-2026 (hallazgo verificado de Diego): igual que
+    # retro_semaforo.py, este script pasaba {}, {}, {} para las tres caches
+    # de historial en CADA factura -- nunca se acumulaban entre filas, asi
+    # que guard_importe_atipico, guard_estructura_reconocida y guard_
+    # secuencia_documental_proveedor nunca podian activarse de verdad.
+    # Crecen segun se avanza, se actualizan DESPUES de evaluar cada fila
+    # (nunca antes: el historico de una factura son solo las anteriores).
+    historico_acumulado = {}
+    formato_acumulado = {}
+    secuencia_acumulada = {}
     # ANADIDO 09-09-2026. Una fila cuyo veredicto humano NO se reconoce se caia
     # del denominador sin dejar rastro: "facturas con veredicto humano: 5" sobre
     # un fichero de 10 en el que las 10 traian algo escrito. Y lo que se cae con
@@ -243,7 +332,22 @@ def main():
     # en silencio es peor que una que falla: la que falla se ve.
     humano_no_reconocido = 0
 
-    for i, fila_cruda in enumerate(filas):
+    # ---- Orden cronologico, no orden del fichero (28-08-2026) -------------
+    # Un CSV de captura no viene garantizado en orden de fecha (ver docstring).
+    # Las filas sin fecha valida van al FINAL: se evaluan igual, pero nunca
+    # aportan su propio dato al historico de una factura de fecha conocida.
+    def clave_orden(par):
+        i, fila_cruda = par
+        cruda_fecha = fila_cruda.get("fecha_expedicion")
+        for col, canonico in traduccion.items():
+            if canonico == "fecha_expedicion" and fila_cruda.get(col):
+                cruda_fecha = fila_cruda[col]
+        dato = contrato_datos.parse_fecha(cruda_fecha)
+        return (0, dato.valor, i) if dato.utilizable else (1, date.max, i)
+
+    orden_cronologico = sorted(enumerate(filas), key=clave_orden)
+
+    for i, fila_cruda in orden_cronologico:
         v_antes = normalizar_veredicto(fila_cruda.get(col_motor)) if col_motor else None
         v_humano = normalizar_veredicto(fila_cruda.get(col_humano)) if col_humano else None
         if col_humano and v_humano is None:
@@ -260,13 +364,19 @@ def main():
                 fila[canonico] = fila_cruda[col]
         try:
             v_hoy, motivo, guards = mv.evaluar_fila_v4(
-                fila, vistos, {}, {}, {}, maestro,
+                fila, vistos, historico_acumulado, formato_acumulado,
+                secuencia_acumulada, maestro,
                 alta_cliente_anio=args.alta_anio,
-                nif_cliente_titular=None,
-                ejercicio_tanda=None)
+                nif_cliente_titular=args.nif_titular,
+                ejercicio_tanda=args.ejercicio,
+                mapeo_cuenta_gasto=mapeo_gasto)
         except Exception as e:
             errores[type(e).__name__] += 1
             continue
+        finally:
+            mv.actualizar_caches_historicas(
+                historico_acumulado, formato_acumulado,
+                secuencia_acumulada, fila)
 
         hoy[v_hoy] += 1
         for g, (estado, _) in guards.items():

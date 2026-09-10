@@ -83,6 +83,18 @@ IMPORTES = {
     "DELTA": {
         "2021T1": [98765.43, 20740.74, 1111.11, 111.11, 99876.54, 20851.85],
     },
+    # ANADIDO 28-08-2026: dos carpetas con los MISMOS importes en los mismos
+    # trimestres -- el caso que decide si el cruce sabe CALLARSE (AMBIGUO) en
+    # vez de elegir una de las dos por su cuenta. Antes de hoy, ningun ensayo
+    # construia un empate real para comprobarlo.
+    "GAMMA_UNO": {
+        "2021T1": [40000.00, 8400.00, 3000.00, 300.00, 43000.00, 8700.00],
+        "2021T2": [41000.00, 8610.00, 3100.00, 310.00, 44100.00, 8920.00],
+    },
+    "GAMMA_DOS": {
+        "2021T1": [40000.00, 8400.00, 3000.00, 300.00, 43000.00, 8700.00],
+        "2021T2": [41000.00, 8610.00, 3100.00, 310.00, 44100.00, 8920.00],
+    },
 }
 
 
@@ -194,6 +206,10 @@ def main():
         contabilidad["CUBO_HUERFANO"] = {
             "2021T1": celdas_de_contabilidad([191919.19, 40302.83, 5151.51, 515.15]),
         }
+        contabilidad["CUBO_QUE_EMPATA"] = {
+            tri: celdas_de_contabilidad(vals)
+            for tri, vals in IMPORTES["GAMMA_UNO"].items()
+        }
 
         ruta_json = os.path.join(tmp, "contabilidad.json")
         with open(ruta_json, "w", encoding="utf-8") as f:
@@ -254,6 +270,22 @@ def main():
         comprobar("un cubo sin correspondencia NO casa con nada",
                   huerfano.get("carpeta") is None, huerfano)
 
+        # 5-bis. Dos carpetas con los MISMOS importes: el cruce tiene que
+        # DETECTAR el empate (trimestres_casados == trimestres_del_segundo),
+        # nunca elegir una de las dos por su cuenta sin decirlo. "carpeta"
+        # sigue llevando una de las dos (la primera en orden de recuento),
+        # pero el empate queda visible en los propios numeros.
+        empate = resultado.get("CUBO_QUE_EMPATA", {})
+        comprobar("dos carpetas con los mismos importes: EMPATE detectado "
+                  "(trimestres_casados == trimestres_del_segundo)",
+                  empate.get("carpeta") is not None
+                  and empate.get("trimestres_casados", -1) == empate.get("trimestres_del_segundo", -2)
+                  and empate.get("trimestres_casados", 0) > 0,
+                  empate)
+        comprobar("el empate se cuenta como AMBIGUO en el agregado, no como SOLIDO",
+                  agregado.get("cubos_ambiguos", 0) >= 1,
+                  f"ambiguos={agregado.get('cubos_ambiguos')}")
+
         # 6. El importe presente en todas las carpetas se descarta.
         comprobar("descarta importes difusos (presentes en todas las carpetas)",
                   agregado.get("cubos_solidos", 0) >= 2 and
@@ -262,12 +294,13 @@ def main():
 
         # 7. El informe no filtra datos: por pantalla solo recuentos.
         comprobar("no imprime nombres de carpeta por pantalla",
-                  "ALFA" not in texto and "SENUELO" not in texto,
+                  "ALFA" not in texto and "SENUELO" not in texto
+                  and "GAMMA" not in texto,
                   "aparece un nombre de carpeta en la salida")
 
-        comprobar("cuenta 2 cubos solidos y ninguno ambiguo",
+        comprobar("cuenta 2 cubos solidos y 1 ambiguo (el empate de GAMMA)",
                   agregado.get("cubos_solidos") == 2
-                  and agregado.get("cubos_ambiguos") == 0,
+                  and agregado.get("cubos_ambiguos") == 1,
                   f"solidos={agregado.get('cubos_solidos')} "
                   f"ambiguos={agregado.get('cubos_ambiguos')}")
 

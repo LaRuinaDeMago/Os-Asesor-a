@@ -154,7 +154,7 @@ def leer_factura(path_imagen, modelo=None, proveedor="gemini"):
     return _leer_factura_claude(path_imagen, modelo) if modelo else _leer_factura_claude(path_imagen)
 
 
-def _leer_factura_claude(path_imagen, modelo="claude-sonnet-4-6"):
+def _leer_factura_claude(path_imagen, modelo="claude-sonnet-5"):
     """Llama a la API de Claude con la imagen y devuelve un dict con los
     campos ya parseados, listos para evaluar_fila_v4(). Lanza una excepcion
     clara si la API no responde JSON valido - NUNCA devuelve datos a medias

@@ -395,14 +395,116 @@ def _entrada_de_proveedor(cache, nif, nombre):
     return None
 
 
+def actualizar_caches_historicas(historico_proveedor, formato_cache, secuencia_cache, fila):
+    """Inverso de _entrada_de_proveedor(): escribe en las tres caches que
+    evaluar_fila_v4() consulta (historico de importes, formato del numero de
+    documento, secuencia documental), UNA fila a la vez, DESPUES de evaluarla.
+
+    ANADIDO 27-08-2026 (sesion Cloud, hallazgo verificado de Diego). Hasta
+    hoy, retro_semaforo.py y validar_captura_historica.py pasaban {}, {}, {}
+    para estas tres caches en CADA factura -- nunca se acumulaban entre
+    facturas, a diferencia del maestro de proveedores (que si se acumula,
+    arreglo del 21-08-2026). El motor las degrada correctamente a
+    NO_APLICA/NO_COMPROBADO cuando estan vacias (nunca fuerza un OK), pero el
+    resultado practico es que guard_importe_atipico, guard_estructura_
+    reconocida y guard_secuencia_documental_proveedor nunca habian llegado a
+    activarse de verdad en ninguna medicion con corpus real de este proyecto:
+    con la cache vacia, ninguno de los tres puede devolver FALLO (verificado
+    leyendo cada uno), asi que AMBAR_DEDICADOS nunca los dispara. Confirmado
+    tambien que esto NO afecta al ROJO: ninguno de los tres esta en la lista
+    `criticos` de calcular_veredicto_v4 -- solo pueden mover VERDE -> AMBAR,
+    nunca producir ROJO.
+
+    MISMA REGLA que ya aplica retro_semaforo.py al maestro_acumulado: "el
+    historico de una factura son solo los datos de las facturas anteriores a
+    ella". Por eso esta funcion se llama DESPUES de evaluar_fila_v4(), nunca
+    antes -- llamarla antes compararia la factura contra si misma (fuga de
+    datos, el mismo error que el maestro ya corrigio el 21-08). Usar
+    construir_historico_y_secuencia() de orquestador.py tal cual NO sirve
+    aqui: esa funcion construye de golpe con el lote entero, lo que fugaria
+    tambien facturas FUTURAS -- de ahi que haga falta esta version
+    incremental, no reutilizar la de lotes.
+
+    Indexa por NIF y por nombre, las dos, igual que construir_historico_y_
+    secuencia() -- el motor busca primero por NIF y cae al nombre
+    (_entrada_de_proveedor)."""
+    import statistics
+
+    claves = [k for k in ((fila.get('nif') or '').strip(), fila.get('proveedor')) if k]
+    if not claves:
+        return
+
+    dato_total = contrato_datos.parse_numero(fila.get('total_factura'))
+    total = dato_total.valor if dato_total.utilizable else None
+    doc = fila.get('nº_documento') or ''
+
+    for clave in claves:
+        if total is not None and total > 0:
+            entry = historico_proveedor.setdefault(clave, {'_totales': []})
+            entry['_totales'].append(total)
+            entry['n_facturas_normales'] = len(entry['_totales'])
+            entry['media'] = round(statistics.mean(entry['_totales']), 2)
+            entry['desv'] = (round(statistics.stdev(entry['_totales']), 2)
+                              if len(entry['_totales']) > 1 else 0)
+        if doc:
+            entry_s = secuencia_cache.setdefault(clave, {'numeros_vistos': []})
+            entry_s['numeros_vistos'].append(doc)
+
+            entry_f = formato_cache.setdefault(clave, {'ejemplos': [], 'n_facturas_vistas': 0})
+            entry_f['ejemplos'].append(doc)
+            entry_f['n_facturas_vistas'] += 1
+
+
+#: Cuantas desviaciones tipicas hacen falta para llamar "atipico" a un importe.
+#: 1 sigma (lo que habia hasta el 27-08-2026) NO es un umbral de atipicidad: por
+#: definicion, ~32% de las observaciones de una normal caen fuera de 1 sigma.
+#: Medido por simulacion sobre facturas LEGITIMAS (misma distribucion que su
+#: propio historico, ninguna anomala por construccion): 1 sigma marcaba FALLO el
+#: 40,8%; 2 sigma el 12,7%; 3 sigma el 4,6%. 3 es ademas la convencion estandar
+#: de deteccion de atipicos. La leccion es la que este proyecto ya aprendio con
+#: scripts/privacy_scan.py: un escaner que grita demasiado deja de mirarse.
+SIGMAS_IMPORTE_ATIPICO = 3
+
+#: Suelo de dispersion, como fraccion de la media. Resuelve el defecto CONTRARIO
+#: y mas grave: un proveedor de CUOTA FIJA (alquiler, iguala, suscripcion) tiene
+#: desviacion tipica CERO, y con `desv > 0` como condicion previa el guard
+#: devolvia OK — "dentro de patron" — a CUALQUIER importe, por absurdo que fuera.
+#: Comprobado antes de tocar nada: 121,00 x4 y luego 99.999,00 (825 veces mas)
+#: daba OK. No NO_COMPROBADO: un VERDE afirmativo sobre algo que no habia
+#: comprobado, que es exactamente el falso verde que este motor existe para
+#: evitar — y justo en el patron mas predecible y mas facil de auditar que hay.
+#: Con el suelo, la dispersion efectiva nunca es 0, asi que siempre hay una vara
+#: de medir; y de paso protege del caso simetrico (desviacion minuscula pero no
+#: nula, que con 3 sigma a secas seria igual de hipersensible).
+SUELO_DISPERSION_RELATIVA = 0.05
+
+
 def guard_importe_atipico(proveedor, total, historico_proveedor, nif=None):
+    """El importe de esta factura, ¿encaja con lo que este proveedor suele
+    facturar? FALLO -> AMBAR, nunca ROJO: un importe raro no es un error
+    demostrado, es algo que mira una persona.
+
+    REESCRITO 27-08-2026 tras encontrar DOS defectos opuestos, los dos reales y
+    los dos verificados con numeros antes de tocar nada (ver las constantes de
+    arriba): era ciego con los proveedores de cuota fija (falso verde) y
+    hipersensible con todos los demas (40,8% de ruido). Ninguno de los dos se
+    habia visto nunca porque el guard estaba estructuralmente dormido: las dos
+    mediciones con corpus real le pasaban la cache vacia (hallazgo de Diego,
+    27-08-2026), asi que nunca habia llegado a pronunciarse sobre nada."""
     entry = _entrada_de_proveedor(historico_proveedor, nif, proveedor)
     if not entry or entry.get('n_facturas_normales', 0) < 3 or total <= 0:
         return "NO_COMPROBADO", "n<3 facturas normales del proveedor, umbral no fiable"
     media, desv = entry['media'], entry['desv']
-    if desv > 0 and abs(total - media) > desv:
-        return "FALLO", f"total={total} fuera de media={media} +/- desv={desv}"
-    return "OK", f"total={total} dentro de patron (media={media})"
+    if media <= 0:
+        # Sin media positiva no hay escala con la que comparar. No se finge un OK.
+        return "NO_COMPROBADO", "media del historico no utilizable como referencia"
+    desv_efectiva = max(desv, media * SUELO_DISPERSION_RELATIVA)
+    margen = SIGMAS_IMPORTE_ATIPICO * desv_efectiva
+    if abs(total - media) > margen:
+        suelo = " (suelo de dispersion: el historico no varia)" if desv_efectiva > desv else ""
+        return "FALLO", (f"total={total} fuera de media={media} +/- "
+                         f"{SIGMAS_IMPORTE_ATIPICO}x{desv_efectiva:.2f}{suelo}")
+    return "OK", f"total={total} dentro de patron (media={media} +/- {margen:.2f})"
 
 
 def calcular_veredicto(guards: dict):
@@ -449,12 +551,31 @@ def _normalizar_num_doc(nº_documento):
 
 def _forma(nº_documento):
     """Convierte un nº de documento (ya normalizado) en su 'firma de forma':
-    digitos->D, letras->L, el resto (puntos, barras, guiones) se conserva tal cual."""
+    digitos->D, letras->L, el resto (puntos, barras, guiones) se conserva tal cual.
+
+    CORREGIDO 27-08-2026: una TIRADA de digitos cuenta como una sola 'D', en vez
+    de una 'D' por digito. Antes, 'FAC-99' daba 'LLL-DD' y 'FAC-100' daba
+    'LLL-DDD' — formas distintas—, asi que el primer numero de factura que
+    cruzara un limite de digitos (9->10, 99->100, 999->1000) salia FALLO siendo
+    perfectamente legitimo. Y numerar SIN ceros a la izquierda es de lo mas
+    comun en el software de una pyme.
+
+    Medido por simulacion antes de tocarlo (400 proveedores, compras
+    irregulares, todas las facturas legitimas): con numeracion sin ceros a la
+    izquierda el guard marcaba FALLO el 9,1%; con ceros a la izquierda, el
+    0,0%. Es decir, TODO ese ruido venia de contar digitos, no de detectar
+    nada. Con la tirada colapsada, las dos numeraciones se comportan igual.
+
+    Lo que NO se colapsa son las letras: 'FAC' y 'FACTURA' son prefijos
+    genuinamente distintos, y ahi la longitud si es senal. La magnitud del
+    numero tampoco se pierde de vista — de eso se ocupa
+    guard_secuencia_documental_proveedor, que mira el valor, no la forma."""
     limpio = _normalizar_num_doc(nº_documento)
     out = []
     for ch in limpio:
         if ch.isdigit():
-            out.append('D')
+            if not out or out[-1] != 'D':   # una tirada de digitos = una 'D'
+                out.append('D')
         elif ch.isalpha():
             out.append('L')
         else:
@@ -774,6 +895,41 @@ def construir_mapeo_cuenta_gasto(diario_recs):
     return mapeo
 
 
+def actualizar_mapeo_cuenta_gasto(mapeo_cuenta_gasto, fila):
+    """Inverso INCREMENTAL de construir_mapeo_cuenta_gasto(), para usarse fila
+    a fila -- mismo principio de 'solo las facturas anteriores' que
+    actualizar_caches_historicas(). Se llama DESPUES de evaluar cada fila,
+    nunca antes.
+
+    ANADIDO 27-08-2026 (cuarto candidato, hallazgo de Diego). A diferencia de
+    actualizar_caches_historicas(), esta funcion se indexa por CODIGO DE
+    CUENTA del proveedor (ej. '400015'), no por NIF -- es la misma clave que
+    ya usa construir_mapeo_cuenta_gasto(). Y el codigo de cuenta NO es
+    identidad estable entre clientes distintos (FASE0_RESULTADOS.md §10.1:
+    el mismo codigo puede ser dos proveedores distintos en dos clientes
+    distintos). **Quien llama a esta funcion es responsable de resetear
+    `mapeo_cuenta_gasto` a {} cada vez que cambia de cliente** -- acumularla
+    sin resetear mezclaria cuentas de clientes distintos bajo la misma clave,
+    un histórico falso. Dentro de UN mismo cliente el codigo si es estable
+    (siempre ha sido el diseño valido: orquestador.py ya construye este
+    mismo mapeo por cliente, de una sola pasada, desde --diario)."""
+    prov = fila.get('cuenta_proveedor')
+    gasto = fila.get('cuenta_debe')
+    if not prov or not gasto:
+        return
+    entry = mapeo_cuenta_gasto.setdefault(prov, {'_conteo': {}})
+    conteo = entry['_conteo']
+    conteo[gasto] = conteo.get(gasto, 0) + 1
+    cuenta_mas_usada = max(conteo.items(), key=lambda kv: kv[1])[0]
+    n_total = sum(conteo.values())
+    n_esta = conteo[cuenta_mas_usada]
+    entry['cuenta_gasto'] = cuenta_mas_usada
+    entry['grupo_pgc'] = GRUPOS_PGC.get(cuenta_mas_usada[:3], 'grupo no catalogado')
+    entry['confianza'] = 'ALTA' if n_esta == n_total else f'MEDIA ({n_esta}/{n_total} asientos)'
+    entry['n_asientos'] = n_total
+    entry['n_esta'] = n_esta
+
+
 #: Cuantos asientos hacen falta para que "lo de siempre" sea un patron y no una
 #: anecdota. Tres es el minimo con el que una mayoria significa algo; por debajo,
 #: el guard informa pero no acusa.
@@ -1025,7 +1181,24 @@ def guard_secuencia_documental_proveedor(proveedor, nº_documento, secuencia_cac
     rango = max(previos) - min(previos) if len(previos) > 1 else 0
     salto_medio = rango / max(len(previos) - 1, 1) if len(previos) > 1 else 0
     dist_min = min(abs(actual_num - p) for p in previos)
-    if salto_medio > 0 and dist_min > salto_medio * 20:
+    # CORREGIDO 27-08-2026, misma familia que el `desv > 0` de
+    # guard_importe_atipico y encontrado en la misma auditoria: si todos los
+    # numeros previos son IGUALES, `salto_medio` es 0, la condicion previa no
+    # se cumplia nunca y el guard caia al `return OK` final -- afirmando
+    # "coherente con secuencia conocida" sobre CUALQUIER numero, incluido uno
+    # a seis ordenes de magnitud. Verificado antes de tocar nada: con previos
+    # 100 y 100, un nº 999999 devolvia OK.
+    #
+    # Aqui NO se pone un suelo como en importe_atipico: la escala de un numero
+    # de factura es arbitraria (no hay un "5% de un numero de serie" que
+    # signifique algo), asi que inventar un umbral seria falsa precision. Se
+    # dice lo unico que se puede sostener: sin variacion previa no hay
+    # secuencia con la que comparar. NO_COMPROBADO, nunca un OK afirmativo.
+    if salto_medio <= 0:
+        return ("NO_COMPROBADO",
+                f"los {len(previos)} numeros previos no varian entre si: no hay "
+                f"secuencia con la que comparar el nº {actual_num}")
+    if dist_min > salto_medio * 20:
         return "FALLO", f"nº {actual_num} muy alejado de la secuencia conocida (dist={dist_min}, salto medio={salto_medio:.0f})"
     return "OK", f"nº {actual_num} coherente con secuencia conocida"
 

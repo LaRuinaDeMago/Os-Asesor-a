@@ -219,11 +219,33 @@ def escribir_xdiario(facturas_verdes, path_salida, asien_inicial=1):
     """Cierra el circulo: de una lista de facturas YA VALIDADAS (VERDE) con
     cuenta_debe y cuenta_haber ya resueltas (via el maestro/mapeo_cuenta_gasto
     reales), genera el xDiario.txt COMPLETO, listo para el importador nativo
-    de ContaPlus/ContaSOL (Utilidades > Importaciones > Ficheros de ContaPlus).
+    de ContaPlus (Utilidades > Importaciones > Ficheros de ContaPlus).
 
     CONTAPLUS AUTONUMERA los asientos al importar (verificado hoy con una
     importacion real) - asien_inicial es solo un valor de partida, no importa
-    si no coincide con la numeracion real de la empresa."""
+    si no coincide con la numeracion real de la empresa.
+
+    SOBRE CONTASOL (revisado 27-08-2026, sesion Cloud): este docstring decia
+    antes "listo para ContaPlus/ContaSOL" sin que nadie lo hubiera comprobado
+    -- ni un test, ni una entrada de PROJECT_STATUS.md que dijera "verificado".
+    Es exactamente la clase de afirmacion sin comprobar que este proyecto
+    existe para cazar en otros sitios. Estado real:
+    - El layout de CAMPOS de este fichero (arriba) esta verificado BYTE A BYTE
+      contra un Diario.dbf real de ContaPlus (docstring del modulo). Eso sigue
+      siendo cierto solo para ContaPlus.
+    - Para ContaSOL, varias fuentes publicas independientes (no verificadas
+      contra una instalacion real) coinciden en que ContaSOL tiene un modo de
+      importacion dedicado y compatible: Utilidades > Importaciones >
+      ContaPlus > Ficheros de ContaPlus, que acepta los mismos xSubcta.txt/
+      xDiario.txt. Es plausible y esta bien respaldado, pero NO es lo mismo
+      que haberlo comprobado -- la regla de este proyecto (aplicada al `.DAT`
+      de ContaPlus, ahora aqui tambien) es no dar un formato por bueno sin
+      verificarlo contra algo real.
+    - VERIFICACION PENDIENTE, concreta: importar un xDiario.txt sintetico (el
+      que genera ensayo_xdiario.py, sin ningun dato real) en una empresa de
+      pruebas de ContaSOL y confirmar que entra limpio. Es la misma disciplina
+      que ya se aplico para ContaPlus el 21-08-2026 ("verificado hoy con una
+      importacion real"), pendiente de repetir para ContaSOL."""
     lineas_texto = []
     asien = asien_inicial
     descartadas = {}
