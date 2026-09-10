@@ -55,6 +55,7 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ✅ subprocess.run: encoding explicito (19 llamadas)       <- 12º auditor, 26-08
 ✅ Reconstruir 303: deriva la base, no la inventa         <- 13º auditor, 27-08
 ✅ Emparejar carpetas: por nombre, sin adivinar por palabra <- 14º auditor, 27-08
+✅ Falsos verdes: los cuenta, no los inventa              <- 16º auditor, 09-09
 ✅ Modulos importables: ninguno se sale al importarse     <- 15º auditor, 09-09
 ```
 
@@ -259,7 +260,7 @@ ceguera del instrumento, pero no está descartado del todo. Ver
 > 21-08, el hallazgo sobre `BASEIMPO` es del 25-08, y nadie había revisado
 > la pieza hermana hasta el 27-08.
 
-### Los quince auditores, y por qué hacen falta los quince
+### Los dieciséis auditores, y por qué hacen falta los dieciséis
 
 Cada uno tapa un agujero que los demás no ven. No es redundancia:
 
@@ -280,8 +281,9 @@ Cada uno tapa un agujero que los demás no ven. No es redundancia:
 | `ensayo_reconstruir_303.py` | ¿la base se deriva o se sigue leyendo a pelo? | **base ficticia con aspecto de real** |
 | `ensayo_emparejar_carpetas.py` | ¿se filtra por palabra clave sobre un nombre real? | **negocio real descartado por su propio nombre** |
 | `check_salida_al_importar` | ¿un módulo mata a quien lo importe? | **auditor apagado en silencio por una dependencia que su camino no usa** |
+| `ensayo_validar_captura.py` | ¿sabe **encontrar** un falso verde, no solo arrancar? | **el número que para el proyecto, contado de menos** |
 
-Los quince corren dentro de `audit_project.py`: basta el primer comando.
+Los dieciséis corren dentro de `audit_project.py`: basta el primer comando.
 
 > El 13º es del 27-08 y cierra el hallazgo mayor de la sesión anterior: la
 > base de `303_LOCAL.json` era un cero disfrazado de dato. Reescrito DOS
@@ -337,6 +339,43 @@ Los quince corren dentro de `audit_project.py`: basta el primer comando.
 > porque nadie lo importa. Acusarlo sería repetir la lección del 21-08 con
 > `check_cableado` — un auditor que mira la FORMA acusa a inocentes. Probado
 > con el bug reintroducido a propósito: rojo, con fichero y línea exactos.
+
+> El 16º es del 09-09-2026 y es el que más pesa de todos, porque vigila el
+> único número del proyecto con un **umbral duro acordado por adelantado**:
+> `SIGUIENTES_PASOS.md` §4 dice que **un solo falso verde para la
+> automatización**. `validar_captura_historica.py` es además lo único que puede
+> hablar de falsos verdes — el retro-semáforo no puede por construcción.
+>
+> **Lo que había:** dos comprobaciones, dentro de `ensayo_retro_semaforo.py`.
+> Que arranca, y que detecta las columnas. Las 12 filas que se le daban eran
+> **todas VERDE/VERDE**, y no se comprobaba ni un número de la salida — solo
+> `returncode == 0` y que aparecieran dos palabras. **Si el script contara mal
+> los falsos verdes, aquel ensayo seguiría en verde.** Estaba probado que
+> funciona; no estaba probado que sepa encontrar lo único para lo que existe.
+>
+> **Escribirlo destapó tres defectos reales, los tres reproducidos antes de
+> tocar código** (detalle en `PROJECT_STATUS.md`, segunda entrada del 09-09):
+>
+> 1. La pantalla se negaba a publicar la tasa con campos críticos ausentes
+>    (*"publicarlo sería peor que no tenerlo"*) y **el JSON la publicaba
+>    igual** — en el fichero etiquetado *"se puede subir"*, que es el que
+>    viaja, sin el aviso que la desmiente. El bug del 21-08 sobreviviendo: se
+>    arregló la pantalla y nadie tocó el JSON.
+> 2. Una fila con un veredicto humano **escrito pero no interpretable** ("NO
+>    VALIDA", "KO") se caía del denominador sin dejar rastro — y con ella los
+>    falsos verdes que llevara dentro. Medido: 10 facturas con algo escrito en
+>    la columna, 5 contadas, cero avisos.
+> 3. `ensayo_retro_semaforo.py` **borraba** `retro_semaforo_agregado.json` y
+>    `validacion_captura_agregado.json` al terminar. Están en `.gitignore`, así
+>    que no hay copia: correr la auditoría destruía una medición real e
+>    irrecuperable. Ahora se respaldan y se restauran.
+>
+> **Seis familias, y la que más vale es la C:** motor ROJO + humano VERDE es un
+> fallo pero **NO** es un falso verde. Probado con un contador saboteado que
+> suma todos los desacuerdos: pasa las familias A y B y **solo se pone roja esa
+> comprobación**. Sin ella el bug entraría entero. Los dos sentidos del conteo
+> (+1 y −1) también se sabotearon: el −1, que es el que hace daño de verdad
+> porque esconde falsos verdes, lo cazan cinco comprobaciones.
 
 > El 12º es del 26-08 y nace de un bug que ya había mordido: `audit_project.py`
 > **se rompía a la mitad en el PC de la asesoría** y no en Cloud, porque

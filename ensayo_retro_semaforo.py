@@ -224,6 +224,16 @@ def comprobar(nombre, condicion, obtenido=""):
         fallos.append(nombre)
 
 
+#: Ficheros que los scripts bajo ensayo escriben en la carpeta del proyecto (no
+#: en el temporal). Se respaldan antes y se restauran despues: ver el bloque de
+#: `respaldo` en main().
+SALIDAS_DEL_ENSAYO = (
+    "retro_semaforo_agregado.json", "retro_semaforo_LOCAL.json",
+    "validacion_captura_agregado.json", "validacion_captura_LOCAL.csv",
+    "reconstruccion_303_agregado.json", "cola_revision_agregado.json",
+)
+
+
 def main():
     print("=" * 70)
     print("ENSAYO EN SECO DE retro_semaforo.py (corpus sintetico, cero datos reales)")
@@ -238,6 +248,21 @@ def main():
              if not valida_nif(x)[0]]
     comprobar("los NIF inventados pasan el digito de control del propio motor",
               not malos, f"invalidos: {len(malos)}")
+
+    # ANADIDO 09-09-2026. Este ensayo BORRABA estas salidas al terminar, sin
+    # mirar si ya estaban. En el PC de la asesoria pueden ser una medicion real
+    # e irrecuperable —`retro_semaforo_agregado.json` es el 87,71% VERDE sobre
+    # 30.013 asientos, `validacion_captura_agregado.json` seria el numero de
+    # falsos verdes de las 91 facturas— y estan en `.gitignore`, asi que no hay
+    # copia en ningun sitio. Correr `audit_project.py` las destruia. Ahora se
+    # guardan a un lado y se devuelven a su sitio: se borra solo lo que este
+    # ensayo ha creado.
+    respaldo = {}
+    for f in SALIDAS_DEL_ENSAYO:
+        ruta = os.path.join(AQUI, f)
+        if os.path.exists(ruta):
+            respaldo[ruta] = ruta + ".respaldo_ensayo"
+            shutil.copy2(ruta, respaldo[ruta])
 
     tmp = tempfile.mkdtemp(prefix="ensayo_retro_")
     try:
@@ -512,12 +537,13 @@ def main():
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
         # Las salidas del script van a su propio directorio, no al temporal.
-        for f in ("retro_semaforo_agregado.json", "retro_semaforo_LOCAL.json",
-                  "validacion_captura_agregado.json", "validacion_captura_LOCAL.csv",
-                  "reconstruccion_303_agregado.json", "cola_revision_agregado.json"):
+        for f in SALIDAS_DEL_ENSAYO:
             p = os.path.join(AQUI, f)
             if os.path.exists(p):
                 os.remove(p)
+        # Y lo que hubiera antes vuelve a su sitio.
+        for original, copia in respaldo.items():
+            shutil.move(copia, original)
 
     print()
     if fallos:

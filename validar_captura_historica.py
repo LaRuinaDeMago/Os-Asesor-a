@@ -235,10 +235,23 @@ def main():
     aciertos_antes = fallos_antes = 0
     falsos_verdes_hoy = []
     matriz = defaultdict(Counter)
+    # ANADIDO 09-09-2026. Una fila cuyo veredicto humano NO se reconoce se caia
+    # del denominador sin dejar rastro: "facturas con veredicto humano: 5" sobre
+    # un fichero de 10 en el que las 10 traian algo escrito. Y lo que se cae con
+    # ellas son los FALSOS VERDES que llevaran dentro — el numero cuyo umbral
+    # acordado es "≥1 y se para la automatizacion". Una medicion que se estrecha
+    # en silencio es peor que una que falla: la que falla se ve.
+    humano_no_reconocido = 0
 
     for i, fila_cruda in enumerate(filas):
         v_antes = normalizar_veredicto(fila_cruda.get(col_motor)) if col_motor else None
         v_humano = normalizar_veredicto(fila_cruda.get(col_humano)) if col_humano else None
+        if col_humano and v_humano is None:
+            crudo = fila_cruda.get(col_humano)
+            # Vacio es "nadie lo juzgo" y es legitimo. Con algo escrito que no
+            # se entiende, la fila se pierde y hay que decirlo.
+            if crudo is not None and str(crudo).strip():
+                humano_no_reconocido += 1
         # La traduccion AÑADE la clave canonica, no borra la original: si el
         # fichero trae algo mas, sigue estando y nadie pierde informacion.
         fila = dict(fila_cruda)
@@ -311,6 +324,14 @@ def main():
         print("EL NUMERO QUE DECIDE EL PROYECTO")
         print("=" * 68)
         print(f"  facturas con veredicto humano : {total_juzgadas}")
+        if humano_no_reconocido:
+            print(f"  ⚠ filas DESCARTADAS del calculo  : {humano_no_reconocido}")
+            print("    Traen algo escrito en la columna humana que este script no")
+            print("    sabe interpretar (se reconocen VERDE/AMBAR/ROJO, OK/MAL,")
+            print("    BIEN/REVISAR, SI/NO, CORRECTO/INCORRECTO...). NO estan en")
+            print("    el denominador, y si alguna era un FALSO VERDE tampoco esta")
+            print("    contada. Mira esa columna en tu fichero antes de fiarte del")
+            print("    numero de abajo.")
         if total_juzgadas == 0:
             # ANADIDO 21-08-2026. Antes imprimia "TASA DE ACIERTO: 0.0%" y
             # "FALSOS VERDES: 0" con cero facturas juzgadas. Los dos numeros son
@@ -360,12 +381,42 @@ def main():
         for k, c in errores.most_common():
             print(f"    {k:<40} {c:>5}")
 
+    # CORREGIDO 09-09-2026. Hasta hoy este bloque escribia las cifras de acierto
+    # SIEMPRE que existiera la columna humana, sin mirar si la pantalla habia
+    # decidido no publicarlas. Resultado reproducido antes de tocar nada:
+    #
+    #   pantalla: ">> LA TASA NO SE PUBLICA: faltaban campos criticos [...].
+    #              Publicarlo seria peor que no tenerlo."
+    #   fichero : "pct_acierto_hoy": 0.0, "falsos_verdes": 0
+    #
+    # Y con la columna humana presente pero vacia, la pantalla decia "CERO no es
+    # el resultado: es la ausencia de resultado" mientras el fichero escribia
+    # "falsos_verdes": 0. Es EXACTAMENTE el defecto del 21-08-2026 —el que este
+    # mismo fichero documenta tres veces en sus comentarios— sobreviviendo en el
+    # sitio que importa: se arreglo la pantalla y nadie toco el JSON.
+    #
+    # Y es el sitio que importa porque los dos ficheros no valen lo mismo: el
+    # detalle es `_LOCAL` y no sale del disco; el agregado lleva escrito "se
+    # puede subir" y es el que viaja. La cifra tranquilizadora se quedaba justo
+    # en el que viaja, sin el aviso que la desmiente, que solo existia en la
+    # consola de quien lo ejecuto.
+    #
+    # Regla que se aplica aqui, y es la del motor: lo que no se ha podido medir
+    # no se publica con forma de medicion. NO_COMPROBADO y el motivo, y ni un
+    # numero que pueda leerse como resultado. El "para referencia interna" que
+    # la pantalla si imprime se queda en la pantalla a proposito: la consola es
+    # local, este fichero no.
     agregado = {
-        "version": "validacion_captura v1 (20-08-2026)",
+        "version": "validacion_captura v2 (09-09-2026)",
         "filas": len(filas),
         "evaluadas": n,
         "columna_motor_detectada": col_motor,
         "columna_humano_detectada": col_humano,
+        # Califica TODAS las cifras de este fichero, no solo las de acierto:
+        # con criticos ausentes, `veredictos_hoy` tampoco mide el motor — mide
+        # que no se han encontrado las columnas.
+        "campos_criticos_ausentes": faltan,
+        "medicion_valida": not faltan,
         "veredictos_hoy": dict(hoy),
         "veredictos_entonces": dict(antes),
         "cambios": dict(cambios),
@@ -374,14 +425,36 @@ def main():
     }
     if col_humano:
         total_juzgadas = aciertos_hoy + fallos_hoy
-        agregado["acierto"] = {
-            "juzgadas": total_juzgadas,
-            "pct_acierto_hoy": pct(aciertos_hoy, total_juzgadas),
-            "pct_acierto_entonces": pct(aciertos_antes, aciertos_antes + fallos_antes),
-            "falsos_verdes": len(falsos_verdes_hoy),
-            "pct_falsos_verdes": pct(len(falsos_verdes_hoy), total_juzgadas),
-            "matriz": {m: dict(c) for m, c in matriz.items()},
-        }
+        if total_juzgadas == 0:
+            agregado["acierto"] = {
+                "estado": "NO_COMPROBADO",
+                "motivo": "la columna de veredicto humano existe, pero ninguna fila "
+                          "trae un valor reconocible",
+                "juzgadas": 0,
+                "descartadas_por_no_reconocidas": humano_no_reconocido,
+            }
+        elif faltan:
+            agregado["acierto"] = {
+                "estado": "NO_COMPROBADO",
+                "motivo": f"campos criticos ausentes {faltan}: lo que saldria mediria "
+                          f"la lectura del fichero, no el motor",
+                "juzgadas": total_juzgadas,
+                "campos_criticos_ausentes": faltan,
+                "descartadas_por_no_reconocidas": humano_no_reconocido,
+            }
+        else:
+            agregado["acierto"] = {
+                "estado": "OK",
+                "juzgadas": total_juzgadas,
+                # Sale SIEMPRE, tambien cuando es 0: que este el campo obliga a
+                # mirarlo. Un campo ausente no se echa de menos.
+                "descartadas_por_no_reconocidas": humano_no_reconocido,
+                "pct_acierto_hoy": pct(aciertos_hoy, total_juzgadas),
+                "pct_acierto_entonces": pct(aciertos_antes, aciertos_antes + fallos_antes),
+                "falsos_verdes": len(falsos_verdes_hoy),
+                "pct_falsos_verdes": pct(len(falsos_verdes_hoy), total_juzgadas),
+                "matriz": {m: dict(c) for m, c in matriz.items()},
+            }
 
     with open(SALIDA_AGREGADA, "w", encoding="utf-8") as f:
         json.dump(agregado, f, ensure_ascii=False, indent=2)

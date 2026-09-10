@@ -308,7 +308,18 @@ def check_estados_y_cobertura():
                              # ALTA de 14 a 0, porque un negocio real puede
                              # llamarse "Ferreteria General". Retirado el
                              # mismo dia; este ensayo evita que vuelva.
-                             ("ensayo_emparejar_carpetas.py", "Emparejar carpetas: por nombre, sin adivinar por palabra")):
+                             ("ensayo_emparejar_carpetas.py", "Emparejar carpetas: por nombre, sin adivinar por palabra"),
+                             # validar_captura_historica.py produce el UNICO
+                             # numero del proyecto con umbral duro acordado por
+                             # adelantado: un solo falso verde para la
+                             # automatizacion (SIGUIENTES_PASOS.md §4). Hasta el
+                             # 09-09-2026 sus unicas dos comprobaciones vivian
+                             # dentro de ensayo_retro_semaforo.py y solo
+                             # verificaban que ARRANCA: las 12 filas que se le
+                             # daban eran todas VERDE/VERDE y no se comprobaba
+                             # ni un numero de la salida. Si contara mal los
+                             # falsos verdes, aquel ensayo seguiria en verde.
+                             ("ensayo_validar_captura.py", "Falsos verdes: los cuenta, no los inventa")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue

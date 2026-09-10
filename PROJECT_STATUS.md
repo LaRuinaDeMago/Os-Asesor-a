@@ -7,6 +7,136 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 09-09-2026 (sesión Cloud, segunda entrada) — El contador de falsos verdes no estaba probado, y probarlo destapó tres defectos
+
+Continuación directa de la entrada anterior. Elegido como trabajo de Cloud por
+una razón concreta: `validar_captura_historica.py` produce el **único número
+del proyecto con un umbral duro acordado por adelantado** —`SIGUIENTES_PASOS.md`
+§4: *"≥ 1 falso verde → se para la automatización"*— y es además lo único que
+puede hablar de falsos verdes, porque el retro-semáforo no puede por
+construcción.
+
+### El punto de partida: probado que funciona, no que sirve
+
+Sus únicas comprobaciones eran **dos**, dentro de `ensayo_retro_semaforo.py`:
+que arranca con un CSV de `;` y cabeceras no canónicas, y que detecta las
+columnas solo. Las 12 filas que se le daban eran **todas VERDE/VERDE**. No se
+comprobaba ni un número de la salida: solo `returncode == 0` y que aparecieran
+dos palabras en el texto.
+
+> **Traducido: si el script contara mal los falsos verdes, o se dejara alguno
+> sin contar, el ensayo seguiría en verde.** La capacidad que le da todo su
+> sentido era la única sin probar.
+
+### Tres defectos reales, los tres reproducidos ANTES de tocar código
+
+**1 · El JSON publicaba lo que la pantalla se negaba a publicar.** El bloque de
+acierto se escribía siempre que existiera la columna humana, sin mirar la
+decisión que la pantalla ya había tomado:
+
+| Caso | Pantalla | JSON agregado |
+|---|---|---|
+| Columna humana sin valores | *"CERO no es el resultado: es la ausencia de resultado"* | `"falsos_verdes": 0, "pct_acierto_hoy": 0.0` |
+| Campos críticos ausentes | *"LA TASA NO SE PUBLICA... publicarlo sería peor que no tenerlo"* | `"pct_acierto_hoy": 0.0, "falsos_verdes": 0` |
+
+Es **el defecto del 21-08-2026 sobreviviendo** —el que ese mismo fichero
+documenta tres veces en sus propios comentarios— en el sitio que más importa:
+se arregló la pantalla y nadie tocó el JSON. Y los dos ficheros no valen lo
+mismo: el detalle es `_LOCAL` y no sale del disco; **el agregado lleva escrito
+"se puede subir" y es el que viaja**. La cifra tranquilizadora se quedaba justo
+en el que viaja, sin el aviso que la desmiente, que solo existía en la consola
+de quien lo ejecutó.
+
+*Arreglado:* el agregado toma la misma decisión que la pantalla —
+`estado: NO_COMPROBADO` con el motivo, y **ni un número** que pueda leerse como
+resultado. Añadidos `campos_criticos_ausentes` y `medicion_valida` al nivel
+superior, porque con críticos ausentes `veredictos_hoy` tampoco mide el motor:
+mide que no se han encontrado las columnas.
+
+**2 · Las filas con un veredicto humano ilegible desaparecían en silencio.**
+Medido: un CSV de **10 facturas, las 10 con algo escrito en la columna humana**,
+salía como *"facturas con veredicto humano: 5"*. Las otras cinco decían "NO
+VALIDA" —una forma perfectamente razonable de escribirlo que no está en la lista
+de sinónimos— y se caían del denominador sin un solo aviso. **Y con ellas se
+caen los falsos verdes que llevaran dentro**, que es justo el número cuyo umbral
+es "uno y se para". Una medición que se estrecha en silencio es peor que una que
+falla: la que falla se ve.
+
+*Arreglado:* contador `descartadas_por_no_reconocidas`, con aviso en pantalla y
+campo en el agregado que **sale siempre, también cuando vale 0** — un campo
+ausente no se echa de menos.
+
+**3 · La auditoría destruía mediciones reales.** `ensayo_retro_semaforo.py`
+borraba al terminar `retro_semaforo_agregado.json`, `validacion_captura_agregado.json`
+y cuatro ficheros más, sin mirar si ya estaban. Están en `.gitignore`, así que
+**no hay copia en ningún sitio**: el primero es el 87,71% VERDE sobre 30.013
+asientos, y el segundo sería el número de falsos verdes de las 91 facturas.
+Correr `python audit_project.py` después de medir los borraba.
+
+*Arreglado:* se respaldan antes y se restauran después; se borra solo lo que el
+ensayo ha creado. Verificado poniendo un fichero marcado y comprobando que
+sobrevive a los dos ensayos, sin dejar respaldos sueltos.
+
+### 16º auditor: `ensayo_validar_captura.py`
+
+**28 comprobaciones en siete familias**, y ninguna se conforma con "no ha
+petado" — todo número que el script imprime o escribe se compara contra un valor
+calculado a mano:
+
+| Familia | Qué fija |
+|---|---|
+| **0** | Que las facturas sintéticas dan el veredicto que el ensayo asume. Si el motor cambia, lo dice en vez de medir otra cosa creyendo que mide esta |
+| **A** | Cuenta **exactamente** 3 falsos verdes de 10, con su 30,0% y su tasa de acierto del 70,0% |
+| **B** | Y **no inventa ninguno** cuando no los hay. Sin esto, A la aprobaría un contador que devolviera siempre 3 |
+| **C** | Motor ROJO + humano VERDE es un fallo pero **NO** un falso verde |
+| **D** | El denominador son las **juzgadas**, no las filas del fichero |
+| **E** | Regresión de los tres defectos de arriba |
+| **F** | Regresión del 21-08: un fichero ilegible no produce **ningún** número |
+| **G** | Seis formas de escribir "estaba mal" cuentan las seis |
+
+### Sabotaje: seis defectos reintroducidos, uno a uno
+
+Sin esto una prueba en verde no demuestra nada. Cada uno se metió a propósito y
+se miró **dónde exactamente** se ponía roja la batería:
+
+| Sabotaje | Comprobaciones en rojo |
+|---|---|
+| Cuenta como falso verde cualquier desacuerdo | **1, y es la de la familia C** |
+| Denominador = filas en vez de juzgadas | 5 |
+| Vuelve a publicar la tasa sin campos críticos | 2 (las dos de E2) |
+| Deja de contar las filas ilegibles | 2 (las dos de E3) |
+| Cuenta un falso verde de más (+1) | 7 |
+| **Se deja uno sin contar (−1)** | **5** |
+
+> **El primero es el que justifica la familia C entera:** un contador que suma
+> todos los desacuerdos **pasa A y B** y solo cae en C. Sin esa familia, el bug
+> entraría completo por una batería en verde.
+>
+> **Y el −1 es el que de verdad hace daño**, porque esconde falsos verdes en vez
+> de inventarlos: cinco comprobaciones lo cazan.
+
+### Estado tras la sesión
+
+`audit_project.py`: **20 ✅ · 1 ⚠️ · 0 ❌** (código 2, el ⚠️ son las
+dependencias de este contenedor Cloud). `test_motor_veredicto.py` 36/36,
+`test_adversarial.py` 112/112, escáner de privacidad sin hallazgos sobre todo lo
+versionado más el fichero nuevo.
+
+**No se tocó `motor_veredicto.py`.** Ningún guard nuevo. Todo sintético y
+declarado como tal: NIF inventados con dígito de control válido, proveedores
+`PROV_SINTETICO_n`, ni una cifra procedente de una factura real.
+
+### Lo que esto cambia para el día de las 91 facturas
+
+Antes, el instrumento que produce el número que decide el proyecto llegaba a su
+medición real sin haberse calibrado nunca — la misma situación que el 21-08
+produjo tres defectos en la primera ejecución de los comandos LOCAL. Ahora, si
+ese día sale **0 falsos verdes**, ese cero significa que se han mirado; y si
+falta algo para medirlo, el fichero que se sube lo dice en vez de escribir un
+cero tranquilizador.
+
+---
+
 ## 09-09-2026 (sesión Cloud) — Escáner completo del repositorio: el 11º auditor llevaba dos semanas apagado, y la auditoría no sabía decirlo
 
 Sesión de reincorporación tras trece días parados. Escáner completo del
