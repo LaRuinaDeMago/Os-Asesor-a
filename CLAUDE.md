@@ -5,12 +5,43 @@ reglas contables y fiscales reales (motor de veredicto: OK / FALLO / NO_APLICA /
 NO_COMPROBADO, nunca OK por omisión). NO procesa facturas reales de clientes en
 este entorno (Cloud/GitHub) bajo ninguna circunstancia.
 
-## Al empezar cualquier sesión
-Lee PROJECT_STATUS.md completo antes de hacer ningún cambio. No asumas el estado
-del proyecto por esta conversación — confírmalo ahí y con los tests. Si
-PROJECT_STATUS.md y el código/tests no coinciden, mandan los tests, no el texto
-(ver `PARTE 3.3` de FLUJO_CONTINUO_PLAN_DEFINITIVO — jerarquía: Código → Tests →
-Git → PROJECT_STATUS.md).
+## Al empezar cualquier sesión — en este orden, sin saltarse ninguno
+
+**1. Ejecuta esto ANTES de leer nada.** Tarda segundos y no toca ningún dato:
+
+```bash
+python arranque.py          # en Linux/Mac puede ser python3
+```
+
+Imprime, midiéndolo en el momento y no citándolo de un texto: el entorno, si el
+trabajo está en una rama que nadie va a clonar, si el hook de privacidad está
+puesto, qué dependencias faltan y qué bloquea cada una, y **la lista de
+pendientes** (`PENDIENTE.md`, que es la única que hay — si algo se termina se
+tacha ahí).
+
+**2. Después lee `EMPEZAR_AQUI.md`**, que es el punto de entrada narrativo: por
+qué las cosas son como son.
+
+**3. `PROJECT_STATUS.md` NO se lee entero.** Son 140 KB de registro histórico:
+se **consulta** buscando una fecha o un tema concreto. Hasta el 10-09-2026 este
+mismo apartado ordenaba leerlo completo, lo cual sólo tenía dos desenlaces y los
+dos malos — gastar media sesión en historia, o saltárselo y perder el estado.
+
+**4. Antes de tocar el motor**, `python audit_project.py`. Códigos de salida:
+`0` todo comprobado y en verde · `1` **hay un defecto real, y eso manda sobre
+todo lo demás** · `2` nada falla pero algo no se ha podido comprobar (un ⚠️ no
+es un aprobado).
+
+No asumas el estado del proyecto por la conversación — confírmalo con los tests.
+**Jerarquía de verdad: Código → Tests → Git → PROJECT_STATUS.md.** Si la
+documentación y los tests no coinciden, mandan los tests.
+
+> `FLUJO_CONTINUO_PLAN_DEFINITIVO.md` se cita en este archivo y en
+> `.claude/rules/datos.md` como origen de varias reglas. **No está en el
+> repositorio y no puede estar**: contiene apellidos reales de clientes, vive
+> sólo en el PC de la asesoría y está bloqueado por nombre en
+> `NUNCA_SUBE_FILENAMES.txt` y en `.gitignore`. No lo busques ni lo subas; las
+> reglas que de él salen ya están recogidas aquí y en `.claude/rules/`.
 
 ## Qué NUNCA hacer
 - Nunca subir, escribir, ejecutar un comando que imprima, o mostrar en el chat un

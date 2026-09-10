@@ -1,5 +1,15 @@
 # Regla de datos — la más importante de todo el proyecto
 
+> **Nota del 10-09-2026 sobre `FLUJO_CONTINUO_PLAN_DEFINITIVO.md`**, que este
+> archivo cita como origen de varias reglas: **no está en el repositorio y no
+> puede estar** — contiene apellidos reales de clientes (así lo declara
+> `SUBE_A_GITHUB.md`) y vive sólo en el PC de la asesoría. Hasta hoy no estaba
+> ni en `NUNCA_SUBE_FILENAMES.txt` ni en `.gitignore`: comprobado con fichero
+> trampa, el escáner devolvía *"sin hallazgos"* y código 0, el mismo fallo que
+> el ZIP con extensión `.DAT` del 19-08. **Ya está bloqueado en las dos capas.**
+> No lo busques en el repositorio; las reglas que salen de él están recogidas
+> aquí y en `CLAUDE.md`.
+
 Cloud (GitHub, Claude Code Web): SOLO código, tests, datos sintéticos/anonimizados,
 documentación, arquitectura.
 

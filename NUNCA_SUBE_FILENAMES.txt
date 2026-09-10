@@ -23,3 +23,11 @@ PLAN_OPERATIVO_v1_2_FINAL.md
 SSOT_ASESORIA_v1_2.md
 MOTOR_PAQUETE_CLAUDE_CODE.zip
 OS_ASESORIA_v3_38.zip
+
+# ANADIDO 10-09-2026. Llevaba desde siempre citado 7 veces como autoridad
+# (dos en CLAUDE.md, una en .claude/rules/datos.md) sin estar en esta lista ni
+# en .gitignore, y SUBE_A_GITHUB.md dice explicitamente que contiene la lista
+# de apellidos reales de clientes/proveedores. Comprobado con fichero trampa
+# antes de anadirlo: el escaner devolvia "sin hallazgos" y codigo 0. Mismo
+# fallo que el ZIP con extension .DAT del 19-08, con otro fichero.
+FLUJO_CONTINUO_PLAN_DEFINITIVO.md

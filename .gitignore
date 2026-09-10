@@ -81,3 +81,9 @@ cola_revision_agregado.json
 # el archivo real: no describe el codigo, describe una medicion concreta. Mismo
 # criterio que los demas agregados.
 cruce_303_agregado.json
+
+# Documento de trabajo que vive SOLO en local: contiene apellidos reales
+# (asi lo declara SUBE_A_GITHUB.md). Se cita como autoridad en CLAUDE.md y en
+# .claude/rules/datos.md, pero nunca sube. Anadido el 10-09-2026 tras
+# comprobar con fichero trampa que ni el escaner ni .gitignore lo paraban.
+FLUJO_CONTINUO_PLAN_DEFINITIVO.md

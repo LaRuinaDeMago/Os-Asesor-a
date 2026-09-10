@@ -7,6 +7,119 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 10-09-2026 (sesión Cloud) — Cierre de entrega: el fichero que se lee SIEMPRE mandaba al sitio equivocado, y un documento con apellidos reales no estaba bloqueado
+
+Sesión de cierre. La pregunta era si quedaba valor en Cloud o si todo lo
+restante es LOCAL. **Medido, y la respuesta es las dos cosas:** el valor de
+*producto* que queda es local, pero la **entrega** tenía defectos reales que
+habrían costado la primera sesión local.
+
+### Lo que se midió para poder decirlo
+
+Barrido de cobertura de ensayos: de 38 scripts que tocan datos reales, 35 son
+diagnósticos de un solo uso ya ejecutados contra el corpus, y los 3 restantes
+(`extraer_303_pdf`, `reconocer_303_pdf`, `enlazador_clientes_303`) **ya se han
+ejecutado de verdad** — el primero sobre 1.168 documentos reales. Ninguno está
+en la categoría de riesgo "llega a su única ejecución sin haberse ejecutado
+nunca". **Esa veta está agotada.**
+
+### Defecto 1 · El punto de entrada mandaba al sitio equivocado
+
+`CLAUDE.md` es el único fichero que Claude Code carga siempre y obedece, en
+cualquier superficie y con cualquier modelo. Ordenaba:
+
+> *"Lee PROJECT_STATUS.md completo antes de hacer ningún cambio."*
+
+Ese fichero tiene **140 KB y 2.379 líneas**, y en su propia línea 3 dice *"Para
+ARRANCAR una sesión, lee `EMPEZAR_AQUI.md`... sirve para consultar, no para
+empezar"*. Dos desenlaces posibles, los dos malos: leerlo entero y gastar media
+sesión en historia, o saltárselo y perder el estado. Encima citaba dos veces un
+documento que no existe en el repositorio.
+
+*Arreglado:* `CLAUDE.md` ordena ahora, en este orden, `python arranque.py` →
+`EMPEZAR_AQUI.md` → `PROJECT_STATUS.md` **sólo como consulta** → `audit_project.py`
+antes de tocar el motor, con los tres códigos de salida explicados.
+
+### Defecto 2 · Un documento con apellidos reales no estaba bloqueado
+
+`FLUJO_CONTINUO_PLAN_DEFINITIVO.md` se cita **7 veces como autoridad** (dos en
+`CLAUDE.md`, una en `.claude/rules/datos.md`), no está en el repositorio, y
+`SUBE_A_GITHUB.md` dice explícitamente que contiene *"la lista de apellidos
+reales de clientes/proveedores"*.
+
+**No estaba ni en `NUNCA_SUBE_FILENAMES.txt` ni en `.gitignore`.** Comprobado
+con fichero trampa antes de tocar nada: el escáner devolvía **"sin hallazgos" y
+código 0**. Y `guardar_avance.sh` hace `git add` de los untracked, así que el
+propio flujo de guardado del proyecto lo habría subido con el hook diciendo que
+estaba limpio.
+
+> **Es el mismo fallo del 19-08 con otro fichero**, y la misma lección ya
+> escrita en `.claude/rules/datos.md`: *un "OK" que significa "no lo he
+> comprobado" es exactamente el falso verde que el motor tiene prohibido.*
+
+*Arreglado:* bloqueado en las dos capas y **verificado con el mismo fichero
+trampa**: ahora el escáner sale con código 1 y `.gitignore` lo para también.
+
+### `arranque.py` — el estado deja de ser prosa que envejece
+
+Un documento afirma; esto **comprueba**. Todo lo que imprime lo mide en el
+momento: entorno e intérprete (`python` vs `python3`), si el trabajo está en una
+rama que nadie va a clonar, si el hook de privacidad está instalado, qué
+dependencias faltan **y qué bloquea cada una**, y la lista de pendientes.
+
+Lo único que lee de un fichero es `PENDIENTE.md`. **No abre ningún `_LOCAL`,
+ningún `.DAT`, ningún CSV** — comprobado sobre el AST, no buscando palabras.
+
+**Y no instala nada, deliberadamente:** `.claude/rules/seguridad.md` prohíbe
+instalar software sin aprobación explícita, y eso incluye un `pip install`
+automático al abrir sesión. Dice qué falta; instalarlo es una decisión, cada vez.
+
+### `PENDIENTE.md` — una lista, no tres
+
+Los pendientes estaban repartidos entre `EMPEZAR_AQUI.md` §7,
+`SIGUIENTES_PASOS.md` §3 y las entradas de `PROJECT_STATUS.md`. Tres sitios para
+lo mismo es como se pierde algo. Ahora hay uno, con los cuatro bloques ordenados,
+las rutas reales, los comandos exactos y **los umbrales acordados por
+adelantado** de cada medición. Los otros tres apuntan ahí.
+
+### `.claude/hooks/session-start.sh` — para que no dependa de nadie
+
+Registrado en `.claude/settings.json`. Corre en **toda** superficie, no sólo en
+remoto: el PC de la asesoría es justo donde más importa no saltarse nada. Y
+**nunca corta la sesión** — si algo falla, avisa y sigue; un hook que impide
+arrancar es peor que uno que no informa. Probado sin `arranque.py`, sin Python y
+fuera de un repositorio git.
+
+### 18º auditor: `ensayo_arranque.py`
+
+`arranque.py` está ahora en el arranque de **todas** las sesiones, lo que cambia
+lo que significa que falle. 22 comprobaciones en cinco familias: que no revienta
+nunca, que **fuera de un repositorio git no dice "árbol limpio"** (eso sería la
+misma tranquilidad falsa que el motor tiene prohibida), que sólo abre
+`PENDIENTE.md`, y que el hook nunca corta la sesión.
+
+**El sabotaje encontró un agujero en mi propio ensayo:** al quitar el aviso de
+"esta rama va por delante de master", la batería **seguía en verde** — y ese
+aviso es lo más consecuente que dice el script. Añadida la familia E, que monta
+un repositorio git de verdad con una rama sin fusionar y comprueba las dos
+direcciones (avisa cuando toca, y **no** avisa cuando está sincronizado, o
+dejaría de significar algo). Resaboteado: ahora cae con una comprobación exacta.
+
+**Y un error propio, en la prueba y no en el código, otra vez:** la primera
+familia D buscaba las cadenas `_LOCAL` y `.dbf` en el texto de `arranque.py` y
+fallaba — aparecen en **mensajes que se imprimen**, no en código que abra nada.
+Decidir por la FORMA es el error del 21-08 con `check_cableado`. Reescrita sobre
+el AST: qué ficheros se abren de verdad.
+
+### Estado tras la sesión
+
+`audit_project.py`: **22 ✅ · 1 ⚠️ · 0 ❌** (código 2, el ⚠️ son las
+dependencias del contenedor Cloud). Motor 36/36, adversarial 112/112, escáner de
+privacidad sin hallazgos. **No se tocó `motor_veredicto.py`** ni se añadió
+ningún guard.
+
+---
+
 ## 09-09-2026 (sesión Cloud, tercera entrada) — La ficha del cuadre 303 podía comparar un cliente contra el 303 de otro, y nadie lo habría visto
 
 Mismo criterio de selección que la entrada anterior: **qué pieza va a

@@ -330,7 +330,17 @@ def check_estados_y_cobertura():
                              # el paso 2 sea la MISMA carpeta que la lista del
                              # paso 1 prometia — si se descoloca, se compara la
                              # contabilidad de un cliente contra el 303 de otro.
-                             ("ensayo_cuadre_ficha.py", "Ficha de cuadre 303: el numero elegido es la carpeta prometida")):
+                             ("ensayo_cuadre_ficha.py", "Ficha de cuadre 303: el numero elegido es la carpeta prometida"),
+                             # arranque.py esta en el camino de arranque de TODA
+                             # sesion desde el 10-09-2026 (hook SessionStart).
+                             # Eso cambia lo que significa que falle: no es un
+                             # script que da error cuando lo llamas, es que
+                             # TODAS las sesiones empiezan con un error. Y corre
+                             # en la maquina que tiene los datos reales delante,
+                             # asi que tampoco puede abrir un _LOCAL ni por
+                             # descuido (se comprueba sobre el AST, no buscando
+                             # la palabra en el texto).
+                             ("ensayo_arranque.py", "Arranque de sesion: no revienta, no toca datos, avisa de lo que importa")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue

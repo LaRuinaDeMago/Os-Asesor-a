@@ -1,4 +1,4 @@
-# EMPEZAR AQUÍ — 09-09-2026
+# EMPEZAR AQUÍ — 10-09-2026
 
 Punto de entrada único. Corto a propósito: `PROJECT_STATUS.md` sirve para
 consultar, no para arrancar. Esto sirve para arrancar.
@@ -30,6 +30,24 @@ python diag_baseimpo.py "C:\Users\SERVILAB\Desktop\100% contabilidad" --limite 1
 ## 1. Primer comando, antes de leer nada
 
 ```bash
+python arranque.py
+```
+
+**Tarda segundos y no toca ningún dato.** Desde el 10-09-2026 lo lanza también
+solo el hook `.claude/hooks/session-start.sh` al abrir cualquier sesión de
+Claude Code, en cualquier superficie y con cualquier modelo — así el estado no
+depende de que nadie se acuerde de leer nada.
+
+No es otro documento: **mide** en el momento el entorno, si el trabajo está en
+una rama que nadie va a clonar, si el hook de privacidad está puesto, qué
+dependencias faltan y qué bloquea cada una, y imprime `PENDIENTE.md` — la
+**única** lista de pendientes que hay ya (antes estaba repartida entre este
+fichero §7, `SIGUIENTES_PASOS.md` §3 y las entradas de `PROJECT_STATUS.md`, que
+es exactamente como se pierden cosas). Si algo se termina, se tacha ahí.
+
+## 1-bis. Y antes de tocar el motor
+
+```bash
 python audit_project.py
 ```
 
@@ -57,6 +75,7 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ✅ Emparejar carpetas: por nombre, sin adivinar por palabra <- 14º auditor, 27-08
 ✅ Falsos verdes: los cuenta, no los inventa              <- 16º auditor, 09-09
 ✅ Ficha de cuadre 303: el numero elegido es la carpeta   <- 17º auditor, 09-09
+✅ Arranque de sesion: no revienta, no toca datos          <- 18º auditor, 10-09
 ✅ Modulos importables: ninguno se sale al importarse     <- 15º auditor, 09-09
 ```
 
@@ -261,7 +280,7 @@ ceguera del instrumento, pero no está descartado del todo. Ver
 > 21-08, el hallazgo sobre `BASEIMPO` es del 25-08, y nadie había revisado
 > la pieza hermana hasta el 27-08.
 
-### Los diecisiete auditores, y por qué hacen falta los diecisiete
+### Los dieciocho auditores, y por qué hacen falta los dieciocho
 
 Cada uno tapa un agujero que los demás no ven. No es redundancia:
 
@@ -284,8 +303,9 @@ Cada uno tapa un agujero que los demás no ven. No es redundancia:
 | `check_salida_al_importar` | ¿un módulo mata a quien lo importe? | **auditor apagado en silencio por una dependencia que su camino no usa** |
 | `ensayo_validar_captura.py` | ¿sabe **encontrar** un falso verde, no solo arrancar? | **el número que para el proyecto, contado de menos** |
 | `ensayo_cuadre_ficha.py` | ¿el número elegido es la carpeta que la lista prometía? | **comparar la contabilidad de un cliente contra el 303 de otro** |
+| `ensayo_arranque.py` | ¿el arranque de TODA sesión revienta o toca datos? | **toda sesión empieza con un error, o el arranque abre un `_LOCAL`** |
 
-Los diecisiete corren dentro de `audit_project.py`: basta el primer comando.
+Los dieciocho corren dentro de `audit_project.py`: basta el primer comando.
 
 > El 13º es del 27-08 y cierra el hallazgo mayor de la sesión anterior: la
 > base de `303_LOCAL.json` era un cero disfrazado de dato. Reescrito DOS
@@ -874,13 +894,16 @@ defecto) siga vigente si alguna vez se usa esa rama.
 
 ---
 
-## 7. Pendientes que no son código y siguen abiertos
+## 7. Pendientes — ya no viven aquí
 
-1. **Cifrar el USB de copia.** 15 minutos. Es lo de mayor impacto por coste de
-   toda la lista y lleva abierto desde el 12-08.
-2. Clave de recuperación del cifrado, fuera del equipo.
-3. Confirmar si la copia del USB incluye modelos, escrituras y DNIs, o solo
-   contabilidad.
+> **Movidos a `PENDIENTE.md` el 10-09-2026**, que es la única lista y la que
+> imprime `arranque.py`. Estaban repartidos entre este apartado,
+> `SIGUIENTES_PASOS.md` §3 y las entradas de `PROJECT_STATUS.md`: tres sitios
+> para lo mismo es como se pierde algo. Si terminas uno, táchalo **allí**.
+>
+> Sigue siendo verdad lo de siempre: **cifrar el USB de copia** son 15 minutos,
+> es lo de mayor impacto por coste de toda la lista, y lleva abierto desde el
+> 12-08.
 
 ---
 

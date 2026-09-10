@@ -1,5 +1,12 @@
 # Siguientes pasos — qué hacer, en qué orden, y qué decidir con cada número
 
+> ⚠️ **Para saber QUÉ TOCA AHORA, mira `PENDIENTE.md`** (o ejecuta
+> `python arranque.py`, que lo imprime). Este fichero se escribió el 21-08-2026
+> y sigue siendo la mejor explicación de **por qué** ese orden y **qué umbral**
+> se acordó para cada medición — que es su valor y no ha caducado. Pero el
+> estado de cada paso ya no se lleva aquí: se lleva en `PENDIENTE.md`, en un
+> solo sitio.
+
 > Escrito el 21-08-2026, al final de una sesión cloud de verificación. No es una
 > lista de tareas: es una **estructura de decisión**. La diferencia importa,
 > porque el proyecto lleva un mes produciendo trabajo y cero números, y una lista
