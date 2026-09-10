@@ -161,6 +161,26 @@ def bloque_lado(celdas, etiqueta_casillas):
     lineas.append(
         f"    {'TOTAL ' + etiqueta_casillas:<20} base {formato(total_base):>15}   "
         f"cuota {formato(total_cuota):>13}")
+    # ANADIDO 09-09-2026. El TOTAL de arriba incluye `tipo_no_catalogado`, y
+    # hasta hoy lo hacia sin decirlo. Eso convierte una comparacion limpia en
+    # una sucia sin que se note: si el total no cuadra contra la casilla, no se
+    # sabe si falla el motor o si ese trozo va a otra casilla; y si cuadra,
+    # puede haber cuadrado por casualidad y quedar anotado como "cuadra
+    # exacto". Sobre la unica verdad externa que este proyecto va a tener, un
+    # cuadre que no se puede explicar entero no es un cuadre.
+    #
+    # NO se saca del total: decidir a que casilla pertenece exigiria saber que
+    # tipo era, que es justo lo que no se sabe. Se DECLARA, que es lo que
+    # permite a quien compara tomar la decision con el dato delante.
+    sucio = celdas.get("tipo_no_catalogado")
+    if sucio:
+        lineas.append(
+            f"    >> OJO: de ese total, base {formato(sucio['base'])} / cuota "
+            f"{formato(sucio['cuota'])} ({sucio['apuntes']} apuntes) son de tipo")
+        lineas.append(
+            "       DESCONOCIDO. La comparacion contra la casilla NO es limpia:")
+        lineas.append(
+            "       no se sabe si ese trozo pertenece a esta casilla o a otra.")
     return "\n".join(lineas) + "\n"
 
 
@@ -183,7 +203,12 @@ def escribir_ficha(f, carpeta, trimestre, lados):
     f.write("\n\n")
 
 
-def escribir_fichas(datos, elegidas, ruta_salida):
+def pares_con_datos(datos, elegidas):
+    """Los (carpeta, trimestre, lados) que tienen algo que comparar.
+
+    Separado de la escritura el 09-09-2026: saber si hay algo que escribir
+    tiene que poder responderse ANTES de tocar el fichero de salida. Ver
+    escribir_fichas()."""
     orden = carpetas_ordenadas(datos)
     pares = []
     for numero in elegidas:
@@ -194,8 +219,33 @@ def escribir_fichas(datos, elegidas, ruta_salida):
                     for celda in lados.get(lado, {}).values())
             if n > 0:
                 pares.append((carpeta, trimestre, lados))
+    return pares
 
-    with open(ruta_salida, "w", encoding="utf-8") as f:
+
+def escribir_fichas(datos, elegidas, ruta_salida):
+    """Escribe las fichas de forma ATOMICA: a un temporal, y solo se
+    pone en su sitio si ha ido bien.
+
+    CORREGIDO 09-09-2026, reproducido antes de tocar nada: se escribia
+    directamente sobre `ruta_salida` y DESPUES se miraba si habia salido algo.
+    Una ejecucion fallida —elegir un numero de carpeta sin datos, por ejemplo—
+    dejaba el codigo de salida en 1 y, de camino, habia machacado la ficha
+    buena de la ejecucion anterior con una vacia de 539 bytes.
+
+    Y esa ficha no es una salida cualquiera: es el documento de TRABAJO, el que
+    se va marcando a mano con "[ ] Cuadra exacto" trimestre a trimestre.
+    Perderla es perder la comparacion ya hecha contra los 303 presentados.
+    Misma familia que el ensayo que borraba las mediciones reales (entrada del
+    09-09-2026 en PROJECT_STATUS.md): una herramienta no puede destruir el
+    trabajo que existe para producir.
+    """
+    pares = pares_con_datos(datos, elegidas)
+    if not pares:
+        # Ni se abre el fichero de salida: lo que hubiera antes se queda.
+        return 0
+
+    temporal = ruta_salida + ".parcial"
+    with open(temporal, "w", encoding="utf-8") as f:
         f.write("FICHA DE CUADRE MANUAL CONTRA EL 303 PRESENTADO\n")
         f.write(f"Carpetas elegidas: {len(elegidas)}   "
                 f"Trimestres con datos: {len(pares)}\n\n")
@@ -210,6 +260,9 @@ def escribir_fichas(datos, elegidas, ruta_salida):
         f.write("  De ellos, cuadran exacto:              ___\n")
         f.write("  Cuadran con diferencia explicable:     ___\n")
         f.write("  No cuadran / sin explicacion:          ___\n")
+    # os.replace es atomico en el mismo sistema de ficheros: o esta la ficha
+    # nueva entera, o sigue la anterior. Nunca una a medias.
+    os.replace(temporal, ruta_salida)
     return len(pares)
 
 

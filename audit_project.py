@@ -319,7 +319,18 @@ def check_estados_y_cobertura():
                              # daban eran todas VERDE/VERDE y no se comprobaba
                              # ni un numero de la salida. Si contara mal los
                              # falsos verdes, aquel ensayo seguiria en verde.
-                             ("ensayo_validar_captura.py", "Falsos verdes: los cuenta, no los inventa")):
+                             ("ensayo_validar_captura.py", "Falsos verdes: los cuenta, no los inventa"),
+                             # cuadre_303_ficha.py es la via de REVISION HUMANA
+                             # al cuadre contra el 303 presentado, que es "la
+                             # unica verdad externa que este proyecto va a tener
+                             # nunca" (SIGUIENTES_PASOS.md §3.3). Construido el
+                             # 26-08, declarado "lo primero de manana" el 27-08,
+                             # y sin un solo ensayo hasta el 09-09. Lo que se
+                             # vigila sobre todo: que el numero que se elige en
+                             # el paso 2 sea la MISMA carpeta que la lista del
+                             # paso 1 prometia — si se descoloca, se compara la
+                             # contabilidad de un cliente contra el 303 de otro.
+                             ("ensayo_cuadre_ficha.py", "Ficha de cuadre 303: el numero elegido es la carpeta prometida")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue

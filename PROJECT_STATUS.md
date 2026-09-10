@@ -7,6 +7,144 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 09-09-2026 (sesión Cloud, tercera entrada) — La ficha del cuadre 303 podía comparar un cliente contra el 303 de otro, y nadie lo habría visto
+
+Mismo criterio de selección que la entrada anterior: **qué pieza va a
+ejecutarse contra datos reales sin haberse ejecutado nunca.** Medido, no
+supuesto: `cuadre_303_ficha.py` era el último script de sesión LOCAL sin
+ningún ensayo (`cola_revision.py` sí lo tenía, comprobado).
+
+Y no es una pieza menor. Es la vía de **revisión humana** al cuadre contra el
+303 presentado, que `SIGUIENTES_PASOS.md` §3.3 llama *"la única verdad externa
+que este proyecto va a tener nunca"*. Construido el 26-08, documentado como
+*"probado con datos ficticios"*, declarado **"lo primero de mañana"** en la
+entrada del 27-08 — y sin que ningún fichero del repositorio lo ejercitara.
+
+### Lo primero: comprobar que la pieza hermana no se ha quedado atrás
+
+Antes de nada se verificó el contrato de formato contra `reconstruir_303.py`,
+que se **reescribió dos veces el 27-08** (de derivar la base del gasto contable
+a invertir la fórmula del 303). Es exactamente el patrón que ya mordió una vez:
+`reconstruir_303.py` escrito el 21-08, el hallazgo de `BASEIMPO` el 25-08, y la
+pieza hermana sin revisar hasta el 27-08.
+
+**Resultado: el contrato coincide.** `{carpeta: {"2021T3": {"devengado": {tipo:
+{base, cuota, apuntes}}, "deducible": {...}}}}`, con `tipo_no_catalogado`
+compartido por los dos ficheros. Sin deriva. Verificado, no dado por bueno.
+
+### La propiedad que más daño haría, y por qué el riesgo era real
+
+El flujo son dos pasos separados por una decisión humana:
+
+```
+paso 1:  --listar         -> lista NUMERADA de carpetas
+paso 2:  --elegir 2,5,9   -> las fichas de esas
+```
+
+> **Si el número 5 de la lista no es la misma carpeta que el número 5 de
+> `--elegir`, se compara la contabilidad de un cliente contra el 303 de otro.**
+> Y eso no produce un error visible: produce un descuadre inexplicable, o —peor—
+> un cuadre por casualidad anotado como *"cuadra exacto"*.
+
+El riesgo no era teórico: la lista **se salta** las carpetas sin datos al
+imprimirlas, pero la numeración tiene que seguir siendo la del índice completo.
+Son dos criterios en dos funciones distintas, y nada los ataba.
+
+**Comprobado, y está bien:** con una carpeta vacía intercalada, la lista imprime
+1, 2 y 4 (reservando el 3) y `--elegir 4` devuelve la carpeta que la lista
+prometía. Queda fijado en código para que siga siendo verdad.
+
+### Dos defectos reales, los dos reproducidos antes de tocar código
+
+**1 · El TOTAL incorporaba en silencio lo que no se ha podido clasificar.**
+
+```
+tipo 21%             base        1.000,00
+tipo SIN TIPO CLARO  base          300,00
+TOTAL casillas 01-09 base        1.300,00   <- mezcla, sin decirlo
+```
+
+Ese TOTAL es lo que se compara contra la casilla del 303. Si no cuadra, no se
+sabe si falla el motor o si esos 300 € van a otra casilla; y si cuadra, puede
+haber cuadrado por casualidad. Sobre la única verdad externa del proyecto, **un
+cuadre que no se puede explicar entero no es un cuadre.**
+
+*Arreglado:* **no se saca del total** —decidir a qué casilla pertenece exigiría
+saber qué tipo era, que es justo lo que no se sabe— sino que **se declara**, con
+su base, su cuota y sus apuntes, justo debajo del total y donde se toma la
+decisión. Y no aparece cuando todos los tipos están catalogados: un aviso que
+sale siempre deja de significar algo.
+
+**2 · Una ejecución fallida destruía la ficha anterior.**
+
+`escribir_fichas()` escribía el fichero y **después** miraba si había salido
+algo. Reproducido: ejecución buena → ficha de 1.449 bytes con el trabajo dentro;
+`--elegir` sobre una carpeta sin datos → código de salida 1 **y la ficha buena
+machacada por una vacía de 539 bytes**.
+
+Y esa ficha no es una salida cualquiera: es el **documento de trabajo**, el que
+se va marcando a mano trimestre a trimestre (`[ ] Cuadra exacto`) contra los 303
+presentados. Perderla es perder la comparación ya hecha.
+
+*Arreglado:* se calcula si hay algo que escribir **antes** de abrir nada
+(`pares_con_datos()`), y la escritura es **atómica** (temporal + `os.replace`):
+o está la ficha nueva entera, o sigue la anterior. Nunca una a medias.
+
+> **Es la misma familia que el defecto 3 de la entrada anterior** (el ensayo que
+> borraba las mediciones reales): *una herramienta no puede destruir el trabajo
+> que existe para producir.* Dos apariciones en un día en sitios sin relación
+> entre sí — merece la pena tenerlo presente al escribir cualquier salida.
+
+### 17º auditor: `ensayo_cuadre_ficha.py`
+
+**23 comprobaciones en seis familias**, todo sintético (`*_SINTETICA`, importes
+inventados, ni un `.DAT` ni un PDF):
+
+| Familia | Qué fija |
+|---|---|
+| **A** | El número elegido es la carpeta que la lista prometía, con una carpeta vacía intercalada para forzar el caso |
+| **B** | Los totales suman **todas** sus celdas, en formato español, y un negativo (rectificativa) sale negativo |
+| **C** | Un total con tipo desconocido lo declara — y no lo declara cuando no lo hay |
+| **D** | Barrera de datos: nada sale de un `_LOCAL`, y por pantalla no se imprime ni un nombre de carpeta ni un importe |
+| **E** | JSON inválido, vacío, inexistente, número fuera de rango o no numérico: ninguna ficha |
+| **F** | Regresión del defecto 2: un fallo no se lleva por delante la ficha anterior |
+
+### Sabotaje: seis defectos reintroducidos
+
+| Sabotaje | En rojo |
+|---|---|
+| La lista numera lo impreso, no el índice completo | 2 — **incluida "`--elegir 3` devuelve otra carpeta"** |
+| El TOTAL solo suma la primera celda | 2 |
+| Deja de avisar del tipo desconocido | 2 |
+| La barrera `_LOCAL` avisa pero no bloquea | 3 |
+| Vuelve a escribir antes de saber si hay algo | 1 |
+| Imprime el nombre de carpeta por pantalla | 1 |
+
+### Un error propio, en la prueba y no en el código
+
+La primera versión de este ensayo escribió los números de carpeta **a mano** y
+falló cinco comprobaciones: daba por hecho que `MEDIA_SINTETICA` era la 3 cuando
+la propia familia A acababa de imprimir que es la 2. **El ensayo se equivocaba,
+no el script** — el mismo error de suponer en vez de derivar que el proyecto
+lleva evitando en el código, cometido en la prueba. Corregido derivando los
+índices del mismo criterio que usa el script, y anotado en su cabecera.
+
+### Estado tras la sesión
+
+`audit_project.py`: **21 ✅ · 1 ⚠️ · 0 ❌** (código 2, el ⚠️ son las
+dependencias del contenedor Cloud). `test_motor_veredicto.py` 36/36,
+`test_adversarial.py` 112/112, escáner de privacidad sin hallazgos.
+**No se tocó `motor_veredicto.py`** ni se añadió ningún guard.
+
+### Lo que esto cambia para el cuadre del 303
+
+`python cuadre_303_ficha.py --listar` era el siguiente comando pendiente desde
+el 27-08 y ahora se ejecuta con la herramienta probada: el número significa lo
+que dice, un total que mezcla lo desconocido lo avisa, y un error de tecleo no
+borra el trabajo hecho.
+
+---
+
 ## 09-09-2026 (sesión Cloud, segunda entrada) — El contador de falsos verdes no estaba probado, y probarlo destapó tres defectos
 
 Continuación directa de la entrada anterior. Elegido como trabajo de Cloud por

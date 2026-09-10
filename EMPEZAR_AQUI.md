@@ -56,6 +56,7 @@ Debe salir esto. Si no sale, algo se rompió y eso manda sobre todo lo demás:
 ✅ Reconstruir 303: deriva la base, no la inventa         <- 13º auditor, 27-08
 ✅ Emparejar carpetas: por nombre, sin adivinar por palabra <- 14º auditor, 27-08
 ✅ Falsos verdes: los cuenta, no los inventa              <- 16º auditor, 09-09
+✅ Ficha de cuadre 303: el numero elegido es la carpeta   <- 17º auditor, 09-09
 ✅ Modulos importables: ninguno se sale al importarse     <- 15º auditor, 09-09
 ```
 
@@ -260,7 +261,7 @@ ceguera del instrumento, pero no está descartado del todo. Ver
 > 21-08, el hallazgo sobre `BASEIMPO` es del 25-08, y nadie había revisado
 > la pieza hermana hasta el 27-08.
 
-### Los dieciséis auditores, y por qué hacen falta los dieciséis
+### Los diecisiete auditores, y por qué hacen falta los diecisiete
 
 Cada uno tapa un agujero que los demás no ven. No es redundancia:
 
@@ -282,8 +283,9 @@ Cada uno tapa un agujero que los demás no ven. No es redundancia:
 | `ensayo_emparejar_carpetas.py` | ¿se filtra por palabra clave sobre un nombre real? | **negocio real descartado por su propio nombre** |
 | `check_salida_al_importar` | ¿un módulo mata a quien lo importe? | **auditor apagado en silencio por una dependencia que su camino no usa** |
 | `ensayo_validar_captura.py` | ¿sabe **encontrar** un falso verde, no solo arrancar? | **el número que para el proyecto, contado de menos** |
+| `ensayo_cuadre_ficha.py` | ¿el número elegido es la carpeta que la lista prometía? | **comparar la contabilidad de un cliente contra el 303 de otro** |
 
-Los dieciséis corren dentro de `audit_project.py`: basta el primer comando.
+Los diecisiete corren dentro de `audit_project.py`: basta el primer comando.
 
 > El 13º es del 27-08 y cierra el hallazgo mayor de la sesión anterior: la
 > base de `303_LOCAL.json` era un cero disfrazado de dato. Reescrito DOS
@@ -376,6 +378,42 @@ Los dieciséis corren dentro de `audit_project.py`: basta el primer comando.
 > comprobación**. Sin ella el bug entraría entero. Los dos sentidos del conteo
 > (+1 y −1) también se sabotearon: el −1, que es el que hace daño de verdad
 > porque esconde falsos verdes, lo cazan cinco comprobaciones.
+
+> El 17º es del 09-09-2026 y vigila `cuadre_303_ficha.py`, la vía de **revisión
+> humana** al cuadre contra el 303 presentado — que es *"la única verdad externa
+> que este proyecto va a tener nunca"* (`SIGUIENTES_PASOS.md` §3.3). Construido
+> el 26-08, declarado *"lo primero de mañana"* el 27-08, y **sin un solo
+> ensayo** hasta hoy: no lo ejercitaba ningún fichero del repositorio.
+>
+> **Lo que vigila por encima de todo:** el flujo son dos pasos separados por una
+> decisión humana (`--listar` da una lista numerada, `--elegir 2,5,9` da las
+> fichas). Si el número 5 de la lista no es la misma carpeta que el número 5 de
+> `--elegir`, **se compara la contabilidad de un cliente contra el 303 de
+> otro** — y eso no produce un error visible, produce un descuadre inexplicable
+> o un cuadre por casualidad anotado como bueno. El riesgo no es teórico: la
+> lista **se salta** las carpetas sin datos al imprimirlas pero tiene que
+> conservar el índice completo, y son dos criterios en dos funciones distintas.
+> Probado saboteando exactamente eso: la batería canta que `--elegir 3` devuelve
+> una carpeta distinta a la prometida.
+>
+> **Dos defectos reales encontrados al escribirlo, los dos reproducidos antes de
+> tocar código:**
+>
+> 1. El TOTAL que se compara contra la casilla del 303 **incorporaba en silencio
+>    los importes de tipo no catalogado**. Si no cuadra, no se sabe si falla el
+>    motor o si ese trozo va a otra casilla; y puede cuadrar por casualidad. No
+>    se saca del total (decidir a qué casilla pertenece exigiría saber el tipo,
+>    que es justo lo que no se sabe): **se declara**, con su importe y sus
+>    apuntes, donde se toma la decisión.
+> 2. **Una ejecución fallida destruía la ficha anterior.** Se escribía el fichero
+>    y *después* se miraba si había salido algo, así que un `--elegir` sobre una
+>    carpeta sin datos salía con código 1 habiendo machacado ya la ficha buena
+>    con una vacía de 539 bytes. Y esa ficha es el **documento de trabajo**, el
+>    que se va marcando a mano trimestre a trimestre. Ahora se escribe de forma
+>    atómica: o está la nueva entera, o sigue la anterior.
+>
+> Misma familia que el defecto 3 del 16º auditor: **una herramienta no puede
+> destruir el trabajo que existe para producir.**
 
 > El 12º es del 26-08 y nace de un bug que ya había mordido: `audit_project.py`
 > **se rompía a la mitad en el PC de la asesoría** y no en Cloud, porque
