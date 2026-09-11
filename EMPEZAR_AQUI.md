@@ -211,10 +211,20 @@ plantilla dijo `39/39` cuando la suite ya iba por 65.
 
 **No lo repitas desde cero: lee el resultado primero.** El corpus real ya se
 pasó por el motor, once arreglos reales encontrados por el camino (diez el
-25-08 más uno de auto-revisión). Resultado final: **VERDE 87,71% · ROJO
+25-08 más uno de auto-revisión). Medición del 25-08: **VERDE 87,71% · ROJO
 3,03% · AMBAR 9,26%**, sobre 30.013 asientos evaluados. Detalle completo,
 arreglo por arreglo, en `FASE0_RESULTADOS.md` §14 — ese archivo manda sobre
 cualquier número de aquí.
+
+> **⚠️ Esa cifra de VERDE está SUPERADA, y sigue apareciendo abajo en esta
+> misma sección porque el hilo de cómo se llegó a ella importa. La vigente,
+> medida el 28-08 contra el mismo corpus, es: ROJO 3,03% · ÁMBAR 12,82% ·
+> VERDE 84,15%.** El VERDE bajó porque tres cachés de historial estaban
+> dormidas y al despertarlas el motor pasó a ver cosas que antes callaba —
+> es decir, bajó por mejorar, no por empeorar. **El ROJO 3,03% no se ha
+> movido en ninguna medición.** Cifra vigente también en `PENDIENTE.md`, que
+> `arranque.py` imprime al empezar cada sesión; el decir a mano "resultado
+> final" fue lo que dejó esta línea desfasada dos semanas (visto 11-09-2026).
 
 **Por el umbral ya acordado en `SIGUIENTES_PASOS.md` §4 (fijado ANTES de ver
 el número): ROJO 3,03% < 5% = "Verde. Se pasa al siguiente paso sin tocar el
