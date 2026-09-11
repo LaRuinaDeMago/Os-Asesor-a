@@ -394,7 +394,11 @@ def main():
     print("=" * 68)
     print("BASES Y CUOTAS DE IVA POR TRIMESTRE (casillas 01-09 y 28-29)")
     print("=" * 68)
-    print(f"  clientes (carpetas)      : {n_clientes:,}")
+    # No son "clientes": son cubos (carpeta+codigo). El mismo cliente real
+    # puede tener varios cubos entre copias distintas -- esa identidad sigue
+    # sin resolverse (FASE0_RESULTADOS.md), y llamarlo "cliente" aqui induce
+    # a leer 509 como "509 clientes reales" cuando no lo es.
+    print(f"  cubos (carpeta+codigo)   : {n_clientes:,}")
     print(f"  trimestres reconstruidos : {len(trimestres):,}")
     print(f"  apuntes de IVA agregados : {apuntes:,}")
     print()

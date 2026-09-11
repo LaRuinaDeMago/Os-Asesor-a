@@ -22,7 +22,9 @@ tacha ahí).
 **2. Después lee `EMPEZAR_AQUI.md`**, que es el punto de entrada narrativo: por
 qué las cosas son como son.
 
-**3. `PROJECT_STATUS.md` NO se lee entero.** Son 140 KB de registro histórico:
+**3. `PROJECT_STATUS.md` NO se lee entero.** Es un registro histórico que solo
+crece (no se escribe aquí su tamaño exacto a propósito: derivaría, como ya le
+pasó a este mismo párrafo — decía "140 KB" cuando ya iba por 257 KB):
 se **consulta** buscando una fecha o un tema concreto. Hasta el 10-09-2026 este
 mismo apartado ordenaba leerlo completo, lo cual sólo tenía dos desenlaces y los
 dos malos — gastar media sesión en historia, o saltárselo y perder el estado.
