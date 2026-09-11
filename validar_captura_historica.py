@@ -73,6 +73,14 @@ from datetime import date
 import contrato_datos
 import motor_veredicto as mv
 
+# Sin esto, `print(f"  ⚠ ...")` revienta con UnicodeEncodeError en cuanto la
+# salida no va a una consola/pipe UTF-8 -- exactamente lo que pasa al
+# ejecutar este script en el PC de la asesoria (cp1252) o al capturar su
+# stdout desde un ensayo. Mismo patron que ya usan el resto de scripts del
+# proyecto (ver diag_estructura_documentos.py, cuadre_303_ficha.py...).
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 AQUI = os.path.dirname(os.path.abspath(__file__))
 SALIDA_AGREGADA = os.path.join(AQUI, "validacion_captura_agregado.json")
 SALIDA_LOCAL = os.path.join(AQUI, "validacion_captura_LOCAL.csv")

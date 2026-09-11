@@ -7,6 +7,62 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 11-09-2026 (sesión Cloud) — `audit_project.py` en rojo nada más arrancar: `validar_captura_historica.py` revienta en Windows por un `⚠` sin `encoding`
+
+Sesión de retoma normal, siguiendo el orden que manda `CLAUDE.md`
+(`arranque.py` → `EMPEZAR_AQUI.md` → `audit_project.py`). Antes de leer nada
+del plan, `git fetch` mostró que `master` llevaba 5 commits que esta rama no
+tenía (la fusión de los "32 commits del 28-08"); fast-forward limpio, sin
+conflicto, verificado con `test_motor_veredicto.py` antes y después.
+
+Con eso hecho, `python audit_project.py` salió con **código 1** — "hay un
+defecto real, y eso manda sobre todo lo demás" — en la comprobación
+`ensayo_validar_captura.py` ("Falsos verdes: los cuenta, no los inventa").
+Por la jerarquía de `CLAUDE.md`, esto se investigó antes de tocar cualquier
+otra cosa del plan.
+
+**El defecto, reproducido antes de tocar código:** `validar_captura_historica.py`
+es el único script del proyecto sin la guarda estándar
+`sys.stdout.reconfigure(encoding="utf-8", errors="replace")` que llevan el
+resto (`cuadre_303_ficha.py`, `emparejar_carpetas.py`, `diag_*.py`...). En
+cuanto el fichero necesita imprimir `⚠` (dos sitios: campos críticos
+ausentes, filas descartadas del cálculo) y la salida no va a una consola/pipe
+UTF-8, revienta con `UnicodeEncodeError` **antes de escribir el agregado**.
+Confirmado ejecutándolo directo con un CSV sintético de 6 filas sin `nif` ni
+`fecha_expedicion`: traceback en la línea del `print`, código de salida 1, sin
+`validacion_captura_agregado.json` en disco.
+
+Esto es exactamente la familia de bug que `EMPEZAR_AQUI.md` ya documenta con
+otro nombre ("verde en Cloud, roto en el PC real") — pero del lado del script
+hijo, no del `subprocess.run` que lo llama: `check_subprocess_encoding`
+comprueba que quien LLAMA declare `encoding`, no que el propio script se
+proteja al imprimir. El ensayo lo cazó en cascada: `ejecutar()` devuelve
+`agregado=None` cuando el fichero no aparece, y la comprobación de la línea
+300 (`ag_e2.get("medicion_valida")`) explota con `AttributeError` sobre ese
+`None` antes de que el ensayo pudiera ni reportar el fallo con claridad.
+
+**Arreglado:** añadida la misma guarda de dos líneas que ya usa el resto del
+proyecto, justo tras los imports. Nada más cambia — ni un guard, ni un
+formato de salida.
+
+**Verificado, en este orden:**
+1. Reproducido el crash con el CSV sintético, antes de tocar nada.
+2. Mismo CSV contra el fichero ya arreglado: código de salida 0, agregado
+   escrito con `"medicion_valida": false` y `"campos_criticos_ausentes"`
+   correctos.
+3. `python ensayo_validar_captura.py`: las 27 comprobaciones en verde,
+   incluidas las 3 de la FAMILIA E que antes fallaban en cascada.
+4. `test_motor_veredicto.py` 65/65, `test_adversarial.py` 112/112 en verde
+   (sin tocar el motor, se confirma que nada colateral se movió).
+5. `python audit_project.py`: **código de salida 0**. La propia auditoría lo
+   anota: *"Falsos verdes: los cuenta, no los inventa: MEJORÓ desde la
+   última ejecución"*.
+
+No hizo falta escribir ningún ensayo nuevo: `ensayo_validar_captura.py` ya
+existía y ya probaba exactamente este caso (FAMILIA E, 09-09-2026) — lo que
+faltaba era que el script bajo prueba no reventara antes de que el ensayo
+pudiera comprobar nada.
+
 ## 10-09-2026 (sesión Cloud) — Cierre de entrega: el fichero que se lee SIEMPRE mandaba al sitio equivocado, y un documento con apellidos reales no estaba bloqueado
 
 Sesión de cierre. La pregunta era si quedaba valor en Cloud o si todo lo
