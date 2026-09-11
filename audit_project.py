@@ -26,6 +26,19 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
 
 RESULTADO = {"fecha": datetime.now().isoformat(timespec="seconds"), "checks": {}}
 
+#: Toda suite que esta auditoria EJECUTA DE VERDAD queda anotada aqui, por la
+#: unica puerta por la que se ejecutan (`ejecutar_suite`). No es una lista que
+#: se mantenga a mano: es el registro de lo que ha corrido en ESTA pasada, y es
+#: lo que lee check_suites_sin_cablear() al final.
+#:
+#: POR QUE NO SE MIRA SI EL NOMBRE APARECE EN ESTE FICHERO: aparece. Este
+#: fichero esta lleno de nombres `.py` dentro de comentarios que explican por
+#: que tal ensayo cubre lo que tal otro no. Un `grep` daria por cableada
+#: cualquier suite NOMBRADA, incluida una nombrada precisamente para explicar
+#: que se deja fuera. Seria la barrera por nombre que `.claude/rules/datos.md`
+#: llama "de conveniencia", y el falso verde que el motor tiene prohibido dar.
+SUITES_EJECUTADAS = set()
+
 
 #: Los mismos tres estados que usa el motor. La auditoria no puede permitirse
 #: menos precision que lo que audita: hasta el 09-09-2026 solo tenia ✅ y ❌, y
@@ -57,6 +70,21 @@ def check(nombre, ok, detalle="", estado=None):
         "detalle": detalle,
     }
     print(f"{MARCA[estado]} {nombre}: {detalle}")
+
+
+def ejecutar_suite(script):
+    """Unica puerta por la que esta auditoria lanza una suite. Anota el nombre
+    en SUITES_EJECUTADAS ANTES de lanzarla, para que una suite que reviente,
+    cuelgue o salga en rojo siga contando como ejecutada: lo que
+    check_suites_sin_cablear() persigue es la suite que NADIE mira, no la que
+    falla (esa ya sale en rojo por su propio check)."""
+    # Se anota la RUTA relativa tal cual, no el nombre a secas: dos suites con
+    # el mismo nombre en directorios distintos (ensayo_x.py y sub/ensayo_x.py)
+    # se taparian la una a la otra, y ejecutar una daria la otra por cubierta.
+    # Un falso verde por colision de nombres es un falso verde igual.
+    SUITES_EJECUTADAS.add(Path(script).as_posix())
+    return subprocess.run([sys.executable, script], capture_output=True,
+                          text=True, encoding="utf-8", errors="replace")
 
 
 def check_sintaxis():
@@ -185,10 +213,8 @@ def check_tests():
     # — la misma familia de "costura" que los dos bugs del 26-08: la pieza de
     # despues no entendia el formato que la de antes si emitia.
     #
-    # Los tres subprocess.run de este fichero llevan ya encoding explicito.
-    resultado = subprocess.run([sys.executable, "test_motor_veredicto.py"],
-                                capture_output=True, text=True,
-                                encoding="utf-8", errors="replace")
+    # Pasa por ejecutar_suite() para quedar anotada en SUITES_EJECUTADAS.
+    resultado = ejecutar_suite("test_motor_veredicto.py")
     ok = "TODAS LAS PRUEBAS PASAN" in resultado.stdout
     # CORREGIDO 19-08-2026 (auditoria externa): aqui habia un "21/21 OK" escrito
     # a mano como cadena. No contaba nada: si se anadia o quitaba un check,
@@ -221,9 +247,7 @@ def check_adversarial():
     if not os.path.exists("test_adversarial.py"):
         check("Bateria adversarial", False, "test_adversarial.py no encontrado")
         return
-    resultado = subprocess.run([sys.executable, "test_adversarial.py"],
-                                capture_output=True, text=True,
-                                encoding="utf-8", errors="replace")
+    resultado = ejecutar_suite("test_adversarial.py")
     ok = resultado.returncode == 0
     linea = next((l for l in resultado.stdout.splitlines() if l.startswith("Pruebas:")), "")
     check("Bateria adversarial (test_adversarial.py)", ok,
@@ -351,12 +375,63 @@ def check_estados_y_cobertura():
                              # vio al despertarlos. Una leccion escrita en un
                              # documento no impide que vuelva dentro de tres
                              # meses en el guard numero 27.
-                             ("ensayo_ok_sin_comprobar.py", "Falso verde estructural: ningun OK que signifique 'no lo he comprobado'")):
+                             ("ensayo_ok_sin_comprobar.py", "Falso verde estructural: ningun OK que signifique 'no lo he comprobado'"),
+                             # ---------------------------------------------------
+                             # CABLEADAS EL 11-09-2026. Las siete existian en el
+                             # repositorio, en verde, y esta auditoria NO las
+                             # ejecutaba: la tupla se mantiene a mano y se habia
+                             # quedado atras. Demostrado por sabotaje antes de
+                             # arreglarlo: con ensayo_validar_captura_historica.py
+                             # roto a proposito, la auditoria completa salia
+                             # IDENTICA a la del repositorio sano, codigo 2, sin
+                             # un solo ❌. check_suites_sin_cablear(), al final de
+                             # este fichero, impide que la lista vuelva a
+                             # quedarse atras sin que nadie se entere.
+                             # ---------------------------------------------------
+                             # La que mas urgia: valida el script que produce el
+                             # UNICO numero con umbral acordado por adelantado, y
+                             # es la unica que fija la regresion del bug P0 del
+                             # 21-08 ("0.0% miente" con separador roto). Su
+                             # hermana ensayo_validar_captura.py SI estaba
+                             # cableada, pero cubre otra cosa: que CUENTE bien.
+                             # Esta cubre que no MIENTA cuando no puede contar,
+                             # mas la acumulacion incremental del historico y su
+                             # orden cronologico. Ninguna de las tres regresiones
+                             # estaba protegida por la auditoria hasta hoy.
+                             ("ensayo_validar_captura_historica.py", "Captura historica: ni miente con 0.0% ni pierde el orden"),
+                             # Los tres scripts de identidad se refactorizaron el
+                             # 27-08 para exponer funcion reutilizable. Sus
+                             # ensayos se escribieron ese mismo dia; nadie los
+                             # volvio a correr salvo a mano.
+                             ("ensayo_enlazador_clientes_303.py", "Enlazador 303: agrupa por proveedor compartido sin cambiar el resultado"),
+                             ("ensayo_diag_carpetas_multiempresa.py", "Carpetas multiempresa: distingue mezcla de sana sin falsos positivos"),
+                             ("ensayo_diag_calibracion_sospechosa.py", "Calibracion SOSPECHOSA: separa mezcla real de artefacto temporal"),
+                             # Cruza las tres senales anteriores. Es la unica que
+                             # prueba el caso que ninguna de ellas ve por separado.
+                             ("ensayo_consolidar_identidad.py", "Consolidar identidad: ve lo que ninguna senal suelta puede ver"),
+                             # comparar_esquema_dbf.py ya se ejecuto contra el
+                             # ContaPlus real de la asesoria (09-09, salio
+                             # IDENTICO). Es lo que avisara si ContaSOL cambia el
+                             # layout del DBF: si se rompe en silencio, el aviso
+                             # no llega el dia que importa.
+                             ("test_comparar_esquema_dbf.py", "Esquema DBF: la comparacion contra ContaPlus/ContaSOL sigue en pie"),
+                             # Primera pieza del modulo de facturas EMITIDAS. Su
+                             # invariante (correlatividad sin huecos) es
+                             # requisito de VeriFactu, no una comodidad.
+                             ("test_numeracion_correlativa.py", "Numeracion correlativa: sin huecos, sin duplicados, sin retrocesos"),
+                             # El ensayo del auditor que cerro este agujero. Un
+                             # auditor que se apaga en silencio deja el agujero
+                             # PEOR que antes, porque ademas lo firma como
+                             # revisado (11o auditor, dos semanas apagado,
+                             # PROJECT_STATUS.md 09-09-2026). Prueba propia de
+                             # que funciona: en cuanto se escribio, y antes de
+                             # anadir esta linea, check_suites_sin_cablear()
+                             # puso la auditoria en rojo por ELLA MISMA.
+                             ("ensayo_suites_cableadas.py", "Suites cableadas: el auditor que caza la prueba que nadie ejecuta")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue
-        r = subprocess.run([sys.executable, script], capture_output=True, text=True,
-                           encoding="utf-8", errors="replace")
+        r = ejecutar_suite(script)
         salida = r.stdout or ""
         linea = next((l.strip() for l in reversed(salida.splitlines())
                       if "cobertura util" in l or "✗" in l), "")
@@ -528,6 +603,112 @@ def check_salida_al_importar():
           f"matan a quien los importe (y apagan su ensayo en silencio): {', '.join(sorted(fallos))}")
 
 
+#: Una suite puede quedar legitimamente fuera de la auditoria, pero NUNCA en
+#: silencio: se anota aqui con motivo y fecha, y check_suites_sin_cablear() la
+#: imprime en cada pasada. Hoy esta vacio a proposito — las siete que estaban
+#: fuera el 11-09-2026 se cablearon en vez de excluirse, porque las siete corren
+#: en 0,57 s entre todas, sin dependencias externas y sin tocar ningun dato.
+#:
+#: Formato:  "ruta/relativa.py": "motivo concreto — DD-MM-AAAA"
+#: (ruta relativa a la raiz del repositorio, con "/", igual que la clave que
+#: anota ejecutar_suite() — en la raiz es simplemente "fichero.py")
+EXCEPCIONES_SUITES = {}
+
+
+def check_suites_sin_cablear():
+    """ANADIDO 11-09-2026. La cuarta pregunta, y la que faltaba desde el principio.
+
+        check_cableado()          -> ¿el guard existe y alguien lo llama?
+        cobertura_guards          -> ¿ha llegado alguna vez a decir que no?
+        audit_estados             -> ¿lo que dice cambia el veredicto?
+        check_suites_sin_cablear  -> ¿y quien ejecuta a los que preguntan eso?
+
+    EL AGUJERO QUE CIERRA, medido antes de taparlo. El 11-09-2026 habia SIETE
+    suites en el repositorio —todas en verde, todas escritas para proteger una
+    regresion concreta— que esta auditoria no ejecutaba nunca. La lista de
+    `check_estados_y_cobertura()` se mantiene A MANO, asi que escribir un ensayo
+    y no acordarse de anadirlo ahi lo deja mirando a la pared.
+
+    Y check_modulos_huerfanos(), que existe justo para cazar "una pieza probada
+    en aislado y nunca conectada" —"el fallo que MAS se repite en este
+    proyecto", dice su propio docstring—, no podia verlo: exime expresamente a
+    todo lo que tenga `__main__` o empiece por `test_`. Toda suite cumple las
+    dos cosas. El auditor de piezas desconectadas tenia su punto ciego
+    exactamente en las piezas que auditan.
+
+    COMPROBADO POR SABOTAJE, antes de escribir una linea del arreglo: con
+    `ensayo_validar_captura_historica.py` roto a proposito —el unico que fija la
+    regresion del P0 "0.0% miente"— `audit_project.py` imprimio la MISMA salida
+    que con el repositorio sano y salio con el mismo codigo 2. Ni un ❌, ni una
+    mencion.
+
+    POR QUE MIRA LA EJECUCION Y NO EL NOMBRE. Lo facil seria comprobar si el
+    nombre de la suite aparece en este fichero. No vale: este fichero esta lleno
+    de nombres `.py` dentro de comentarios que explican que cubre cada ensayo y
+    que deja fuera. Un `grep` daria por cableada una suite NOMBRADA —incluida
+    una nombrada justo para explicar por que NO se ejecuta—. Esa es la "barrera
+    de conveniencia" de `.claude/rules/datos.md`: la que decide por el nombre en
+    vez de por el contenido. Aqui el contenido es el hecho de haber corrido, y
+    lo aporta `ejecutar_suite()`, la unica puerta por la que sale una suite.
+
+    Por eso tiene que llamarse LA ULTIMA en main(): compara contra lo que
+    realmente ha corrido en esta pasada.
+    """
+    encontradas = set()
+    for ruta in Path(".").rglob("*.py"):
+        if any(parte.startswith(".") for parte in ruta.parts):
+            continue          # .git, .venv y demas: no es codigo del proyecto
+        if ruta.name.startswith("test_") or ruta.name.startswith("ensayo_"):
+            # Misma clave que usa ejecutar_suite(): ruta relativa a la raiz.
+            encontradas.add(ruta.as_posix())
+
+    sin_cablear = sorted(encontradas - SUITES_EJECUTADAS - set(EXCEPCIONES_SUITES))
+    excluidas = sorted(n for n in EXCEPCIONES_SUITES if n in encontradas)
+
+    # Una excepcion escrita para una suite que ya no existe es basura que tapa:
+    # manana ese nombre puede volver a usarse y entrar exento sin que nadie lo
+    # decida. Se avisa aparte, no se cuela en el recuento de las que faltan.
+    fantasmas = sorted(set(EXCEPCIONES_SUITES) - encontradas)
+
+    # El recuento se hace sobre la INTERSECCION, no sobre len(SUITES_EJECUTADAS):
+    # por ejecutar_suite() pasan tambien auditores que no son suites
+    # (audit_estados.py, cobertura_guards.py, barrido_falsos_verdes.py), y
+    # contarlos daba el absurdo "25 ejecutadas, 22 en el repositorio" — un
+    # numero que nadie puede cuadrar de un vistazo es un numero que deja de
+    # mirarse, igual que el ❌ que se enseño a ignorar (ver la nota de los tres
+    # estados arriba).
+    cubiertas = encontradas & SUITES_EJECUTADAS
+    otros = sorted(SUITES_EJECUTADAS - encontradas)
+    partes = [f"{len(cubiertas)}/{len(encontradas)} suites del repositorio ejecutadas"
+              + (f" (+{len(otros)} auditores que no son suite: {', '.join(otros)})" if otros else "")]
+    if excluidas:
+        partes.append("excluidas a proposito: "
+                      + "; ".join(f"{n} ({EXCEPCIONES_SUITES[n]})" for n in excluidas))
+    if fantasmas:
+        partes.append(f"excepciones que sobran (esa suite ya no existe): {fantasmas}")
+    if sin_cablear:
+        partes.append("NADIE EJECUTA: " + ", ".join(sin_cablear)
+                      + " - existen, pueden estar en rojo, y esta auditoria diria que todo va bien")
+
+    # CERO suites encontradas no es un aprobado: es que no se ha mirado nada.
+    # Pasa si la auditoria se lanza desde otro directorio (`Path(".")` es el
+    # directorio de trabajo, no el del fichero). El resto de la auditoria ya
+    # saldria en rojo por su cuenta, pero ESTE check, y solo el, habria dicho
+    # que va bien sin haber abierto nada — el mismo falso verde que el escaner
+    # de privacidad daba con un .DAT (.claude/rules/datos.md): "sin hallazgos"
+    # porque no habia mirado. Sale por la puerta de NO_COMPROBADO, que es la
+    # verdad.
+    if not encontradas:
+        check("Suites: ninguna prueba mirando a la pared", False,
+              "no se ha encontrado NINGUNA suite en este directorio: "
+              f"esto no es un aprobado, es que no se ha mirado nada (cwd: {os.getcwd()})",
+              estado=NO_COMPROBADO)
+        return
+
+    check("Suites: ninguna prueba mirando a la pared",
+          not sin_cablear and not fantasmas, " | ".join(partes))
+
+
 def comparar_con_anterior():
     path_historico = ".audit_historico.json"
     anterior = None
@@ -555,6 +736,8 @@ if __name__ == "__main__":
     check_estados_y_cobertura()
     check_subprocess_encoding()
     check_salida_al_importar()
+    # LA ULTIMA a proposito: compara contra lo que de verdad ha corrido arriba.
+    check_suites_sin_cablear()
     comparar_con_anterior()
 
     estados = [c.get("estado", OK if c["ok"] else FALLO)
