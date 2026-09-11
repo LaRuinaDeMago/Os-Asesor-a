@@ -107,28 +107,44 @@ plantilla dijo `39/39` cuando la suite ya iba por 65.
 > tiene ahora los mismos tres estados que el motor: **OK · FALLO ·
 > NO_COMPROBADO.**
 
-> **27-08-2026:** módulos nuevos, independientes del motor, **a propósito sin
-> cablear a `audit_project.py`** (son código que empieza ese día, no la pieza
-> ya estable y auditada muchas veces que es el motor — mezclarlos ahí
-> fingiría una madurez que no tienen). Se verifican con su propio comando —
-> **ninguno sale en la lista de arriba, y es correcto**:
+> **27-08-2026, CORREGIDO EL 11-09-2026.** Aquel día se decidió dejar tres
+> módulos nuevos **a propósito sin cablear a `audit_project.py`**, con este
+> motivo: *"son código que empieza ese día, no la pieza ya estable que es el
+> motor — mezclarlos ahí fingiría una madurez que no tienen"*.
+>
+> **Esa decisión se revoca para dos de los tres, y conviene saber por qué se
+> revoca en vez de mantenerse:** el argumento era sobre la madurez del MÓDULO,
+> pero una suite cableada no afirma que el módulo esté maduro — afirma que sus
+> pruebas pasan. Lo que sí hacía la exclusión era garantizar que, el día que
+> una de ellas se pusiera roja, **nadie se enteraría**. Dos semanas después las
+> dos han corrido contra datos reales, y `test_comparar_esquema_dbf.py` es
+> justo lo que tiene que avisar si ContaSOL cambia el layout del `.dbf` en
+> enero. Una prueba que nadie ejecuta no evita fingir madurez: evita enterarse.
+> Cuestan 0,09 s entre las dos.
+>
 > - `python test_numeracion_correlativa.py` — 25/25 (numeración correlativa
->   para el módulo de facturas EMITIDAS, ver §9).
+>   para el módulo de facturas EMITIDAS, ver §9). **Ya cableada.**
+> - `python test_comparar_esquema_dbf.py` — 12/12 (compara el layout de un
+>   `.dbf` real contra ContaPlus sin exponer ningún dato, ver §10).
+>   **Ya cableada.**
+>
+> **El tercero sigue fuera, y ese motivo sí se mantiene en pie:**
 > - `python diff_comportamiento_motor.py` — **cuando toques el motor**: dice
 >   qué factura cambia de veredicto con tu cambio, y avisa si mueve un caso
 >   de control (un efecto colateral). Con el árbol limpio no encuentra nada, y
 >   por eso **no está cableado a la auditoría diaria**: allí sería una línea
->   verde que no comprueba nada. `--ref 408952f` enseña todo lo que cambió el
->   27-08.
-> - `python test_comparar_esquema_dbf.py` — 12/12 (compara el layout de un
->   `.dbf` real contra ContaPlus sin exponer ningún dato, ver §10).
+>   verde que no comprueba nada — un falso verde, que es distinto de una
+>   exclusión por inmadurez. `--ref 408952f` enseña todo lo que cambió el
+>   27-08. (No lleva prefijo `test_`/`ensayo_`, así que el auditor de suites
+>   del 11-09 no lo reclama: no es una suite, es una herramienta de mano.)
 >
 > **27-08-2026 (sesión Cloud, decimocuarta entrada):** `consolidar_identidad.py`
 > (nuevo) cruza las tres señales de identidad cliente↔carpeta del 27-08
 > (`emparejar_carpetas.py`, `enlazador_clientes_303.py`,
 > `diag_carpetas_multiempresa.py`) en una sola vista ordenada por prioridad
 > de revisión — detalle completo en `PROJECT_STATUS.md`, misma fecha. Tres
-> ensayos nuevos, también sin cablear a `audit_project.py` todavía:
+> ensayos nuevos (decía *"también sin cablear a `audit_project.py` todavía"*;
+> **ese "todavía" duró dos semanas — cableados los tres el 11-09-2026**):
 > - `python ensayo_enlazador_clientes_303.py`
 > - `python ensayo_diag_carpetas_multiempresa.py`
 > - `python ensayo_consolidar_identidad.py`
@@ -545,18 +561,26 @@ Cada uno tapa un agujero que los demás no ven. No es redundancia:
 Todos corren dentro de `audit_project.py`: basta el primer comando.
 
 > **El número no se escribe aquí a mano, y es deliberado.** Esta tabla es
-> una lista comentada, no el recuento: `audit_project.py` ejecuta hoy **21
-> comprobaciones**, y ese número sale de contarlo (`python audit_project.py`),
-> no de este documento. La versión anterior sí llevaba el número escrito y
-> ya había derivado —la tabla decía catorce y la prosa de otra sesión
-> hablaba del "15º auditor"—. Es la misma trampa del `21/21 OK` que
-> `audit_project.py` imprimía como cadena fija hasta el 19-08.
+> una lista comentada, no el recuento: el número sale de contarlo (`python
+> audit_project.py`), no de este documento. La versión anterior sí llevaba el
+> número escrito y ya había derivado —la tabla decía catorce y la prosa de
+> otra sesión hablaba del "15º auditor"—. Es la misma trampa del `21/21 OK`
+> que `audit_project.py` imprimía como cadena fija hasta el 19-08.
+>
+> **Y aun así había derivado otra vez (visto el 11-09-2026):** esta misma
+> nota decía "ejecuta hoy 21 comprobaciones" y el cierre de la tabla decía
+> "los dieciocho", con la auditoría corriendo ya bastantes más. Escribir la
+> regla no basta; hay que no escribir el número. Ambos retirados.
 | `check_salida_al_importar` | ¿un módulo mata a quien lo importe? | **auditor apagado en silencio por una dependencia que su camino no usa** |
 | `ensayo_validar_captura.py` | ¿sabe **encontrar** un falso verde, no solo arrancar? | **el número que para el proyecto, contado de menos** |
 | `ensayo_cuadre_ficha.py` | ¿el número elegido es la carpeta que la lista prometía? | **comparar la contabilidad de un cliente contra el 303 de otro** |
 | `ensayo_arranque.py` | ¿el arranque de TODA sesión revienta o toca datos? | **toda sesión empieza con un error, o el arranque abre un `_LOCAL`** |
+| `check_suites_sin_cablear` | ¿y quién ejecuta a los que preguntan todo esto? | **la prueba que existe, está en verde, y nadie ejecuta nunca** |
+| `ensayo_suites_cableadas.py` | ¿ese auditor sigue despierto? | **el auditor apagado en silencio, que además firma como revisado** |
 
-Los dieciocho corren dentro de `audit_project.py`: basta el primer comando.
+Todos corren dentro de `audit_project.py`: basta el primer comando — y desde
+el 11-09-2026 hay un auditor que comprueba justo eso, que no se quede ninguno
+fuera (última fila de la tabla).
 
 > El 13º es del 27-08 y cierra el hallazgo mayor de la sesión anterior: la
 > base de `303_LOCAL.json` era un cero disfrazado de dato. Reescrito DOS

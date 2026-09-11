@@ -7,6 +7,151 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 11-09-2026 (sesión Cloud) — Siete pruebas llevaban semanas mirando a la pared, y la auditoría completa salía en verde igual
+
+Escaneo de abajo arriba del repositorio, pedido para decidir qué hacer a
+continuación. Lo primero que salió no fue una tarea pendiente: fue que la rama
+de trabajo iba **cinco commits por detrás de `master`** —el trabajo del 27 y 28
+de agosto ya estaba fusionado y con cuatro commits más encima—. Puesta al día
+antes de juzgar nada, porque el estado que se mide sobre un árbol viejo no es
+el estado.
+
+### El hallazgo
+
+El repositorio tiene 22 suites de prueba. `audit_project.py` ejecutaba 15.
+**Siete existían, estaban en verde, y nada ni nadie las ejecutaba nunca:**
+
+| suite | qué protege |
+|---|---|
+| `ensayo_validar_captura_historica.py` | la regresión del **bug P0 del 21-08** (*"0.0% miente"* cuando no se reconoce el separador del CSV), la acumulación incremental del histórico y su orden cronológico |
+| `ensayo_enlazador_clientes_303.py` | que la extracción a `calcular_grupos()` no cambió el agrupamiento |
+| `ensayo_diag_carpetas_multiempresa.py` | que `calcular_sospechosas()` distingue mezcla de sana sin falsos positivos |
+| `ensayo_diag_calibracion_sospechosa.py` | que separa mezcla real de artefacto temporal, y sabe decir NO_COMPROBADO |
+| `ensayo_consolidar_identidad.py` | el caso que **ninguna** de las tres señales anteriores ve por separado |
+| `test_comparar_esquema_dbf.py` | la comparación de layout `.dbf` — **lo que tiene que avisar si ContaSOL cambia el formato en enero** |
+| `test_numeracion_correlativa.py` | correlatividad sin huecos: requisito de VeriFactu, no comodidad |
+
+La primera es la que más urgía: valida el script que produce **el único número
+del proyecto con umbral acordado por adelantado** (`SIGUIENTES_PASOS.md` §4).
+Su hermana `ensayo_validar_captura.py` sí estaba cableada, pero cubre otra cosa
+—que **cuente** bien—; ésta cubre que **no mienta** cuando no puede contar.
+Ninguna de sus tres regresiones estaba protegida por la auditoría.
+
+### Medido antes de arreglarlo, no supuesto
+
+Con `ensayo_validar_captura_historica.py` **roto a propósito**, `audit_project.py`
+imprimió la **misma salida** que con el repositorio sano y salió con el **mismo
+código 2**. Ni un ❌, ni una mención. El criterio de "hecho" de
+`.claude/rules/testing.md` —*"audit_project.py no reporta huérfanos"*— se
+cumplía con una prueba completamente rota dentro.
+
+### Por qué el auditor de huérfanos no podía verlo
+
+`check_modulos_huerfanos()` existe exactamente para cazar *"una pieza probada en
+aislado y nunca conectada"* —*"el fallo que MÁS se repite en este proyecto"*,
+dice su propio docstring—. Y exime expresamente a todo lo que tenga `__main__` o
+empiece por `test_`. **Toda suite cumple las dos cosas.** El auditor de piezas
+desconectadas tenía su punto ciego justo en las piezas que auditan.
+
+La lista de `check_estados_y_cobertura()` se mantiene **a mano**: escribir un
+ensayo y no acordarse de añadirlo ahí lo deja mirando a la pared, en silencio y
+para siempre.
+
+### 19º auditor: `check_suites_sin_cablear()` + `ensayo_suites_cableadas.py`
+
+No compara nombres: compara **ejecuciones reales**. `ejecutar_suite()` es ahora
+la única puerta por la que esta auditoría lanza una suite, y anota la ruta
+**antes** de lanzarla (para que una suite que reviente siga contando como
+ejecutada: lo que se persigue es la que nadie mira, no la que falla — ésa ya sale
+en rojo por su propio check). Al final de la pasada se compara lo que ha corrido
+contra lo que hay en disco.
+
+**Por qué no un `grep` del nombre, que era lo fácil:** `audit_project.py` está
+lleno de nombres `.py` dentro de comentarios que explican qué cubre cada ensayo y
+qué deja fuera. Un `grep` daría por cableada cualquier suite **nombrada**,
+incluida una nombrada precisamente para explicar que se excluye. Es la *"barrera
+de conveniencia"* de `.claude/rules/datos.md`: la que decide por el nombre en vez
+de por el contenido. Escenario C del ensayo: una suite llamada
+`ensayo_retro_semaforo.py` —nombre que aparece textualmente varias veces en el
+fichero— sigue saliendo en rojo si no se ha ejecutado.
+
+**Prueba propia de que funciona:** en cuanto se escribió `ensayo_suites_cableadas.py`,
+y **antes** de añadirlo a la lista, el auditor puso la auditoría en rojo **por él
+mismo**.
+
+**Un punto ciego propio, encontrado en la segunda pasada y corregido:** la
+primera versión comparaba por **nombre de fichero**. Con eso, `ensayo_x.py` y
+`sub/ensayo_x.py` se tapaban la una a la otra. Cambiado a ruta relativa, y
+fijado como escenario G.
+
+**Y un falso verde propio, el tercer defecto encontrado en mi propio código y
+el peor de los tres:** si la auditoría se lanza **desde otro directorio**,
+`Path(".")` no encuentra ninguna suite, la resta da vacío y el check decía
+**OK**. Un OK que significa *"no he mirado nada"* es exactamente lo que el motor
+tiene prohibido dar, y es el mismo fallo que el escáner de privacidad tenía con
+un `.DAT` (*"sin hallazgos"* porque no había abierto nada). Cero suites
+encontradas sale ahora por la puerta de **NO_COMPROBADO**, que es la verdad.
+Comprobado en los dos sentidos: quitando el guardarraíl, el ensayo cae; y la
+auditoría lanzada de verdad desde un directorio vacío ahora avisa en vez de
+aprobar.
+
+**Y un recuento que no se entendía, corregido también:** imprimía *"25 suites
+ejecutadas, 22 en el repositorio"* —25 > 22 porque por `ejecutar_suite()` pasan
+también tres auditores que no son suites—. Un número que nadie puede cuadrar de
+un vistazo deja de mirarse, igual que el ❌ que se enseñó a ignorar. Ahora dice
+`23/23` y lista aparte los tres.
+
+`ensayo_suites_cableadas.py`: **19 comprobaciones en nueve familias**, incluidas
+dos invariantes de AST (ninguna suite se lanza con un `subprocess.run` suelto que
+esquive el registro; `ejecutar_suite()` anota antes de lanzar). Resaboteado sobre
+la implementación —no sobre la prueba— en seis variantes (volver al nombre,
+decidir por `grep`, ignorar subdirectorios, callar las excepciones fantasma,
+anotar después de lanzar, quitar el guardarraíl de "cero suites"): **las seis
+caen, y en las comprobaciones exactas.**
+
+### Excepciones: se pueden declarar, pero nunca en silencio
+
+`EXCEPCIONES_SUITES` permite dejar una suite fuera **con motivo y fecha**, y se
+imprime en cada pasada. Hoy está **vacío a propósito**: las siete se cablearon en
+vez de excluirse, porque entre todas corren en 0,57 s, sin dependencias externas
+y sin tocar ningún dato. Una excepción cuya suite ya no existe también sale en
+rojo: un permiso caducado que sigue escrito es basura que tapa.
+
+### Una decisión anterior revocada, y a la vista
+
+`EMPEZAR_AQUI.md` documentaba desde el 27-08 que `test_numeracion_correlativa.py`
+y `test_comparar_esquema_dbf.py` estaban fuera **a propósito** (*"código que
+empieza ese día... mezclarlos ahí fingiría una madurez que no tienen"*). Se
+revoca, y el documento lo dice: el argumento era sobre la madurez del **módulo**,
+pero una suite cableada no afirma que el módulo esté maduro —afirma que sus
+pruebas pasan—. Lo que sí garantizaba la exclusión es que **nadie se enteraría**
+el día que una se pusiera roja.
+
+`diff_comportamiento_motor.py` **sigue fuera, y ese motivo sí se mantiene**: con
+el árbol limpio no encuentra nada, así que allí sería una línea verde que no
+comprueba nada. Eso es un falso verde, que es distinto de una exclusión por
+inmadurez. (Tampoco lleva prefijo `test_`/`ensayo_`: el auditor nuevo no lo
+reclama, no es una suite sino una herramienta de mano.)
+
+### Documentación corregida de paso
+
+`EMPEZAR_AQUI.md` llevaba una nota explicando que **el número de comprobaciones
+no se escribe a mano** porque ya había derivado una vez... y a continuación
+escribía dos a mano, ambos desfasados: *"ejecuta hoy 21 comprobaciones"* y *"los
+dieciocho corren dentro"*, con la auditoría en bastantes más. Retirados los dos.
+Escribir la regla no basta; hay que no escribir el número.
+
+### Estado tras la sesión
+
+`audit_project.py`: **32 ✅ · 1 ⚠️ · 0 ❌** (código 2; el ⚠️ son las dependencias
+del contenedor Cloud — `dbfread`, `anthropic`, `google-genai`, `pdfplumber`—, no
+un defecto del código). Motor **65/65**, adversarial **112/112**, cobertura de
+guards **26/26**, escáner de privacidad sin hallazgos. **23/23 suites del
+repositorio ejecutadas.**
+
+**No se tocó `motor_veredicto.py`**, ni `layout_diario_contaplus.py`, ni
+`orquestador.py`. **No se añadió ningún guard.** Ningún dato real entró ni salió.
+
 ## 10-09-2026 (sesión Cloud) — Cierre de entrega: el fichero que se lee SIEMPRE mandaba al sitio equivocado, y un documento con apellidos reales no estaba bloqueado
 
 Sesión de cierre. La pregunta era si quedaba valor en Cloud o si todo lo
