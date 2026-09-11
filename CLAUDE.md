@@ -65,6 +65,12 @@ documentación y los tests no coinciden, mandan los tests.
   superior de un JSON indexado por NIF). Solo contar, comprobar tipo, o listar
   nombres de campo — nunca claves ni valores — sin pedir aprobación explícita
   antes. Ver `.claude/rules/seguridad.md` y `.claude/rules/datos.md`.
+- Nunca mantener una rama de trabajo de larga duración compartida entre una
+  sesión local y una sesión Cloud (incidente real, 11-09-2026: las dos
+  escribieron el mismo día a `claude/github-retomada-o4zyic` sin saberlo la
+  una de la otra, con conflicto real en `PROJECT_STATUS.md`). Cada sesión que
+  necesite una rama crea la suya, la fusiona a `master` en cuanto termina, y
+  la borra. `master` es el único punto de encuentro estable.
 
 ## Convenciones del proyecto
 - Python 3, sin frameworks pesados.

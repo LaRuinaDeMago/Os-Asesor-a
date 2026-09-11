@@ -152,7 +152,7 @@ repositorio ejecutadas.**
 **No se tocó `motor_veredicto.py`**, ni `layout_diario_contaplus.py`, ni
 `orquestador.py`. **No se añadió ningún guard.** Ningún dato real entró ni salió.
 
-## 11-09-2026 (sesión Cloud) — `audit_project.py` en rojo nada más arrancar: `validar_captura_historica.py` revienta en Windows por un `⚠` sin `encoding`
+## 11-09-2026 (sesión local, PC de la asesoría — desktop app) — `audit_project.py` en rojo nada más arrancar: `validar_captura_historica.py` revienta en Windows por un `⚠` sin `encoding`
 
 Sesión de retoma normal, siguiendo el orden que manda `CLAUDE.md`
 (`arranque.py` → `EMPEZAR_AQUI.md` → `audit_project.py`). Antes de leer nada
