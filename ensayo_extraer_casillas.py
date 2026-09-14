@@ -43,7 +43,8 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
 
 from extraer_303_pdf import (extraer_casillas, patron_casilla,
                               extraer_numero_tras, TIPOS_LEGALES, TOL_TIPO,
-                              cuadre_interno, veredicto_lectura)
+                              cuadre_interno, veredicto_lectura,
+                              conceptos_que_no_podemos_tener)
 
 FALLOS = []
 
@@ -197,6 +198,52 @@ def main():
               veredicto_lectura(casi)[0] == "OK", str(veredicto_lectura(casi)[1].get("devengado")))
     lejos = dict(bien); lejos[27] = 2621.99
     comprobar("dos euros si", veredicto_lectura(lejos)[0] == "FALLO")
+
+    print("\nJ. Avisar de lo que NO PODEMOS tener, antes de que busque un bug")
+    # EMPEZAR_AQUI.md lo dice desde el principio: "no reconstruye un 303. Un
+    # 303 lleva prorrata, bienes de inversion, ISP y compensacion de cuotas, y
+    # nada de eso se deduce de las cuentas de IVA". Si una de esas casillas
+    # trae importe, el caso NO PUEDE cuadrar -- y callarlo cuesta una tarde
+    # buscando un bug que no existe. Cifras inventadas.
+    normal = {3: 100.0, 9: 2099.99, 29: 233.33, 27: 2199.99, 45: 233.33}
+    comprobar("un 303 corriente no dispara ningun aviso",
+              conceptos_que_no_podemos_tener(normal) == [],
+              str(conceptos_que_no_podemos_tener(normal)))
+
+    con_prorrata = dict(normal); con_prorrata[44] = -312.45
+    avisos = conceptos_que_no_podemos_tener(con_prorrata)
+    comprobar("la regularizacion de prorrata (casilla 44) se avisa",
+              len(avisos) == 1 and "prorrata" in avisos[0]["concepto"], str(avisos))
+    comprobar("y dice la casilla y el importe, para poder cuadrarlo a mano",
+              avisos[0]["casillas"] == {44: -312.45}, str(avisos[0]["casillas"]))
+
+    con_recargo = dict(normal); con_recargo[24] = 88.40
+    a_rec = conceptos_que_no_podemos_tener(con_recargo)
+    comprobar("el recargo de equivalencia se avisa (su tipo no esta en TIPOS_LEGALES)",
+              len(a_rec) == 1 and "recargo" in a_rec[0]["concepto"], str(a_rec))
+
+    con_importacion = dict(normal); con_importacion[33] = 1200.0
+    comprobar("el IVA de importaciones se avisa",
+              any("importacion" in c["concepto"]
+                  for c in conceptos_que_no_podemos_tener(con_importacion)))
+
+    # Un CERO en esas casillas es lo normal en un impreso: no puede avisar.
+    con_ceros = dict(normal); con_ceros.update({43: 0.0, 44: 0.0, 42: 0.0, 24: 0.0})
+    comprobar("una casilla a cero NO dispara aviso (seria ruido en cada 303)",
+              conceptos_que_no_podemos_tener(con_ceros) == [],
+              str(conceptos_que_no_podemos_tener(con_ceros)))
+
+    # Varias a la vez se declaran todas, no solo la primera.
+    varias = dict(normal); varias.update({44: -100.0, 42: 50.0, 24: 10.0})
+    comprobar("si hay varios conceptos, se declaran todos",
+              len(conceptos_que_no_podemos_tener(varias)) == 3,
+              str([c["concepto"] for c in conceptos_que_no_podemos_tener(varias)]))
+
+    # Una casilla de TIPO (un porcentaje preimpreso) no puede disparar nada.
+    con_tipos = dict(normal); con_tipos.update({17: 5.2, 20: 1.4, 23: 5.2, 157: 1.75})
+    comprobar("un porcentaje preimpreso del recargo no dispara el aviso",
+              conceptos_que_no_podemos_tener(con_tipos) == [],
+              str(conceptos_que_no_podemos_tener(con_tipos)))
 
     print()
     if FALLOS:

@@ -93,14 +93,21 @@
                general — la ISP va en la 12/13, las intracomunitarias en la
                10/11. La 27 sí las incluye todas.
 
-          LO QUE EL 27/45 **NO** ARREGLA, y hay que saberlo antes de
-          investigar un descuadre: sólo cubre lo que vive DENTRO de las
-          cuentas de IVA (ISP, intracomunitarias, modificaciones, recargo).
-          NO cubre prorrata, regularización de bienes de inversión ni
-          compensación de cuotas de periodos anteriores: eso el 303 lo
-          calcula y nuestras cuentas de IVA no lo contienen. Si un cliente
-          tiene prorrata, la 45 tampoco va a cuadrar — y no es un fallo del
-          lector ni de la contabilidad. Mira eso ANTES de buscar un bug.
+          LO QUE EL 27/45 **NO** ARREGLA — y desde el 15-09 el script te
+          lo dice solo, no tienes que acordarte. Si el 303 declara prorrata
+          (casilla 44), regularización de bienes de inversión (43),
+          compensaciones REAGP (42), rectificación de deducciones (41),
+          importaciones (33/35) o recargo de equivalencia (18/21/24/26...),
+          imprime:
+
+              ESTE 303 DECLARA COSAS QUE NUESTRA RECONSTRUCCION NO PUEDE TENER
+                - regularizacion por el porcentaje definitivo de prorrata
+                  (casilla 44=-312,45 EUR)
+
+          Esos casos NO PUEDEN cuadrar, y no es un defecto de nadie: la
+          reconstrucción sale sólo de las cuentas 477/472 por tipo, y eso no
+          vive ahí. El RESUMEN los cuenta aparte. Míralo ANTES de buscar un
+          bug.
 
           LO QUE HAY QUE DECIDIR DESPUÉS (es tuyo, no del script): cuál de
           las dos comparaciones manda. Ahora se declaran las dos y el

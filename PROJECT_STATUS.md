@@ -7,6 +7,51 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 15-09-2026 (sesión Cloud, segunda entrada) — El script avisa solo de por qué un caso NO PUEDE cuadrar
+
+Cierra el cabo suelto de la entrada anterior. Ahí quedó escrito, como aviso en
+prosa, que comparar contra las casillas 27/45 **no** arregla prorrata,
+regularizaciones ni recargo — porque eso el 303 lo calcula y nuestras cuentas de
+IVA no lo contienen (`EMPEZAR_AQUI.md` lo dice desde el primer día: *"no
+reconstruye un 303"*).
+
+Un aviso en prosa que hay que recordar no sirve de nada a las once de la noche.
+Ahora lo detecta el script, leyendo las casillas del propio PDF:
+
+| casilla | concepto | por qué no podemos tenerlo |
+|---|---|---|
+| 44 | regularización por prorrata definitiva | ajuste anual, no un apunte de factura |
+| 43 | regularización de bienes de inversión | ajuste plurianual |
+| 42 | compensaciones REAGP | no es una cuota de IVA soportada |
+| 41 | rectificación de deducciones | puede no tener contrapartida en el 472 del trimestre |
+| 33, 35 | IVA de importaciones | lo liquida la Aduana |
+| 158, 170, 18, 21, 24, 26 | recargo de equivalencia | sus tipos (5,20/1,75/1,40/0,50) no están en `TIPOS_LEGALES` |
+
+Cuando una trae importe, el caso **no puede** cuadrar, y el script lo dice con el
+concepto, la casilla y los euros. El RESUMEN los cuenta aparte.
+
+**Se declara como PISTA, no como veredicto**, y la diferencia importa: que
+ContaPlus lleve o no cada uno de esos conceptos a las cuentas 477/472 es una
+pregunta empírica sobre el corpus, **sin contestar**. Por eso el texto dice
+*"mira esto antes de buscar un bug"* y nunca *"esto explica la diferencia"*.
+
+Dos decisiones con su motivo:
+
+- **Sólo casillas de CUOTA.** Las de tipo (17, 20, 23, 157, 169) llevan un
+  porcentaje **preimpreso** en el formulario: mirarlas dispararía el aviso en
+  todos los 303 del archivo.
+- **Un cero no avisa.** Una casilla a cero es lo normal en cualquier impreso.
+
+8 comprobaciones nuevas (familia J), resaboteadas en cuatro variantes —avisar con
+ceros, incluir las casillas de tipo, quedarse sólo con el primer concepto,
+olvidar la casilla 44 que motivó todo esto—: **las cuatro caen.**
+
+### Estado tras la sesión
+
+`audit_project.py`: **36 ✅ · 1 ⚠️ · 0 ❌**. Motor **65/65**, adversarial
+**112/112**, **27/27 suites**, privacidad sin hallazgos. **No se tocó
+`motor_veredicto.py`** ni se añadió ningún guard.
+
 ## 15-09-2026 (sesión Cloud) — El impreso se cuadra contra SU PROPIA aritmética: ahora cada PDF dice si se ha leído bien
 
 Diego preguntó por qué no acudimos a la fuente de la AEAT para resolver la ISP,

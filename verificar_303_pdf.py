@@ -61,7 +61,8 @@ logging.getLogger("pdfminer").setLevel(logging.ERROR)
 
 from extraer_303_pdf import (extraer_casillas, CASILLAS_DEVENGADO, CASILLAS_DEDUCIBLE,
                               patron_casilla, extraer_numero_tras,
-                              CASILLAS_PARA_CUADRE, veredicto_lectura)
+                              CASILLAS_PARA_CUADRE, CASILLAS_PARA_AVISOS,
+                              veredicto_lectura, conceptos_que_no_podemos_tener)
 #: NO se reescribe el reconocimiento de trimestre por nombre de fichero: ya
 #: existe, y ya se peleo con el archivo real. `cruzar_303_importes.py` lo
 #: amplio el 26-08-2026 porque el patron estricto dejaba fuera 145 de los
@@ -155,7 +156,8 @@ def totales_pdf(casillas):
 #: cuadrar el impreso contra su propia aritmetica (`veredicto_lectura`).
 CASILLAS_OFICIALES = tuple(dict.fromkeys(
     (CASILLA_ISP_BASE, CASILLA_ISP_CUOTA,
-     CASILLA_TOTAL_DEVENGADO, CASILLA_TOTAL_A_DEDUCIR) + CASILLAS_PARA_CUADRE))
+     CASILLA_TOTAL_DEVENGADO, CASILLA_TOTAL_A_DEDUCIR)
+    + CASILLAS_PARA_CUADRE + CASILLAS_PARA_AVISOS))
 
 
 def extraer_casillas_oficiales(texto):
@@ -566,9 +568,14 @@ def main():
         # 46 = 27-45), no con una heuristica sobre tipos de IVA. Va ANTES de
         # interpretar ningun descuadre: si la lectura esta mal, comparar
         # contra la contabilidad no significa nada.
-        estado_lectura, detalle_lectura = veredicto_lectura(
-            {**casillas, **oficiales})
+        todas_las_casillas = {**casillas, **oficiales}
+        estado_lectura, detalle_lectura = veredicto_lectura(todas_las_casillas)
         r["lectura_pdf"] = estado_lectura
+        # .Declara este 303 algo que nuestra reconstruccion NO PUEDE contener?
+        # Si es asi, el caso no puede cuadrar y no hay ningun bug detras.
+        conceptos = conceptos_que_no_podemos_tener(todas_las_casillas)
+        if conceptos:
+            r["conceptos_no_modelados"] = conceptos
         resultados.append(r)
 
         if estado_lectura != "OK":
@@ -625,6 +632,17 @@ def main():
                     print("                contabilidad: 03+06+09 es solo el regimen general,")
                     print("                y el 477 del trimestre lleva ademas ISP (12/13),")
                     print("                intracomunitarias (11) o modificaciones (15).")
+            conceptos = r.get("conceptos_no_modelados")
+            if conceptos:
+                print("           ESTE 303 DECLARA COSAS QUE NUESTRA RECONSTRUCCION "
+                      "NO PUEDE TENER:")
+                for c in conceptos:
+                    casillas_txt = ", ".join(f"{n}={v:.2f}"
+                                             for n, v in sorted(c["casillas"].items()))
+                    print(f"             - {c['concepto']}  (casilla {casillas_txt} EUR)")
+                    print(f"               {c['motivo']}")
+                print("             -> mira esto ANTES de buscar un bug: sale solo de")
+                print("                las cuentas 477/472 por tipo, y esto no vive ahi.")
             explicacion = r.get("explicacion_isp")
             if explicacion:
                 print(f"           ISP declarado en el PDF (casilla 13): "
@@ -652,6 +670,7 @@ def main():
     lectura_ok = sum(1 for r in resultados if r.get("lectura_pdf") == "OK")
     lectura_mal = sum(1 for r in resultados if r.get("lectura_pdf") == "FALLO")
     lectura_sin = sum(1 for r in resultados if r.get("lectura_pdf") == "NO_COMPROBADO")
+    con_conceptos = sum(1 for r in resultados if r.get("conceptos_no_modelados"))
     print(f"  casos totales            : {len(resultados)}")
     print(f"  cuadran exacto           : {exactos}")
     print(f"  cuadran con redondeo (<= {args.tolerancia:.2f} EUR): {redondeo}")
@@ -666,6 +685,12 @@ def main():
     if lectura_mal or lectura_sin:
         print("    -> un descuadre en esos casos puede ser del lector, no de la")
         print("       contabilidad. No los mezcles con los demas.")
+    print()
+    print(f"  Casos cuyo 303 declara conceptos que NO salen de las cuentas de")
+    print(f"  IVA (prorrata, regularizaciones, recargo, importaciones): {con_conceptos}")
+    if con_conceptos:
+        print("    -> esos NO pueden cuadrar, y no es un defecto de nadie. Cada")
+        print("       uno lleva arriba el detalle de que concepto y cuanto.")
     print()
     if no_cuadran:
         print("  Los casos que NO cuadran hay que investigarlos uno a uno --")

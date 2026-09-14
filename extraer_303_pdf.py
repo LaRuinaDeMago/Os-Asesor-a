@@ -175,10 +175,81 @@ CASILLAS_PARA_CUADRE = tuple(dict.fromkeys(
     SUMANDOS_TOTAL_DEVENGADO + SUMANDOS_TOTAL_A_DEDUCIR
     + (CASILLA_TOTAL_DEVENGADO, CASILLA_TOTAL_A_DEDUCIR, CASILLA_RESULTADO_GENERAL)))
 
+#: Las que hacen falta para avisar de un concepto que no podemos tener
+#: (ver CONCEPTOS_FUERA_DE_LAS_CUENTAS_DE_IVA, mas abajo). Casi todas estan
+#: ya en el cuadre; 33 y 35 no, y sin leerlas el aviso de importaciones no
+#: saltaria nunca.
+CASILLAS_PARA_AVISOS = (33, 35)
+
 #: Margen en euros. El impreso redondea a dos decimales en cada casilla, asi
 #: que una suma de quince sumandos puede desviarse algun centimo sin que la
 #: lectura este mal.
 TOL_CUADRE = 0.05
+
+
+# ======================================================================
+# POR QUE UN CASO PUEDE NO CUADRAR SIN QUE HAYA NINGUN BUG
+# ======================================================================
+# ANADIDO 15-09-2026. `EMPEZAR_AQUI.md` lo dice desde el primer dia y es la
+# frase mas importante de todo el cuadre del 303:
+#
+#     "no reconstruye un 303. Un 303 lleva prorrata, bienes de inversion,
+#      intracomunitarias, ISP y compensacion de cuotas, y nada de eso se
+#      deduce de las cuentas de IVA."
+#
+# Nuestra reconstruccion sale SOLO de las cuentas 477 y 472, agregadas por
+# tipo de IVA. Hay casillas del 303 cuyo contenido no vive ahi: una
+# regularizacion anual de prorrata no es una factura, y un recargo de
+# equivalencia va a un tipo (5,20 / 1,75 / 1,40 / 0,50) que ni siquiera esta
+# en el catalogo de TIPOS_LEGALES.
+#
+# Si una de esas casillas trae importe, el caso NO PUEDE cuadrar, y eso no es
+# un defecto de nadie. Sin decirlo, Diego se pasa la tarde buscando un bug que
+# no existe -- que es justo la friccion que hay que quitar.
+#
+# SE DECLARA COMO PISTA, NO COMO VEREDICTO. Que ContaPlus lleve o no cada uno
+# de estos conceptos a las cuentas 477/472 es una pregunta empirica sobre el
+# corpus, sin contestar todavia. Por eso el texto dice "mira esto antes de
+# buscar un bug", nunca "esto explica la diferencia".
+#
+#   (casillas de CUOTA, nombre, por que no lo tenemos)
+# Solo casillas de cuota: las de tipo (17, 20, 23, 157, 169...) llevan un
+# porcentaje, y mirarlas daria un aviso en cualquier impreso preimpreso.
+CONCEPTOS_FUERA_DE_LAS_CUENTAS_DE_IVA = (
+    ((44,), "regularizacion por el porcentaje definitivo de prorrata",
+     "es un ajuste anual, no un apunte de factura: no esta en el 472"),
+    ((43,), "regularizacion de bienes de inversion",
+     "ajuste plurianual, no sale de las cuentas de IVA del trimestre"),
+    ((42,), "compensaciones del Regimen Especial A.G. y P.",
+     "no es una cuota de IVA soportada: no pasa por el 472"),
+    ((41,), "rectificacion de deducciones",
+     "puede no llevar contrapartida en el 472 del trimestre"),
+    ((33, 35), "IVA de importaciones",
+     "lo liquida la Aduana, y suele contabilizarse aparte del 472 corriente"),
+    ((158, 170, 18, 21, 24, 26), "recargo de equivalencia",
+     "sus tipos (5,20 / 1,75 / 1,40 / 0,50) no estan en TIPOS_LEGALES, "
+     "asi que caen en tipo_no_catalogado"),
+)
+
+
+def conceptos_que_no_podemos_tener(casillas, umbral=0.005):
+    """Casillas con importe que nuestra reconstruccion (477/472 por tipo) no
+    puede contener. Devuelve una lista de dicts; vacia si no hay ninguna.
+
+    Solo numeros de casilla, nombres de concepto y euros: nada identificable.
+    """
+    encontrados = []
+    for numeros, nombre, motivo in CONCEPTOS_FUERA_DE_LAS_CUENTAS_DE_IVA:
+        con_importe = {n: casillas[n] for n in numeros
+                       if n in casillas and abs(casillas[n]) > umbral}
+        if con_importe:
+            encontrados.append({
+                "concepto": nombre,
+                "motivo": motivo,
+                "casillas": con_importe,
+                "importe_total": round(sum(con_importe.values()), 2),
+            })
+    return encontrados
 
 
 def cuadre_interno(casillas):
