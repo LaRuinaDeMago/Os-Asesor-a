@@ -193,6 +193,65 @@ def explicar_por_isp(diffs, oficiales, tolerancia):
     }
 
 
+def comparar_contra_totales(contab, oficiales, tolerancia):
+    """Segunda comparacion, contra los TOTALES QUE EL PROPIO MODELO CALCULA:
+    casilla 27 (total cuota devengada) y casilla 45 (total a deducir).
+    Devuelve None si el PDF no trae esas dos casillas legibles.
+
+    POR QUE HACE FALTA UNA SEGUNDA (14-09-2026, caso SP_C_13)
+    -----------------------------------------------------------
+    La comparacion principal enfrenta nuestra cuota devengada contra
+    03+06+09, que es SOLO el regimen general ordinario. Pero nuestra
+    reconstruccion suma TODO el 477 del trimestre, y en el 477 caben cosas
+    que el 303 declara en OTRAS casillas:
+
+      - inversion del sujeto pasivo -> casillas 12 (base) y 13 (cuota)
+      - adquisiciones intracomunitarias -> casillas 10 y 11
+      - modificaciones de bases y cuotas -> casillas 14 y 15
+      - recargo de equivalencia -> casillas 16 a 26
+
+    Ninguna de ellas esta en 03+06+09. Asi que para un cliente con ISP,
+    nuestro devengado sale mas alto POR DISENO, y la resta da justo el
+    importe de la ISP -- que es exactamente el sintoma medido en SP_C_13, al
+    centimo y en los dos lados.
+
+    OJO, Y ESTO CORRIGE UNA HIPOTESIS ANTERIOR: la ISP **no** cae en el
+    cajon del "tipo 0". `reconstruir_303.py` lo dice en su propia cabecera
+    -- deriva la base como cuota/tipo, y eso "arregla SOLO el caso ISP sin
+    necesitar detectarlo: una linea 477 de autorrepercusion no tiene venta
+    detras, se deriva de su propia cuota, como cualquier otra". La ISP se
+    contabiliza con su tipo real (21%), en dos lineas, 477 y 472. El "tipo
+    0" es otra cosa distinta: el asiento de liquidacion trimestral. Se
+    propuso el 14-09 separarlos dentro de ese cajon; era innecesario,
+    porque nunca estuvieron en el mismo.
+
+    La casilla 27 SI las incluye todas (27 = 03+06+09+11+13+15+...), y la 45
+    hace lo propio del lado deducible. Comparar contra ellas quita de golpe
+    toda esa familia de diferencias, sin detectar nada ni clasificar nada.
+
+    NO decide el veredicto, a proposito: se declara al lado del principal y
+    Diego ve cual cuadra. Cambiar la comparacion que manda es una decision
+    contable, no un detalle de implementacion."""
+    if not oficiales:
+        return None
+    cuota_dev_27 = oficiales.get(CASILLA_TOTAL_DEVENGADO)
+    cuota_ded_45 = oficiales.get(CASILLA_TOTAL_A_DEDUCIR)
+    if cuota_dev_27 is None or cuota_ded_45 is None:
+        return None
+
+    _, cuota_dev_c, _, cuota_ded_c, _ = contab
+    d_dev = round(cuota_dev_c - cuota_dev_27, 2)
+    d_ded = round(cuota_ded_c - cuota_ded_45, 2)
+    peor = max(abs(d_dev), abs(d_ded))
+    return {
+        "diferencia_cuota_devengado": d_dev,
+        "diferencia_cuota_deducible": d_ded,
+        "max_diferencia": peor,
+        "cuadra": peor <= tolerancia,
+        "cuadra_exacto": peor < 0.005,
+    }
+
+
 def comparar_caso(contab, pdf, tolerancia=TOLERANCIA_REDONDEO, oficiales=None):
     """Funcion PURA, sin E/S: compara los totales ya calculados de los dos
     lados. Separada de main() para poder probarla con datos sinteticos, sin
@@ -245,6 +304,9 @@ def comparar_caso(contab, pdf, tolerancia=TOLERANCIA_REDONDEO, oficiales=None):
         explicacion = explicar_por_isp(diffs, oficiales, tolerancia)
         if explicacion is not None:
             resultado["explicacion_isp"] = explicacion
+        totales = comparar_contra_totales(contab, oficiales, tolerancia)
+        if totales is not None:
+            resultado["contra_totales_del_modelo"] = totales
 
     return resultado
 
@@ -519,6 +581,21 @@ def main():
                 faltan = sorted(set(CASILLAS_DEVENGADO + CASILLAS_DEDUCIBLE) - casillas.keys())
                 print(f"           casillas reconocidas en el PDF: {vistas}")
                 print(f"           casillas NO reconocidas: {faltan}")
+            totales = r.get("contra_totales_del_modelo")
+            if totales:
+                # Casillas y euros. Ni una clave, ni una ruta.
+                veredicto = ("CUADRA EXACTO" if totales["cuadra_exacto"]
+                             else "cuadra (dentro de tolerancia)" if totales["cuadra"]
+                             else "tampoco cuadra")
+                print(f"           contra los TOTALES del propio modelo "
+                      f"(casillas 27 y 45): {veredicto}")
+                print(f"             devengado 27: {totales['diferencia_cuota_devengado']:.2f}  "
+                      f"deducible 45: {totales['diferencia_cuota_deducible']:.2f}")
+                if totales["cuadra"]:
+                    print("             -> la diferencia de arriba es de CASILLA, no de")
+                    print("                contabilidad: 03+06+09 es solo el regimen general,")
+                    print("                y el 477 del trimestre lleva ademas ISP (12/13),")
+                    print("                intracomunitarias (11) o modificaciones (15).")
             explicacion = r.get("explicacion_isp")
             if explicacion:
                 print(f"           ISP declarado en el PDF (casilla 13): "

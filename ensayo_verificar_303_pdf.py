@@ -42,6 +42,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from verificar_303_pdf import (
     totales_contabilidad, totales_pdf, comparar_caso, leer_manifest,
+    comparar_contra_totales,
     pdfs_303_por_trimestre, expandir_entradas,
     explicar_por_isp, CASILLA_ISP_CUOTA,
 )
@@ -249,6 +250,48 @@ def main():
               casos2[1][2] == "C:\\sin_comillas\\ni_espacios.pdf", f"ruta2={casos2[1][2]!r}")
     os.remove(ruta_manifest2)
     os.rmdir(tmp2)
+
+    # === I. Contra los TOTALES del propio modelo (casillas 27 y 45) ========
+    print("\n=== I. La segunda comparacion: casillas 27 y 45 ===")
+    # EL PATRON DE SP_C_13, con cifras INVENTADAS. Nuestra reconstruccion suma
+    # TODO el 477/472 del trimestre. El 303 reparte: el regimen general
+    # ordinario en 03+06+09, y la ISP aparte, en 12/13. Asi que nuestro
+    # devengado sale mas alto EXACTAMENTE la cuota de ISP -- y lo mismo del
+    # lado deducible. No es un descuadre contable: es una diferencia de
+    # casilla.
+    ISP = 420.00
+    cuota_general, cuota_ded_general = 1319.90, 70.98
+    # contabilidad: (base_dev, cuota_dev, base_ded, cuota_ded, no_catalogado)
+    contab = (0.0, cuota_general + ISP, 0.0, cuota_ded_general + ISP, False)
+    # pdf 03+06+09 y 29: solo el regimen general
+    pdf = (0.0, cuota_general, 0.0, cuota_ded_general, 4)
+    oficiales = {12: 2000.00, 13: ISP,
+                 27: cuota_general + ISP,      # el total SI incluye la ISP
+                 45: cuota_ded_general + ISP}
+
+    r = comparar_caso(contab, pdf, tolerancia=1.00, oficiales=oficiales)
+    comprobar("contra 03+06+09 sigue saliendo NO_CUADRA (no se toca el veredicto)",
+              r["estado"] == "NO_CUADRA", r["estado"])
+    comprobar("y la diferencia es exactamente la ISP, en los dos lados",
+              r["diferencias"]["cuota_devengado"] == ISP
+              and r["diferencias"]["cuota_deducible"] == ISP,
+              str(r["diferencias"]))
+    t = r.get("contra_totales_del_modelo")
+    comprobar("aparece la comparacion contra los totales del modelo", t is not None)
+    comprobar("y contra las casillas 27 y 45 CUADRA EXACTO",
+              t and t["cuadra_exacto"], str(t))
+
+    # Un descuadre CONTABLE de verdad no lo tapa: si falta un apunte, falla
+    # tambien contra el total. Esa es toda la diferencia entre las dos cosas.
+    contab_mal = (0.0, cuota_general + ISP - 500.0, 0.0, cuota_ded_general + ISP, False)
+    t_mal = comparar_contra_totales(contab_mal, oficiales, 1.00)
+    comprobar("un descuadre real NO se tapa: contra el total tambien falla",
+              t_mal and not t_mal["cuadra"], str(t_mal))
+
+    comprobar("sin las casillas 27/45 legibles no se inventa la comparacion",
+              comparar_contra_totales(contab, {12: 1.0, 13: ISP}, 1.00) is None)
+    comprobar("ni cuando falta solo una de las dos",
+              comparar_contra_totales(contab, {27: 1.0}, 1.00) is None)
 
     # === H. Manifest por CLIENTE, no por trimestre (14-09-2026) ============
     print("\n=== H. expandir_entradas(): una linea por cliente, no por trimestre ===")

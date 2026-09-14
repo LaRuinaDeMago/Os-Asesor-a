@@ -7,6 +7,82 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 14-09-2026 (sesión Cloud, tercera entrada) — SP_C_13 no es un descuadre contable: es una diferencia de CASILLA. Y la hipótesis que escribí hace dos horas era falsa
+
+Diego confirmó dos cosas: que **sólo falla SP_C_13** (10 y 11 siguen cuadrando —
+si es con el lector nuevo, la regresión obligatoria está pasada), y que en
+ContaPlus una operación con ISP son **dos líneas de IVA, 477 y 472**.
+
+### ⛔ Corrección: la propuesta de la entrada anterior era falsa
+
+En la entrada anterior escribí que *"«tipo 0» es un cajón con dos cosas opuestas
+dentro: el asiento de liquidación y la ISP"*, y propuse separarlos. **Es falso, y
+lo desmiente el propio repositorio**, en la cabecera de `reconstruir_303.py`:
+
+> *"Esto además arregla SOLO el caso ISP sin necesitar detectarlo: una línea 477
+> de autorrepercusión no tiene venta detrás, así que ya no hace falta buscarla —
+> **se deriva de su propia cuota**, como cualquier otra."*
+
+La reconstrucción deriva la base como `cuota / tipo`. Eso sólo funciona con un
+tipo distinto de cero, así que **la ISP se contabiliza con su tipo real (21%)** y
+cae en el bucket del 21%, nunca en el del "tipo 0". El "tipo 0" es otra cosa: el
+asiento de liquidación trimestral. **Nunca estuvieron en el mismo cajón**, y
+separarlos no arreglaría nada porque no hay nada que separar.
+
+La lección es la de siempre aquí: la respuesta estaba escrita en el código y no
+la busqué antes de proponer. Jerarquía de verdad — Código → Tests → Git →
+este fichero.
+
+### La causa real, y es estructural
+
+Nuestra reconstrucción suma **todo** el 477 del trimestre. El 303 lo reparte:
+
+| lo que va en el 477 | casilla del 303 |
+|---|---|
+| régimen general ordinario | 01-09 |
+| adquisiciones intracomunitarias | 10, 11 |
+| **inversión del sujeto pasivo** | **12, 13** |
+| modificaciones de bases y cuotas | 14, 15 |
+| recargo de equivalencia | 16-26 |
+
+`totales_pdf()` compara contra **03+06+09**, que es sólo la primera fila de esa
+tabla. Para un cliente con ISP, nuestro devengado sale más alto **por diseño**, y
+la resta da justo el importe de la ISP — que es exactamente el síntoma de
+SP_C_13, al céntimo y en los dos lados.
+
+**No es un descuadre contable. Es una diferencia de casilla.** Y no se arregla
+detectando la ISP: se arregla comparando contra la casilla que sí la incluye.
+
+### El arreglo: comparar también contra los totales que calcula el propio modelo
+
+La **casilla 27** (total cuota devengada) es, por definición del impreso,
+`03+06+09+11+13+15+...` — incluye todo lo anterior. La **casilla 45** hace lo
+propio del lado deducible. Comparar contra ellas quita de golpe esa familia
+entera de diferencias, **sin detectar nada y sin clasificar nada**.
+
+`verificar_303_pdf.py` ya extraía las dos (las usaba sólo para explicar la ISP).
+Ahora, cuando hay diferencia, añade una segunda comparación contra 27 y 45 y la
+declara al lado de la principal.
+
+**No cambia el veredicto, a propósito.** Cuál de las dos comparaciones manda es
+una decisión contable, no un detalle de implementación: Diego ve las dos y
+decide. Lo que el script dice ahora es *"contra 03+06+09 no cuadra; contra los
+totales del propio modelo cuadra exacto — luego la diferencia es de casilla, no
+de contabilidad"*.
+
+Y no tapa nada: un descuadre real (un apunte que falta) **también** falla contra
+el total. Esa es toda la diferencia entre las dos cosas, y está fijada en el
+ensayo (familia I, 7 comprobaciones, con el patrón exacto de SP_C_13 y cifras
+inventadas). Resaboteado en tres variantes —comparar contra la casilla
+equivocada, dar por cuadrado siempre, inventarse la comparación cuando falta una
+casilla—: **las tres caen.**
+
+### Estado tras la sesión
+
+`audit_project.py`: **36 ✅ · 1 ⚠️ · 0 ❌** (código 2). Motor **65/65**,
+adversarial **112/112**, **27/27 suites**, privacidad sin hallazgos. **No se tocó
+`motor_veredicto.py`** ni se añadió ningún guard.
+
 ## 14-09-2026 (sesión Cloud, segunda entrada) — El lector de casillas del 303 leía dígitos de DENTRO de los importes, y no tenía ni una prueba
 
 Diego mandó cuatro capturas de un 303 real. **Eso fue una exposición de datos**
