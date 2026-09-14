@@ -195,17 +195,28 @@ def bloque_lado(celdas, etiqueta_casillas):
             "       no se sabe si ese trozo pertenece a esta casilla o a otra.")
     cero = celdas.get("0")
     if cero and cero["cuota"] != 0:
+        # Texto afinado 14-09-2026 (aportacion de Diego, con conocimiento real
+        # del oficio): el 0% autentico se usa poco, y cuando aparece suele ser
+        # por inversion del sujeto pasivo (ISP) -- que se apunta a la vez en
+        # devengado y deducible y por eso puede parecer que "se cancela".
+        # Pero el caso medido (SP_C_13, 2025T2) no encaja solo con eso: la
+        # cancelacion en devengado fue exactamente el importe del 21% de ese
+        # trimestre, no el importe real de ISP de la casilla 13 del 303. Lo
+        # mas probable es que aqui se mezclen dos causas -- ISP real, y algo
+        # con forma de cierre/liquidacion -- por eso no se afirma una sola.
         lineas.append(
             f"    >> (fuera del TOTAL) tipo 0%: base {formato(cero['base'])} / "
             f"cuota {formato(cero['cuota'])} ({cero['apuntes']} apuntes) --")
         lineas.append(
-            "       casi siempre es el asiento de liquidacion de IVA a Hacienda,")
+            "       el 0% autentico se usa poco: lo mas habitual es inversion")
         lineas.append(
-            "       no una venta o compra exenta real. Si esta cifra te resulta")
+            "       del sujeto pasivo (ISP, se apunta a la vez en devengado y")
         lineas.append(
-            "       muy distinta de lo esperado para este cliente, mira esos")
+            "       deducible) o un asiento de liquidacion/cierre de IVA a")
         lineas.append(
-            "       apuntes a mano antes de descartarlo sin mas.")
+            "       Hacienda -- ninguno de los dos es una venta o compra real.")
+        lineas.append(
+            "       Mira estos apuntes a mano antes de descartarlos sin mas.")
     return "\n".join(lineas) + "\n"
 
 
