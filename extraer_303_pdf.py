@@ -137,6 +137,115 @@ RE_ETIQUETA_CUALQUIERA = re.compile(r'(?<![\d.,])\d{2,3}(?![\d.,])')
 CASILLAS_DEVENGADO = (1, 2, 3, 4, 5, 6, 7, 8, 9)
 CASILLAS_DEDUCIBLE = (28, 29)
 
+# ======================================================================
+# EL CUADRE INTERNO: la aritmetica que el propio impreso lleva escrita
+# ======================================================================
+# ANADIDO 15-09-2026. Hasta hoy, la unica auto-validacion era heuristica:
+# "cuota/base tiene que parecerse a un tipo legal". Eso da una tasa global
+# que nadie sabe interpretar (el famoso 1,2%) y no dice NADA sobre un
+# documento concreto: no distingue "este PDF se ha leido bien" de "este no".
+#
+# Pero el modelo 303 lleva sus propias sumas IMPRESAS al lado de cada total:
+#
+#   Total cuota devengada (152+167+03+155+06+09+11+13+15+158+170+18+21+24+26) -> 27
+#   Total a deducir       (29+31+33+35+37+39+41+42+43+44)                     -> 45
+#   Resultado regimen general (27 - 45)                                       -> 46
+#
+# Eso NO es una heuristica: es la definicion de la casilla, escrita por la
+# AEAT en su propio documento. Si leemos bien el PDF, tiene que cumplirse al
+# centimo. Si no se cumple, la lectura esta mal -- y lo sabemos POR ESE
+# DOCUMENTO, sin compararlo con nada externo y sin saber de quien es.
+#
+# Es exactamente el mismo principio que ya usa guard_aritmetica_base_tipo en
+# el motor, pero con la formula del impreso en vez de con un tipo de IVA.
+#
+# POR QUE SUMAR UN SUPERCONJUNTO ES SEGURO: las casillas 150-170 (tipos
+# reducidos temporales) no existen en los modelos de ejercicios antiguos. En
+# un PDF que no las lleve simplemente no se leen, cuentan como 0, y la suma
+# sigue cuadrando. Al reves seria un problema; asi no.
+SUMANDOS_TOTAL_DEVENGADO = (152, 167, 3, 155, 6, 9, 11, 13, 15,
+                             158, 170, 18, 21, 24, 26)
+SUMANDOS_TOTAL_A_DEDUCIR = (29, 31, 33, 35, 37, 39, 41, 42, 43, 44)
+CASILLA_TOTAL_DEVENGADO = 27
+CASILLA_TOTAL_A_DEDUCIR = 45
+CASILLA_RESULTADO_GENERAL = 46
+
+#: Todas las que hacen falta para poder cuadrar el impreso consigo mismo.
+CASILLAS_PARA_CUADRE = tuple(dict.fromkeys(
+    SUMANDOS_TOTAL_DEVENGADO + SUMANDOS_TOTAL_A_DEDUCIR
+    + (CASILLA_TOTAL_DEVENGADO, CASILLA_TOTAL_A_DEDUCIR, CASILLA_RESULTADO_GENERAL)))
+
+#: Margen en euros. El impreso redondea a dos decimales en cada casilla, asi
+#: que una suma de quince sumandos puede desviarse algun centimo sin que la
+#: lectura este mal.
+TOL_CUADRE = 0.05
+
+
+def cuadre_interno(casillas):
+    """Comprueba el impreso contra SU PROPIA aritmetica.
+
+    `casillas`: dict {n: valor} como el que devuelve extraer_casillas(),
+    ampliado con las casillas de CASILLAS_PARA_CUADRE.
+
+    Devuelve un dict con una entrada por formula comprobable. Una formula
+    solo se comprueba si el TOTAL se ha leido: sin el no hay nada contra que
+    contrastar, y eso es NO_COMPROBADO, no un aprobado -- misma regla que el
+    motor. Una casilla sumando que no aparece cuenta como 0, que es lo que
+    vale una casilla vacia en el impreso.
+
+    Nunca recibe ni devuelve nada identificable: numeros de casilla y euros.
+    """
+    resultado = {}
+
+    for nombre, total_c, sumandos in (
+            ("devengado", CASILLA_TOTAL_DEVENGADO, SUMANDOS_TOTAL_DEVENGADO),
+            ("deducible", CASILLA_TOTAL_A_DEDUCIR, SUMANDOS_TOTAL_A_DEDUCIR)):
+        if total_c not in casillas:
+            continue
+        suma = round(sum(casillas.get(c, 0.0) for c in sumandos), 2)
+        diferencia = round(casillas[total_c] - suma, 2)
+        resultado[nombre] = {
+            "total_leido": casillas[total_c],
+            "suma_de_sumandos": suma,
+            "diferencia": diferencia,
+            "cuadra": abs(diferencia) <= TOL_CUADRE,
+        }
+
+    if all(c in casillas for c in (CASILLA_TOTAL_DEVENGADO,
+                                    CASILLA_TOTAL_A_DEDUCIR,
+                                    CASILLA_RESULTADO_GENERAL)):
+        esperado = round(casillas[CASILLA_TOTAL_DEVENGADO]
+                         - casillas[CASILLA_TOTAL_A_DEDUCIR], 2)
+        diferencia = round(casillas[CASILLA_RESULTADO_GENERAL] - esperado, 2)
+        resultado["resultado_46"] = {
+            "total_leido": casillas[CASILLA_RESULTADO_GENERAL],
+            "suma_de_sumandos": esperado,
+            "diferencia": diferencia,
+            "cuadra": abs(diferencia) <= TOL_CUADRE,
+        }
+
+    return resultado
+
+
+def veredicto_lectura(casillas):
+    """Traduce cuadre_interno() a los tres estados del motor, para un
+    documento concreto:
+
+      OK             -> alguna formula del impreso se ha podido comprobar y
+                        TODAS las comprobables cuadran. La lectura es buena.
+      FALLO          -> alguna formula no cuadra. La lectura esta mal, y da
+                        igual lo que diga la comparacion contra la
+                        contabilidad: hay que mirar el PDF.
+      NO_COMPROBADO  -> no se ha leido ningun total, asi que no hay nada que
+                        cuadrar. NO es un aprobado.
+    """
+    c = cuadre_interno(casillas)
+    if not c:
+        return "NO_COMPROBADO", c
+    if all(v["cuadra"] for v in c.values()):
+        return "OK", c
+    return "FALLO", c
+
 
 def _num_es_a_float(s):
     return parse_numero(s).valor

@@ -7,6 +7,84 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 15-09-2026 (sesión Cloud) — El impreso se cuadra contra SU PROPIA aritmética: ahora cada PDF dice si se ha leído bien
+
+Diego preguntó por qué no acudimos a la fuente de la AEAT para resolver la ISP,
+y señaló que **el 1,2% nunca tuvo sentido** — los PDF se leen perfectamente a
+ojo. Tenía razón en las dos cosas, y la segunda llevó a lo mejor de la sesión.
+
+### La fuente autoritativa ya estaba delante
+
+El propio impreso lleva sus sumas **escritas al lado de cada total**:
+
+```
+Total cuota devengada (152+167+03+155+06+09+11+13+15+158+170+18+21+24+26) → 27
+Total a deducir       (29+31+33+35+37+39+41+42+43+44)                     → 45
+Resultado régimen general (27 - 45)                                       → 46
+```
+
+Eso es la AEAT, en su propio documento, diciendo que **la casilla 13 (ISP) entra
+en la 27**. El arreglo de ayer estaba bien fundado sin que lo supiéramos.
+
+Se consultó además la sede electrónica. La instrucción de las casillas 12/13 se
+obtuvo en cita literal y confirma lo anterior. **Pero la respuesta sobre las
+casillas 28/29 era falsa** — afirmaba que la ISP soportada va a las "casillas
+40-43", que en el impreso son *Rectificación de deducciones*, *Compensaciones
+REAGP* y *Regularización de bienes de inversión*. No se usó, y queda anotado:
+una consulta web resumida por un modelo **no es una fuente**; la cita literal sí,
+y el impreso más.
+
+**Y resulta que la pregunta no hacía falta:** la casilla 45 suma
+`29+31+33+35+37+39+41+42+43+44`. Vaya la ISP soportada a la 29 o a la 41, **la
+45 la incluye**. Comparar contra los totales esquiva la pregunta entera.
+
+### 21º auditor (y el cambio que de verdad quita fricción): `cuadre_interno()`
+
+Hasta hoy la única auto-validación del extractor era heurística: *"cuota/base
+tiene que parecerse a un tipo legal"*. Eso produce una tasa global que nadie sabe
+interpretar (el famoso 1,2%) y, sobre todo, **no dice nada de un documento
+concreto**: no distingue *"este PDF se ha leído bien"* de *"este no"*.
+
+Las fórmulas impresas sí. No son una heurística: son la **definición** de la
+casilla. Si la lectura es correcta, tienen que cumplirse al céntimo — y se
+comprueban **contra el propio documento**, sin compararlo con nada externo y sin
+saber de quién es.
+
+`veredicto_lectura()` devuelve los tres estados del motor, por documento:
+
+| estado | significa |
+|---|---|
+| **OK** | alguna fórmula se ha podido comprobar y todas las comprobables cuadran. La lectura es buena |
+| **FALLO** | alguna no cuadra. **La lectura está mal**, y da igual lo que diga la comparación contra la contabilidad |
+| **NO_COMPROBADO** | no se leyó ningún total, así que no hay nada que cuadrar. **No es un aprobado** |
+
+`verificar_303_pdf.py` lo imprime **antes** de interpretar ningún descuadre, y el
+RESUMEN cuenta los tres. Eso es exactamente lo que quita fricción: un `NO_CUADRA`
+deja de ser ambiguo. O el PDF se leyó bien y entonces el descuadre es contable, o
+no se leyó bien y hay que mirar el PDF — y el script lo dice solo.
+
+Detalles de diseño, cada uno con su motivo:
+
+- **Sumar un superconjunto es seguro.** Las casillas 150-170 (tipos reducidos
+  temporales) no existen en modelos antiguos: no se leen, cuentan 0, la suma
+  sigue cuadrando. Fijado en el ensayo.
+- **Una casilla ausente vale 0**, que es lo que vale una casilla vacía en el
+  impreso. Tratarla como error convertiría en rojo cualquier 303 normal.
+- **Sin total leído no hay aprobado.** Es la regla del motor aplicada al lector.
+- **Margen de 5 céntimos**: el impreso redondea cada casilla a dos decimales y la
+  suma del devengado tiene quince sumandos.
+
+11 comprobaciones nuevas (familia I de `ensayo_extraer_casillas.py`),
+resaboteadas en cuatro variantes —aprobar sin haber comprobado, olvidar la
+casilla 13 en la fórmula, poner un margen absurdo, tratar una casilla vacía como
+error—: **las cuatro caen.**
+
+### Estado tras la sesión
+
+`audit_project.py`: **36 ✅ · 1 ⚠️ · 0 ❌** (código 2). Motor **65/65**,
+adversarial **112/112**, **27/27 suites**, privacidad sin hallazgos. **No se tocó
+`motor_veredicto.py`** ni se añadió ningún guard.
+
 ## 14-09-2026 (sesión Cloud, tercera entrada) — SP_C_13 no es un descuadre contable: es una diferencia de CASILLA. Y la hipótesis que escribí hace dos horas era falsa
 
 Diego confirmó dos cosas: que **sólo falla SP_C_13** (10 y 11 siguen cuadrando —

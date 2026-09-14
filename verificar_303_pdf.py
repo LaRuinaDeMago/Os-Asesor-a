@@ -60,7 +60,8 @@ import logging
 logging.getLogger("pdfminer").setLevel(logging.ERROR)
 
 from extraer_303_pdf import (extraer_casillas, CASILLAS_DEVENGADO, CASILLAS_DEDUCIBLE,
-                              patron_casilla, extraer_numero_tras)
+                              patron_casilla, extraer_numero_tras,
+                              CASILLAS_PARA_CUADRE, veredicto_lectura)
 #: NO se reescribe el reconocimiento de trimestre por nombre de fichero: ya
 #: existe, y ya se peleo con el archivo real. `cruzar_303_importes.py` lo
 #: amplio el 26-08-2026 porque el patron estricto dejaba fuera 145 de los
@@ -150,8 +151,11 @@ def totales_pdf(casillas):
 #: Casillas "oficiales" (ver comentario junto a las constantes CASILLA_*):
 #: se extraen con la misma logica de extraer_303_pdf.py, reutilizada, no
 #: reescrita -- para que las dos lecturas nunca puedan divergir en silencio.
-CASILLAS_OFICIALES = (CASILLA_ISP_BASE, CASILLA_ISP_CUOTA,
-                       CASILLA_TOTAL_DEVENGADO, CASILLA_TOTAL_A_DEDUCIR)
+#: Ademas de las cuatro que ya se leian, TODAS las que hacen falta para
+#: cuadrar el impreso contra su propia aritmetica (`veredicto_lectura`).
+CASILLAS_OFICIALES = tuple(dict.fromkeys(
+    (CASILLA_ISP_BASE, CASILLA_ISP_CUOTA,
+     CASILLA_TOTAL_DEVENGADO, CASILLA_TOTAL_A_DEDUCIR) + CASILLAS_PARA_CUADRE))
 
 
 def extraer_casillas_oficiales(texto):
@@ -556,7 +560,32 @@ def main():
         oficiales = extraer_casillas_oficiales(texto)
         pdf_totales = totales_pdf(casillas)
         r = comparar_caso(contab, pdf_totales, args.tolerancia, oficiales=oficiales)
+
+        # ¿Se ha LEIDO bien este PDF? Se contesta con la aritmetica que el
+        # propio impreso lleva escrita (27 = 03+06+09+11+13+..., 45 = 29+31+...,
+        # 46 = 27-45), no con una heuristica sobre tipos de IVA. Va ANTES de
+        # interpretar ningun descuadre: si la lectura esta mal, comparar
+        # contra la contabilidad no significa nada.
+        estado_lectura, detalle_lectura = veredicto_lectura(
+            {**casillas, **oficiales})
+        r["lectura_pdf"] = estado_lectura
         resultados.append(r)
+
+        if estado_lectura != "OK":
+            marca = ("LECTURA DEL PDF EN DUDA" if estado_lectura == "NO_COMPROBADO"
+                     else "LECTURA DEL PDF INCORRECTA")
+            print(f"  caso {i}: [{marca}]")
+            if estado_lectura == "NO_COMPROBADO":
+                print("           no se ha podido leer ningun total del impreso "
+                      "(casillas 27/45/46), asi que no hay nada contra que")
+                print("           cuadrarlo. Esto NO es un aprobado.")
+            for nombre, d in detalle_lectura.items():
+                if not d["cuadra"]:
+                    print(f"           {nombre}: el impreso dice {d['total_leido']:.2f} "
+                          f"pero sus propios sumandos dan {d['suma_de_sumandos']:.2f} "
+                          f"(difieren {d['diferencia']:.2f} EUR)")
+            print("           -> el descuadre de abajo puede ser de LECTURA, no de "
+                  "contabilidad. Mira este PDF antes que el asiento.")
 
         if r["estado"] == "NO_COMPROBADO":
             print(f"  caso {i}: NO_COMPROBADO -- {r['motivo']}")
@@ -620,11 +649,23 @@ def main():
     redondeo = sum(1 for r in resultados if r["estado"] == "CUADRA_CON_REDONDEO")
     no_cuadran = sum(1 for r in resultados if r["estado"] == "NO_CUADRA")
     no_comprobados = sum(1 for r in resultados if r["estado"] == "NO_COMPROBADO")
+    lectura_ok = sum(1 for r in resultados if r.get("lectura_pdf") == "OK")
+    lectura_mal = sum(1 for r in resultados if r.get("lectura_pdf") == "FALLO")
+    lectura_sin = sum(1 for r in resultados if r.get("lectura_pdf") == "NO_COMPROBADO")
     print(f"  casos totales            : {len(resultados)}")
     print(f"  cuadran exacto           : {exactos}")
     print(f"  cuadran con redondeo (<= {args.tolerancia:.2f} EUR): {redondeo}")
     print(f"  NO cuadran               : {no_cuadran}")
     print(f"  no comprobados           : {no_comprobados}")
+    print()
+    print("  Y antes de interpretar nada de lo anterior -- .se ha leido bien el PDF?")
+    print("  (el impreso cuadrado contra SU PROPIA aritmetica: 27, 45 y 46)")
+    print(f"    lectura correcta         : {lectura_ok}")
+    print(f"    lectura INCORRECTA       : {lectura_mal}")
+    print(f"    sin poder comprobarla    : {lectura_sin}")
+    if lectura_mal or lectura_sin:
+        print("    -> un descuadre en esos casos puede ser del lector, no de la")
+        print("       contabilidad. No los mezcles con los demas.")
     print()
     if no_cuadran:
         print("  Los casos que NO cuadran hay que investigarlos uno a uno --")

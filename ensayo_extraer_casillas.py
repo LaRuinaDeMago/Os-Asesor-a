@@ -42,7 +42,8 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from extraer_303_pdf import (extraer_casillas, patron_casilla,
-                              extraer_numero_tras, TIPOS_LEGALES, TOL_TIPO)
+                              extraer_numero_tras, TIPOS_LEGALES, TOL_TIPO,
+                              cuadre_interno, veredicto_lectura)
 
 FALLOS = []
 
@@ -148,6 +149,54 @@ def main():
               f"tipo efectivo={tipo_efectivo}")
     comprobar("y la base es mayor que la cuota, como en cualquier 303 real",
               base_v >= cuota_v)
+
+    print("\nI. EL CUADRE INTERNO: el impreso contra su propia aritmetica")
+    # No es una heuristica: el 303 lleva sus sumas IMPRESAS al lado de cada
+    # total (27 = 152+167+03+155+06+09+11+13+15+..., 45 = 29+31+...,
+    # 46 = 27-45). Si leemos bien, cuadra al centimo. Cifras inventadas.
+    bien = {3: 100.00, 9: 2099.99, 13: 420.00,        # devengado
+            29: 233.33, 41: 50.00,                     # deducible
+            27: 2619.99, 45: 283.33, 46: 2336.66}
+    estado, detalle = veredicto_lectura(bien)
+    comprobar("un PDF bien leido sale OK", estado == "OK", f"{estado} {detalle}")
+    comprobar("y se han comprobado las tres formulas",
+              set(detalle) == {"devengado", "deducible", "resultado_46"}, str(set(detalle)))
+
+    # Un solo sumando mal leido rompe la suma del impreso: eso es lo que
+    # distingue "el PDF se ha leido mal" de "la contabilidad no cuadra".
+    mal = dict(bien); mal[9] = 999.99
+    estado_mal, detalle_mal = veredicto_lectura(mal)
+    comprobar("un sumando mal leido lo delata", estado_mal == "FALLO", estado_mal)
+    comprobar("y dice en que lado y por cuanto",
+              detalle_mal["devengado"]["diferencia"] == 1100.0,
+              str(detalle_mal["devengado"]))
+    comprobar("sin acusar al lado que si cuadra",
+              detalle_mal["deducible"]["cuadra"], str(detalle_mal["deducible"]))
+
+    # SIN TOTAL NO HAY APROBADO. Es la regla del motor: si no se ha podido
+    # comprobar, no es OK.
+    estado_sin, detalle_sin = veredicto_lectura({3: 100.0, 9: 2099.99})
+    comprobar("sin ningun total leido sale NO_COMPROBADO, nunca OK",
+              estado_sin == "NO_COMPROBADO", estado_sin)
+    comprobar("y no se inventa ninguna formula comprobada", detalle_sin == {}, str(detalle_sin))
+
+    # Una casilla vacia vale 0 en el impreso: no puede romper el cuadre.
+    solo_21 = {9: 2099.99, 27: 2099.99, 29: 233.33, 45: 233.33, 46: 1866.66}
+    comprobar("un impreso con casi todo vacio cuadra igual",
+              veredicto_lectura(solo_21)[0] == "OK", str(veredicto_lectura(solo_21)))
+
+    # Un modelo de ejercicio antiguo no lleva las casillas 150-170: sumar un
+    # superconjunto tiene que ser seguro.
+    comprobar("un modelo antiguo, sin las casillas 150-170, tambien cuadra",
+              veredicto_lectura({3: 50.0, 6: 25.0, 9: 100.0, 27: 175.0,
+                                 29: 75.0, 45: 75.0, 46: 100.0})[0] == "OK")
+
+    # Y el margen: dos decimales por casilla, quince sumandos.
+    casi = dict(bien); casi[27] = 2620.02
+    comprobar("tres centimos de redondeo no se cuentan como error",
+              veredicto_lectura(casi)[0] == "OK", str(veredicto_lectura(casi)[1].get("devengado")))
+    lejos = dict(bien); lejos[27] = 2621.99
+    comprobar("dos euros si", veredicto_lectura(lejos)[0] == "FALLO")
 
     print()
     if FALLOS:
