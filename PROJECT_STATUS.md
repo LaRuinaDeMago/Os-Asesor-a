@@ -7,6 +7,168 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 14-09-2026 (sesión local + Cloud) — El cuadre contra el 303 presentado YA TIENE RESULTADO, y el manifest pasa a cobrarse por cliente
+
+Doble entrada: la sesión local del 14-09 hizo el trabajo y no lo documentó aquí
+(siete commits, cero entradas en este fichero y cero cambios en `PENDIENTE.md`);
+la sesión Cloud del mismo día lo documenta y recorta la fricción de lo que
+viene después. Los hechos salen de los commits y del código, no de la memoria
+de nadie.
+
+### Lo que hizo la sesión local: el 303 dejó de ser una promesa
+
+`verificar_303_pdf.py` (nuevo) compara, número contra número, la reconstrucción
+de `303_LOCAL.json` contra el 303 **realmente presentado** en PDF. **Primer
+resultado real del proyecto contra su única verdad externa:**
+
+| caso | resultado |
+|---|---|
+| `SP_C_10` | **cuadra exacto** |
+| `SP_C_11` | **cuadra exacto** |
+| `SP_C_13` | la diferencia en devengado **y** en deducible coincide **exacta** con la cuota de ISP declarada en el propio PDF (casillas 12/13), que este script no modela por diseño. No queda un céntimo sin explicar |
+
+No intenta identidad: Diego la resolvió a mano abriendo ContaPlus. Es la
+decisión correcta y conviene dejar escrito por qué — ver más abajo.
+
+### El bug que hacía la ficha inservible: el "tipo 0 fantasma"
+
+Comparando 20 fichas reales (5 clientes × 4 trimestres) apareció en **las 20**
+un "tipo 0" con cuota negativa que cancelaba el resto del lado, y hacía que el
+TOTAL saliera siempre 0,00. `diag_coherencia_por_lado.py` (27-08) no podía
+verlo: comprueba `base × tipo = cuota` **dentro** de un tipo, nunca un tipo
+contra la suma de los demás.
+
+Perseguido en dos pasos antes de tocar nada:
+
+1. `diag_patron_cierre_iva.py` — mide el ratio `|cuota tipo 0| / |suma de los
+   demás tipos del mismo lado|`. **91,3% con ratio ~1.0**: no es ruido.
+2. `diag_contrapartida_tipo0.py` — vuelve al `Diario.dbf` (el JSON ya está
+   agregado por tipo y no puede decir qué hay al otro lado del asiento) y
+   cuenta el prefijo de 4 dígitos del PGC de las otras líneas del mismo
+   asiento. **72% en cuentas administrativas** (Hacienda, o reclasificación
+   del propio 477/472), nunca un tercero real.
+
+Conclusión: es el asiento de **liquidación/cierre trimestral de IVA**, no una
+venta ni una compra. Excluido del TOTAL en `cuadre_303_ficha.py`, pero
+**declarado siempre aparte** — nunca desaparece en silencio. Distinto de
+`tipo_no_catalogado`, que se queda DENTRO del total a propósito porque podría
+ser una casilla real de tipo desconocido.
+
+Diego corrigió después la explicación con conocimiento de oficio: el 0%
+auténtico se usa poco y, cuando aparece, la causa más habitual es **inversión
+del sujeto pasivo** (se apunta a la vez en devengado y deducible, por eso
+parece cancelarse). El caso medido no encajaba sólo con la liquidación, así que
+el aviso ya no afirma una causa única. La lógica no cambia: es correcta con
+cualquiera de las dos.
+
+### Y el 19º auditor se ganó el sueldo en su primera semana
+
+Cita literal del commit del arreglo: *"audit_project.py 26/26 suites cableadas
+(incluidos los dos ensayos de hoy, **que el propio 19º auditor encontró sin
+cablear antes de este commit**)"*. Sin él, `ensayo_diag_patron_cierre_iva.py` y
+`ensayo_diag_contrapartida_tipo0.py` habrían nacido mirando a la pared, igual
+que las siete del 11-09.
+
+### Lo que hizo la sesión Cloud: el manifest se cobraba por trimestre
+
+`verificar_303_pdf.py` pedía una línea por caso: `CLAVE|TRIMESTRE|RUTA_AL_PDF`.
+Cada línea obliga a localizar el PDF de ese trimestre, copiar su ruta y
+escribirla. **Diez años de un cliente son 40 líneas a mano.**
+
+Pero el trabajo caro no está ahí. Lo caro es abrir ContaPlus para saber que
+`SP_C_10` es tal empresa — y eso **se paga por cliente, una vez, y ya está para
+siempre**. Localizar el PDF de un trimestre es mecánico: la carpeta ya es la del
+cliente y el nombre del fichero ya declara el trimestre.
+
+Añadida la forma de **dos campos**, `CLAVE|CARPETA`, que se expande sola a todos
+los trimestres que encuentre. **Una línea por cliente en vez de una por
+trimestre y año.** Las dos formas conviven: un manifest ya escrito sigue
+valiendo tal cual.
+
+No reescribe el reconocimiento de trimestre por nombre: importa
+`trimestre_del_nombre()` de `cruzar_303_importes.py`, que ya se peleó con el
+archivo real (su patrón estricto dejaba fuera 145 de los 1.168 ficheros, un 12%,
+por escribir "2T" en vez de "2 trimestre"). Escribir aquí una cuarta versión
+sería repetir el error de los TRES regex de importes, los tres mal y en
+silencio.
+
+**Lo que NO hace, a propósito:**
+- Si dos PDF dicen ser el mismo trimestre (un original y una complementaria, o
+  una copia), **no elige ninguno**: lo declara como ambiguo. Elegir sería
+  inventarse cuál es el bueno.
+- Un PDF de un trimestre sin contabilidad reconstruida **se cuenta y se
+  declara**, no desaparece.
+- `--solo-expandir` enseña en qué casos se expande el manifest **sin abrir ni un
+  PDF**, para comprobar que las carpetas son las buenas antes de la pasada
+  larga. Tampoco exige `pdfplumber`: pedir una dependencia para un trabajo que
+  no la usa es el mismo error que ya tenía `extraer_303_pdf.py` al salirse en el
+  import.
+
+### Un fallo en mi propia prueba, encontrado saboteando
+
+La familia H comprobaba *"un modelo que no es 303 no entra"* con el fichero
+`modelo 347 2024.pdf`. **Pasaba por otro motivo:** ese nombre no lleva
+trimestre, así que lo descarta el parseo de trimestre, no el filtro de "303".
+Quitando el filtro, la comprobación seguía verde — un contraste que no
+contrasta.
+
+Y el caso real es peor de lo que parecía: en la carpeta de un cliente conviven
+con el 303 los **111, 115, 130 y 349**, y varios son trimestrales con el mismo
+formato de nombre. Sin filtro se compararía un 303 contra un 349. Cambiado el
+contraste a `MODELO 349-1º TRIMESTRE 2024.pdf`; resaboteado: ahora cae.
+
+Cinco sabotajes sobre la implementación (elegir un ambiguo a ciegas, no mirar
+subcarpetas, callar los trimestres sin contabilidad, filtrar la carpeta en el
+mensaje, quitar el filtro de 303): **los cinco caen, en las comprobaciones
+exactas.**
+
+### Por qué NO se automatiza la identidad, y no es pereza
+
+Vuelve cada pocas sesiones, así que queda escrito con los dos motivos, cada uno
+suficiente por separado:
+
+1. **No hay dato.** Una copia de ContaPlus no dice de quién es: nombre y NIF
+   viven en el registro de la instalación, no en la copia. Medido y descartado
+   por siete vías (`datempre.dbf` tiene `CNIFEMP` pero **0 registros**;
+   `DATOS.ASC` **0 bytes**; `M390A.dbf` **1.268 de 1.287 enteramente a cero**).
+   No es difícil: no está.
+2. **Por importes sería circular.** Es lo que intentó `cruzar_303_importes.py`:
+   usar las cifras reconstruidas para decidir de qué cliente es, y luego esa
+   identidad para comprobar si las cifras reconstruidas son correctas. Aunque se
+   hiciera con un vector de doce trimestres en vez de un importe suelto, sigue
+   siendo suponer lo que se quiere demostrar. **El paso manual de Diego es lo
+   que rompe el círculo, y por eso vale lo que cuesta.**
+
+### Pendiente de medir, y es de un solo comando
+
+`verificar_303_pdf.py` razona que un `NO_CUADRA` puede ser un fallo de lectura
+del PDF porque *"extraer_303_pdf.py ya midió 1,2% de consistencia"*. **Ese 1,2%
+está caducado**: se midió con un regex de números que leía `12345,67` como
+`345,67`, y el 47% de los importes reales vienen sin separador de millar. Lo
+dice el propio `extraer_303_pdf.py`: *"candidato serio a explicar parte del
+1,2%... que se atribuyó entero a la rejilla del PDF. Ahora manda
+contrato_datos.py."* **Nadie lo ha vuelto a ejecutar desde el arreglo.**
+
+Cuidado con esperar milagros: `cruzar_303_importes.py` documenta que la causa
+principal es **estructural** (los importes viven en una rejilla, y al aplanarla a
+texto el número junto a una etiqueta suele ser el de otra casilla). El regex
+explica *parte*, no necesariamente el todo. Pero es un comando, cero trabajo
+manual, sobre 1.168 PDF ya localizados — y el dato que sale decide si merece la
+pena construir el camino masivo o seguir caso a caso.
+
+Nota a favor de volver a medirlo: `verificar_303_pdf.py` usa **ese mismo
+extractor**, y con él SP_C_10 y SP_C_11 cuadraron exacto. Es decir, sobre los
+PDF que se han probado de verdad, funciona. Merece la pena saber sobre cuáles.
+
+### Estado tras la sesión
+
+`audit_project.py`: **35 ✅ · 1 ⚠️ · 0 ❌** (código 2, el ⚠️ son las dependencias
+del contenedor Cloud). Motor **65/65**, adversarial **112/112**, guards
+**26/26**, **26/26 suites ejecutadas**, escáner de privacidad sin hallazgos.
+
+**No se tocó `motor_veredicto.py`**, ni `layout_diario_contaplus.py`, ni
+`orquestador.py`. **No se añadió ningún guard.** Ningún dato real entró ni salió.
+
 ## 11-09-2026 (sesión Cloud) — Siete pruebas llevaban semanas mirando a la pared, y la auditoría completa salía en verde igual
 
 Escaneo de abajo arriba del repositorio, pedido para decidir qué hacer a

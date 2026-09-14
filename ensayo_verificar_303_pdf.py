@@ -42,6 +42,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from verificar_303_pdf import (
     totales_contabilidad, totales_pdf, comparar_caso, leer_manifest,
+    pdfs_303_por_trimestre, expandir_entradas,
     explicar_por_isp, CASILLA_ISP_CUOTA,
 )
 
@@ -249,6 +250,89 @@ def main():
     os.remove(ruta_manifest2)
     os.rmdir(tmp2)
 
+    # === H. Manifest por CLIENTE, no por trimestre (14-09-2026) ============
+    print("\n=== H. expandir_entradas(): una linea por cliente, no por trimestre ===")
+    # POR QUE: la linea de tres campos se paga por TRIMESTRE (buscar el PDF,
+    # copiar la ruta). Lo caro de verdad -- abrir ContaPlus para saber que
+    # empresa es SP_C_10 -- se paga por CLIENTE y solo una vez. Diez anios de
+    # un cliente eran 40 lineas a mano; ahora es una.
+    import tempfile as _tf
+    raiz = _tf.mkdtemp()
+    carpeta_cliente = os.path.join(raiz, "CLIENTE_INVENTADO_SL")
+    # Nombres de fichero con las variantes reales que ya documenta
+    # cruzar_303_importes.py ("1er trimestre", "4T"). Carpeta y cliente
+    # inventados, nunca los reales.
+    ficheros = [
+        ("2024", "MODELO 303-1\u00ba TRIMESTRE 2024.pdf"),
+        ("2024", "MODELO 303-2\u00ba TRIMESTRE 2024.pdf"),
+        ("2023", "MODELO 303 4T 2023.pdf"),            # sin contabilidad reconstruida
+        ("2025", "modelo 303 - 1er trimestre 2025.pdf"),
+        ("2025", "modelo 303 - 1er trimestre 2025 (copia).pdf"),  # -> ambiguo
+        # CONTRASTE QUE DE VERDAD CONTRASTA (corregido el 14-09-2026 tras
+        # sabotear el filtro): el fichero de prueba era "modelo 347 2024.pdf",
+        # que ya se cae solo porque no lleva trimestre en el nombre -- asi que
+        # la comprobacion pasaba aunque se quitara el filtro de "303". Un 349
+        # SI es trimestral y se nombra igual, y en la carpeta de un cliente
+        # conviven con el 303 los 111, 115, 130 y 349. Sin filtro se compararia
+        # un 303 contra un 349, y 2024T1 ademas tiene contabilidad: crearia un
+        # caso falso, no un hueco.
+        ("otros", "MODELO 349-1\u00ba TRIMESTRE 2024.pdf"),  # trimestral, pero no es un 303
+        ("otros", "resumen 303 sin periodo.pdf"),      # 303 sin trimestre legible
+    ]
+    for sub, nombre in ficheros:
+        d = os.path.join(carpeta_cliente, sub)
+        os.makedirs(d, exist_ok=True)
+        open(os.path.join(d, nombre), "w").close()   # vacios: solo se lee el NOMBRE
+
+    por_tri = pdfs_303_por_trimestre(carpeta_cliente)
+    comprobar("encuentra los PDF del 303 en SUBCARPETAS, no solo en la raiz",
+              set(por_tri) == {"2024T1", "2024T2", "2023T4", "2025T1"},
+              f"trimestres={sorted(por_tri)}")
+    comprobar("otro modelo TRIMESTRAL (349) no se cuela por parecerse en el nombre",
+              all("349" not in r for rutas in por_tri.values() for r in rutas),
+              f"{[r for rutas in por_tri.values() for r in rutas if '349' in r]}")
+    comprobar("un 303 sin trimestre legible en el nombre no entra (no se adivina)",
+              all("sin periodo" not in r for rutas in por_tri.values() for r in rutas))
+    comprobar("dos PDF del mismo trimestre quedan LOS DOS, para poder declararlo",
+              len(por_tri["2025T1"]) == 2, f"2025T1={len(por_tri['2025T1'])}")
+
+    clave = "CARPETA_SINTETICA::SP_C_10"
+    datos_h = {clave: {"2024T1": {}, "2024T2": {}, "2025T1": {}}}
+    casos_h, incid_h = expandir_entradas([(clave, None, carpeta_cliente)], datos_h)
+    comprobar("una sola linea de manifest produce los casos de varios trimestres",
+              len(casos_h) == 2, f"casos={len(casos_h)}")
+    comprobar("y son exactamente los que tienen PDF Y contabilidad",
+              sorted(c[1] for c in casos_h) == ["2024T1", "2024T2"],
+              f"{sorted(c[1] for c in casos_h)}")
+    texto_h = " ".join(t for _, t in incid_h)
+    comprobar("un trimestre con contabilidad pero AMBIGUO no se compara a ciegas",
+              all(c[1] != "2025T1" for c in casos_h) and "ambiguo" in texto_h, texto_h)
+    comprobar("un PDF sin contabilidad reconstruida se CUENTA, no desaparece",
+              "1 PDF sin contabilidad" in texto_h, texto_h)
+
+    # La comprobacion que de verdad importa de esta familia.
+    comprobar("las incidencias no filtran la carpeta, la clave ni un nombre de fichero",
+              all(x not in texto_h for x in ("CLIENTE_INVENTADO_SL", clave, raiz,
+                                              "SP_C_10", ".pdf")),
+              texto_h)
+
+    casos_mixto, _ = expandir_entradas(
+        [(clave, "2021T3", "C:\\ruta\\suelta.pdf"), (clave, None, carpeta_cliente)],
+        datos_h)
+    comprobar("una linea de tres campos sigue pasando intacta (manifest ya escrito)",
+              casos_mixto[0] == (clave, "2021T3", "C:\\ruta\\suelta.pdf"),
+              f"{casos_mixto[0]}")
+
+    _, incid_no = expandir_entradas([(clave, None, os.path.join(raiz, "NO_EXISTE"))], datos_h)
+    comprobar("una carpeta que no existe se declara, no se ignora",
+              "no existe" in incid_no[0][1], incid_no[0][1])
+    _, incid_clave = expandir_entradas([("CLAVE_QUE_NO_ESTA", None, carpeta_cliente)], datos_h)
+    comprobar("una clave que no esta en la contabilidad se declara con su motivo",
+              "no aparece en el JSON" in incid_clave[0][1], incid_clave[0][1])
+
+    import shutil as _shutil
+    _shutil.rmtree(raiz)
+
     # === E. Privacidad: main() nunca imprime clave ni ruta ==================
     print("\n=== E. Privacidad, comprobada por AST (no por ojo) ===")
     arbol = ast.parse(open(os.path.join(os.path.dirname(__file__),
@@ -266,6 +350,23 @@ def main():
               "directamente (los f-strings solo usan i, r['estado'] y numeros)",
               "clave" not in nombres_impresos and "ruta_pdf" not in nombres_impresos,
               f"nombres vistos en prints: {nombres_impresos}")
+
+    # AMPLIADO 14-09-2026: main() ya no es el unico sitio donde se compone
+    # texto para consola. expandir_entradas() construye las incidencias, y
+    # tiene a mano la clave y la carpeta -- justo lo que no puede salir.
+    for nombre_fn, prohibidos in (("expandir_entradas", ("clave", "tercero")),
+                                   ("pdfs_303_por_trimestre", ("nombre", "raiz"))):
+        fn = next(n for n in ast.walk(arbol)
+                  if isinstance(n, ast.FunctionDef) and n.name == nombre_fn)
+        vistos = set()
+        for nodo in ast.walk(fn):
+            if (isinstance(nodo, ast.Call) and isinstance(nodo.func, ast.Name)
+                    and nodo.func.id == "print"):
+                for arg in ast.walk(nodo):
+                    if isinstance(arg, ast.Name):
+                        vistos.add(arg.id)
+        comprobar(f"{nombre_fn}() no imprime {' ni '.join(prohibidos)}",
+                  not (vistos & set(prohibidos)), f"nombres en prints: {vistos}")
 
     print()
     print("=" * 68)

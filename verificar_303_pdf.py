@@ -20,17 +20,31 @@ cuadra. Ninguna adivinanza de por medio.
 REGLA DE DATOS -- disenio de tres roles, sin excepcion
 ----------------------------------------------------------
 Diego mantiene un fichero MANIFEST (LOCAL, con la extension que quiera,
-pero el nombre debe llevar `_LOCAL`) con una linea por caso:
+pero el nombre debe llevar `_LOCAL`). Admite dos formas de linea:
 
-    CLAVE_CLIENTE|TRIMESTRE|RUTA_AL_PDF
+    CLAVE_CLIENTE|CARPETA_DEL_CLIENTE      <- la recomendada
+    CLAVE_CLIENTE|TRIMESTRE|RUTA_AL_PDF    <- un caso suelto
 
 Por ejemplo (con datos inventados, nunca reales):
+    CARPETA_X::SP_C_10|\\\\PC01\\Documentos\\CLIENTE_INVENTADO
     CARPETA_X::SP_C_10|2025T1|C:\\ruta\\al\\303_1T2025.pdf
 
+**Usa la primera siempre que puedas.** La de tres campos se paga POR
+TRIMESTRE (buscar el PDF, copiar la ruta, escribir la linea): diez anios de
+un cliente son 40 lineas a mano. La de dos se paga POR CLIENTE, que es donde
+esta el trabajo de verdad -- abrir ContaPlus y ver que empresa es `SP_C_10`
+--, y eso se hace una vez y ya esta. Del trimestre se encarga el script: lo
+lee del nombre del fichero, con el patron que ya se peleo con los 1.168 PDF
+reales del archivo (`trimestre_del_nombre`, en cruzar_303_importes.py).
+
+Antes de la pasada larga conviene una en seco, que no abre ni un PDF:
+    python verificar_303_pdf.py --manifest verificacion_303_LOCAL.txt --solo-expandir
+
 Este script LEE ese fichero, pero NUNCA imprime su contenido: por consola
-solo salen recuentos y diferencias en EUROS (un numero no identifica a
-nadie). Cada caso se refiere por su POSICION en el manifest ("caso 1",
-"caso 2"...), nunca por su clave ni por su ruta.
+solo salen recuentos, etiquetas de trimestre y diferencias en EUROS (ninguna
+de las tres identifica a nadie). Cada caso se refiere por su POSICION en el
+manifest ("caso 1", "caso 2"...) y cada linea por la suya ("entrada 1"),
+nunca por su clave, su carpeta ni su ruta.
 
 Uso:
     python verificar_303_pdf.py --manifest verificacion_303_LOCAL.txt
@@ -47,6 +61,13 @@ logging.getLogger("pdfminer").setLevel(logging.ERROR)
 
 from extraer_303_pdf import (extraer_casillas, CASILLAS_DEVENGADO, CASILLAS_DEDUCIBLE,
                               patron_casilla, extraer_numero_tras)
+#: NO se reescribe el reconocimiento de trimestre por nombre de fichero: ya
+#: existe, y ya se peleo con el archivo real. `cruzar_303_importes.py` lo
+#: amplio el 26-08-2026 porque el patron estricto dejaba fuera 145 de los
+#: 1.168 ficheros (12%) por escribir "2T" en vez de "2 trimestre". Escribir
+#: aqui una cuarta version seria repetir el error de los TRES regex de
+#: importes, todos mal y en silencio (ver comentario en ese mismo fichero).
+from cruzar_303_importes import trimestre_del_nombre
 
 #: Casillas "oficiales" del 303 que ESTE script no modela (ISP, y los totales
 #: que la AEAT ya agrega por su cuenta) pero que sirven para EXPLICAR una
@@ -251,8 +272,28 @@ def _limpiar_campo(valor):
 
 
 def leer_manifest(ruta):
-    """Cada linea no vacia ni comentario (#): CLAVE|TRIMESTRE|RUTA_PDF.
-    Nunca se imprime el contenido -- solo se devuelve para procesarlo."""
+    """Cada linea no vacia ni comentario (#) admite DOS formas:
+
+        CLAVE|TRIMESTRE|RUTA_PDF   un caso suelto (la de siempre)
+        CLAVE|CARPETA              TODOS los trimestres de esa carpeta
+
+    Devuelve siempre tuplas de tres. En la forma de carpeta, el trimestre
+    es None y el tercer campo es la carpeta: expandir_entradas() las
+    convierte en casos concretos. Nunca se imprime el contenido.
+
+    POR QUE LA FORMA DE DOS CAMPOS (anadida 14-09-2026). La linea de tres
+    se paga POR TRIMESTRE: localizar el PDF de 2025T3, copiar su ruta,
+    escribirla. Diez anios de un cliente son 40 lineas a mano. Pero lo
+    unico que de verdad cuesta -- abrir ContaPlus para ver que empresa es
+    `SP_C_10` -- se paga POR CLIENTE, y una vez hecho esta hecho para
+    siempre. Localizar el PDF de un trimestre es mecanico: la carpeta ya es
+    la del cliente, y el nombre del fichero ya declara el trimestre (el
+    archivo del despacho tiene una carpeta por cliente y dentro sus
+    modelos de todos los anios -- ver carpeta_cliente() en
+    cruzar_303_importes.py). Una linea por cliente, no una por trimestre.
+
+    Las dos formas conviven a proposito: un manifest ya escrito sigue
+    valiendo tal cual."""
     casos = []
     with open(ruta, encoding="utf-8") as f:
         for n_linea, linea in enumerate(f, start=1):
@@ -260,23 +301,117 @@ def leer_manifest(ruta):
             if not linea or linea.startswith("#"):
                 continue
             partes = linea.split("|")
-            if len(partes) != 3:
-                print(f"AVISO: linea {n_linea} del manifest no tiene 3 "
+            if len(partes) not in (2, 3):
+                print(f"AVISO: linea {n_linea} del manifest no tiene 2 ni 3 "
                       f"partes separadas por '|' -- se ignora.", file=sys.stderr)
                 continue
-            clave, trimestre, ruta_pdf = (_limpiar_campo(p) for p in partes)
-            clave = _RE_PREFIJO_LISTADO.sub("", clave)
-            casos.append((clave, trimestre, ruta_pdf))
+            campos = [_limpiar_campo(p) for p in partes]
+            clave = _RE_PREFIJO_LISTADO.sub("", campos[0])
+            if len(campos) == 2:
+                casos.append((clave, None, campos[1]))      # carpeta por expandir
+            else:
+                casos.append((clave, campos[1], campos[2]))  # caso suelto
     return casos
+
+
+def pdfs_303_por_trimestre(carpeta):
+    """Recorre `carpeta` y sus subcarpetas (el archivo suele llevar una por
+    anio dentro de la del cliente) y agrupa por trimestre los PDF cuyo
+    NOMBRE declara un modelo 303.
+
+    Devuelve {'2025T1': [rutas...]}. La lista puede tener mas de un
+    elemento: eso es una AMBIGUEDAD real (un original y una
+    complementaria, o dos copias del mismo), y quien llama tiene que
+    declararla, nunca elegir uno en silencio.
+
+    No imprime nada: ni un nombre de carpeta, ni uno de fichero."""
+    por_trimestre = {}
+    for raiz, _dirs, ficheros in os.walk(carpeta):
+        for nombre in ficheros:
+            if not nombre.lower().endswith(".pdf") or "303" not in nombre:
+                continue
+            trimestre = trimestre_del_nombre(nombre)
+            if trimestre is None:
+                continue
+            por_trimestre.setdefault(trimestre, []).append(
+                os.path.join(raiz, nombre))
+    return por_trimestre
+
+
+def expandir_entradas(entradas, datos):
+    """Convierte las entradas del manifest en casos concretos
+    (clave, trimestre, ruta_pdf), expandiendo las de forma carpeta.
+
+    Devuelve (casos, incidencias). Cada incidencia es (n_entrada, texto) y
+    SOLO lleva numeros y etiquetas de trimestre -- nunca una clave, una
+    carpeta ni un nombre de fichero.
+
+    Un trimestre se expande unicamente si la contabilidad tiene ese
+    trimestre para esa clave. Los que no, se CUENTAN y se declaran: un PDF
+    de 2016 cuando la reconstruccion solo llega a 2021 no es un fallo, pero
+    tampoco puede desaparecer sin que nadie lo sepa."""
+    casos = []
+    incidencias = []
+    for n, (clave, trimestre, tercero) in enumerate(entradas, start=1):
+        if trimestre is not None:
+            casos.append((clave, trimestre, tercero))
+            continue
+
+        if not os.path.isdir(tercero):
+            incidencias.append((n, "la carpeta indicada no existe o no es una carpeta"))
+            continue
+
+        trimestres_contables = set(datos.get(clave) or {})
+        if not trimestres_contables:
+            incidencias.append((n, "esa clave no aparece en el JSON de la "
+                                   "contabilidad: revisa que sea la del listado"))
+            continue
+
+        por_trimestre = pdfs_303_por_trimestre(tercero)
+        if not por_trimestre:
+            incidencias.append((n, "no hay ningun PDF cuyo nombre declare un "
+                                   "modelo 303 con trimestre y anio"))
+            continue
+
+        expandidos = ambiguos = sin_contabilidad = 0
+        for tri in sorted(por_trimestre):
+            rutas = por_trimestre[tri]
+            if len(rutas) > 1:
+                # Dos PDF que dicen ser el mismo trimestre. Elegir uno seria
+                # inventarse cual es el bueno: se declara y se deja fuera.
+                incidencias.append((n, f"{tri}: {len(rutas)} PDF distintos declaran "
+                                       "ese mismo trimestre -- ambiguo, no se elige "
+                                       "ninguno"))
+                ambiguos += 1
+                continue
+            if tri not in trimestres_contables:
+                sin_contabilidad += 1
+                continue
+            casos.append((clave, tri, rutas[0]))
+            expandidos += 1
+
+        resumen = f"expande a {expandidos} trimestre(s)"
+        if sin_contabilidad:
+            resumen += (f"; {sin_contabilidad} PDF sin contabilidad reconstruida "
+                        "para ese trimestre (no se comparan)")
+        if ambiguos:
+            resumen += f"; {ambiguos} trimestre(s) ambiguo(s)"
+        incidencias.append((n, resumen))
+    return casos, incidencias
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--manifest", required=True,
-                     help="Fichero LOCAL con lineas CLAVE|TRIMESTRE|RUTA_PDF. "
-                          "Debe llevar _LOCAL en el nombre.")
+                     help="Fichero LOCAL con lineas CLAVE|CARPETA (todos los "
+                          "trimestres de esa carpeta) o CLAVE|TRIMESTRE|RUTA_PDF "
+                          "(un caso suelto). Debe llevar _LOCAL en el nombre.")
     ap.add_argument("--json", default="303_LOCAL.json",
                      help="Detalle producido por reconstruir_303.py")
+    ap.add_argument("--solo-expandir", action="store_true",
+                     help="Enseña en que casos se expande el manifest y para. "
+                          "No abre ni un PDF: sirve para comprobar que las "
+                          "carpetas son las buenas antes de la pasada larga.")
     ap.add_argument("--tolerancia", type=float, default=TOLERANCIA_REDONDEO,
                      help="Diferencia en euros por debajo de la cual se "
                           "considera redondeo, no desacuerdo (por defecto 1.00)")
@@ -296,18 +431,43 @@ def main():
               file=sys.stderr)
         sys.exit(1)
 
-    exigir_pdfplumber()
-
+    # exigir_pdfplumber() NO se llama todavia: --solo-expandir no abre
+    # ningun PDF, y obligar a instalarlo para mirar si las carpetas estan
+    # bien seria pedir una dependencia por un trabajo que no la usa -- el
+    # mismo error que tenia extraer_303_pdf.py al salirse en el import.
     with open(args.json, encoding="utf-8") as f:
         datos = json.load(f)
 
-    casos = leer_manifest(args.manifest)
-    if not casos:
-        print("El manifest no tiene ningun caso valido.", file=sys.stderr)
+    entradas = leer_manifest(args.manifest)
+    if not entradas:
+        print("El manifest no tiene ninguna entrada valida.", file=sys.stderr)
         sys.exit(1)
 
+    casos, incidencias = expandir_entradas(entradas, datos)
+
+    if incidencias:
+        print("=" * 68)
+        print("EXPANSION DEL MANIFEST (por numero de entrada, nunca por nombre)")
+        print("=" * 68)
+        for n, texto in incidencias:
+            print(f"  entrada {n}: {texto}")
+        print()
+
+    if not casos:
+        print("Ninguna entrada del manifest ha producido un caso comparable.",
+              file=sys.stderr)
+        sys.exit(1)
+
+    if args.solo_expandir:
+        print(f"{len(casos)} caso(s) saldrian de este manifest. "
+              "Sin --solo-expandir se comparan de verdad.")
+        return
+
+    exigir_pdfplumber()
+
     print("=" * 68)
-    print(f"VERIFICACION 303: {len(casos)} caso(s) en el manifest")
+    print(f"VERIFICACION 303: {len(casos)} caso(s) a comparar "
+          f"(de {len(entradas)} entrada(s) del manifest)")
     print("=" * 68)
 
     resultados = []

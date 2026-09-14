@@ -6,7 +6,13 @@
      Reescrito el 10-09-2026 tras integrar los 32 commits del 28-08 que llevaban
      sin fusionar: la versión anterior de esta lista mandaba a buscar un fichero
      que nunca existió y describía un paso ya superado. Las líneas que empiezan
-     por <!-- no se imprimen. -->
+     por <!-- no se imprimen.
+
+     Actualizado el 14-09-2026: el punto 1 decía "ES LO SIGUIENTE, Y LO ÚNICO" y
+     mandaba a empezarlo, cuando la sesión local de ese mismo día ya lo había
+     ejecutado con resultado (dos casos cuadrando exacto) y había arreglado un
+     bug real por el camino. Siete commits sin una línea aquí: exactamente lo que
+     la cabecera de este fichero dice que no puede pasar. -->
 
   TODO LO QUE QUEDA ES SESIÓN LOCAL, en el PC de la asesoría.
   Estado del motor al 28-08-2026, medido sobre el corpus real:
@@ -17,46 +23,86 @@
     archivo de modelos AEAT presentados  \\PC01\Documentos
 
   ═════════════════════════════════════════════════════════════════════
-  1 · EL CUADRE CONTRA EL 303 PRESENTADO      <- ES LO SIGUIENTE, Y LO ÚNICO
+  1 · EL CUADRE CONTRA EL 303 PRESENTADO   <- EN MARCHA, YA CON RESULTADO
   ═════════════════════════════════════════════════════════════════════
       Es la ÚNICA verdad externa que este proyecto va a tener nunca.
       Todo lo demás se valida contra sí mismo.
 
-      LEE ESTO PRIMERO, porque cambia el método (hallazgo del 28-08):
-      una carpeta de ContaPlus NO es un cliente. Es una copia de seguridad
-      con hasta 70 empresas dentro. Por eso NO sirve emparejar carpeta↔cliente,
-      y por eso `clave_cliente()` usa ahora carpeta+código, no la carpeta sola.
+      YA MEDIDO (14-09), primeros casos reales:
+          SP_C_10  ->  CUADRA EXACTO
+          SP_C_11  ->  CUADRA EXACTO
+          SP_C_13  ->  la diferencia coincide EXACTA, en devengado y en
+                       deducible, con la cuota de ISP del propio PDF
+                       (casillas 12/13, no modeladas). Nada sin explicar.
 
-      El camino que SÍ funciona, y no depende de resolver la identidad
-      entre copias:
+      Y un bug real encontrado por el camino, ya arreglado: el "tipo 0"
+      que aparecía en las 20 fichas medidas y dejaba el TOTAL en 0,00 era
+      el asiento de liquidación trimestral de IVA (o ISP). Ya no se suma
+      al total, y se sigue declarando aparte.
 
-        a) Elegir UNA SOLA carpeta — una copia de una fecha concreta, con
-           todas las empresas de ese momento dentro (p.ej. la más reciente
-           de 2026).
+      ─── LO SIGUIENTE, y son dos cosas independientes ───
 
-        b) Dentro de `303_LOCAL.json`, localizar las entradas de esa carpeta.
-           Cada CÓDIGO distinto dentro de ella sí identifica una empresa real
-           distinta (verificado, FASE0_RESULTADOS.md §12).
+      [ ] A · VOLVER A MEDIR EL EXTRACTOR DE PDF.  Un comando, sin trabajo
+          manual, y puede cambiar el plan entero:
 
-        c) Diego reconoce a qué empresa corresponde cada código abriendo esa
-           misma copia en ContaPlus — sin que ningún dato salga de su máquina.
+              python extraer_303_pdf.py "\\PC01\Documentos"
 
-        d) Con una empresa identificada, comparar sus casillas 01-09 y 28-29
-           contra el 303 que esa empresa presentó ese mismo trimestre.
+          Por qué: verificar_303_pdf.py avisa de que un NO_CUADRA puede
+          ser un fallo de lectura, citando "1,2% de consistencia". Ese
+          1,2% se midió con un regex de números roto (leía 12345,67 como
+          345,67, y el 47% de los importes vienen sin separador de
+          millar). NADIE lo ha vuelto a medir desde que se arregló.
+          Ojo: la causa principal es estructural (la rejilla del PDF), así
+          que puede seguir siendo baja. Pero el número que sale decide si
+          merece la pena el camino masivo. Solo hace falta el recuento
+          final, nunca un valor.
 
-      Herramienta para el paso b/d, ya probada (17º auditor, 09-09):
-           python cuadre_303_ficha.py --listar
-           python cuadre_303_ficha.py --elegir 2,5,9
+      [ ] B · SEGUIR AÑADIENDO CLIENTES, ahora con UNA LÍNEA por cliente.
+          El manifest ya no se escribe por trimestre (14-09). Dos formas:
+
+              CLAVE|CARPETA_DEL_CLIENTE        <- usa ésta
+              CLAVE|TRIMESTRE|RUTA_AL_PDF      <- sigue valiendo
+
+          Con la primera, el script busca solo todos los trimestres de esa
+          carpeta. Diez años de un cliente: una línea, no cuarenta.
+
+          Paso a paso:
+            1) python cuadre_303_ficha.py --listar
+            2) Abre esa misma copia en ContaPlus y anota qué empresa es
+               cada código. Es el ÚNICO trabajo manual, y se hace una vez
+               por cliente.
+            3) Una línea en el manifest por cada uno:
+                  CARPETA::SP_C_NN|\\PC01\Documentos\CARPETA_DE_ESE_CLIENTE
+            4) En seco primero (no abre ni un PDF, ni necesita pdfplumber):
+                  python verificar_303_pdf.py --manifest verificacion_303_LOCAL.txt --solo-expandir
+            5) Y la pasada de verdad:
+                  python verificar_303_pdf.py --manifest verificacion_303_LOCAL.txt
+
+          El fichero del manifest DEBE llevar _LOCAL en el nombre. Por
+          consola solo salen recuentos, trimestres y euros: nunca una
+          clave, una carpeta ni una ruta.
 
       Si hace falta regenerar la base (comprobar antes si ya está hecha —
       el 28-08 se regeneró y dio 509 combinaciones y 1.204 trimestres):
            python reconstruir_303.py "C:\Users\SERVILAB\Desktop\100% contabilidad" --detalle 303_LOCAL.json
            python diag_coherencia_303.py
 
+      CONTEXTO que sigue mandando (hallazgo del 28-08): una carpeta de
+      ContaPlus NO es un cliente, es una copia con hasta 70 empresas
+      dentro. Por eso `clave_cliente()` usa carpeta+código.
+
+      Y por qué el paso 2 es manual y va a seguir siéndolo: una copia de
+      ContaPlus no dice de quién es (datempre.dbf tiene 0 registros,
+      DATOS.ASC 0 bytes, M390A.dbf 1.268 de 1.287 a cero). Y deducirlo de
+      los importes sería circular: usarías las cifras para decidir el
+      cliente y el cliente para validar las cifras.
+
       Umbral acordado ANTES de ver ningún número (SIGUIENTES_PASOS.md §4):
         1 trimestre no cuadra   -> se investiga ese, no se ajusta nada
         >10% no cuadran         -> hay un fallo sistemático; se busca el
                                    patrón, no se parchean casos
+      Con 3 casos NO hay muestra para declararlo cerrado. Decide tú
+      cuántos clientes hacen falta antes de dar el paso por bueno.
 
   ═════════════════════════════════════════════════════════════════════
   2 · LO QUE NO ES CÓDIGO, y lleva abierto desde el 12-08
