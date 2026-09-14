@@ -39,12 +39,26 @@ Uso:
 import argparse
 import json
 import os
+import re
 import sys
 
 import logging
 logging.getLogger("pdfminer").setLevel(logging.ERROR)
 
-from extraer_303_pdf import extraer_casillas, CASILLAS_DEVENGADO, CASILLAS_DEDUCIBLE
+from extraer_303_pdf import (extraer_casillas, CASILLAS_DEVENGADO, CASILLAS_DEDUCIBLE,
+                              patron_casilla, extraer_numero_tras)
+
+#: Casillas "oficiales" del 303 que ESTE script no modela (ISP, y los totales
+#: que la AEAT ya agrega por su cuenta) pero que sirven para EXPLICAR una
+#: diferencia en vez de dejarla como un misterio. Anadido 11-09-2026, caso
+#: real (SP_C_13, 2025T2): la diferencia en devengado Y en deducible
+#: coincidia EXACTA con el importe de ISP (casillas 12/13) -- una vez fuera
+#: el bug del "tipo 0 fantasma", lo unico que quedaba sin explicar era
+#: exactamente eso, ni un centimo mas.
+CASILLA_ISP_BASE = 12
+CASILLA_ISP_CUOTA = 13
+CASILLA_TOTAL_DEVENGADO = 27
+CASILLA_TOTAL_A_DEDUCIR = 45
 
 try:
     import pdfplumber
@@ -112,7 +126,53 @@ def totales_pdf(casillas):
     return round(base_dev, 2), round(cuota_dev, 2), round(base_ded, 2), round(cuota_ded, 2), casillas_vistas
 
 
-def comparar_caso(contab, pdf, tolerancia=TOLERANCIA_REDONDEO):
+#: Casillas "oficiales" (ver comentario junto a las constantes CASILLA_*):
+#: se extraen con la misma logica de extraer_303_pdf.py, reutilizada, no
+#: reescrita -- para que las dos lecturas nunca puedan divergir en silencio.
+CASILLAS_OFICIALES = (CASILLA_ISP_BASE, CASILLA_ISP_CUOTA,
+                       CASILLA_TOTAL_DEVENGADO, CASILLA_TOTAL_A_DEDUCIR)
+
+
+def extraer_casillas_oficiales(texto):
+    valores = {}
+    for n in CASILLAS_OFICIALES:
+        m = patron_casilla(n).search(texto)
+        if m:
+            v = extraer_numero_tras(texto, m.end())
+            if v is not None:
+                valores[n] = v
+    return valores
+
+
+def explicar_por_isp(diffs, oficiales, tolerancia):
+    """¿La diferencia de devengado y/o deducible coincide con el importe de
+    ISP (casillas 12/13) que este script no modela? Anadido tras el caso
+    real SP_C_13 (2025T2, 11-09-2026): la diferencia en los dos lados
+    coincidia EXACTA con la cuota de ISP declarada en el propio PDF. No es
+    una regla inventada -- es la misma cuenta que ya hace cualquier asesor
+    a mano: la autorrepercusion de ISP suma en devengado (casilla 13) y
+    exactamente lo mismo en deducible (misma cuota, derecho a deduccion
+    inmediata en el mismo periodo).
+
+    Devuelve None si no hay casillas de ISP en el PDF (no se puede evaluar
+    la hipotesis, y NO se finge que "no aporta" cuando es que no se ha
+    mirado). Si las hay, devuelve un dict declarando cuanto explica ISP y
+    cuanto queda SIN explicar en cada lado -- nunca oculta el resto."""
+    isp_cuota = oficiales.get(CASILLA_ISP_CUOTA)
+    if isp_cuota is None:
+        return None
+    resto_dev = round(diffs["cuota_devengado"] + isp_cuota, 2)
+    resto_ded = round(diffs["cuota_deducible"] + isp_cuota, 2)
+    return {
+        "isp_cuota_declarada": isp_cuota,
+        "diferencia_devengado_sin_isp": resto_dev,
+        "diferencia_deducible_sin_isp": resto_ded,
+        "isp_explica_devengado": abs(resto_dev) <= tolerancia,
+        "isp_explica_deducible": abs(resto_ded) <= tolerancia,
+    }
+
+
+def comparar_caso(contab, pdf, tolerancia=TOLERANCIA_REDONDEO, oficiales=None):
     """Funcion PURA, sin E/S: compara los totales ya calculados de los dos
     lados. Separada de main() para poder probarla con datos sinteticos, sin
     necesitar un PDF real ni un 303_LOCAL.json real (mismo patron que
@@ -120,6 +180,11 @@ def comparar_caso(contab, pdf, tolerancia=TOLERANCIA_REDONDEO):
 
     contab: tupla de totales_contabilidad() (o None si no habia datos).
     pdf: tupla de totales_pdf().
+    oficiales: dict de extraer_casillas_oficiales() (opcional). Si se pasa
+    y hay una diferencia, se comprueba si el ISP declarado la explica --
+    nunca AJUSTA el veredicto (una diferencia sigue siendo NO_CUADRA aunque
+    se explique), solo declara la causa mas probable para no investigar a
+    ciegas.
 
     Devuelve un dict con el veredicto y las diferencias, nunca un nombre."""
     if contab is None:
@@ -148,12 +213,41 @@ def comparar_caso(contab, pdf, tolerancia=TOLERANCIA_REDONDEO):
     else:
         estado = "NO_CUADRA"
 
-    return {
+    resultado = {
         "estado": estado,
         "diferencias": diffs,
         "max_diferencia": max_diff,
         "aviso_tipo_no_catalogado": no_catalogado,
     }
+
+    if oficiales is not None and estado != "CUADRA_EXACTO":
+        explicacion = explicar_por_isp(diffs, oficiales, tolerancia)
+        if explicacion is not None:
+            resultado["explicacion_isp"] = explicacion
+
+    return resultado
+
+
+#: El listado de cuadre_303_ficha.py escribe cada carpeta como
+#: "{numero:>3}.{marca} {carpeta}", con marca=" (?)" o cuatro espacios. Si
+#: se copia la linea entera del listado (lo natural, y lo que paso el
+#: primer caso real: 11-09-2026) en vez de solo la clave, ese prefijo se
+#: cuela en la CLAVE y ya no coincide con ninguna entrada de 303_LOCAL.json.
+#: Se limpia aqui, en el unico sitio que lee el manifest.
+_RE_PREFIJO_LISTADO = re.compile(r'^\s*\d+\.\s*(\(\?\))?\s*')
+
+
+def _limpiar_campo(valor):
+    """Quita comillas envolventes (lo que pone Windows en 'Copiar como ruta
+    de acceso' si el nombre lleva espacios -- y una ruta de \\PC01\\Documentos
+    casi siempre los lleva) y espacios de sobra. Sin esto, os.path.exists()
+    busca un fichero cuyo nombre literalmente empieza y termina en '"', que
+    no existe nunca -- el primer caso real (11-09-2026) fallo exactamente
+    asi, con "el PDF indicado no existe" sobre una ruta real y correcta."""
+    valor = valor.strip()
+    if len(valor) >= 2 and valor[0] == valor[-1] and valor[0] in "\"'":
+        valor = valor[1:-1].strip()
+    return valor
 
 
 def leer_manifest(ruta):
@@ -170,7 +264,8 @@ def leer_manifest(ruta):
                 print(f"AVISO: linea {n_linea} del manifest no tiene 3 "
                       f"partes separadas por '|' -- se ignora.", file=sys.stderr)
                 continue
-            clave, trimestre, ruta_pdf = (p.strip() for p in partes)
+            clave, trimestre, ruta_pdf = (_limpiar_campo(p) for p in partes)
+            clave = _RE_PREFIJO_LISTADO.sub("", clave)
             casos.append((clave, trimestre, ruta_pdf))
     return casos
 
@@ -236,8 +331,9 @@ def main():
             continue
 
         casillas = extraer_casillas(texto)
+        oficiales = extraer_casillas_oficiales(texto)
         pdf_totales = totales_pdf(casillas)
-        r = comparar_caso(contab, pdf_totales, args.tolerancia)
+        r = comparar_caso(contab, pdf_totales, args.tolerancia, oficiales=oficiales)
         resultados.append(r)
 
         if r["estado"] == "NO_COMPROBADO":
@@ -246,6 +342,21 @@ def main():
             aviso = "  [tipo_no_catalogado presente]" if r.get("aviso_tipo_no_catalogado") else ""
             print(f"  caso {i}: {r['estado']}  (diferencia maxima: "
                   f"{r['max_diferencia']:.2f} EUR){aviso}")
+            explicacion = r.get("explicacion_isp")
+            if explicacion:
+                print(f"           ISP declarado en el PDF (casilla 13): "
+                      f"{explicacion['isp_cuota_declarada']:.2f} EUR "
+                      "(no modelado por este script, se declara aparte)")
+                if explicacion["isp_explica_devengado"]:
+                    print("           -> explica ENTERA la diferencia en devengado")
+                else:
+                    print(f"           -> tras descontar ISP, queda SIN explicar en "
+                          f"devengado: {explicacion['diferencia_devengado_sin_isp']:.2f} EUR")
+                if explicacion["isp_explica_deducible"]:
+                    print("           -> explica ENTERA la diferencia en deducible")
+                else:
+                    print(f"           -> tras descontar ISP, queda SIN explicar en "
+                          f"deducible: {explicacion['diferencia_deducible_sin_isp']:.2f} EUR")
 
     print()
     print("=" * 68)
