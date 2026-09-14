@@ -40,24 +40,33 @@
       el asiento de liquidación trimestral de IVA (o ISP). Ya no se suma
       al total, y se sigue declarando aparte.
 
-      ─── LO SIGUIENTE, y son dos cosas independientes ───
+      ─── LO SIGUIENTE, en este orden ───
 
-      [ ] A · VOLVER A MEDIR EL EXTRACTOR DE PDF.  Un comando, sin trabajo
-          manual, y puede cambiar el plan entero:
+      [ ] A · REGRESIÓN PRIMERO, y es obligatoria.  El 14-09 se reescribió
+          el lector de casillas del PDF: leía dígitos de DENTRO de los
+          importes (el "9." de "9.999,99" le parecía la etiqueta "9.").
+          PERO SP_C_10 y SP_C_11 cuadraban exacto CON EL LECTOR VIEJO, así
+          que el arreglo hay que probarlo contra ellos ANTES que nada:
 
-              python extraer_303_pdf.py "\\PC01\Documentos"
+              python verificar_303_pdf.py --manifest verificacion_303_LOCAL.txt
 
-          Por qué: verificar_303_pdf.py avisa de que un NO_CUADRA puede
-          ser un fallo de lectura, citando "1,2% de consistencia". Ese
-          1,2% se midió con un regex de números roto (leía 12345,67 como
-          345,67, y el 47% de los importes vienen sin separador de
-          millar). NADIE lo ha vuelto a medir desde que se arregló.
-          Ojo: la causa principal es estructural (la rejilla del PDF), así
-          que puede seguir siendo baja. Pero el número que sale decide si
-          merece la pena el camino masivo. Solo hace falta el recuento
-          final, nunca un valor.
+          Si SP_C_10 y SP_C_11 SIGUEN cuadrando -> el arreglo es bueno,
+          sigue con B.
+          Si dejan de cuadrar -> el arreglo ha hecho daño. Dímelo y se
+          revierte: son dos commits, no hay drama.
 
-      [ ] B · SEGUIR AÑADIENDO CLIENTES, ahora con UNA LÍNEA por cliente.
+      [ ] B · VOLVER A MEDIR EL EXTRACTOR.  Un comando, sin trabajo manual:
+
+              python extraer_303_pdf.py "RUTA_DEL_ARCHIVO_DE_MODELOS"
+
+          Todo el proyecto trata la lectura de PDF con pinzas por un "1,2%
+          de consistencia" que se midió DOS VECES mal: con un regex de
+          importes roto (arreglado el 26-08) y con el patrón de casillas
+          adivinado (arreglado el 14-09, ya con el formulario delante).
+          Nadie lo ha vuelto a medir desde ninguno de los dos arreglos.
+          Pégame sólo la línea "tasa de consistencia". Nunca un valor.
+
+      [ ] C · SEGUIR AÑADIENDO CLIENTES, ahora con UNA LÍNEA por cliente.
           El manifest ya no se escribe por trimestre (14-09). Dos formas:
 
               CLAVE|CARPETA_DEL_CLIENTE        <- usa ésta
