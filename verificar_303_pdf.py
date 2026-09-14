@@ -342,6 +342,23 @@ def main():
             aviso = "  [tipo_no_catalogado presente]" if r.get("aviso_tipo_no_catalogado") else ""
             print(f"  caso {i}: {r['estado']}  (diferencia maxima: "
                   f"{r['max_diferencia']:.2f} EUR){aviso}")
+            if r["estado"] == "NO_CUADRA":
+                # Desglose por campo (solo numeros: base/cuota devengado y
+                # deducible, nunca un nombre) -- para distinguir un fallo de
+                # LECTURA del PDF (extraer_303_pdf.py ya midio 1,2% de
+                # consistencia en formularios tabulares, ver su cabecera) de
+                # un desacuerdo contable real. Y que casillas 1-9/28/29
+                # reconocio el extractor, sin sus valores todavia -- si
+                # faltan casillas centrales (04, 07...), la lectura fallo
+                # antes de llegar a comparar nada.
+                print(f"           desglose: base_devengado={r['diferencias']['base_devengado']:.2f}  "
+                      f"cuota_devengado={r['diferencias']['cuota_devengado']:.2f}  "
+                      f"base_deducible={r['diferencias']['base_deducible']:.2f}  "
+                      f"cuota_deducible={r['diferencias']['cuota_deducible']:.2f}")
+                vistas = sorted(casillas.keys())
+                faltan = sorted(set(CASILLAS_DEVENGADO + CASILLAS_DEDUCIBLE) - casillas.keys())
+                print(f"           casillas reconocidas en el PDF: {vistas}")
+                print(f"           casillas NO reconocidas: {faltan}")
             explicacion = r.get("explicacion_isp")
             if explicacion:
                 print(f"           ISP declarado en el PDF (casilla 13): "
