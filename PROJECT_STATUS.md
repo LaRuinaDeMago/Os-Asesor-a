@@ -7,6 +7,141 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 14-09-2026 (sesión Cloud, segunda entrada) — El lector de casillas del 303 leía dígitos de DENTRO de los importes, y no tenía ni una prueba
+
+Diego mandó cuatro capturas de un 303 real. **Eso fue una exposición de datos**
+(un IBAN completo y los importes de un cliente concreto), el mismo mecanismo del
+incidente del 27-08: el contenido llega en el mismo turno, antes de que se pueda
+hacer nada. Ningún valor se transcribió a ningún sitio, ninguna cifra real entró
+en el repositorio, y el análisis de abajo usa **sólo la estructura del
+formulario**, que es pública. Queda anotado aquí sin datos, como la regla manda.
+
+Pero las capturas contestaron una pregunta que llevaba meses abierta.
+
+### Lo que decía el propio código
+
+`patron_casilla()`, en `extraer_303_pdf.py`, llevaba este comentario desde el
+día que se escribió:
+
+> *"Se buscan variantes razonables porque **no se ha visto ni un solo documento
+> real**: 'Casilla 01', '01.' al principio de línea/celda, o el número solo
+> seguido de espacio y luego un número-moneda."*
+
+Tres formas adivinadas, cero contrastadas. Y de ahí colgaba **todo** el cuadre
+contra el 303: `verificar_303_pdf.py` importa esa función en vez de reescribirla,
+justo para que las dos lecturas no puedan divergir.
+
+### La forma real, y los dos defectos que destapa
+
+En el 303 cada casilla es una **rejilla**: un recuadro pequeño con el número a
+dos dígitos y, al lado, el recuadro del valor. Aplanado a texto queda así (con
+cifras **inventadas**, de la misma forma):
+
+```
+07 9.999,99 08 21,00 09 2.099,99
+```
+
+Medido antes de tocar nada, sobre esa línea:
+
+| casilla | lo que leía |
+|---|---|
+| 07 (base 21%) | **no la encontraba** |
+| 09 (cuota 21%) | **999,99** — un trozo del importe |
+| 02 | **99,99** — inventada de la nada |
+
+Dos causas, independientes:
+
+1. **Ninguna de las tres variantes adivinadas casa con un `07` suelto.** Pero
+   `\b0?9\s*[.\)]` **sí** casa con el `9.` de DENTRO de `9.999,99`: el punto de
+   millar español es idéntico a la marca de una lista numerada. No era
+   imprecisión — era ruido con forma de dato.
+2. **La ventana de 80 caracteres no respetaba la casilla siguiente.** Una casilla
+   vacía se quedaba con el valor de la de al lado, y en el 303 los tramos del 4%
+   y del 10% vienen vacíos casi siempre. Con el patrón viejo, la casilla 01 leía
+   **111,11**, robado de la casilla 28.
+
+Y un tercero que sale del mismo sitio: `contrato_datos` acepta el espacio como
+separador de millar (con razón, en el archivo real los hay), así que en
+`28 1.111,11 29 233,33` el lector veía **`29 233,33` como un solo número**,
+29.233,33 — la etiqueta fundida con su propio valor.
+
+### El arreglo
+
+`patron_casilla()` reescrito **con el documento delante**: reconoce la etiqueta
+suelta de la rejilla (siempre dos dígitos), y todas las variantes llevan guardas
+para no casar dentro de un importe (`(?<![\d.,])` y `(?![\d.,])`).
+`extraer_numero_tras()` corta por la **etiqueta siguiente**: en la rejilla, lo
+que hay entre una etiqueta y la próxima es el valor de la primera y nada más.
+Ese corte arregla de paso la fusión por el separador de espacio, porque va antes
+que la lectura.
+
+### 20º auditor: `ensayo_extraer_casillas.py`
+
+21 comprobaciones en ocho familias. Resaboteado en tres variantes (volver al
+patrón viejo, quitar el corte por etiqueta, quitar la guarda de aislamiento):
+**las tres caen, en las comprobaciones exactas.** El sabotaje del patrón viejo
+reproduce el defecto entero de un golpe: 07 = `None`, 09 = `999.99`, 28 = `None`,
+01 = `111.11`.
+
+El 19º auditor volvió a hacer su trabajo: puso la auditoría en rojo por este
+ensayo antes de que estuviera cableado.
+
+### ⚠️ Lo que NO se puede afirmar todavía, y es importante
+
+Esto se ha validado contra una **reconstrucción** de la rejilla, con cifras
+inventadas. En Cloud no hay ni puede haber un PDF real.
+
+Y hay un dato que va en contra de la hipótesis y no se puede ignorar:
+**`SP_C_10` y `SP_C_11` cuadraron exacto con el lector viejo.** Si el lector
+fuera ruido puro sobre los PDF reales, eso no habría pasado. Luego el texto que
+saca `pdfplumber` de esos PDF concretos no es exactamente la reconstrucción de
+arriba. El arreglo debería ser una mejora estricta —añade la forma real y sólo
+quita coincidencias dentro de números— pero *debería* no es *es*.
+
+**Regresión obligatoria antes de fiarse:** volver a pasar `SP_C_10` y `SP_C_11`.
+Si dejan de cuadrar, el arreglo ha hecho daño y se revierte. Y después, la tasa
+de consistencia de `extraer_303_pdf.py` sobre el archivo real, que es la medida
+de verdad.
+
+### La duda de Diego sobre el "tipo 0" y la ISP, que está justificada
+
+Dice que la lógica de la inversión del sujeto pasivo con el 0% "no está clara
+del todo". Tiene razón, y el formulario enseña por qué:
+
+- En el 303, la ISP tiene **casillas propias**: 12 (base) y 13 (cuota), en el
+  lado devengado. Y la celda de "Tipo %" de esa fila está **en gris**: la ISP
+  **no tiene tipo** en el modelo.
+- La casilla 27 (total cuota devengada) **incluye** la 13.
+- `totales_pdf()` suma 3+6+9, así que **excluye** la ISP a propósito.
+- Y `cuadre_303_ficha.py` excluye ahora **todo** el "tipo 0" de nuestro lado.
+
+**Ahí está el problema:** "tipo 0" es un cajón con dos cosas opuestas dentro —
+el asiento de liquidación trimestral (que hay que quitar: no es una operación) y
+la ISP (que es una operación real y pertenece a las casillas 12/13). Excluir el
+cajón entero se lleva por delante operaciones reales.
+
+Y encaja con lo ya medido: `diag_contrapartida_tipo0.py` encontró un **72%** con
+contrapartida administrativa. El 28% restante no lo es — y ese 28% es candidato
+a ser justamente la ISP.
+
+**Propuesta, no implementada (es una decisión contable, y CLAUDE.md dice
+preguntar):** dejar de tratar "tipo 0" como un cajón y clasificar **por asiento**
+con el discriminador que `diag_contrapartida_tipo0.py` ya tiene (contrapartida en
+Hacienda + importe exacto = liquidación). Liquidación → fuera. El resto → dentro,
+mapeado a las casillas 12/13 para poder compararlo contra el PDF. Eso permitiría
+que un caso con ISP **cuadre exacto**, en vez de "cuadra si le restas la ISP".
+
+Pendiente antes de decidir: saber cómo graba ContaPlus una factura con ISP
+(¿tipo 0 en las dos líneas 477/472? ¿el tipo real?). Es una pregunta empírica
+sobre el corpus, contestable con un script local de tres roles.
+
+### Estado tras la sesión
+
+`audit_project.py`: **36 ✅ · 1 ⚠️ · 0 ❌** (código 2). Motor **65/65**,
+adversarial **112/112**, guards **26/26**, **27/27 suites ejecutadas**, escáner
+de privacidad sin hallazgos. **No se tocó `motor_veredicto.py`** ni se añadió
+ningún guard.
+
 ## 14-09-2026 (sesión local + Cloud) — El cuadre contra el 303 presentado YA TIENE RESULTADO, y el manifest pasa a cobrarse por cliente
 
 Doble entrada: la sesión local del 14-09 hizo el trabajo y no lo documentó aquí

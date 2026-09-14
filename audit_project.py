@@ -446,7 +446,18 @@ def check_estados_y_cobertura():
                              # cuadre_303_ficha.py: el tipo "0" ya no se suma
                              # al TOTAL.
                              ("ensayo_diag_patron_cierre_iva.py", "Patron de liquidacion IVA: ratio de cancelacion, no ruido"),
-                             ("ensayo_diag_contrapartida_tipo0.py", "Contrapartida del tipo 0: distingue liquidacion de caso ambiguo")):
+                             ("ensayo_diag_contrapartida_tipo0.py", "Contrapartida del tipo 0: distingue liquidacion de caso ambiguo"),
+                             # extraer_303_pdf.py sostiene TODO el cuadre contra
+                             # el 303 -- verificar_303_pdf.py importa su lectura
+                             # de casillas en vez de reescribirla, justo para que
+                             # no puedan divergir -- y no tenia ni una prueba. Su
+                             # propio comentario decia que los patrones eran
+                             # "variantes razonables porque NO SE HA VISTO NI UN
+                             # SOLO DOCUMENTO REAL". El 14-09-2026 se vio: la
+                             # etiqueta es un recuadro de dos digitos pegado a su
+                             # valor, y el patron adivinado casaba con el "9." de
+                             # DENTRO de "9.999,99".
+                             ("ensayo_extraer_casillas.py", "Casillas del 303: se leen de la rejilla, no de dentro de un importe")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue

@@ -81,14 +81,58 @@ NUM_ES = RE_IMPORTE_EN_TEXTO
 TIPOS_LEGALES = (0, 4, 5, 10, 21)
 TOL_TIPO = 0.6   # puntos porcentuales de margen sobre el tipo legal mas cercano
 
-# Casilla -> patron que la localiza. Se buscan variantes razonables porque no
-# se ha visto ni un solo documento real: "Casilla 01", "01." al principio de
-# linea/celda, o el numero solo seguido de espacio y luego un numero-moneda.
+# REESCRITO 14-09-2026, Y ESTA VEZ CON EL DOCUMENTO DELANTE
+# ----------------------------------------------------------
+# El comentario que habia aqui decia la verdad y era el problema: "se buscan
+# variantes razonables porque NO SE HA VISTO NI UN SOLO DOCUMENTO REAL". Las
+# tres variantes que se adivinaron ("Casilla 01", "01.", "[01]") no son la
+# forma real. En el 303 de la AEAT cada casilla es una REJILLA: un recuadro
+# pequenio con el numero a dos digitos, y al lado el recuadro del valor. Al
+# aplanar a texto queda asi (cifras inventadas):
+#
+#     07 9.999,99 08 21,00 09 2.099,99
+#
+# Ninguna de las tres variantes casa con ese "07". Pero `\b0?9\s*[.\)]` SI
+# casaba con el "9." de DENTRO de "9.999,99" -- el punto de millar espanol es
+# identico a la marca de una lista numerada. Medido antes de tocar nada: sobre
+# esa linea, el extractor no encontraba la casilla 07, y se inventaba una
+# casilla 02 = 99,99 y una casilla 09 = 999,99, leyendo trozos de los importes.
+# No era imprecision: era ruido con forma de dato.
+#
+# Es candidato a explicar el "1,2% de consistencia interna" mucho mejor que la
+# rejilla, que es la explicacion que se le dio en su dia sin haber visto el
+# documento. (La otra mitad, el regex de importes que exigia el punto de
+# millar, ya se corrigio el 26-08.)
+#
+# AVISO HONESTO SOBRE ESTE ARREGLO: se ha validado contra una RECONSTRUCCION
+# del formulario (la forma de la rejilla, con cifras inventadas), no contra un
+# PDF real -- en Cloud no hay ninguno, ni puede haberlo. Lo que dira si ha
+# servido es la tasa de consistencia de este mismo script sobre el archivo
+# real. Hasta esa medicion, esto es una hipotesis bien fundada, no un hecho.
 def patron_casilla(n):
+    #: La etiqueta de la rejilla lleva SIEMPRE dos digitos: "01", "07", "28".
+    etiqueta = f"0{n}" if n < 10 else f"{n}"
     return re.compile(
-        rf'(?:casilla\s*0?{n}\b|\b0?{n}\s*[.\)]|\[0?{n}\])',
+        # "Casilla 07" (por si algun modelo o ejercicio lo escribe asi)
+        rf'(?:casilla\s*0?{n}\b'
+        # "[07]"
+        rf'|\[0?{n}\]'
+        # "07." / "7)" de una lista. Con dos guardas: que no venga pegado a un
+        # digito o a un separador (estaria DENTRO de un importe) y que no le
+        # siga otro digito ("9.999" quedaria dentro, "09. 1.234,56" no).
+        rf'|(?<![\d.,])0?{n}\s*[.\)](?!\d)'
+        # La forma REAL: la etiqueta suelta de la rejilla, aislada de todo
+        # digito y de todo separador decimal o de millar.
+        rf'|(?<![\d.,]){etiqueta}(?![\d.,])'
+        rf')',
         re.IGNORECASE
     )
+
+
+#: Cualquier etiqueta de casilla (2-3 digitos aislados). Marca donde TERMINA
+#: el valor de la casilla anterior: en la rejilla, lo que hay entre una
+#: etiqueta y la siguiente es el valor de la primera, y nada mas.
+RE_ETIQUETA_CUALQUIERA = re.compile(r'(?<![\d.,])\d{2,3}(?![\d.,])')
 
 CASILLAS_DEVENGADO = (1, 2, 3, 4, 5, 6, 7, 8, 9)
 CASILLAS_DEDUCIBLE = (28, 29)
@@ -99,10 +143,28 @@ def _num_es_a_float(s):
 
 
 def extraer_numero_tras(texto, pos_inicio, ventana=80):
-    """El primer numero con formato ES dentro de una ventana de caracteres
-    despues de donde aparecio la etiqueta de la casilla."""
-    trozo = texto[pos_inicio:pos_inicio + ventana]
-    m = NUM_ES.search(trozo)
+    """El primer numero con formato ES despues de la etiqueta de la casilla,
+    SIN PASAR de la siguiente etiqueta.
+
+    El corte por la etiqueta siguiente (anadido 14-09-2026) no es un detalle:
+    sin el, la ventana de 80 caracteres se comia las casillas de al lado, y
+    eso pasa en los dos sentidos:
+
+      - Una casilla VACIA se quedaba con el valor de la siguiente. En
+        "01 02 4,00 03 ..." (los tramos del 4% y el 10% casi siempre vienen
+        vacios) la casilla 01 leia 4,00 -- que ni siquiera es un importe, es
+        el TIPO de la casilla 02.
+      - Y peor: `contrato_datos` acepta el espacio como separador de millar
+        (con razon: en el archivo real los hay). Asi que en
+        "28 1.111,11 29 233,33" el lector veia "29 233,33" como UN numero,
+        29.233,33 -- la etiqueta fundida con su propio valor. Cortar por la
+        etiqueta siguiente lo deshace, porque el corte va antes que la lectura.
+    """
+    fin = pos_inicio + ventana
+    m_etiqueta = RE_ETIQUETA_CUALQUIERA.search(texto, pos_inicio, fin)
+    if m_etiqueta:
+        fin = m_etiqueta.start()
+    m = NUM_ES.search(texto, pos_inicio, fin)
     return _num_es_a_float(m.group(0)) if m else None
 
 
