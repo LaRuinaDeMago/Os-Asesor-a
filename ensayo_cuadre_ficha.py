@@ -96,7 +96,14 @@ def main():
                 "2021T1": {"devengado": {}, "deducible": {}}},
             "MEDIA_SINTETICA": {
                 "2022T3": {"devengado": {"21": celda(500.0, 105.0, 2),
-                                         "tipo_no_catalogado": celda(300.0, 45.0, 3)},
+                                         "tipo_no_catalogado": celda(300.0, 45.0, 3),
+                                         # AÑADIDO 14-09-2026: simula el asiento de
+                                         # liquidacion de IVA (diag_patron_cierre_iva.py
+                                         # + diag_contrapartida_tipo0.py, corpus real).
+                                         # Si se sumara al total (105+45-150=0), el
+                                         # TOTAL de esta ficha volveria a dar 0,00 --
+                                         # exactamente el bug que motivo el arreglo.
+                                         "0": celda(0.0, -150.0, 1)},
                            "deducible": {"21": celda(-250.0, -52.5, 2)}}},
         }
         ruta_json = os.path.join(tmp, "303_sintetico.json")
@@ -190,6 +197,26 @@ def main():
         f_alfa = open(ficha, encoding="utf-8").read()
         comprobar("y NO avisa cuando todos los tipos estan catalogados",
                   "DESCONOCIDO" not in f_alfa, f_alfa[:400])
+
+        # === FAMILIA G — el "tipo 0" (liquidacion de IVA) queda FUERA del total
+        print("\n=== FAMILIA G — el 'tipo 0' se declara pero NO se suma (14-09-2026) ===")
+        # Reusa la ficha de MEDIA, que ya trae un "0" ademas del 21 y el
+        # tipo_no_catalogado -- si el "0" se sumara, el total devengado daria
+        # 0,00 (105+45-150) en vez de 150,00.
+        comprobar("el TOTAL devengado sigue siendo 150,00 -- el 'tipo 0' NO se sumo",
+                  "cuota        150,00" in f_media,
+                  [l for l in f_media.splitlines() if "TOTAL casillas 01-09" in l])
+        comprobar("pero SI se declara aparte, con su propio importe",
+                  "(fuera del TOTAL) tipo 0%" in f_media
+                  and "cuota -150,00" in f_media,
+                  [l for l in f_media.splitlines() if "fuera del TOTAL" in l])
+        comprobar("y la fila normal del tipo 0% tambien sigue imprimiendose "
+                  "(no desaparece, solo no se suma)",
+                  "tipo 0%" in f_media and "-150,00" in f_media,
+                  [l for l in f_media.splitlines() if l.strip().startswith("tipo 0%")])
+        # ALFA no tiene tipo 0: no debe salir el aviso.
+        comprobar("y NO avisa del 'tipo 0' cuando no lo hay",
+                  "fuera del TOTAL" not in f_alfa, f_alfa[:400])
 
         # === FAMILIA D — la barrera de datos ================================
         # Regla de tres roles: la salida lleva nombres de carpeta e importes de

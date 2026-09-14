@@ -435,7 +435,18 @@ def check_estados_y_cobertura():
                              # umbral de redondeo y el mapeo de casillas del
                              # 303; las dos veces cae solo la comprobacion
                              # exacta que tocaba.
-                             ("ensayo_verificar_303_pdf.py", "Verificacion 303 vs PDF: compara sin adivinar identidad")):
+                             ("ensayo_verificar_303_pdf.py", "Verificacion 303 vs PDF: compara sin adivinar identidad"),
+                             # Hallazgo real 14-09-2026: el "tipo 0" que aparece
+                             # en casi toda ficha no es una venta o compra --
+                             # es el asiento de liquidacion/cierre de IVA
+                             # (diag_patron_cierre_iva.py mide el ratio de
+                             # cancelacion sobre 303_LOCAL.json; diag_contra-
+                             # partida_tipo0.py confirma la cuenta contraria en
+                             # el Diario.dbf real). Arreglo consecuente en
+                             # cuadre_303_ficha.py: el tipo "0" ya no se suma
+                             # al TOTAL.
+                             ("ensayo_diag_patron_cierre_iva.py", "Patron de liquidacion IVA: ratio de cancelacion, no ruido"),
+                             ("ensayo_diag_contrapartida_tipo0.py", "Contrapartida del tipo 0: distingue liquidacion de caso ambiguo")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue

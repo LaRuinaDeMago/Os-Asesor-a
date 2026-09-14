@@ -155,6 +155,18 @@ def bloque_lado(celdas, etiqueta_casillas):
         lineas.append(
             f"    tipo {etiqueta:<15} base {formato(c['base']):>15}   "
             f"cuota {formato(c['cuota']):>13}   ({c['apuntes']} apuntes)")
+        # AÑADIDO 14-09-2026. El "tipo 0" NO se suma al total -- a diferencia
+        # de tipo_no_catalogado (que se queda dentro porque podria ser una
+        # casilla real de tipo desconocido), aqui ya se midio con datos
+        # (diag_patron_cierre_iva.py + diag_contrapartida_tipo0.py) que en el
+        # 91,3% de los casos su cuota cancela casi exacto el resto del lado, y
+        # en el 72% su contrapartida es una cuenta administrativa (Hacienda o
+        # reclasificacion del propio grupo 477/472) -- nunca un tercero real.
+        # Es el asiento de liquidacion/cierre de IVA, no una venta ni una
+        # compra. Sumarlo es lo que producia el "TOTAL siempre 0,00" que
+        # hacia inservible esta ficha para comparar contra el 303 real.
+        if tipo == "0":
+            continue
         total_base += c["base"]
         total_cuota += c["cuota"]
     lineas.append("    " + "-" * 70)
@@ -181,6 +193,19 @@ def bloque_lado(celdas, etiqueta_casillas):
             "       DESCONOCIDO. La comparacion contra la casilla NO es limpia:")
         lineas.append(
             "       no se sabe si ese trozo pertenece a esta casilla o a otra.")
+    cero = celdas.get("0")
+    if cero and cero["cuota"] != 0:
+        lineas.append(
+            f"    >> (fuera del TOTAL) tipo 0%: base {formato(cero['base'])} / "
+            f"cuota {formato(cero['cuota'])} ({cero['apuntes']} apuntes) --")
+        lineas.append(
+            "       casi siempre es el asiento de liquidacion de IVA a Hacienda,")
+        lineas.append(
+            "       no una venta o compra exenta real. Si esta cifra te resulta")
+        lineas.append(
+            "       muy distinta de lo esperado para este cliente, mira esos")
+        lineas.append(
+            "       apuntes a mano antes de descartarlo sin mas.")
     return "\n".join(lineas) + "\n"
 
 
