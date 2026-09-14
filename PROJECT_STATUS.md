@@ -7,6 +7,79 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 15-09-2026 (sesión Cloud, tercera entrada) — Las fórmulas del 303, verificadas contra el impreso oficial de cuatro ejercicios
+
+Diego preguntó si no podíamos ir a la AEAT y asegurarnos al 100% de que el
+modelo es el que creemos, para llegar al PC sin dudas. Sí se podía, y había un
+riesgo concreto que lo justificaba: **el corpus va de 2016 a 2026 y el 303 ha
+cambiado en esos años.** Si la fórmula de la casilla 27 no fuera la misma en
+2022 que hoy, `cuadre_interno()` daría FALLO sobre PDF perfectamente leídos.
+
+### Cómo se hizo, y por qué así
+
+Se descargaron los formularios oficiales de la AEAT y **se leyó la fórmula
+impresa de los bytes del PDF**, no de un resumen. La precaución no es teórica:
+ese mismo día, una consulta resumida afirmó que la ISP soportada va a *"las
+casillas 40-43"*, que en el impreso son rectificación de deducciones,
+compensaciones REAGP y regularización de bienes de inversión. **Un resumen
+automático no es una fuente.**
+
+### El resultado
+
+| ejercicio | fórmula impresa de la casilla 27 |
+|---|---|
+| 2022 | `03+06+09+11+13+15+18+21+24+26` |
+| 2023 | `152+03+155+06+09+11+13+15+158+18+21+24+26` |
+| 2024 | `152+167+03+155+06+09+11+13+15+158+170+18+21+24+26` |
+| 2026 | idéntica a 2024 |
+
+**La casilla 45 no ha cambiado** en los cuatro: `29+31+33+35+37+39+41+42+43+44`.
+**La 46 tampoco**: *"Resultado régimen general (27 − 45)"*.
+
+La 27 **sólo crece** — cada año añade filas de tipos reducidos temporales. Como
+sumamos el superconjunto de 2026, las casillas que un impreso antiguo no tiene
+se leen como ausentes, cuentan 0, y la suma da igual. **La suposición que se
+escribió ayer (*"sumar un superconjunto es seguro"*) queda verificada contra
+impresos reales, no asumida.**
+
+### Y se fija en código, para que no se degrade
+
+`FORMULAS_IMPRESAS_VERIFICADAS` guarda la fórmula de cada año con su URL de
+origen, y la familia K del ensayo comprueba que lo que sumamos las cubre todas —
+más que la 27 de cada año está contenida en la del siguiente (si eso dejara de
+cumplirse, el superconjunto no valdría y habría que elegir fórmula por año).
+Saboteado quitando la casilla 26 de un lado y la 41 del otro: **cae, y nombra
+exactamente la casilla que falta.**
+
+### Lo que NO está verificado, dicho a la cara
+
+**2016-2021.** La AEAT no publica esos formularios en su biblioteca actual.
+Consecuencia si alguno tuviera una casilla que no sumamos: `cuadre_interno()`
+diría FALLO sobre un PDF bien leído. Es un **error conservador** —*"no te fíes
+de esta lectura"*— nunca un falso verde. Si aparecen muchos FALLO concentrados
+en años antiguos, es el primer sitio donde mirar. Anotado en el código.
+
+### Cuatro causas confirmadas con cita literal, y un respiro
+
+Las instrucciones oficiales confirmaron, **en cita literal**, cuatro de los seis
+conceptos que el script avisa como no modelables: casilla 44 (prorrata), 43
+(bienes de inversión), 42 (compensaciones REAGP) y el recargo de equivalencia
+—*"los tipos del 0,5%, 1,4%, 5,2% y 1,75%"*, exactamente los que estaban
+escritos—.
+
+Y un dato que reduce el problema más de lo esperado: la casilla 44 *"se
+cumplimentará **únicamente en el 4T o mes 12**, o en los supuestos de cese de
+actividad"*. **Un cliente con prorrata tiene 1T, 2T y 3T perfectamente
+comparables** — sólo queda fuera el 4T. Recogido en el aviso del script y en
+`PENDIENTE.md`.
+
+### Estado tras la sesión
+
+`audit_project.py`: **36 ✅ · 1 ⚠️ · 0 ❌**. Motor **65/65**, adversarial
+**112/112**, **27/27 suites**, privacidad sin hallazgos. **No se tocó
+`motor_veredicto.py`** ni se añadió ningún guard. Todos los documentos
+consultados son formularios públicos de la AEAT: ningún dato de cliente.
+
 ## 15-09-2026 (sesión Cloud, segunda entrada) — El script avisa solo de por qué un caso NO PUEDE cuadrar
 
 Cierra el cabo suelto de la entrada anterior. Ahí quedó escrito, como aviso en

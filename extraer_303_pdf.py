@@ -163,6 +163,47 @@ CASILLAS_DEDUCIBLE = (28, 29)
 # reducidos temporales) no existen en los modelos de ejercicios antiguos. En
 # un PDF que no las lleve simplemente no se leen, cuentan como 0, y la suma
 # sigue cuadrando. Al reves seria un problema; asi no.
+# ----------------------------------------------------------------------
+# LO ANTERIOR, VERIFICADO CONTRA EL IMPRESO OFICIAL — 15-09-2026
+# ----------------------------------------------------------------------
+# El corpus del despacho va de 2016 a 2026 y el modelo 303 ha cambiado en
+# esos anios. Si la formula de la casilla 27 no fuera la misma en 2022 que
+# hoy, `cuadre_interno()` daria FALLO sobre PDF perfectamente leidos.
+#
+# Comprobado, no supuesto: se descargaron los formularios oficiales de la
+# AEAT y se leyo la formula IMPRESA en cada uno. No de un resumen -- de los
+# bytes del PDF. (En una consulta anterior, ese mismo dia, un resumen
+# automatico afirmo que la ISP soportada va a "las casillas 40-43", que en
+# el impreso son otra cosa. Un resumen no es una fuente.)
+#
+#   2022  https://sede.agenciatributaria.gob.es/static_files/Sede/Biblioteca/
+#           Manual/Practicos/IVA/IVA_2022/Imagenes/C7-mod303-4T_es_es.pdf
+#   2023  .../IVA_2023/Imagenes/C9-mod303_es_es.pdf
+#   2024  .../IVA_2024/Imagenes/Cap_9_303_es_es.pdf
+#   2026  del formulario que maneja el despacho
+#
+#: Formula impresa de cada casilla-total, ano por ano, tal cual se leyo.
+#: `ensayo_extraer_casillas.py` comprueba que lo que sumamos las cubre TODAS:
+#: si alguien recorta las constantes de abajo, se pone en rojo.
+FORMULAS_IMPRESAS_VERIFICADAS = {
+    # La 27 solo CRECE: cada anio anade filas de tipos reducidos temporales.
+    2022: {27: (3, 6, 9, 11, 13, 15, 18, 21, 24, 26)},
+    2023: {27: (152, 3, 155, 6, 9, 11, 13, 15, 158, 18, 21, 24, 26)},
+    2024: {27: (152, 167, 3, 155, 6, 9, 11, 13, 15, 158, 170, 18, 21, 24, 26)},
+    2026: {27: (152, 167, 3, 155, 6, 9, 11, 13, 15, 158, 170, 18, 21, 24, 26)},
+}
+#: La 45 NO ha cambiado: identica en 2022, 2023, 2024 y 2026.
+#: La 46 tampoco: "Resultado regimen general (27 - 45)" en los cuatro.
+FORMULA_45_VERIFICADA = (29, 31, 33, 35, 37, 39, 41, 42, 43, 44)
+
+#: NO VERIFICADO: 2016-2021. La AEAT no publica esos formularios en la
+#: biblioteca actual. Consecuencia si alguno tuviera una casilla que no
+#: sumamos: `cuadre_interno()` diria FALLO sobre un PDF bien leido. Es un
+#: error CONSERVADOR -- "no te fies de esta lectura" -- nunca un falso
+#: verde. Si aparecen muchos FALLO concentrados en anios antiguos, es el
+#: primer sitio donde mirar.
+ANIOS_SIN_VERIFICAR = "2016-2021"
+
 SUMANDOS_TOTAL_DEVENGADO = (152, 167, 3, 155, 6, 9, 11, 13, 15,
                              158, 170, 18, 21, 24, 26)
 SUMANDOS_TOTAL_A_DEDUCIR = (29, 31, 33, 35, 37, 39, 41, 42, 43, 44)
@@ -216,8 +257,19 @@ TOL_CUADRE = 0.05
 # Solo casillas de cuota: las de tipo (17, 20, 23, 157, 169...) llevan un
 # porcentaje, y mirarlas daria un aviso en cualquier impreso preimpreso.
 CONCEPTOS_FUERA_DE_LAS_CUENTAS_DE_IVA = (
+    # CITA LITERAL de las instrucciones de la AEAT (consultadas 15-09-2026):
+    # "Se hara constar el resultado de la regularizacion de las deducciones
+    #  provisionales practicadas durante el ejercicio como consecuencia de la
+    #  aplicacion del porcentaje definitivo de prorrata que corresponda. Se
+    #  cumplimentara UNICAMENTE EN EL 4T O MES 12, o en los supuestos de cese
+    #  de actividad."
+    # Ese "unicamente en el 4T" es util de verdad: un cliente con prorrata
+    # tiene los trimestres 1T, 2T y 3T perfectamente comparables. Solo el 4T
+    # queda fuera de alcance.
     ((44,), "regularizacion por el porcentaje definitivo de prorrata",
-     "es un ajuste anual, no un apunte de factura: no esta en el 472"),
+     "ajuste anual, no un apunte de factura: no esta en el 472. Segun la AEAT "
+     "solo se rellena en el 4T, asi que 1T/2T/3T de ese mismo cliente SI se "
+     "pueden comparar"),
     ((43,), "regularizacion de bienes de inversion",
      "ajuste plurianual, no sale de las cuentas de IVA del trimestre"),
     ((42,), "compensaciones del Regimen Especial A.G. y P.",

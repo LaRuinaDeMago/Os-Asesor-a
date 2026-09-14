@@ -44,7 +44,9 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
 from extraer_303_pdf import (extraer_casillas, patron_casilla,
                               extraer_numero_tras, TIPOS_LEGALES, TOL_TIPO,
                               cuadre_interno, veredicto_lectura,
-                              conceptos_que_no_podemos_tener)
+                              conceptos_que_no_podemos_tener,
+                              FORMULAS_IMPRESAS_VERIFICADAS, FORMULA_45_VERIFICADA,
+                              SUMANDOS_TOTAL_DEVENGADO, SUMANDOS_TOTAL_A_DEDUCIR)
 
 FALLOS = []
 
@@ -244,6 +246,39 @@ def main():
     comprobar("un porcentaje preimpreso del recargo no dispara el aviso",
               conceptos_que_no_podemos_tener(con_tipos) == [],
               str(conceptos_que_no_podemos_tener(con_tipos)))
+
+    print("\nK. Las formulas, contra el impreso oficial de CADA ANIO")
+    # El corpus va de 2016 a 2026 y el 303 ha cambiado. Estas formulas se
+    # leyeron de los PDF oficiales de la AEAT (2022, 2023, 2024) y del
+    # formulario de 2026. Si alguien recorta las constantes, esto se pone rojo.
+    nuestros_27 = set(SUMANDOS_TOTAL_DEVENGADO)
+    for anio, formulas in sorted(FORMULAS_IMPRESAS_VERIFICADAS.items()):
+        faltan = set(formulas[27]) - nuestros_27
+        comprobar(f"sumamos TODAS las casillas de la 27 del impreso de {anio}",
+                  not faltan, f"faltan: {sorted(faltan)}")
+
+    comprobar("la 45 es exactamente la del impreso (identica 2022-2026)",
+              set(FORMULA_45_VERIFICADA) == set(SUMANDOS_TOTAL_A_DEDUCIR),
+              f"nosotros={sorted(SUMANDOS_TOTAL_A_DEDUCIR)} "
+              f"impreso={sorted(FORMULA_45_VERIFICADA)}")
+
+    # La 27 solo crece: la de un anio tiene que estar contenida en la del
+    # siguiente. Si eso dejara de cumplirse, el superconjunto no valdria y
+    # habria que elegir formula por anio.
+    anios = sorted(FORMULAS_IMPRESAS_VERIFICADAS)
+    for previo, actual in zip(anios, anios[1:]):
+        comprobar(f"la 27 de {previo} esta contenida en la de {actual} (solo crece)",
+                  set(FORMULAS_IMPRESAS_VERIFICADAS[previo][27])
+                  <= set(FORMULAS_IMPRESAS_VERIFICADAS[actual][27]),
+                  f"{previo} tiene de mas: "
+                  f"{sorted(set(FORMULAS_IMPRESAS_VERIFICADAS[previo][27]) - set(FORMULAS_IMPRESAS_VERIFICADAS[actual][27]))}")
+
+    # Y que el superconjunto funciona DE VERDAD: un impreso de 2022, sin las
+    # casillas de tipos reducidos temporales, tiene que cuadrar igual.
+    de_2022 = {3: 500.0, 9: 1000.0, 13: 200.0, 27: 1700.0,
+               29: 300.0, 45: 300.0, 46: 1400.0}
+    comprobar("un impreso de 2022 cuadra con la formula de 2026 (superconjunto)",
+              veredicto_lectura(de_2022)[0] == "OK", str(veredicto_lectura(de_2022)))
 
     print()
     if FALLOS:

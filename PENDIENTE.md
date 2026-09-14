@@ -109,6 +109,11 @@
           vive ahí. El RESUMEN los cuenta aparte. Míralo ANTES de buscar un
           bug.
 
+          Y un respiro, confirmado con la AEAT (cita literal, 15-09): la
+          casilla 44 (prorrata) "se cumplimentará ÚNICAMENTE EN EL 4T O MES
+          12". Un cliente con prorrata tiene 1T, 2T y 3T perfectamente
+          comparables — sólo se te escapa el 4T.
+
           LO QUE HAY QUE DECIDIR DESPUÉS (es tuyo, no del script): cuál de
           las dos comparaciones manda. Ahora se declaran las dos y el
           veredicto lo sigue dando 03+06+09. Cambiarlo es una decisión
