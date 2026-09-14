@@ -427,7 +427,15 @@ def check_estados_y_cobertura():
                              # que funciona: en cuanto se escribio, y antes de
                              # anadir esta linea, check_suites_sin_cablear()
                              # puso la auditoria en rojo por ELLA MISMA.
-                             ("ensayo_suites_cableadas.py", "Suites cableadas: el auditor que caza la prueba que nadie ejecuta")):
+                             ("ensayo_suites_cableadas.py", "Suites cableadas: el auditor que caza la prueba que nadie ejecuta"),
+                             # verificar_303_pdf.py (11-09-2026): compara la
+                             # reconstruccion contra el PDF real SIN adivinar
+                             # identidad -- eso lo resuelve Diego a mano, este
+                             # script solo hace la resta. Ensayo sabotea el
+                             # umbral de redondeo y el mapeo de casillas del
+                             # 303; las dos veces cae solo la comprobacion
+                             # exacta que tocaba.
+                             ("ensayo_verificar_303_pdf.py", "Verificacion 303 vs PDF: compara sin adivinar identidad")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue
