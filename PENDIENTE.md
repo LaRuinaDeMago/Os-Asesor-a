@@ -14,6 +14,22 @@
      bug real por el camino. Siete commits sin una línea aquí: exactamente lo que
      la cabecera de este fichero dice que no puede pasar. -->
 
+  ┌───────────────────────────────────────────────────────────────────┐
+  │ ANTES DE NADA, UNA SOLA VEZ (15-09-2026):                         │
+  │                                                                   │
+  │     git checkout master                                           │
+  │     git pull                                                      │
+  │                                                                   │
+  │ Todo el trabajo del 14 y 15 está YA FUSIONADO en master. La rama  │
+  │ `claude/github-retomada-o4zyic` no lleva nada que master no tenga:│
+  │ si sigues en ella, trabajas en un sitio que nadie más mira.       │
+  │                                                                   │
+  │ Y no vuelvas a compartir una rama larga entre el PC y la nube     │
+  │ (CLAUDE.md, regla del 11-09, con incidente real detrás): cada     │
+  │ sesión crea la suya, la fusiona a master al terminar, y la borra. │
+  │ master es el único punto de encuentro.                            │
+  └───────────────────────────────────────────────────────────────────┘
+
   TODO LO QUE QUEDA ES SESIÓN LOCAL, en el PC de la asesoría.
   Estado del motor al 28-08-2026, medido sobre el corpus real:
     ROJO 3,03%  ·  ÁMBAR 12,82%  (bajó desde 28,28% con los arreglos de ese día)
@@ -40,55 +56,98 @@
       el asiento de liquidación trimestral de IVA (o ISP). Ya no se suma
       al total, y se sigue declarando aparte.
 
-      ─── LO SIGUIENTE, en este orden ───
+      ─── LO SIGUIENTE: UN SOLO COMANDO, y contesta las dos dudas ───
 
-      [ ] A · REGRESIÓN PRIMERO, y es obligatoria.  El 14-09 se reescribió
-          el lector de casillas del PDF: leía dígitos de DENTRO de los
-          importes (el "9." de "9.999,99" le parecía la etiqueta "9.").
-          PERO SP_C_10 y SP_C_11 cuadraban exacto CON EL LECTOR VIEJO, así
-          que el arreglo hay que probarlo contra ellos ANTES que nada:
+      [ ] A · PASA EL MANIFEST QUE YA TIENES.  Nada más:
 
+              git pull
               python verificar_303_pdf.py --manifest verificacion_303_LOCAL.txt
 
-          Si SP_C_10 y SP_C_11 SIGUEN cuadrando -> el arreglo es bueno,
-          sigue con B.
-          Si dejan de cuadrar -> el arreglo ha hecho daño. Dímelo y se
-          revierte: son dos commits, no hay drama.
+          Pégame SOLO el bloque RESUMEN. Son recuentos: no lleva ni una
+          clave, ni una ruta, ni un nombre.
 
-      [ ] B · VOLVER A MEDIR EL EXTRACTOR.  Un comando, sin trabajo manual:
+          QUÉ VAS A VER, Y CÓMO LEERLO. El RESUMEN trae ahora DOS bloques,
+          y el segundo se lee PRIMERO:
+
+            1) ¿Se ha leído bien el PDF?   <- ESTE PRIMERO
+               El impreso se cuadra contra SU PROPIA aritmética, la que
+               lleva escrita al lado de cada total:
+                   27 = 152+167+03+155+06+09+11+13+15+158+170+18+21+24+26
+                   45 = 29+31+33+35+37+39+41+42+43+44
+                   46 = 27 - 45
+               Si eso cuadra al céntimo, la lectura es buena. Tres estados,
+               los mismos del motor:
+                   lectura correcta      -> fíate del bloque 2
+                   lectura INCORRECTA    -> el descuadre es DEL LECTOR.
+                                            Mira ese PDF, no el asiento
+                   sin poder comprobarla -> NO es un aprobado
+
+            2) ¿Cuadra contra la contabilidad?
+               Y cuando NO cuadra, el script añade una segunda comparación
+               contra las casillas 27 y 45 (los totales del propio modelo).
+               Si ahí SÍ cuadra, te lo dice con estas palabras:
+                   "la diferencia de arriba es de CASILLA, no de
+                    contabilidad"
+               Eso es lo que le pasa a SP_C_13: nuestra reconstrucción suma
+               todo el 477 del trimestre, pero 03+06+09 es sólo el régimen
+               general — la ISP va en la 12/13, las intracomunitarias en la
+               10/11. La 27 sí las incluye todas.
+
+          LO QUE EL 27/45 **NO** ARREGLA, y hay que saberlo antes de
+          investigar un descuadre: sólo cubre lo que vive DENTRO de las
+          cuentas de IVA (ISP, intracomunitarias, modificaciones, recargo).
+          NO cubre prorrata, regularización de bienes de inversión ni
+          compensación de cuotas de periodos anteriores: eso el 303 lo
+          calcula y nuestras cuentas de IVA no lo contienen. Si un cliente
+          tiene prorrata, la 45 tampoco va a cuadrar — y no es un fallo del
+          lector ni de la contabilidad. Mira eso ANTES de buscar un bug.
+
+          LO QUE HAY QUE DECIDIR DESPUÉS (es tuyo, no del script): cuál de
+          las dos comparaciones manda. Ahora se declaran las dos y el
+          veredicto lo sigue dando 03+06+09. Cambiarlo es una decisión
+          contable.
+
+          Y NO OLVIDES LA REGRESIÓN: SP_C_10 y SP_C_11 cuadraban exacto con
+          el lector VIEJO. Si con el nuevo dejan de cuadrar, el arreglo ha
+          hecho daño -> dímelo y se revierte, son dos commits.
+
+      [ ] B · SÓLO SI EL BLOQUE 1 SALE MAL en varios casos:
 
               python extraer_303_pdf.py "RUTA_DEL_ARCHIVO_DE_MODELOS"
 
-          Todo el proyecto trata la lectura de PDF con pinzas por un "1,2%
-          de consistencia" que se midió DOS VECES mal: con un regex de
-          importes roto (arreglado el 26-08) y con el patrón de casillas
-          adivinado (arreglado el 14-09, ya con el formulario delante).
-          Nadie lo ha vuelto a medir desde ninguno de los dos arreglos.
-          Pégame sólo la línea "tasa de consistencia". Nunca un valor.
+          Mide la lectura sobre los 1.168 PDF de golpe. Pégame sólo la
+          línea de la tasa. (El "1,2%" de toda la vida se midió DOS veces
+          mal: con el regex de importes roto, arreglado el 26-08, y con el
+          patrón de casillas adivinado, arreglado el 14-09. Nadie lo ha
+          vuelto a medir desde ninguno de los dos.)
 
-      [ ] C · SEGUIR AÑADIENDO CLIENTES, ahora con UNA LÍNEA por cliente.
+      [ ] C · AÑADIR MÁS CLIENTES, con UNA LÍNEA por cliente.
           El manifest ya no se escribe por trimestre (14-09). Dos formas:
 
               CLAVE|CARPETA_DEL_CLIENTE        <- usa ésta
               CLAVE|TRIMESTRE|RUTA_AL_PDF      <- sigue valiendo
 
           Con la primera, el script busca solo todos los trimestres de esa
-          carpeta. Diez años de un cliente: una línea, no cuarenta.
+          carpeta y de sus subcarpetas. Diez años de un cliente: una línea,
+          no cuarenta.
 
           Paso a paso:
             1) python cuadre_303_ficha.py --listar
             2) Abre esa misma copia en ContaPlus y anota qué empresa es
                cada código. Es el ÚNICO trabajo manual, y se hace una vez
-               por cliente.
+               por cliente, para siempre.
             3) Una línea en el manifest por cada uno:
-                  CARPETA::SP_C_NN|\\PC01\Documentos\CARPETA_DE_ESE_CLIENTE
-            4) En seco primero (no abre ni un PDF, ni necesita pdfplumber):
+                  CARPETA::SP_C_NN|RUTA_A_LA_CARPETA_DE_ESE_CLIENTE
+            4) En seco primero — no abre ni un PDF, ni necesita pdfplumber:
                   python verificar_303_pdf.py --manifest verificacion_303_LOCAL.txt --solo-expandir
-            5) Y la pasada de verdad:
-                  python verificar_303_pdf.py --manifest verificacion_303_LOCAL.txt
+               Te dice, por número de entrada, a cuántos trimestres expande
+               cada línea y qué deja fuera (y por qué: carpeta que no
+               existe, clave que no está en el JSON, dos PDF que dicen ser
+               el mismo trimestre...).
+            5) Y la pasada de verdad, sin --solo-expandir.
 
           El fichero del manifest DEBE llevar _LOCAL en el nombre. Por
-          consola solo salen recuentos, trimestres y euros: nunca una
+          consola sólo salen recuentos, trimestres y euros: nunca una
           clave, una carpeta ni una ruta.
 
       Si hace falta regenerar la base (comprobar antes si ya está hecha —

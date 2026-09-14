@@ -891,17 +891,44 @@ intracomunitarias, ISP y compensación de cuotas, y nada de eso se deduce de las
 cuentas de IVA. Decir «reconstruye el 303» sería vender precisión inexistente.
 
 **Lo que sí hace:** agrega por cliente y trimestre las **bases y cuotas por
-tipo**, separando repercutido (477) de soportado (472) — el contenido de las
-casillas **01-09 y 28-29**.
+tipo**, separando repercutido (477) de soportado (472).
 
-> Si esas casillas cuadran con el 303 presentado durante cuarenta trimestres, lo
-> que queda validado no es una factura: es **la cadena entera de lectura** contra
-> algo que Hacienda ya dio por bueno.
+> Si eso cuadra con el 303 presentado durante cuarenta trimestres, lo que queda
+> validado no es una factura: es **la cadena entera de lectura** contra algo que
+> Hacienda ya dio por bueno.
 
-**La segunda mitad del trabajo es humana y no tiene atajo:** abrir el 303
-presentado de un trimestre y comparar las casillas con el `_LOCAL`. Lo único que
-sube después es el recuento de cuántos cuadran — y ese recuento se le puede
-enseñar a cualquiera sin enseñar un dato de cliente.
+**ACTUALIZADO 15-09-2026 — la segunda mitad ya NO es toda humana.** Este párrafo
+decía *"abrir el 303 presentado y comparar las casillas a mano, no tiene
+atajo"*. Sigue habiendo un paso manual, pero es **uno solo y por cliente**:
+
+```bash
+python cuadre_303_ficha.py --listar          # 1. qué códigos hay
+#    2. abres esa copia en ContaPlus y ves qué empresa es cada código  <- MANUAL
+#    3. una línea por cliente en el manifest: CLAVE|CARPETA_DEL_CLIENTE
+python verificar_303_pdf.py --manifest verificacion_303_LOCAL.txt
+```
+
+La comparación número a número contra el PDF la hace el script, y además
+**dice si el PDF se ha leído bien** cuadrando el impreso contra su propia
+aritmética (27 = 03+06+09+11+13+…, 45 = 29+31+…, 46 = 27−45). Lo que sube
+después sigue siendo sólo el recuento.
+
+**Y contra qué casilla se compara importa, que costó un caso real
+(SP_C_13):** 03+06+09 es **sólo el régimen general ordinario**. Nuestra
+reconstrucción suma todo el 477 del trimestre, donde también caen la ISP (que
+el 303 declara en la 12/13) y las intracomunitarias (10/11). Por eso el script
+compara **también** contra las casillas 27 y 45, que son los totales que el
+propio impreso calcula e incluyen todo eso.
+
+> ⚠️ **Pero eso NO convierte esto en una reconstrucción del 303, y el párrafo de
+> arriba sigue mandando.** Comparar contra 27/45 arregla la familia de
+> diferencias que vive **dentro** de las cuentas de IVA (ISP,
+> intracomunitarias, modificaciones, recargo). **No arregla lo que nunca estuvo
+> ahí**: prorrata, regularización de bienes de inversión, compensación de cuotas
+> de periodos anteriores. Para un cliente con prorrata, la 45 tampoco va a
+> cuadrar — y eso **no es un defecto del lector ni de la contabilidad**, es que
+> el 303 lleva un cálculo que nuestras cuentas de IVA no contienen. Antes de
+> investigar un descuadre, mira si ese cliente tiene prorrata.
 
 ### 📑 A-quater — La cola de revisión (convierte «91 facturas» en «una tarde»)
 
