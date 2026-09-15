@@ -93,6 +93,26 @@ PALABRAS_FISCALES = re.compile(
     re.IGNORECASE,
 )
 
+def _modelo_suelto_sin_confundir_anio(nombre, patron, anio_matches):
+    """Version corregida del patron 'suelto': cuenta una coincidencia SOLO
+    si no cae dentro de un año de 4 digitos ya reconocido.
+
+    ARREGLADO 15-09-2026, antes de que nadie sacara ninguna conclusion del
+    primer numero: "202" (modelo de Sociedades) son tambien los primeros
+    tres digitos de CUALQUIER año entre 2020 y 2029. Con un 25,9% de los
+    ficheros llevando un año de 4 digitos en el nombre, el patron suelto sin
+    esta guarda contaba casi cualquier factura de 2020-2029 como si fuera
+    un modelo 202 -- inflando el numero total sin que nadie lo pidiera.
+    Solo "202" tiene este problema (ningun otro modelo de la lista es
+    prefijo de un año en el rango 2016-2026), pero la guarda se aplica a
+    todos por generalidad y limpieza."""
+    for m in patron.finditer(nombre):
+        if any(am.start() <= m.start() and m.end() <= am.end() for am in anio_matches):
+            continue
+        return True
+    return False
+
+
 #: ANADIDO 15-09-2026: Diego comprobo a mano (busqueda de Windows sobre PC1,
 #: sin que ningun nombre pasara por el chat) que unos 5.305 PDF contienen la
 #: palabra "modelo". Senal fuerte -- es la forma habitual de referirse a un
@@ -150,6 +170,7 @@ def main():
     con_anio = 0
     credenciales_encontradas = 0
 
+    con_modelo_suelto_desglose = Counter()  # idem al estricto, para comparar modelo a modelo
     total_con_modelo_suelto = 0     # patron SIN exigir aislamiento
     total_con_palabra_fiscal = 0    # "iva", "retenciones", etc., sin numero
     con_algo_reconocible = 0        # modelo (estricto o suelto) O palabra fiscal
@@ -180,9 +201,16 @@ def main():
                 else:
                     total_sin_ningun_modelo += 1
 
-                modelo_suelto = any(_RE_MODELO_SUELTO[m].search(n) for m in MODELOS_CONOCIDOS)
+                anio_matches = list(_RE_ANIO.finditer(n))
+                modelos_suelto_en_este = [
+                    m for m in MODELOS_CONOCIDOS
+                    if _modelo_suelto_sin_confundir_anio(n, _RE_MODELO_SUELTO[m], anio_matches)
+                ]
+                modelo_suelto = bool(modelos_suelto_en_este)
                 if modelo_suelto:
                     total_con_modelo_suelto += 1
+                    for m in modelos_suelto_en_este:
+                        con_modelo_suelto_desglose[m] += 1
 
                 if _RE_PALABRA_MODELO.search(n):
                     total_con_palabra_modelo += 1
@@ -199,7 +227,7 @@ def main():
                     sin_nada_reconocible += 1
 
                 tiene_periodo = bool(_RE_PERIODO.search(n))
-                tiene_anio = bool(_RE_ANIO.search(n))
+                tiene_anio = bool(anio_matches)
                 if tiene_periodo:
                     con_periodo += 1
                 if tiene_anio:
@@ -276,6 +304,13 @@ def main():
     print(f"    con el mismo numero de modelo, SIN exigir que este aislado : "
           f"{total_con_modelo_suelto:,} "
           f"({round(total_con_modelo_suelto*100.0/total_ficheros,1) if total_ficheros else 0}%)")
+    print("    desglose por modelo del patron SUELTO (ya sin confundir con un año):")
+    print(f"        {'modelo':<10}{'estricto':>10}{'suelto':>10}{'diferencia':>12}")
+    for modelo in MODELOS_CONOCIDOS:
+        e = con_modelo_reconocido.get(modelo, 0)
+        s = con_modelo_suelto_desglose.get(modelo, 0)
+        if e or s:
+            print(f"        {modelo:<10}{e:>10,}{s:>10,}{s-e:>12,}")
     print(f"    con una PALABRA fiscal reconocible (iva/irpf/retenciones/...) : "
           f"{total_con_palabra_fiscal:,} "
           f"({round(total_con_palabra_fiscal*100.0/total_ficheros,1) if total_ficheros else 0}%)")
