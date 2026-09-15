@@ -1279,6 +1279,7 @@ aclaración de config, no un bug:** `config.example.json` declara
 | `DIRECCION_PRODUCTO.md` | Hacia dónde va, y qué queda descartado |
 | `FASE0_RESULTADOS.md` | Los números medidos del histórico |
 | `TECHO_Y_LIMITES.md` | Qué hay por encima del motor actual, medido |
+| `FLUJO_TRABAJO_REAL.md` | Cuánto tarda cada paso del trabajo real de Diego, y qué cubre el motor |
 | `.claude/rules/datos.md` | La frontera de datos. Manda sobre todo lo demás |
 
 ---
