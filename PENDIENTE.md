@@ -75,7 +75,11 @@
             3) explicar_por_isp() solo comprobaba la CUOTA de ISP, nunca
                la BASE, y aplicaba el ajuste aunque un lado ya cuadrara
                sin el (mensaje falso de "sin explicar"). Ahora comprueba
-               los dos y solo ajusta donde hace falta.
+               los dos y solo ajusta donde hace falta -- Y donde AYUDA
+               (revision de rigor antes del push, mismo dia: sumar el ISP
+               a una diferencia real y sin relacion con la ISP la podia
+               EMPEORAR en vez de explicarla. Sin caso real todavia --
+               cerrado con un ejemplo inventado, como el resto de guardas).
 
           Herramienta nueva para diagnosticar sin ver un dato:
           `diag_orden_extraccion_pdf.py` -- nunca imprime contenido del

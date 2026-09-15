@@ -44,7 +44,7 @@ from verificar_303_pdf import (
     totales_contabilidad, totales_pdf, comparar_caso, leer_manifest,
     comparar_contra_totales,
     pdfs_303_por_trimestre, expandir_entradas,
-    explicar_por_isp, CASILLA_ISP_CUOTA, CASILLA_ISP_BASE,
+    explicar_por_isp, CASILLA_ISP_CUOTA, CASILLA_ISP_BASE, _evaluar_ajuste_isp,
 )
 
 FALLOS = []
@@ -291,6 +291,26 @@ def main():
               f"exp4={exp4}")
     comprobar("pero si las de base",
               "isp_base_declarada" in exp4, f"exp4={exp4}")
+
+    # AÑADIDO 15-09-2026 (revision de rigor, ANTES de empujar a origin):
+    # sumar el ISP sin comprobar si AYUDA puede empeorar un problema real
+    # que no tiene nada que ver con la ISP. Cifras inventadas, para que
+    # quede escrito el caso aunque no haya aparecido en el corpus real
+    # todavia -- igual que el resto de guardas de este proyecto.
+    resto_ayuda, se_aplico_ayuda, explica_ayuda = _evaluar_ajuste_isp(50.0, 420.0, 1.0)
+    comprobar("si sumar el ISP ALEJA el numero de cero, no se aplica",
+              se_aplico_ayuda is False, f"resto={resto_ayuda} se_aplico={se_aplico_ayuda}")
+    comprobar("y se declara la diferencia BRUTA (50), no la empeorada (470)",
+              resto_ayuda == 50.0, f"resto={resto_ayuda}")
+    comprobar("y no se finge que el ISP la explica",
+              explica_ayuda is False, f"explica={explica_ayuda}")
+
+    # Control: si sumar el ISP SI acerca el numero a cero, se aplica igual
+    # que siempre -- esta guarda nueva no rompe el caso que ya funcionaba.
+    resto_si_ayuda, se_aplico_si_ayuda, explica_si_ayuda = _evaluar_ajuste_isp(-420.0, 420.0, 1.0)
+    comprobar("si sumar el ISP SI acerca el numero a cero, se aplica",
+              se_aplico_si_ayuda is True and explica_si_ayuda is True,
+              f"resto={resto_si_ayuda} se_aplico={se_aplico_si_ayuda}")
 
     # comparar_caso() con oficiales: declara la explicacion, pero el
     # veredicto sigue siendo NO_CUADRA -- ISP no "arregla" el desacuerdo,

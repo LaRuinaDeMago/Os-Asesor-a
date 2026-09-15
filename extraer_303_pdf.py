@@ -454,6 +454,26 @@ def localizar_valor_casilla(texto, n):
 
     Devuelve None solo si NINGUNA aparicion tiene un numero detras -- que es
     lo mismo que dice el impreso cuando la casilla esta en blanco.
+
+    RIESGO ACEPTADO, DECLARADO (revision de rigor, 15-09-2026, antes de
+    empujar a origin): probar todas las apariciones cambia el tipo de error
+    posible. Antes, un falso NEGATIVO (casilla con dato, marcada como
+    vacia) era el unico riesgo. Ahora, en teoria, una coincidencia temprana
+    podria tener por casualidad un importe cerca y devolver un valor
+    FALSO. Por que se acepta sin mas defensa:
+      - Las casillas de CUOTA (03,06,09,11,13...) entran en la formula de
+        la 27, que `veredicto_lectura()` comprueba al centimo contra el
+        propio impreso -- un valor falso ahi casi con certeza rompe esa
+        suma y se detecta.
+      - Las casillas de BASE (01,04,07...) no tienen esa proteccion (el
+        303 no imprime un total de bases), pero su comparacion ya esta
+        declarada como blanda: "no es una formula suya, es la columna
+        sumada por nosotros" (ver `verificar_303_pdf.py`). No se presenta
+        como un cuadre exacto en ningun sitio.
+    No hay ningun caso real, hasta hoy, donde esto haya pasado -- se deja
+    escrito para que si alguna vez un `NO_CUADRA` no tiene explicacion
+    (ni ISP, ni tipo 0, ni conceptos fuera de las cuentas de IVA), este sea
+    el segundo sitio donde mirar, despues de la lectura del PDF en si.
     """
     patron = patron_casilla(n)
     pos = 0

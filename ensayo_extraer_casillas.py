@@ -44,7 +44,7 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
 from extraer_303_pdf import (extraer_casillas, patron_casilla,
                               extraer_numero_tras, localizar_valor_casilla,
                               TIPOS_LEGALES, TOL_TIPO,
-                              cuadre_interno, veredicto_lectura,
+                              veredicto_lectura,
                               conceptos_que_no_podemos_tener,
                               FORMULAS_IMPRESAS_VERIFICADAS, FORMULA_45_VERIFICADA,
                               SUMANDOS_TOTAL_DEVENGADO, SUMANDOS_TOTAL_A_DEDUCIR,

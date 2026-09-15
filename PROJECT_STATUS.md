@@ -64,8 +64,9 @@ deducible de SP_C_13 quedaban casi enteras canceladas por su propio tipo
 `"0"`. Arreglado con el mismo criterio ya validado (91,3% ratio de
 cancelación, 72% contrapartida administrativa), declarando lo excluido en el
 resultado (`liquidacion_excluida`) en vez de descartarlo en silencio — misma
-disciplina que ya tenía `cuadre_303_ficha.py`. 4 comprobaciones nuevas en
-`ensayo_verificar_303_pdf.py`.
+disciplina que ya tenía `cuadre_303_ficha.py`. 6 comprobaciones nuevas en
+`ensayo_verificar_303_pdf.py` (4 sobre `totales_contabilidad()`, 2 sobre que
+`liquidacion_excluida` viaja hasta `comparar_caso()`).
 
 ### Bug 3 — `explicar_por_isp()` solo comprobaba la CUOTA de ISP, no la BASE, y aplicaba el ajuste aunque un lado ya cuadrara
 
@@ -76,11 +77,32 @@ sin explicar" sobre un lado que ya era perfecto. Y quedaba sin explicar del
 todo un `-2.000,00 €` en la base deducible, que coincidía al céntimo con la
 BASE de ISP (casilla 12) — nunca comprobada, solo la cuota (casilla 13).
 Arreglado: ahora comprueba también la base, y el ajuste de ISP solo se aplica
-al lado que de verdad lo necesitaba (`_evaluar_ajuste_isp()`, nueva). 9
+al lado que de verdad lo necesitaba (`_evaluar_ajuste_isp()`, nueva). 10
 comprobaciones nuevas. Diego confirmó por su cuenta, sin que el código se lo
 pidiera, que esos 2.000 € son de una formación facturada por un proveedor
 extranjero sin IVA — exactamente el patrón de ISP que el script ya había
 encontrado solo.
+
+### Revisión de rigor, antes de empujar a origin (mismo día): `_evaluar_ajuste_isp()` podía EMPEORAR una diferencia real sin relación con la ISP
+
+Diego pidió una revisión punto por punto de todo lo hecho antes del `push`.
+Auditando `_evaluar_ajuste_isp()` con más calma se encontró un segundo hueco,
+sin necesitar ningún dato nuevo: la guarda añadida en el Bug 3 ("no aplicar
+el ajuste si la diferencia bruta ya cuadraba") no cubre el caso de una
+diferencia bruta **fuera** de tolerancia pero **sin relación con la ISP** —
+sumarle el importe de ISP puede alejarla del cero en vez de acercarla.
+Reproducido con un ejemplo inventado (no hay ningún caso así en el corpus
+visto hasta hoy): diferencia bruta de 50 € + ISP de 420 € daba antes "sigue
+sin explicar: 470 €", cuando el problema real era de 50 €, no de 470. Ahora
+el ajuste solo se aplica si además **reduce** la magnitud de la diferencia; si
+no ayuda, se declara la diferencia bruta tal cual. Comprobado que el caso
+real de SP_C_13 se comporta exactamente igual que antes (mismo resultado,
+cifra por cifra) — este arreglo no cambia nada ya validado, solo cierra un
+hueco para casos futuros. 4 comprobaciones nuevas.
+
+**Total de comprobaciones nuevas en toda la sesión: 25** (5 en
+`ensayo_extraer_casillas.py`, 20 en `ensayo_verificar_303_pdf.py`) — número
+contado con `grep` sobre el código final, no escrito de memoria.
 
 ### Validado contra datos reales: 3 clientes, 9 trimestres
 

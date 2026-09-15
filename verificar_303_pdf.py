@@ -204,7 +204,8 @@ def extraer_casillas_oficiales(texto):
 
 
 def _evaluar_ajuste_isp(diff_bruta, isp_valor, tolerancia):
-    """Aplica un importe de ISP a UNA diferencia -- pero solo si hacia falta.
+    """Aplica un importe de ISP a UNA diferencia -- pero solo si hacia falta
+    Y solo si de verdad AYUDA.
 
     ARREGLADO 15-09-2026, segunda confirmacion real sobre SP_C_13 (ya con el
     'tipo 0' y la casilla 07 arreglados): la version anterior le sumaba el
@@ -212,13 +213,25 @@ def _evaluar_ajuste_isp(diff_bruta, isp_valor, tolerancia):
     necesitaban el mismo ajuste (el caso original, 11-09), pero al arreglar
     los otros dos bugs el devengado paso a cuadrar SOLO (diferencia 0,00) --
     y sumarle el ISP igualmente lo EMPEORABA, informando "quedan 420 EUR sin
-    explicar" sobre un lado que ya estaba perfecto. Ahora el ajuste solo se
-    aplica cuando la diferencia bruta no estaba ya dentro de tolerancia.
+    explicar" sobre un lado que ya estaba perfecto.
 
-    Devuelve (resto, hacia_falta_el_ajuste, explica)."""
+    REVISADO EL MISMO DIA, en la revision de rigor antes de empujar a
+    origin: la guarda de arriba ("no aplicar si ya cuadraba") no bastaba.
+    Con una diferencia bruta FUERA de tolerancia pero causada por un
+    problema real SIN relacion con la ISP, sumar la ISP igual puede alejar
+    el numero del cero en vez de acercarlo -- ejemplo (cifras inventadas,
+    no del corpus): diferencia bruta de 50 EUR mas una ISP de 420 EUR daba
+    "sigue sin explicar: 470 EUR", cuando el problema real era de 50, no de
+    470. Ahora el ajuste solo se aplica si ADEMAS reduce la magnitud de la
+    diferencia; si no ayuda, se declara la diferencia bruta tal cual, sin
+    maquillarla ni empeorarla.
+
+    Devuelve (resto, se_aplico_el_ajuste, explica)."""
     if abs(diff_bruta) <= tolerancia:
         return diff_bruta, False, True
     resto = round(diff_bruta + isp_valor, 2)
+    if abs(resto) >= abs(diff_bruta):
+        return diff_bruta, False, False
     return resto, True, abs(resto) <= tolerancia
 
 
@@ -242,7 +255,8 @@ def explicar_por_isp(diffs, oficiales, tolerancia):
     cuota -- no se puede evaluar la hipotesis, y NO se finge que "no aporta"
     cuando es que no se ha mirado). Si hay alguna, devuelve un dict
     declarando cuanto explica ISP y cuanto queda SIN explicar en cada lado
-    -- nunca oculta el resto, y nunca aplica el ajuste donde no hacia falta."""
+    -- nunca oculta el resto, y nunca aplica el ajuste donde no hacia falta
+    ni donde no ayuda (ver `_evaluar_ajuste_isp`)."""
     isp_cuota = oficiales.get(CASILLA_ISP_CUOTA)
     isp_base = oficiales.get(CASILLA_ISP_BASE)
     if isp_cuota is None and isp_base is None:
@@ -250,34 +264,39 @@ def explicar_por_isp(diffs, oficiales, tolerancia):
 
     resultado = {}
 
+    #: `_evaluar_ajuste_isp` devuelve si el ajuste se APLICO (necesitaba Y
+    #: ayudaba) -- la clave del dict se conserva como "hacia_falta" por
+    #: compatibilidad con el resto del script y los ensayos, aunque el
+    #: nombre de variable local de aqui en adelante ya dice lo que de verdad
+    #: significa.
     if isp_cuota is not None:
-        resto_dev, hacia_falta_dev, explica_dev = _evaluar_ajuste_isp(
+        resto_dev, se_aplico_dev, explica_dev = _evaluar_ajuste_isp(
             diffs["cuota_devengado"], isp_cuota, tolerancia)
-        resto_ded, hacia_falta_ded, explica_ded = _evaluar_ajuste_isp(
+        resto_ded, se_aplico_ded, explica_ded = _evaluar_ajuste_isp(
             diffs["cuota_deducible"], isp_cuota, tolerancia)
         resultado.update({
             "isp_cuota_declarada": isp_cuota,
             "diferencia_devengado_sin_isp": resto_dev,
             "isp_explica_devengado": explica_dev,
-            "isp_hacia_falta_devengado": hacia_falta_dev,
+            "isp_hacia_falta_devengado": se_aplico_dev,
             "diferencia_deducible_sin_isp": resto_ded,
             "isp_explica_deducible": explica_ded,
-            "isp_hacia_falta_deducible": hacia_falta_ded,
+            "isp_hacia_falta_deducible": se_aplico_ded,
         })
 
     if isp_base is not None:
-        resto_base_dev, hacia_falta_base_dev, explica_base_dev = _evaluar_ajuste_isp(
+        resto_base_dev, se_aplico_base_dev, explica_base_dev = _evaluar_ajuste_isp(
             diffs["base_devengado"], isp_base, tolerancia)
-        resto_base_ded, hacia_falta_base_ded, explica_base_ded = _evaluar_ajuste_isp(
+        resto_base_ded, se_aplico_base_ded, explica_base_ded = _evaluar_ajuste_isp(
             diffs["base_deducible"], isp_base, tolerancia)
         resultado.update({
             "isp_base_declarada": isp_base,
             "diferencia_base_devengado_sin_isp": resto_base_dev,
             "isp_explica_base_devengado": explica_base_dev,
-            "isp_base_hacia_falta_devengado": hacia_falta_base_dev,
+            "isp_base_hacia_falta_devengado": se_aplico_base_dev,
             "diferencia_base_deducible_sin_isp": resto_base_ded,
             "isp_explica_base_deducible": explica_base_ded,
-            "isp_base_hacia_falta_deducible": hacia_falta_base_ded,
+            "isp_base_hacia_falta_deducible": se_aplico_base_ded,
         })
 
     return resultado
@@ -779,10 +798,14 @@ def main():
                 print("                las cuentas 477/472 por tipo, y esto no vive ahi.")
             explicacion = r.get("explicacion_isp")
             if explicacion:
-                def _linea_isp(lado, hacia_falta, explica, resto):
-                    if not hacia_falta:
+                def _linea_isp(lado, se_aplico, explica, resto):
+                    if not se_aplico and explica:
                         print(f"           -> {lado} ya cuadraba SIN necesitar el ISP "
                               "(no se le aplica el ajuste)")
+                    elif not se_aplico:
+                        print(f"           -> {lado} sigue SIN explicar: {resto:.2f} EUR "
+                              "(sumarle el ISP no acerca el numero a cero, asi que no se "
+                              "le aplica)")
                     elif explica:
                         print(f"           -> explica ENTERA la diferencia en {lado}")
                     else:
