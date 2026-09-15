@@ -7,6 +7,82 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 15-09-2026 (sesión Cloud, quinta entrada) — `fuentes_externas.py`: el primer ladrillo del módulo de normativa, y es el único que se puede poner hoy
+
+Diego plantea, para el futuro, un módulo de normativa conectado a todo: BOE,
+AEAT, registros, plataformas profesionales de pago, casuística propia, y el
+conjunto enlazado al motor contable. La discusión completa y el análisis están
+abajo, en la entrada de dirección. Esto es lo que **ya se puede construir sin
+prometer nada que no se pueda cumplir**.
+
+### El problema real, que no es "estar informado"
+
+Hay números en este código que **no decidimos nosotros**: los tipos de IVA los
+fija la ley, las casillas del 303 la AEAT, el plan de cuentas el PGC. Si uno
+cambia y aquí no, el motor **no falla** — acierta menos, en silencio. Que es
+peor, y es exactamente el tipo de fallo que este proyecto persigue.
+
+`fuentes_externas.py` registra cada una de esas constantes con **valor, fuente
+oficial, URL, fecha de verificación y estado**. `audit_project.py` comprueba en
+cada pasada las dos únicas cosas que un programa puede comprobar con honestidad:
+
+1. **que el valor anotado sigue siendo el que tiene el código** → si alguien
+   edita la constante y no toca el registro, **FALLO**;
+2. **que la verificación no ha envejecido** → si nadie la ha vuelto a mirar en
+   12 meses, **NO_COMPROBADO**.
+
+La distinción del punto 2 es lo importante: una verificación caducada **no dice
+que la norma haya cambiado**, dice que nadie lo ha mirado. Misma regla que el
+motor.
+
+### Lo que NO es, y está escrito en su cabecera
+
+No lee el BOE, no interpreta la ley y no contesta preguntas. Dice una sola cosa:
+*"este número se copió de aquí, tal día, y nadie lo ha vuelto a comprobar desde
+entonces"*.
+
+Lo contrario —un sistema que resume normativa y te dice lo que significa— es lo
+que este proyecto tiene prohibido. Hoy mismo, una consulta resumida
+automáticamente afirmó que la ISP soportada va a *"las casillas 40-43"*. Se
+descartó **porque estaba corroborada contra el impreso**. Sin esa corroboración
+habría entrado en el repositorio como un hecho.
+
+### Seis constantes registradas, y una anotada como PARCIAL a propósito
+
+Las cinco del 303 (fórmula de la 27, de la 45, las dos columnas de bases y la de
+tipos) van como **VERIFICADO**: se leyeron de los bytes del impreso oficial.
+
+`TIPOS_LEGALES` va como **PARCIAL**, y esa honestidad es el punto: el 4, el 10 y
+el 21 se leyeron **preimpresos** en el formulario; **el 0 y el 5 no se han leído
+en ninguna fuente**. El 5% fue un tipo temporal y hay que comprobar si sigue
+vigente. Queda anotado como el primer sitio donde mirar si aparecen tramos
+marcados como tipo ilegal.
+
+> Un registro que dijera VERIFICADO de todo sería más cómodo y **mentiría**. Que
+> `PARCIAL` sea un estado usable y visible es la mitad del valor de esto.
+
+### 22º auditor: `ensayo_fuentes_externas.py`
+
+19 comprobaciones. Lo que prueba **no es que los números sean correctos** —eso lo
+dice la fuente oficial, no un test— sino que **el mecanismo sabe darse cuenta**.
+
+**Y encontró un agujero en sí mismo.** Al sabotear la caducidad *dentro de
+`revisar()`* —el camino que usa la auditoría— el ensayo **seguía en verde**: la
+familia A comprobaba *"no hay caducadas"* (cierto de vacío) y la D probaba el
+método suelto, no el camino completo. El auditor apagado en silencio, dentro del
+ensayo escrito para impedirlo. Añadida la inyección de una fuente caducada de
+verdad; resaboteado: ahora cae con dos comprobaciones exactas.
+
+Los otros dos sabotajes (editar una constante sin tocar el registro; una
+verificación de hace siete años) salen ❌ y ⚠️ respectivamente, cada uno por su
+puerta.
+
+### Estado tras la sesión
+
+`audit_project.py`: **38 ✅ · 1 ⚠️ · 0 ❌**. Motor **65/65**, adversarial
+**112/112**, **28/28 suites**, privacidad sin hallazgos. **No se tocó
+`motor_veredicto.py`** ni se añadió ningún guard.
+
 ## 15-09-2026 (sesión Cloud, cuarta entrada) — Las bases, y la estructura del 303 leída de la columna del impreso
 
 Quedaba pendiente la mitad simétrica: el 27/45 arregló las **cuotas**, pero el

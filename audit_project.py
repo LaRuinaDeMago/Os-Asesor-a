@@ -457,7 +457,16 @@ def check_estados_y_cobertura():
                              # etiqueta es un recuadro de dos digitos pegado a su
                              # valor, y el patron adivinado casaba con el "9." de
                              # DENTRO de "9.999,99".
-                             ("ensayo_extraer_casillas.py", "Casillas del 303: se leen de la rejilla, no de dentro de un importe")):
+                             ("ensayo_extraer_casillas.py", "Casillas del 303: se leen de la rejilla, no de dentro de un importe"),
+                             # El registro de constantes externas es un auditor
+                             # mas, y uno apagado en silencio deja el agujero
+                             # PEOR que antes porque ademas lo firma como
+                             # revisado. Lo que prueba no es que los numeros
+                             # sean correctos --eso lo dice la fuente oficial,
+                             # no un test-- sino que el mecanismo sabe darse
+                             # cuenta de que uno cambio o de que la
+                             # verificacion envejecio.
+                             ("ensayo_fuentes_externas.py", "Fuentes externas: el registro sabe darse cuenta")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue
@@ -466,6 +475,45 @@ def check_estados_y_cobertura():
         linea = next((l.strip() for l in reversed(salida.splitlines())
                       if "cobertura util" in l or "✗" in l), "")
         check(etiqueta, r.returncode == 0, linea or salida.strip().splitlines()[-1:][0] if salida.strip() else "")
+
+
+def check_fuentes_externas():
+    """ANADIDO 15-09-2026. Hay numeros en este codigo que no decidimos
+    nosotros: los tipos de IVA los fija la ley, las casillas del 303 la AEAT.
+    Si una cambia y aqui no, el motor no falla -- acierta menos, en silencio,
+    que es peor.
+
+    `fuentes_externas.py` anota de donde sale cada uno y cuando se verifico.
+    Esto comprueba las dos cosas que se pueden comprobar sin leer el BOE:
+
+      - que el valor anotado sigue siendo el que tiene el codigo,
+      - y que la verificacion no ha envejecido.
+
+    Una verificacion caducada NO dice que la norma haya cambiado: dice que
+    nadie lo ha vuelto a mirar. Por eso sale NO_COMPROBADO y no FALLO -- es
+    la misma distincion que el motor hace entre "esto esta mal" y "esto no lo
+    he podido comprobar".
+    """
+    try:
+        import fuentes_externas as fx
+    except ImportError as e:
+        check("Fuentes externas", False, f"no se puede importar ({type(e).__name__})")
+        return
+    disc, cad, sinver = fx.revisar()
+    partes = [f"{len(fx.FUENTES)} constantes registradas"]
+    if disc:
+        partes.append("NO COINCIDEN CON EL CODIGO: "
+                      + "; ".join(f"{k} ({d})" for k, d in disc))
+    if cad:
+        partes.append("verificacion envejecida (nadie lo ha mirado, no es que haya "
+                      "cambiado): " + ", ".join(f"{k} desde {f} ({m} meses)"
+                                                 for k, f, m in cad))
+    if sinver and not disc and not cad:
+        partes.append("sin verificar del todo: "
+                      + ", ".join(f"{k} [{e}]" for k, e in sinver))
+    check("Fuentes externas: los numeros que no decidimos nosotros",
+          not disc and not cad, " | ".join(partes),
+          estado=(FALLO if disc else (NO_COMPROBADO if cad else OK)))
 
 
 def check_dependencias():
@@ -761,6 +809,7 @@ if __name__ == "__main__":
     check_cableado()
     check_modulos_huerfanos()
     check_dependencias()
+    check_fuentes_externas()
     check_tests()
     check_adversarial()
     check_estados_y_cobertura()
