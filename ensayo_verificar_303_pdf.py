@@ -44,7 +44,7 @@ from verificar_303_pdf import (
     totales_contabilidad, totales_pdf, comparar_caso, leer_manifest,
     comparar_contra_totales,
     pdfs_303_por_trimestre, expandir_entradas,
-    explicar_por_isp, CASILLA_ISP_CUOTA,
+    explicar_por_isp, CASILLA_ISP_CUOTA, CASILLA_ISP_BASE,
 )
 
 FALLOS = []
@@ -99,6 +99,42 @@ def main():
     comprobar("trimestre inexistente -> None",
               totales_contabilidad(datos, "CLAVE_UNO", "2099T4") is None)
 
+    # AÑADIDO 15-09-2026: el tipo "0" (asiento de liquidacion/cierre de IVA)
+    # NO se suma al total -- mismo hallazgo y mismo arreglo que ya tiene
+    # cuadre_303_ficha.py (commit 6b2acb2, FAMILIA G de ensayo_cuadre_ficha.py).
+    # Sin esto, totales_contabilidad() tenia su PROPIA suma (nunca recibio
+    # aquel arreglo) y reproducia el mismo "TOTAL cancelado" con datos reales:
+    # caso SP_C_13 2025T2, cifras inventadas de la misma forma aqui.
+    datos_con_liquidacion = {
+        "CLAVE_TRES": {"2025T1": {
+            "devengado": {"21": celda(6285.30, 1319.90),
+                          "0": celda(0.0, -1319.90)},
+            "deducible": {"21": celda(338.00, 70.98),
+                          "0": celda(0.0, -70.98)},
+        }},
+    }
+    r3 = totales_contabilidad(datos_con_liquidacion, "CLAVE_TRES", "2025T1")
+    comprobar("la cuota devengada NO queda cancelada por el tipo '0'",
+              r3[1] == 1319.90, f"cuota_devengado={r3[1]} (se cancelaria a 0,00 sin el arreglo)")
+    comprobar("ni la cuota deducible",
+              r3[3] == 70.98, f"cuota_deducible={r3[3]} (se cancelaria a 0,00 sin el arreglo)")
+    comprobar("pero se declara aparte -- nunca desaparece en silencio",
+              r3[5] == {"devengado": {"base": 0.0, "cuota": -1319.90},
+                        "deducible": {"base": 0.0, "cuota": -70.98}},
+              f"liquidacion_excluida={r3[5]}")
+
+    # Un tipo "0" realmente vacio (base y cuota ambas 0) no es una liquidacion
+    # de nada: no debe declararse como si lo fuera.
+    datos_sin_liquidacion_real = {
+        "CLAVE_CUATRO": {"2025T1": {
+            "devengado": {"21": celda(100.0, 21.0), "0": celda(0.0, 0.0)},
+            "deducible": {},
+        }},
+    }
+    r4 = totales_contabilidad(datos_sin_liquidacion_real, "CLAVE_CUATRO", "2025T1")
+    comprobar("un tipo '0' realmente vacio (base y cuota 0) no se declara",
+              r4[5] == {}, f"liquidacion_excluida={r4[5]}")
+
     # === B. totales_pdf() ====================================================
     print("\n=== B. totales_pdf() ===")
     casillas = {1: 1000.0, 2: 21.0, 3: 210.0, 28: 500.0, 29: 105.0}
@@ -116,7 +152,7 @@ def main():
 
     # === C. comparar_caso() ==================================================
     print("\n=== C. comparar_caso() ===")
-    contab_ok = (1000.0, 210.0, 500.0, 105.0, False)
+    contab_ok = (1000.0, 210.0, 500.0, 105.0, False, {})
 
     idéntico = (1000.0, 210.0, 500.0, 105.0, 5)
     comprobar("totales identicos -> CUADRA_EXACTO",
@@ -140,10 +176,19 @@ def main():
     comprobar("PDF sin ninguna casilla reconocida -> NO_COMPROBADO, no CUADRA por casualidad",
               comparar_caso(contab_ok, sin_casillas)["estado"] == "NO_COMPROBADO")
 
-    contab_sucio = (1000.0, 210.0, 500.0, 105.0, True)
+    contab_sucio = (1000.0, 210.0, 500.0, 105.0, True, {})
     r_sucio = comparar_caso(contab_sucio, idéntico)
     comprobar("el aviso de tipo_no_catalogado viaja hasta el resultado final",
               r_sucio.get("aviso_tipo_no_catalogado") is True, f"r={r_sucio}")
+
+    contab_con_liquidacion = (1000.0, 210.0, 500.0, 105.0, False,
+                               {"devengado": {"base": 0.0, "cuota": -50.0}})
+    r_liq = comparar_caso(contab_con_liquidacion, idéntico)
+    comprobar("la liquidacion excluida tambien viaja hasta el resultado final",
+              r_liq.get("liquidacion_excluida") == {"devengado": {"base": 0.0, "cuota": -50.0}},
+              f"r={r_liq}")
+    comprobar("y si no hay liquidacion excluida, la clave ni aparece (no un {} vacio)",
+              "liquidacion_excluida" not in comparar_caso(contab_ok, idéntico))
 
     # frontera exacta del umbral de redondeo
     en_el_limite = (1000.0, 211.0, 500.0, 105.0, 5)  # exactamente 1.00 de diferencia
@@ -202,6 +247,50 @@ def main():
 
     comprobar("sin casilla de ISP en el PDF (None), no se finge una explicacion",
               explicar_por_isp(diffs_caso_real, {}, 1.0) is None)
+
+    # AÑADIDO 15-09-2026: segunda confirmacion real sobre SP_C_13, ya con la
+    # casilla 07 y el "tipo 0" arreglados. El devengado paso a cuadrar SOLO
+    # (diferencia 0,00) mientras el deducible seguia necesitando el ISP --
+    # la version anterior de explicar_por_isp() le sumaba el ISP a los DOS
+    # lados sin condicion, y eso convertia un devengado ya perfecto en un
+    # falso "420 EUR sin explicar". Cifras equivalentes al caso real.
+    diffs_asimetrico = {
+        "base_devengado": 0.16, "cuota_devengado": 0.0,   # YA cuadraba
+        "base_deducible": -2000.0, "cuota_deducible": -420.0,  # seguia sin explicar
+    }
+    oficiales_con_base = {CASILLA_ISP_CUOTA: 420.0, CASILLA_ISP_BASE: 2000.0}
+    exp3 = explicar_por_isp(diffs_asimetrico, oficiales_con_base, 1.0)
+    comprobar("el devengado, que YA cuadraba, no se toca -- el ISP no se le aplica",
+              exp3["isp_hacia_falta_devengado"] is False, f"exp3={exp3}")
+    comprobar("y su diferencia sigue siendo la bruta (0.0), no 420 EUR de mas",
+              exp3["diferencia_devengado_sin_isp"] == 0.0, f"exp3={exp3}")
+    comprobar("sigue diciendo que el devengado esta explicado (trivialmente, ya cuadraba)",
+              exp3["isp_explica_devengado"] is True, f"exp3={exp3}")
+    comprobar("el deducible SI necesitaba el ajuste, y lo explica entero",
+              exp3["isp_hacia_falta_deducible"] is True and exp3["isp_explica_deducible"] is True,
+              f"exp3={exp3}")
+
+    # Y la BASE: el mismo mecanismo, pero comprobando la casilla 12 en vez
+    # de la 13. En el caso real, la base deducible quedaba sin explicar por
+    # exactamente la base del ISP (2.000,00), y nada lo comprobaba antes.
+    comprobar("la base del ISP tambien se declara",
+              exp3.get("isp_base_declarada") == 2000.0, f"exp3={exp3}")
+    comprobar("la base devengado (0.16, redondeo) no necesitaba el ajuste tampoco",
+              exp3["isp_base_hacia_falta_devengado"] is False, f"exp3={exp3}")
+    comprobar("la base deducible SI la explica entera la base del ISP",
+              exp3["isp_base_hacia_falta_deducible"] is True
+              and exp3["isp_explica_base_deducible"] is True, f"exp3={exp3}")
+    comprobar("y su resto sin explicar es (casi) cero",
+              abs(exp3["diferencia_base_deducible_sin_isp"]) <= 1.0, f"exp3={exp3}")
+
+    # Solo hay casilla de BASE de ISP (12), sin cuota (13) legible: el
+    # resultado no debe fingir claves de cuota que no se ha podido comprobar.
+    exp4 = explicar_por_isp(diffs_asimetrico, {CASILLA_ISP_BASE: 2000.0}, 1.0)
+    comprobar("con solo la base de ISP legible, no aparecen claves de cuota",
+              "isp_cuota_declarada" not in exp4 and "isp_explica_devengado" not in exp4,
+              f"exp4={exp4}")
+    comprobar("pero si las de base",
+              "isp_base_declarada" in exp4, f"exp4={exp4}")
 
     # comparar_caso() con oficiales: declara la explicacion, pero el
     # veredicto sigue siendo NO_CUADRA -- ISP no "arregla" el desacuerdo,

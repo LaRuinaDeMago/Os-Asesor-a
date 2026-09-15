@@ -60,7 +60,7 @@ import logging
 logging.getLogger("pdfminer").setLevel(logging.ERROR)
 
 from extraer_303_pdf import (extraer_casillas, CASILLAS_DEVENGADO, CASILLAS_DEDUCIBLE,
-                              patron_casilla, extraer_numero_tras,
+                              localizar_valor_casilla,
                               CASILLAS_PARA_CUADRE, CASILLAS_PARA_AVISOS,
                               veredicto_lectura, conceptos_que_no_podemos_tener,
                               BASES_DEVENGADO, BASES_DEDUCIBLE)
@@ -112,7 +112,28 @@ def totales_contabilidad(datos, clave, trimestre):
     existe esa clave o trimestre (para que el llamador lo declare, en vez
     de comparar contra un cero que no significa nada).
 
-    Devuelve (base_dev, cuota_dev, base_ded, cuota_ded, tiene_no_catalogado).
+    Devuelve (base_dev, cuota_dev, base_ded, cuota_ded, tiene_no_catalogado,
+    liquidacion_excluida).
+
+    EL TIPO "0" NO SE SUMA AL TOTAL. Mismo hallazgo y mismo motivo que ya
+    tiene `cuadre_303_ficha.py` (commit 6b2acb2, 14-09-2026,
+    `diag_patron_cierre_iva.py` + `diag_contrapartida_tipo0.py` sobre el
+    corpus real): en el 91,3% de los casos su cuota cancela casi exacto el
+    resto del lado, y en el 72% su contrapartida es una cuenta
+    administrativa (Hacienda o reclasificacion del propio grupo 477/472),
+    nunca un tercero real -- es el asiento de liquidacion/cierre trimestral
+    de IVA, no una venta ni una compra. Esta funcion tenia su PROPIA suma,
+    separada de la de `cuadre_303_ficha.py`, y no habia recibido aquel
+    arreglo -- reproducia el mismo "TOTAL siempre distorsionado" con datos
+    reales (caso SP_C_13, 2025T2, 15-09-2026: la cuota_devengado y la
+    cuota_deducible quedaban canceladas casi enteras por su propio tipo "0").
+
+    Distinto de tipo_no_catalogado (que se queda DENTRO del total a
+    proposito, porque podria ser una casilla real de tipo desconocido): el
+    tipo "0" se EXCLUYE, pero nunca en silencio -- se devuelve en
+    `liquidacion_excluida` (un dict con "devengado"/"deducible", cada uno
+    {"base":.., "cuota":..}) para que el llamador lo declare, igual que
+    `cuadre_303_ficha.py` imprime su propia linea "(fuera del TOTAL)".
     """
     entrada = datos.get(clave)
     if entrada is None:
@@ -124,18 +145,29 @@ def totales_contabilidad(datos, clave, trimestre):
     def sumar(lado_nombre):
         base = cuota = 0.0
         no_catalogado = False
+        liquidacion = None
         for tipo, celda in lados.get(lado_nombre, {}).items():
+            if tipo == "0":
+                if celda.get("base") or celda.get("cuota"):
+                    liquidacion = {"base": celda.get("base", 0.0),
+                                   "cuota": celda.get("cuota", 0.0)}
+                continue
             if tipo == "tipo_no_catalogado" and (celda.get("base") or celda.get("cuota")):
                 no_catalogado = True
             base += celda.get("base", 0.0)
             cuota += celda.get("cuota", 0.0)
-        return base, cuota, no_catalogado
+        return base, cuota, no_catalogado, liquidacion
 
-    base_dev, cuota_dev, no_cat_dev = sumar("devengado")
-    base_ded, cuota_ded, no_cat_ded = sumar("deducible")
+    base_dev, cuota_dev, no_cat_dev, liq_dev = sumar("devengado")
+    base_ded, cuota_ded, no_cat_ded, liq_ded = sumar("deducible")
+    liquidacion_excluida = {}
+    if liq_dev is not None:
+        liquidacion_excluida["devengado"] = liq_dev
+    if liq_ded is not None:
+        liquidacion_excluida["deducible"] = liq_ded
     return (round(base_dev, 2), round(cuota_dev, 2),
             round(base_ded, 2), round(cuota_ded, 2),
-            no_cat_dev or no_cat_ded)
+            no_cat_dev or no_cat_ded, liquidacion_excluida)
 
 
 def totales_pdf(casillas):
@@ -165,12 +197,29 @@ CASILLAS_OFICIALES = tuple(dict.fromkeys(
 def extraer_casillas_oficiales(texto):
     valores = {}
     for n in CASILLAS_OFICIALES:
-        m = patron_casilla(n).search(texto)
-        if m:
-            v = extraer_numero_tras(texto, m.end())
-            if v is not None:
-                valores[n] = v
+        v = localizar_valor_casilla(texto, n)
+        if v is not None:
+            valores[n] = v
     return valores
+
+
+def _evaluar_ajuste_isp(diff_bruta, isp_valor, tolerancia):
+    """Aplica un importe de ISP a UNA diferencia -- pero solo si hacia falta.
+
+    ARREGLADO 15-09-2026, segunda confirmacion real sobre SP_C_13 (ya con el
+    'tipo 0' y la casilla 07 arreglados): la version anterior le sumaba el
+    ISP a los dos lados sin condicion. Eso tenia sentido cuando los dos lados
+    necesitaban el mismo ajuste (el caso original, 11-09), pero al arreglar
+    los otros dos bugs el devengado paso a cuadrar SOLO (diferencia 0,00) --
+    y sumarle el ISP igualmente lo EMPEORABA, informando "quedan 420 EUR sin
+    explicar" sobre un lado que ya estaba perfecto. Ahora el ajuste solo se
+    aplica cuando la diferencia bruta no estaba ya dentro de tolerancia.
+
+    Devuelve (resto, hacia_falta_el_ajuste, explica)."""
+    if abs(diff_bruta) <= tolerancia:
+        return diff_bruta, False, True
+    resto = round(diff_bruta + isp_valor, 2)
+    return resto, True, abs(resto) <= tolerancia
 
 
 def explicar_por_isp(diffs, oficiales, tolerancia):
@@ -183,22 +232,55 @@ def explicar_por_isp(diffs, oficiales, tolerancia):
     exactamente lo mismo en deducible (misma cuota, derecho a deduccion
     inmediata en el mismo periodo).
 
-    Devuelve None si no hay casillas de ISP en el PDF (no se puede evaluar
-    la hipotesis, y NO se finge que "no aporta" cuando es que no se ha
-    mirado). Si las hay, devuelve un dict declarando cuanto explica ISP y
-    cuanto queda SIN explicar en cada lado -- nunca oculta el resto."""
+    AMPLIADO 15-09-2026 (misma sesion, segunda confirmacion real): ademas de
+    la CUOTA (13), tambien se comprueba la BASE (12) -- el mismo mecanismo
+    de doble apunte (477 y 472, autorrepercusion) mueve tanto la base como
+    la cuota, y en SP_C_13 la base del deducible quedaba sin explicar por
+    exactamente el importe de la base de ISP, sin que nada lo comprobara.
+
+    Devuelve None si no hay NINGUNA casilla de ISP en el PDF (ni base ni
+    cuota -- no se puede evaluar la hipotesis, y NO se finge que "no aporta"
+    cuando es que no se ha mirado). Si hay alguna, devuelve un dict
+    declarando cuanto explica ISP y cuanto queda SIN explicar en cada lado
+    -- nunca oculta el resto, y nunca aplica el ajuste donde no hacia falta."""
     isp_cuota = oficiales.get(CASILLA_ISP_CUOTA)
-    if isp_cuota is None:
+    isp_base = oficiales.get(CASILLA_ISP_BASE)
+    if isp_cuota is None and isp_base is None:
         return None
-    resto_dev = round(diffs["cuota_devengado"] + isp_cuota, 2)
-    resto_ded = round(diffs["cuota_deducible"] + isp_cuota, 2)
-    return {
-        "isp_cuota_declarada": isp_cuota,
-        "diferencia_devengado_sin_isp": resto_dev,
-        "diferencia_deducible_sin_isp": resto_ded,
-        "isp_explica_devengado": abs(resto_dev) <= tolerancia,
-        "isp_explica_deducible": abs(resto_ded) <= tolerancia,
-    }
+
+    resultado = {}
+
+    if isp_cuota is not None:
+        resto_dev, hacia_falta_dev, explica_dev = _evaluar_ajuste_isp(
+            diffs["cuota_devengado"], isp_cuota, tolerancia)
+        resto_ded, hacia_falta_ded, explica_ded = _evaluar_ajuste_isp(
+            diffs["cuota_deducible"], isp_cuota, tolerancia)
+        resultado.update({
+            "isp_cuota_declarada": isp_cuota,
+            "diferencia_devengado_sin_isp": resto_dev,
+            "isp_explica_devengado": explica_dev,
+            "isp_hacia_falta_devengado": hacia_falta_dev,
+            "diferencia_deducible_sin_isp": resto_ded,
+            "isp_explica_deducible": explica_ded,
+            "isp_hacia_falta_deducible": hacia_falta_ded,
+        })
+
+    if isp_base is not None:
+        resto_base_dev, hacia_falta_base_dev, explica_base_dev = _evaluar_ajuste_isp(
+            diffs["base_devengado"], isp_base, tolerancia)
+        resto_base_ded, hacia_falta_base_ded, explica_base_ded = _evaluar_ajuste_isp(
+            diffs["base_deducible"], isp_base, tolerancia)
+        resultado.update({
+            "isp_base_declarada": isp_base,
+            "diferencia_base_devengado_sin_isp": resto_base_dev,
+            "isp_explica_base_devengado": explica_base_dev,
+            "isp_base_hacia_falta_devengado": hacia_falta_base_dev,
+            "diferencia_base_deducible_sin_isp": resto_base_ded,
+            "isp_explica_base_deducible": explica_base_ded,
+            "isp_base_hacia_falta_deducible": hacia_falta_base_ded,
+        })
+
+    return resultado
 
 
 def comparar_contra_totales(contab, oficiales, tolerancia, casillas_todas=None):
@@ -249,7 +331,7 @@ def comparar_contra_totales(contab, oficiales, tolerancia, casillas_todas=None):
     if cuota_dev_27 is None or cuota_ded_45 is None:
         return None
 
-    base_dev_c, cuota_dev_c, base_ded_c, cuota_ded_c, _ = contab
+    base_dev_c, cuota_dev_c, base_ded_c, cuota_ded_c, *_ = contab
     d_dev = round(cuota_dev_c - cuota_dev_27, 2)
     d_ded = round(cuota_ded_c - cuota_ded_45, 2)
     peor = max(abs(d_dev), abs(d_ded))
@@ -308,7 +390,8 @@ def comparar_caso(contab, pdf, tolerancia=TOLERANCIA_REDONDEO, oficiales=None):
         return {"estado": "NO_COMPROBADO",
                 "motivo": "no hay datos de contabilidad para esa clave+trimestre"}
 
-    base_dev_c, cuota_dev_c, base_ded_c, cuota_ded_c, no_catalogado = contab
+    base_dev_c, cuota_dev_c, base_ded_c, cuota_ded_c, no_catalogado, *resto = contab
+    liquidacion_excluida = resto[0] if resto else {}
     base_dev_p, cuota_dev_p, base_ded_p, cuota_ded_p, n_casillas_pdf = pdf
 
     if n_casillas_pdf == 0:
@@ -336,6 +419,8 @@ def comparar_caso(contab, pdf, tolerancia=TOLERANCIA_REDONDEO, oficiales=None):
         "max_diferencia": max_diff,
         "aviso_tipo_no_catalogado": no_catalogado,
     }
+    if liquidacion_excluida:
+        resultado["liquidacion_excluida"] = liquidacion_excluida
 
     if oficiales is not None and estado != "CUADRA_EXACTO":
         explicacion = explicar_por_isp(diffs, oficiales, tolerancia)
@@ -632,6 +717,14 @@ def main():
             aviso = "  [tipo_no_catalogado presente]" if r.get("aviso_tipo_no_catalogado") else ""
             print(f"  caso {i}: {r['estado']}  (diferencia maxima: "
                   f"{r['max_diferencia']:.2f} EUR){aviso}")
+            liq = r.get("liquidacion_excluida")
+            if liq:
+                for lado, vals in liq.items():
+                    print(f"           (fuera del TOTAL de la contabilidad) tipo 0% en "
+                          f"{lado}: base {vals['base']:.2f} / cuota {vals['cuota']:.2f} -- "
+                          "probablemente el asiento de liquidacion de IVA a Hacienda, no")
+                    print("           una venta o compra real (mismo hallazgo que "
+                          "cuadre_303_ficha.py, 14-09-2026).")
             if r["estado"] == "NO_CUADRA":
                 # Desglose por campo (solo numeros: base/cuota devengado y
                 # deducible, nunca un nombre) -- para distinguir un fallo de
@@ -686,19 +779,36 @@ def main():
                 print("                las cuentas 477/472 por tipo, y esto no vive ahi.")
             explicacion = r.get("explicacion_isp")
             if explicacion:
-                print(f"           ISP declarado en el PDF (casilla 13): "
-                      f"{explicacion['isp_cuota_declarada']:.2f} EUR "
-                      "(no modelado por este script, se declara aparte)")
-                if explicacion["isp_explica_devengado"]:
-                    print("           -> explica ENTERA la diferencia en devengado")
-                else:
-                    print(f"           -> tras descontar ISP, queda SIN explicar en "
-                          f"devengado: {explicacion['diferencia_devengado_sin_isp']:.2f} EUR")
-                if explicacion["isp_explica_deducible"]:
-                    print("           -> explica ENTERA la diferencia en deducible")
-                else:
-                    print(f"           -> tras descontar ISP, queda SIN explicar en "
-                          f"deducible: {explicacion['diferencia_deducible_sin_isp']:.2f} EUR")
+                def _linea_isp(lado, hacia_falta, explica, resto):
+                    if not hacia_falta:
+                        print(f"           -> {lado} ya cuadraba SIN necesitar el ISP "
+                              "(no se le aplica el ajuste)")
+                    elif explica:
+                        print(f"           -> explica ENTERA la diferencia en {lado}")
+                    else:
+                        print(f"           -> tras descontar ISP, queda SIN explicar en "
+                              f"{lado}: {resto:.2f} EUR")
+
+                if "isp_cuota_declarada" in explicacion:
+                    print(f"           ISP declarado en el PDF (casilla 13, cuota): "
+                          f"{explicacion['isp_cuota_declarada']:.2f} EUR "
+                          "(no modelado por este script, se declara aparte)")
+                    _linea_isp("devengado", explicacion["isp_hacia_falta_devengado"],
+                               explicacion["isp_explica_devengado"],
+                               explicacion["diferencia_devengado_sin_isp"])
+                    _linea_isp("deducible", explicacion["isp_hacia_falta_deducible"],
+                               explicacion["isp_explica_deducible"],
+                               explicacion["diferencia_deducible_sin_isp"])
+                if "isp_base_declarada" in explicacion:
+                    print(f"           ISP declarado en el PDF (casilla 12, base): "
+                          f"{explicacion['isp_base_declarada']:.2f} EUR "
+                          "(no modelado por este script, se declara aparte)")
+                    _linea_isp("base devengado", explicacion["isp_base_hacia_falta_devengado"],
+                               explicacion["isp_explica_base_devengado"],
+                               explicacion["diferencia_base_devengado_sin_isp"])
+                    _linea_isp("base deducible", explicacion["isp_base_hacia_falta_deducible"],
+                               explicacion["isp_explica_base_deducible"],
+                               explicacion["diferencia_base_deducible_sin_isp"])
 
     print()
     print("=" * 68)
