@@ -72,6 +72,27 @@ EXTENSIONES_CREDENCIAL = (".pfx", ".p12", ".cer", ".crt", ".key", ".pem")
 #: extraer_303_pdf.py para las casillas del 303.
 _RE_MODELO = {m: re.compile(rf'(?<!\d){m}(?!\d)') for m in MODELOS_CONOCIDOS}
 
+#: ANADIDO 15-09-2026, tras una primera pasada real que solo reconocio el
+#: 9,2% de los ficheros: version SUELTA del mismo patron, sin exigir que el
+#: numero este aislado. Sirve para medir CUANTO estaba perdiendo el patron
+#: estricto por numeros pegados a una fecha sin separador ("3032024.pdf").
+#: Nunca sustituye al estricto -- se cuentan los dos, y la DIFERENCIA entre
+#: ambos es el dato que importa, no ninguno de los dos por separado.
+_RE_MODELO_SUELTO = {m: re.compile(re.escape(m)) for m in MODELOS_CONOCIDOS}
+
+#: Y la hipotesis mas probable de por que "estricto" se queda corto: en
+#: castellano lo normal no es nombrar el modelo por su numero, es nombrarlo
+#: por lo que es -- "IVA trimestral", "retenciones alquiler". Esto NO
+#: identifica el modelo exacto (ambiguo a proposito: "iva" puede ser 303 o
+#: 390), es una SEGUNDA senal independiente para saber si el nombre lleva
+#: informacion fiscal reconocible aunque no lleve el numero desnudo.
+PALABRAS_FISCALES = re.compile(
+    r'\biva\b|\birpf\b|retenci|alquiler|arrendamient|intracomunitari'
+    r'|censal|pago\s*fraccionad|operaciones?\s*(con\s*)?terceros'
+    r'|resumen\s*anual|sociedades|autonomo|declaraci[oó]n',
+    re.IGNORECASE,
+)
+
 #: Trimestre o periodo en el nombre: "1T"/"2T"/"3T"/"4T", "1er/2do/3er/4to
 #: trimestre", "mensual", o un mes con anio. Deliberadamente laxo: aqui solo
 #: interesa saber SI hay algo con pinta de periodo, no cual exactamente.
@@ -120,6 +141,11 @@ def main():
     con_anio = 0
     credenciales_encontradas = 0
 
+    total_con_modelo_suelto = 0     # patron SIN exigir aislamiento
+    total_con_palabra_fiscal = 0    # "iva", "retenciones", etc., sin numero
+    con_algo_reconocible = 0        # modelo (estricto o suelto) O palabra fiscal
+    sin_nada_reconocible = 0        # ni numero ni palabra -- el resto de verdad
+
     for carpeta in primer_nivel:
         profundidad_por_carpeta[carpeta.path] = set()
         for dp, _, fns in os.walk(carpeta.path):
@@ -141,6 +167,17 @@ def main():
                         con_modelo_reconocido[m] += 1
                 else:
                     total_sin_ningun_modelo += 1
+
+                modelo_suelto = any(_RE_MODELO_SUELTO[m].search(n) for m in MODELOS_CONOCIDOS)
+                if modelo_suelto:
+                    total_con_modelo_suelto += 1
+                palabra_fiscal = bool(PALABRAS_FISCALES.search(n))
+                if palabra_fiscal:
+                    total_con_palabra_fiscal += 1
+                if modelos_en_este or modelo_suelto or palabra_fiscal:
+                    con_algo_reconocible += 1
+                else:
+                    sin_nada_reconocible += 1
 
                 tiene_periodo = bool(_RE_PERIODO.search(n))
                 tiene_anio = bool(_RE_ANIO.search(n))
@@ -212,6 +249,23 @@ def main():
     print("    desglose por modelo (un fichero puede contar en varios si el nombre es ambiguo):")
     for modelo, n in con_modelo_reconocido.most_common():
         print(f"        modelo {modelo:<5} {n:>7,}")
+    print()
+
+    print("SEGUNDA PASADA -- dos señales mas, para saber si el patron")
+    print("estricto se estaba quedando corto (anadido tras una primera")
+    print("medicion real que dio un 9,2% muy por debajo de lo esperado):")
+    print(f"    con el mismo numero de modelo, SIN exigir que este aislado : "
+          f"{total_con_modelo_suelto:,} "
+          f"({round(total_con_modelo_suelto*100.0/total_ficheros,1) if total_ficheros else 0}%)")
+    print(f"    con una PALABRA fiscal reconocible (iva/irpf/retenciones/...) : "
+          f"{total_con_palabra_fiscal:,} "
+          f"({round(total_con_palabra_fiscal*100.0/total_ficheros,1) if total_ficheros else 0}%)")
+    print(f"    con ALGO reconocible (numero estricto O suelto O palabra)  : "
+          f"{con_algo_reconocible:,} "
+          f"({round(con_algo_reconocible*100.0/total_ficheros,1) if total_ficheros else 0}%)")
+    print(f"    sin NADA reconocible de lo anterior                        : "
+          f"{sin_nada_reconocible:,} "
+          f"({round(sin_nada_reconocible*100.0/total_ficheros,1) if total_ficheros else 0}%)")
     print()
 
     print("PERIODO EN EL NOMBRE (trimestre/mes/'mensual'):")
