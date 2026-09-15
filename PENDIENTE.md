@@ -201,6 +201,28 @@
       Con 3 casos NO hay muestra para declararlo cerrado. Decide tú
       cuántos clientes hacen falta antes de dar el paso por bueno.
 
+      [X] D · ESTRUCTURA DE PC1 MEDIDA (15-09-2026). Confirmado: organizada
+          por cliente (88,6% de las 140 carpetas de primer nivel son
+          planas o de 1 nivel, tamaño moderado). Pero solo el 24,0% de los
+          14.395 PDF se identifica por modelo+numero en el nombre --
+          confirmado por dos metodos independientes (3.459 vs 3.422).
+          Desglose por modelo, solo PDF: 303=1.154, 130=535, 111=482,
+          390=256, 347=199, 202=187, 115=184, 036=178, 349=127, 190=116,
+          180=48. Detalle completo en PROJECT_STATUS.md (15-09, decima
+          entrada). Herramienta: `explorar_estructura_pc1.py`.
+
+          Dos preguntas abiertas de la misma pasada, sin resolver:
+            - 2.198 ficheros `.dat` dentro de PC1 -- ¿son contenedores de
+              ContaPlus tambien, como los de "100% contabilidad"?
+            - 2.360 ficheros `.tgd` -- formato sin identificar, segunda
+              extension mas comun tras PDF y JPG. ¿Que programa lo genera?
+
+          Si se retoma "extrapolar el 303 a otros modelos": el candidato
+          con mas volumen (aparte del 303, ya resuelto) es el 130, no el
+          390 -- el 390 seguia siendo el "casi gratis" por poder
+          contrastarse contra los 4 trimestres de 303 ya extraidos, pero
+          en volumen puro el 130 dobla al 390.
+
   ═════════════════════════════════════════════════════════════════════
   2 · NORMATIVA: LO LEÍDO EN EL BOE, Y LO QUE HAY QUE DECIDIR
   ═════════════════════════════════════════════════════════════════════

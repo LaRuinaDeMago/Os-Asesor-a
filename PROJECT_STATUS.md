@@ -7,6 +7,95 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 15-09-2026 (sesión local, décima entrada) — Estructura de `\\PC01\Documentos`: organizada por cliente, pero solo el 24% de los PDF se identifica por el nombre solo
+
+Continuación de la sesión (novena/octava entrada, mismo día). Dos revisiones
+externas del proyecto coincidieron en una pregunta abierta: ¿está PC1
+organizada por cliente (emparejar modelo↔cliente↔periodo sería casi
+mecánico, como ya funciona el manifest del 303) o es un volcado plano con
+nombres inconsistentes (un proyecto entero, del tamaño del 303 multiplicado
+por cada modelo)? Nadie lo había medido, solo se había trabajado dentro de
+PC1 con éxito para clientes concretos del 303.
+
+**Construido `explorar_estructura_pc1.py`**: más seguro todavía que
+`reconocer_303_pdf.py` (Fase 1 del 303) — no abre ni un solo fichero, solo
+cuenta nombres de carpeta (nunca impresos), profundidad, extensión, y
+patrones de nombre. Cuatro rondas de arreglos reales, cada uno encontrado
+por Diego revisando el número con sentido crítico en vez de aceptarlo:
+
+1. **Primera pasada: 9,2% con modelo reconocido — sospechosamente bajo.**
+   Diego señaló que a simple vista la mayoría de los PDF sí llevan modelo y
+   periodo. Investigado sin pedir ningún nombre real: el patrón exigía el
+   número "aislado" (no pegado a otro dígito), y fallaba con nombres sin
+   separador ("3032024.pdf").
+2. **Patrón "suelto" (sin exigir aislamiento): subió a 36,7% — inflado.**
+   El modelo 202 (Sociedades) son también los tres primeros dígitos de
+   cualquier año 2020-2029. Arreglado excluyendo coincidencias dentro de un
+   año ya reconocido.
+3. **Con el año excluido, "202" seguía con +5.035 de diferencia.** Y "131"
+   subía de 11 a 666 (×60) sin ninguna fecha de por medio. Causa real: de
+   39.375 ficheros, 13.526 son `.jpg` — fotos numeradas secuencialmente por
+   cámara/escáner ("IMG_1202.jpg"), donde cualquier secuencia de 3 dígitos
+   común aparece por casualidad. Arreglado restringiendo la medición a
+   `.pdf`, que es donde de verdad vive un modelo oficial.
+4. **Añadida también una señal cruzada de Diego**: ~5.305 PDF contienen la
+   palabra "modelo" (comprobado por él con una búsqueda de Windows, ningún
+   nombre pasó por el chat) — con el matiz correcto de que eso no significa
+   que todos sean modelos presentados ("modelo de contrato" también la
+   lleva). Cruzada con el número: 3.432 llevan "modelo" + un número a la
+   vez (casi seguro un impreso AEAT real), solo 63 llevan "modelo" sin
+   ningún número (la ambigüedad real).
+
+**Resultado final, con dos métodos independientes convergiendo a menos de
+un 1% de diferencia (fuerte confirmación cruzada):**
+
+```
+PDF totales: 14.395
+con ALGUN modelo conocido (solo PDF)  : 3.459  (24,0%)
+'modelo' + numero a la vez (solo PDF) : 3.422  (23,8%)
+```
+
+Desglose por modelo (solo PDF): 303=1.154, 130=535, 111=482, 390=256,
+347=199, 202=187, 115=184, 036=178, 349=127, 190=116, 180=48, resto <15.
+
+**Otros hallazgos de la misma exploración:**
+- **140 carpetas de primer nivel** (139 + una que resulta ser un ZIP,
+  según confirmó Diego), de las cuales ~80-100 tienen nombre propio/cliente
+  — coherente con lo ya sabido (`FASE0_RESULTADOS.md §11.4`): no todas las
+  carpetas son clientes, algunas son memorias, contabilidad al Registro
+  Mercantil, gestiones puntuales.
+- **88,6% de las carpetas son planas o de un solo nivel**, y el 70% tiene
+  entre 11 y 200 ficheros — confirma estructuralmente "carpeta por
+  cliente/entidad, todo dentro", el mismo patrón que ya usa el manifest
+  del 303.
+- **207 ficheros con extensión de certificado digital** (.pfx/.p12/.cer/
+  .crt/.key/.pem) — hallazgo de una revisión externa, incorporado: NO son
+  documentación, son credenciales de acceso a la Sede Electrónica en
+  nombre de un cliente. Marcados aparte para que ningún tratamiento futuro
+  los confunda con un PDF por descuido de extensión.
+- **2.198 ficheros `.dat`** dentro de PC1 — misma extensión que los
+  contenedores ZIP de ContaPlus. Sin confirmar si son lo mismo.
+- **2.360 ficheros `.tgd`** — formato sin identificar. Segunda extensión
+  más común tras PDF y JPG. Pendiente de que Diego confirme qué programa
+  lo genera.
+
+**Lectura para la pregunta de fondo ("¿extrapolar el 303 a otros
+modelos?"):** ni tan mecánico como el 24% sugiere de entrada, ni un
+proyecto nuevo entero. La estructura por cliente está confirmada. Hay una
+base real de ~3.400 PDF ya identificables sin abrir nada, con volúmenes
+por modelo que tienen sentido (130 y 111 muy por delante de 390, pese a
+que 390 se había propuesto antes como "casi gratis" por pura cercanía
+conceptual al 303 ya resuelto). Pero el 76% restante de los PDF no se
+identifica por nombre solo — peor que el 12% ya medido para el 303 en
+solitario —, así que conseguir cobertura completa por cliente necesitará
+el mismo trabajo paciente de afinar patrones que ya hizo falta para el
+303, no una extensión automática.
+
+`audit_project.py` código 2 (mismo aviso esperado) tras cada una de las
+cuatro rondas de arreglos. Escáner de privacidad sin hallazgos en las
+cinco. Ningún nombre de carpeta, cliente o ruta pasó por esta conversación
+en ningún momento — solo recuentos, tal como exige `.claude/rules/datos.md`.
+
 ## 15-09-2026 (sesión local, novena entrada) — Confirmado a escala completa: 1,2% -> 99,8% sobre 1.023 documentos reales
 
 Continuación directa de la entrada anterior (octava, misma sesión). Con los
