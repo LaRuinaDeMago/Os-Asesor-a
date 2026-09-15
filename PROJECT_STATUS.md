@@ -7,6 +7,44 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 15-09-2026 (sesión local, decimosexta entrada — CIERRE) — El orden de trabajo, escrito por fin donde se lee
+
+Cierre de la sesión. Última comprobación, y encontró **lo mismo que las cuatro
+anteriores**: conclusiones razonadas que vivían sólo en la conversación.
+
+**Lo que faltaba por escribir, ya en `PENDIENTE.md`** (que es lo que
+`arranque.py` imprime al empezar cualquier sesión — comprobado que sale por
+pantalla, no supuesto):
+
+1. **El ORDEN de trabajo, con su porqué.** No estaba en ningún fichero. El motor
+   valida pero todavía no *hace* nada: no lee una factura, no la mete en
+   ContaPlus, no ahorra un minuto. Por eso: **(1)** la decisión del DPA, que es
+   la puerta única y no es técnica; **(2)** UNA factura real de punta a punta
+   —una, no un lote—, que es "Puerta 1 antes que Puerta 2" de
+   `ARQUITECTURA_DATOS.md` §4, la regla ya violada cuatro veces; **(3)** dos o
+   tres lotes cronometrados, que deciden la economía real; **(4)** todo lo demás.
+2. **El criterio para saber cuándo dejar de pulir.** El rigor se paga solo
+   mientras cada repaso encuentre algo. Hoy encontró dos defectos en el motor y
+   un impreso cambiado. *El día que un repaso completo no encuentre nada, ésa es
+   la señal de dejar de reforzar y empezar a entregar.* Y la distinción que lo
+   acompaña: el argumento de Diego (*un motor que falla y hay que estar
+   comprobando es peor que hacerlo a mano*) justifica **validar** con este rigor,
+   no **construir a lo ancho** sin validar.
+3. **Punto 1.F, nuevo y abierto:** el cambio del impreso del 303 estaba descrito
+   dentro de un bloque ya marcado `[X]`, donde se puede pasar por alto. Ahora
+   tiene línea propia, con qué hay que hacer y por qué no es una emergencia (los
+   1.023 documentos validados son históricos) pero tampoco se puede dejar pasar.
+4. **Punto 4.C, nuevo:** el PGC entra como **tabla que un guard consulta**, no
+   como fuente que vigilar, y sólo cuando `guard_cuenta_gasto_coherente` pase de
+   avisar a proponer. El caso real lo dio Diego describiendo su flujo: con
+   proveedor nuevo pierde ~2 min decidiendo la cuenta.
+
+**Estado al cerrar:** árbol limpio, `master` y `origin/master` a 0 commits en
+los dos sentidos, **una sola rama** en el remoto. `test_motor_veredicto.py` en
+verde, `test_adversarial.py` **117/117**, `audit_project.py` **42 verdes, código
+2** (el ⚠️ de dependencias bloqueadas por DPA). **23 bloques del BOE** vigilados,
+**15 de 16 citas** verificadas. Siete commits en el día, todos empujados.
+
 ## 15-09-2026 (sesión local, decimoquinta entrada) — El impreso del 303 cambió en enero de 2026 y nadie lo sabía
 
 Pregunta de Diego, después de ver el trabajo de las citas: *"¿esto no podemos

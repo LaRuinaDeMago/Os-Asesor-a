@@ -35,6 +35,58 @@
   │ una instrucción ya cumplida ocupando el sitio de la que importa.) │
   └───────────────────────────────────────────────────────────────────┘
 
+  ═════════════════════════════════════════════════════════════════════
+  EL ORDEN — por dónde seguir, y por qué en ese orden
+  ═════════════════════════════════════════════════════════════════════
+      Escrito el 15-09-2026 al cerrar la sesión. Existía como conclusión
+      razonada pero **no estaba en ningún fichero**, que es exactamente
+      como se pierden las cosas en este proyecto (tres veces en un mismo
+      día: los lotes, el albarán y los certificados vivían sólo en prosa).
+
+      El motor VALIDA, pero todavía no HACE nada: no lee una factura, no
+      la mete en ContaPlus, no te ahorra un minuto. Todo el valor está
+      detrás de dos puertas que aún no se han cruzado. Por eso el orden
+      no es "lo que sea más cómodo", es éste:
+
+      1 · LA DECISIÓN DEL DPA. Es la puerta única. Sin ella el modelo no
+          puede VER una factura, y toda la cadena OCR→motor→ContaPlus
+          espera detrás. No es técnica: es contratar API/Consola de
+          Anthropic (ver `.claude/rules/datos.md`). **Nada de lo demás la
+          sustituye, y cuanto más motor se construya antes de cruzarla,
+          más se construye a ciegas.**
+
+      2 · UNA FACTURA REAL DE PUNTA A PUNTA. Foto → motor → asiento en
+          ContaPlus. **Una**, no un lote. Es "Puerta 1 antes que Puerta
+          2" de `ARQUITECTURA_DATOS.md` §4 — la regla que este proyecto
+          ya ha violado cuatro veces, y las cuatro costaron caro.
+
+      3 · DOS O TRES LOTES CRONOMETRADOS (punto 4.A). Gratis, sin trabajo
+          extra, y son los que deciden la economía real del proyecto: hoy
+          todo descansa en UNA medición de 30 facturas.
+
+      4 · TODO LO DEMÁS. Más clientes en el cuadre 303 (1.C), el modelo
+          130 (1.D), las citas que faltan (2.C-bis). Valioso, pero
+          secundario mientras 1 y 2 sigan abiertos.
+
+      ─────────────────────────────────────────────────────────────────
+      Y UN CRITERIO PARA SABER CUÁNDO DEJAR DE PULIR
+      ─────────────────────────────────────────────────────────────────
+      El rigor de este proyecto se paga solo **mientras cada repaso
+      encuentre algo**. El 15-09 encontró dos defectos reales en el motor
+      (el validador de NIF de la triangulación y un `return "OK"`
+      atrapalotodo) y un impreso del 303 cambiado en enero de 2026 que
+      nadie sabía.
+
+      > **El día que un repaso completo no encuentre nada, ésa es la
+      > señal de que toca dejar de reforzar y empezar a entregar.**
+      > No antes — pero tampoco mucho después.
+
+      La razón por la que se aprieta tanto sigue siendo la correcta, y es
+      de Diego: *un motor que falla y hay que estar comprobando siempre es
+      peor que hacerlo a mano*. Pero eso justifica **validar** con este
+      rigor, no **construir a lo ancho** sin validar. No son lo mismo, y
+      confundirlas es el error que ya está documentado cuatro veces.
+
   TODO LO QUE QUEDA ES SESIÓN LOCAL, en el PC de la asesoría.
   Estado del motor al 28-08-2026, medido sobre el corpus real:
     ROJO 3,03%  ·  ÁMBAR 12,82%  (bajó desde 28,28% con los arreglos de ese día)
@@ -227,6 +279,29 @@
           390 -- el 390 seguia siendo el "casi gratis" por poder
           contrastarse contra los 4 trimestres de 303 ya extraidos, pero
           en volumen puro el 130 dobla al 390.
+
+      [ ] F · ⚠️ EL IMPRESO DEL 303 CAMBIÓ EL 27-01-2026 Y HAY QUE
+          MIRARLO. Detectado el 15-09-2026 al montar `modelos_aeat.py`:
+          el ANEXO I de la Orden EHA/3786/2008 está en vigor desde el
+          **27-01-2026** (Orden HAC/27/2026). El anexo es donde vive la
+          FORMA del impreso, que es justo sobre lo que está construido
+          `extraer_303_pdf.py`.
+
+          **Por qué no es una emergencia:** los 1.023 documentos ya
+          leídos y validados (99,8%) son históricos y siguen valiendo.
+
+          **Por qué no se puede dejar pasar:** afecta a lo que se lea de
+          2026 en adelante, y un impreso que cambia **no rompe el lector
+          con un error, lo rompe dando números**.
+
+          **Qué hay que hacer, y es trabajo de asesor, no de programa:**
+          coger un 303 presentado de 2026 y comprobar si las casillas que
+          usa el lector siguen donde estaban. El programa detecta el
+          cambio; interpretarlo no lo hace ni lo hará.
+
+          (Detalle que explica por qué no se había visto: el **art. 1** de
+          esa misma Orden tiene redacción de 2017. Vigilar el articulado
+          no habría detectado nada — el cambio estaba en el anexo.)
 
       [ ] E · UN UMBRAL QUE DESCARTA DATOS Y NADIE HA MEDIDO (15-09-2026).
           `enlazador_clientes_303.py` y `diag_verificar_carpeta_cliente.py`
@@ -460,6 +535,34 @@
           que eso se conteste no se añade el guard — regla de CLAUDE.md:
           ningún guard sin un caso real que lo pida, y este lo tiene a
           medias.
+
+      [ ] C · EL PGC, PERO COMO TABLA QUE UN GUARD CONSULTA — NO como
+          fuente que vigilar. Decidido así el 15-09-2026, contestando a
+          la pregunta de Diego de si conviene meter el Plan General
+          Contable "como reforzamiento del motor".
+
+          Comprobado que el articulado del RD 1514/2007 se lee bien
+          (`BOE-A-2007-19884`). **Pero registrarlo como texto a vigilar
+          no rendiría:** el PGC casi no cambia, y su articulado no es lo
+          que hace falta. Lo valioso es el **cuadro de cuentas** (Parte
+          quinta, en anexos), y eso no es una fuente: es una tabla.
+
+          **El caso real que lo pide, y lo dijo Diego describiendo su
+          propio flujo:** *"con proveedores conocidos es casi intuitivo
+          por la experiencia; con uno nuevo o un gasto atípico, no"* —
+          unos 2 minutos cada vez que aparece uno nuevo.
+
+          `guard_cuenta_gasto_coherente` ya aprende de TU histórico qué
+          cuenta usas con cada proveedor, y para los habituales eso es
+          **mejor** que el PGC porque captura tu criterio real. Lo que no
+          puede es proponer nada cuando el proveedor es NUEVO — que es
+          justo donde se pierde el tiempo.
+
+          **El orden correcto:** primero convertir ese guard de "te avisa
+          si te desvías" a "te propone la cuenta cuando no hay
+          histórico"; el cuadro de cuentas entra entonces, con un
+          consumidor real. Registrarlo antes sería una fuente más en el
+          inventario que ningún guard mira.
 
   ═════════════════════════════════════════════════════════════════════
   APARCADO — no es un pendiente, no lo busques
