@@ -261,10 +261,11 @@
           este punto.
 
   ═════════════════════════════════════════════════════════════════════
-  3 · LO QUE NO ES CÓDIGO, y lleva abierto desde el 12-08
+  3 · LO QUE NO ES CÓDIGO
   ═════════════════════════════════════════════════════════════════════
-      [ ] Cifrar el USB de copia.  15 minutos. Es lo de MAYOR impacto por
-          coste de toda esta lista, y lleva casi un mes abierto.
+      [X] Cifrar el USB de copia. RESUELTO 15-09-2026 (llevaba abierto
+          desde el 12-08, más de un mes -- era lo de mayor impacto por
+          coste de toda la lista).
       [ ] Clave de recuperación del cifrado, guardada FUERA del equipo.
       [ ] Confirmar si la copia del USB incluye modelos, escrituras y DNI,
           o sólo contabilidad.
