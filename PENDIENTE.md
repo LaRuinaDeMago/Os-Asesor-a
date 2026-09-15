@@ -15,19 +15,24 @@
      la cabecera de este fichero dice que no puede pasar. -->
 
   ┌───────────────────────────────────────────────────────────────────┐
-  │ ANTES DE NADA, UNA SOLA VEZ (15-09-2026):                         │
+  │ RAMAS — comprobado y cerrado el 15-09-2026                        │
   │                                                                   │
-  │     git checkout master                                           │
-  │     git pull                                                      │
+  │ Ya no hay nada que hacer aquí. Medido, no recordado: la única     │
+  │ rama local es `master`, y `master` y `origin/master` están al     │
+  │ día la una con la otra (0 commits de diferencia en los dos        │
+  │ sentidos). La antigua `claude/github-retomada-o4zyic` lleva CERO  │
+  │ commits que master no tenga — está estrictamente atrasada.        │
   │                                                                   │
-  │ Todo el trabajo del 14 y 15 está YA FUSIONADO en master. La rama  │
-  │ `claude/github-retomada-o4zyic` no lleva nada que master no tenga:│
-  │ si sigues en ella, trabajas en un sitio que nadie más mira.       │
+  │ Lo que SÍ sigue vigente, y es permanente (CLAUDE.md, regla del    │
+  │ 11-09, con incidente real detrás): nunca compartir una rama larga │
+  │ entre el PC y la nube. Cada sesión crea la suya, la fusiona a     │
+  │ master al terminar, y la borra. master es el único punto de       │
+  │ encuentro.                                                        │
   │                                                                   │
-  │ Y no vuelvas a compartir una rama larga entre el PC y la nube     │
-  │ (CLAUDE.md, regla del 11-09, con incidente real detrás): cada     │
-  │ sesión crea la suya, la fusiona a master al terminar, y la borra. │
-  │ master es el único punto de encuentro.                            │
+  │ (Antes aquí había un "ANTES DE NADA, UNA SOLA VEZ: git checkout   │
+  │ master && git pull". Estaba hecho desde el mismo día que se       │
+  │ escribió, y era lo PRIMERO que leía cada sesión al arrancar:      │
+  │ una instrucción ya cumplida ocupando el sitio de la que importa.) │
   └───────────────────────────────────────────────────────────────────┘
 
   TODO LO QUE QUEDA ES SESIÓN LOCAL, en el PC de la asesoría.

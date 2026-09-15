@@ -1280,6 +1280,7 @@ aclaración de config, no un bug:** `config.example.json` declara
 | `FASE0_RESULTADOS.md` | Los números medidos del histórico |
 | `TECHO_Y_LIMITES.md` | Qué hay por encima del motor actual, medido |
 | `FLUJO_TRABAJO_REAL.md` | Cuánto tarda cada paso del trabajo real de Diego, y qué cubre el motor |
+| `archivo/README.md` | Las sondas de agosto que ya no usa nadie: qué midieron y qué premisas suyas se corrigieron después |
 | `.claude/rules/datos.md` | La frontera de datos. Manda sobre todo lo demás |
 
 ---

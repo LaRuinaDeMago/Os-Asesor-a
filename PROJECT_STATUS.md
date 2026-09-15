@@ -7,6 +7,55 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 15-09-2026 (sesión local, undécima entrada) — Repaso de limpieza: la raíz baja de 105 a 87 `.py`, y una instrucción ya cumplida deja de ser lo primero que lee cada sesión
+
+Repaso pedido explícitamente antes de abrir trabajo nuevo: *"repasemos todo lo
+que tenemos de manera minuciosa para dejarlo lo más limpio posible"*. Protocolo
+completo primero — `arranque.py`, auditor (**41 checks, código 2**, el mismo ⚠️
+de siempre por `anthropic`/`google-genai` sin instalar, bloqueadas por DPA) y
+`test_motor_veredicto.py` (**100% en verde**). Nada roto de partida.
+
+**Cuatro cosas encontradas, todas medidas antes de tocarlas:**
+
+**1 · La cabecera de `PENDIENTE.md` mandaba hacer algo ya hecho.** Decía *"ANTES
+DE NADA, UNA SOLA VEZ: `git checkout master && git pull`"*, y `arranque.py` la
+imprime al empezar **cualquier** sesión: era literalmente lo primero que se leía.
+Comprobado en vez de suponerlo: única rama local `master`; `master` y
+`origin/master` a 0 commits de diferencia **en los dos sentidos**; y la rama
+`claude/github-retomada-o4zyic` lleva **0 commits que master no tenga** (el diff
+va en el otro sentido — está estrictamente atrasada). Sustituida por el estado
+real, conservando la regla permanente (no compartir ramas largas entre PC y nube).
+
+**2 · 18 scripts que no miraba nadie, movidos a `archivo/`.** Medido con las tres
+condiciones a la vez, no a ojo: ningún `.py` los importa, ninguna documentación
+los nombra (buscado con `.py` y sin él, en todos los `.md` y en `.claude/`), y
+los 18 tienen `__main__` — scripts sueltos, no módulos de los que dependa nada.
+La raíz pasa de **105 a 87 `.py`**. No se ha borrado ninguno: son las sondas que
+produjeron `FASE0_RESULTADOS.md` y borrarlas dejaría esas cifras sin nada detrás.
+`archivo/README.md` avisa de lo que importa de verdad — **varias de sus premisas
+fueron corregidas después** (los cuatro errores documentados en
+`ARQUITECTURA_DATOS.md` §4 son justo de esa época), así que valen para entender
+**por qué** se decidió lo que se decidió, nunca como fuente del estado actual.
+
+> El primer recuento dio 24 huérfanos y era **falso**: buscaba `fase0_reagrupa.py`
+> con la extensión, y la documentación lo cita como `fase0_reagrupa`. Repetido
+> buscando las dos formas, bajó a 19. Sin esa segunda pasada se habrían archivado
+> 5 scripts que la documentación sí nombra, dejando referencias rotas.
+
+**3 · Un script de la raíz no está en el repositorio, y nada lo delata.**
+`diag_formato_303_local.py` lo excluye `.gitignore` por la regla `*_local.*`:
+vive sólo en el PC de la asesoría y nunca ha subido a GitHub. Por eso se quedó
+fuera del movimiento (está fuera del contrato del repositorio), pero queda
+anotado en `archivo/README.md`: mirando `ls *.py` nada permite distinguirlo.
+Salió por casualidad — su fecha de último commit venía vacía en el recuento.
+
+**4 · `FASE0_RESULTADOS.md` decía "los seis scripts `fase0_*.py`".** Acabaron
+siendo 20. Corregido con el reparto real (9 en la raíz, 11 en `archivo/`) y un
+puntero al README, para que el documento sepa dónde vive lo que lo produjo.
+
+Auditor y motor ejecutados **otra vez después** de mover: resultado idéntico
+(41 verdes, código 2; 100% en verde). `scripts/privacy_scan.py` sin hallazgos.
+
 ## 15-09-2026 (sesión local, décima entrada) — Estructura de `\\PC01\Documentos`: organizada por cliente, pero solo el 24% de los PDF se identifica por el nombre solo
 
 Continuación de la sesión (novena/octava entrada, mismo día). Dos revisiones

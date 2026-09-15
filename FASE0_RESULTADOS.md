@@ -3,9 +3,21 @@
 **Fecha de ejecución:** 11-08-2026
 **Corpus:** copias de seguridad de ContaPlus del despacho, 2016–2026. Carpeta local,
 fuera del repositorio. Nunca sube nada de ella.
-**Método:** los seis scripts `fase0_*.py` de este repositorio, ejecutados en local.
+**Método:** los scripts `fase0_*.py` de este repositorio, ejecutados en local.
 Ninguna fila de dato real llegó al modelo: todos los scripts están construidos para
 emitir únicamente recuentos, porcentajes y estructura del PGC.
+
+> **Dónde están esos scripts hoy (15-09-2026).** Decía "los **seis** scripts" y
+> ya no era verdad: acabaron siendo 20, escritos a lo largo de agosto según hacía
+> falta medir una cosa más. En el repaso de limpieza del 15-09 se repartieron
+> entre dos sitios, y ninguno se ha borrado:
+>
+> - **9 siguen en la raíz** — los que alguna documentación viva todavía nombra.
+> - **11 están en `archivo/`**, junto a 7 `diag_*.py` de la misma época, porque
+>   no los importaba ningún módulo ni los citaba ninguna documentación.
+>   `archivo/README.md` explica por qué siguen existiendo y, sobre todo, **qué
+>   premisas suyas han sido corregidas después** — léelo antes de volver a
+>   ejecutar cualquiera de ellos.
 
 > Números medidos, no estimados. Donde algo no se ha medido, se dice.
 
