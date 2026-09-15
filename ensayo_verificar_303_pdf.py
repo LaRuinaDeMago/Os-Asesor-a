@@ -293,6 +293,36 @@ def main():
     comprobar("ni cuando falta solo una de las dos",
               comparar_contra_totales(contab, {27: 1.0}, 1.00) is None)
 
+    # --- LAS BASES, la mitad que faltaba (15-09-2026) -------------------
+    # Mismo patron que la cuota: nuestra base devengada suma todo el 477, y
+    # 01+04+07 es solo el regimen general. La base de la ISP esta en la 12.
+    BASE_GENERAL, BASE_ISP = 6285.14, 2000.00
+    contab_b = (BASE_GENERAL + BASE_ISP, cuota_general + ISP,
+                2338.00, cuota_ded_general + ISP, False)
+    oficiales_b = dict(oficiales)
+    oficiales_b.update({1: BASE_GENERAL, 12: BASE_ISP, 28: 2338.00})
+    t_b = comparar_contra_totales(contab_b, oficiales_b, 1.00,
+                                  casillas_todas=oficiales_b)
+    comprobar("aparece la comparacion de BASES", "bases" in t_b, str(t_b.keys()))
+    comprobar("y contra la COLUMNA entera de bases cuadra (01 + 12, no solo 01)",
+              t_b["bases"]["cuadra"], str(t_b["bases"]))
+    comprobar("dice cuantas casillas de base ha llegado a leer",
+              t_b["bases"]["casillas_leidas"] == 3, str(t_b["bases"]))
+
+    # Y no tapa un descuadre real de base.
+    contab_b_mal = (BASE_GENERAL + BASE_ISP - 900.0, cuota_general + ISP,
+                    2338.00, cuota_ded_general + ISP, False)
+    t_b_mal = comparar_contra_totales(contab_b_mal, oficiales_b, 1.00,
+                                      casillas_todas=oficiales_b)
+    comprobar("una base que falta de verdad sigue saliendo mal",
+              not t_b_mal["bases"]["cuadra"], str(t_b_mal["bases"]))
+
+    # Si el PDF no trae ninguna casilla de base legible, no se inventa nada.
+    t_sin_bases = comparar_contra_totales(contab_b, oficiales, 1.00,
+                                          casillas_todas={27: 1.0, 45: 1.0})
+    comprobar("sin casillas de base leidas no se publica comparacion de bases",
+              "bases" not in t_sin_bases, str(t_sin_bases))
+
     # === H. Manifest por CLIENTE, no por trimestre (14-09-2026) ============
     print("\n=== H. expandir_entradas(): una linea por cliente, no por trimestre ===")
     # POR QUE: la linea de tres campos se paga por TRIMESTRE (buscar el PDF,

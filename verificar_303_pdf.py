@@ -62,7 +62,8 @@ logging.getLogger("pdfminer").setLevel(logging.ERROR)
 from extraer_303_pdf import (extraer_casillas, CASILLAS_DEVENGADO, CASILLAS_DEDUCIBLE,
                               patron_casilla, extraer_numero_tras,
                               CASILLAS_PARA_CUADRE, CASILLAS_PARA_AVISOS,
-                              veredicto_lectura, conceptos_que_no_podemos_tener)
+                              veredicto_lectura, conceptos_que_no_podemos_tener,
+                              BASES_DEVENGADO, BASES_DEDUCIBLE)
 #: NO se reescribe el reconocimiento de trimestre por nombre de fichero: ya
 #: existe, y ya se peleo con el archivo real. `cruzar_303_importes.py` lo
 #: amplio el 26-08-2026 porque el patron estricto dejaba fuera 145 de los
@@ -157,7 +158,8 @@ def totales_pdf(casillas):
 CASILLAS_OFICIALES = tuple(dict.fromkeys(
     (CASILLA_ISP_BASE, CASILLA_ISP_CUOTA,
      CASILLA_TOTAL_DEVENGADO, CASILLA_TOTAL_A_DEDUCIR)
-    + CASILLAS_PARA_CUADRE + CASILLAS_PARA_AVISOS))
+    + CASILLAS_PARA_CUADRE + CASILLAS_PARA_AVISOS
+    + BASES_DEVENGADO + BASES_DEDUCIBLE))
 
 
 def extraer_casillas_oficiales(texto):
@@ -199,7 +201,7 @@ def explicar_por_isp(diffs, oficiales, tolerancia):
     }
 
 
-def comparar_contra_totales(contab, oficiales, tolerancia):
+def comparar_contra_totales(contab, oficiales, tolerancia, casillas_todas=None):
     """Segunda comparacion, contra los TOTALES QUE EL PROPIO MODELO CALCULA:
     casilla 27 (total cuota devengada) y casilla 45 (total a deducir).
     Devuelve None si el PDF no trae esas dos casillas legibles.
@@ -240,22 +242,51 @@ def comparar_contra_totales(contab, oficiales, tolerancia):
     contable, no un detalle de implementacion."""
     if not oficiales:
         return None
+    if casillas_todas is None:
+        casillas_todas = oficiales
     cuota_dev_27 = oficiales.get(CASILLA_TOTAL_DEVENGADO)
     cuota_ded_45 = oficiales.get(CASILLA_TOTAL_A_DEDUCIR)
     if cuota_dev_27 is None or cuota_ded_45 is None:
         return None
 
-    _, cuota_dev_c, _, cuota_ded_c, _ = contab
+    base_dev_c, cuota_dev_c, base_ded_c, cuota_ded_c, _ = contab
     d_dev = round(cuota_dev_c - cuota_dev_27, 2)
     d_ded = round(cuota_ded_c - cuota_ded_45, 2)
     peor = max(abs(d_dev), abs(d_ded))
-    return {
+    resultado = {
         "diferencia_cuota_devengado": d_dev,
         "diferencia_cuota_deducible": d_ded,
         "max_diferencia": peor,
         "cuadra": peor <= tolerancia,
         "cuadra_exacto": peor < 0.005,
     }
+
+    # --- Y LAS BASES (anadido 15-09-2026) -----------------------------
+    # La mitad que faltaba. El desglose de un NO_CUADRA enseña cuatro
+    # diferencias, y hasta hoy las dos de BASE se comparaban contra
+    # 01+04+07: solo el regimen general ordinario, sin la base de la ISP
+    # (casilla 12) ni la de las intracomunitarias (10). Exactamente el mismo
+    # defecto que tenia la cuota antes de compararla contra la 27 -- y un
+    # numero grande ahi manda a investigar un descuadre que no existe.
+    #
+    # DIFERENCIA DE FONDO, y por eso va en su propia clave: el 303 NO imprime
+    # ningun total de bases. Esto no es una formula citada del impreso; es la
+    # COLUMNA de bases, sumada por nosotros. Mejor que 01+04+07 sin discusion,
+    # pero con menos respaldo que la 27 y la 45.
+    bases_dev = [casillas_todas[c] for c in BASES_DEVENGADO if c in casillas_todas]
+    bases_ded = [casillas_todas[c] for c in BASES_DEDUCIBLE if c in casillas_todas]
+    if bases_dev or bases_ded:
+        db_dev = round(base_dev_c - round(sum(bases_dev), 2), 2)
+        db_ded = round(base_ded_c - round(sum(bases_ded), 2), 2)
+        peor_base = max(abs(db_dev), abs(db_ded))
+        resultado["bases"] = {
+            "diferencia_base_devengado": db_dev,
+            "diferencia_base_deducible": db_ded,
+            "max_diferencia": peor_base,
+            "cuadra": peor_base <= tolerancia,
+            "casillas_leidas": len(bases_dev) + len(bases_ded),
+        }
+    return resultado
 
 
 def comparar_caso(contab, pdf, tolerancia=TOLERANCIA_REDONDEO, oficiales=None):
@@ -310,7 +341,8 @@ def comparar_caso(contab, pdf, tolerancia=TOLERANCIA_REDONDEO, oficiales=None):
         explicacion = explicar_por_isp(diffs, oficiales, tolerancia)
         if explicacion is not None:
             resultado["explicacion_isp"] = explicacion
-        totales = comparar_contra_totales(contab, oficiales, tolerancia)
+        totales = comparar_contra_totales(contab, oficiales, tolerancia,
+                                           casillas_todas=oficiales)
         if totales is not None:
             resultado["contra_totales_del_modelo"] = totales
 
@@ -632,6 +664,15 @@ def main():
                     print("                contabilidad: 03+06+09 es solo el regimen general,")
                     print("                y el 477 del trimestre lleva ademas ISP (12/13),")
                     print("                intracomunitarias (11) o modificaciones (15).")
+                b = totales.get("bases")
+                if b:
+                    estado_b = "cuadran" if b["cuadra"] else "NO cuadran"
+                    print(f"           y las BASES contra su columna entera "
+                          f"({b['casillas_leidas']} casillas leidas): {estado_b}")
+                    print(f"             devengado: {b['diferencia_base_devengado']:.2f}  "
+                          f"deducible: {b['diferencia_base_deducible']:.2f}")
+                    print("             (el 303 no imprime ningun total de bases: esto es")
+                    print("              la columna sumada por nosotros, no una formula suya)")
             conceptos = r.get("conceptos_no_modelados")
             if conceptos:
                 print("           ESTE 303 DECLARA COSAS QUE NUESTRA RECONSTRUCCION "

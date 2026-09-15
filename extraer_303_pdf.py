@@ -192,6 +192,40 @@ FORMULAS_IMPRESAS_VERIFICADAS = {
     2024: {27: (152, 167, 3, 155, 6, 9, 11, 13, 15, 158, 170, 18, 21, 24, 26)},
     2026: {27: (152, 167, 3, 155, 6, 9, 11, 13, 15, 158, 170, 18, 21, 24, 26)},
 }
+# ----------------------------------------------------------------------
+# LAS TRES COLUMNAS DEL IMPRESO — leidas del formulario oficial
+# ----------------------------------------------------------------------
+# El impreso de 2022 agrupa las casillas POR COLUMNA en el propio PDF, y eso
+# da la estructura completa sin interpretarla:
+#
+#   deducible  BASE   28 30 32 34 36 38 40
+#   deducible  CUOTA  29 31 33 35 37 39 41 42 43 44   <- es la formula de la 45
+#   devengado  CUOTA  03 06 09 11 13 15 18 21 24 26   <- es la formula de la 27
+#   devengado  BASE   01 04 07 10 12 14 16 19 22 25
+#   devengado  TIPO   02 05 08 17 20 23
+#
+# Confirmacion INDEPENDIENTE de las dos formulas: salen de la columna, no de
+# la linea del total. Y de paso da lo que faltaba para comparar las BASES.
+# El de 2024 anade los tripletes de tipos reducidos temporales, cada uno
+# (base, tipo, cuota): 150/151/152, 165/166/167, 153/154/155, 156/157/158,
+# 168/169/170.
+BASES_DEVENGADO = (150, 165, 1, 153, 4, 7, 10, 12, 14, 156, 168, 16, 19, 22, 25)
+BASES_DEDUCIBLE = (28, 30, 32, 34, 36, 38, 40)
+
+#: Casillas que llevan un PORCENTAJE, no euros. Varias vienen PREIMPRESAS en
+#: el formulario (4,00 / 10,00 / 21,00 / 1,75 / 0,50 / 1,40 / 5,20), asi que
+#: cualquier logica que las trate como importe se equivoca en los 1.168 PDF.
+CASILLAS_DE_TIPO = (2, 5, 8, 17, 20, 23, 151, 154, 157, 166, 169)
+
+#: OJO, Y ES UNA DIFERENCIA DE FONDO CON LA 27 Y LA 45: el 303 **no imprime
+#: ningun total de bases**. No hay una casilla "total base devengada". Asi que
+#: BASES_DEVENGADO no es una formula citada del impreso: es la COLUMNA
+#: entera, sumada por nosotros. Sigue siendo el conjunto correcto contra el
+#: que comparar nuestra base reconstruida --y es muchisimo mejor que 01+04+07,
+#: que deja fuera la ISP y las intracomunitarias-- pero su respaldo es la
+#: estructura del impreso, no una linea que diga "= tal + tal". Se declara
+#: aparte por eso.
+
 #: La 45 NO ha cambiado: identica en 2022, 2023, 2024 y 2026.
 #: La 46 tampoco: "Resultado regimen general (27 - 45)" en los cuatro.
 FORMULA_45_VERIFICADA = (29, 31, 33, 35, 37, 39, 41, 42, 43, 44)

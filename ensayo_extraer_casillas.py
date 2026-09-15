@@ -46,7 +46,8 @@ from extraer_303_pdf import (extraer_casillas, patron_casilla,
                               cuadre_interno, veredicto_lectura,
                               conceptos_que_no_podemos_tener,
                               FORMULAS_IMPRESAS_VERIFICADAS, FORMULA_45_VERIFICADA,
-                              SUMANDOS_TOTAL_DEVENGADO, SUMANDOS_TOTAL_A_DEDUCIR)
+                              SUMANDOS_TOTAL_DEVENGADO, SUMANDOS_TOTAL_A_DEDUCIR,
+                              BASES_DEVENGADO, BASES_DEDUCIBLE, CASILLAS_DE_TIPO)
 
 FALLOS = []
 
@@ -279,6 +280,41 @@ def main():
                29: 300.0, 45: 300.0, 46: 1400.0}
     comprobar("un impreso de 2022 cuadra con la formula de 2026 (superconjunto)",
               veredicto_lectura(de_2022)[0] == "OK", str(veredicto_lectura(de_2022)))
+
+    print("\nL. Las tres columnas del impreso no se pisan entre si")
+    # El impreso de 2022 agrupa las casillas POR COLUMNA. Eso da una
+    # confirmacion INDEPENDIENTE: la columna de cuotas del devengado es,
+    # casilla por casilla, la formula de la 27. Si las dos dejaran de
+    # coincidir, una de las dos transcripciones esta mal.
+    cuotas_dev = set(SUMANDOS_TOTAL_DEVENGADO)
+    bases_dev = set(BASES_DEVENGADO)
+    tipos = set(CASILLAS_DE_TIPO)
+    comprobar("ninguna casilla es a la vez base y cuota del devengado",
+              not (cuotas_dev & bases_dev), f"repetidas: {sorted(cuotas_dev & bases_dev)}")
+    comprobar("ninguna casilla de TIPO se cuela entre las bases o las cuotas",
+              not (tipos & (cuotas_dev | bases_dev)),
+              f"repetidas: {sorted(tipos & (cuotas_dev | bases_dev))}")
+    comprobar("las tres columnas del devengado tienen el mismo numero de filas",
+              len(cuotas_dev) == len(bases_dev) == 15,
+              f"cuotas={len(cuotas_dev)} bases={len(bases_dev)}")
+
+    cuotas_ded = set(SUMANDOS_TOTAL_A_DEDUCIR)
+    bases_ded = set(BASES_DEDUCIBLE)
+    comprobar("ninguna casilla es a la vez base y cuota del deducible",
+              not (cuotas_ded & bases_ded), f"repetidas: {sorted(cuotas_ded & bases_ded)}")
+    # 42, 43 y 44 no tienen columna de base en el impreso: son un importe
+    # suelto. Por eso el deducible tiene 10 cuotas y solo 7 bases.
+    comprobar("el deducible tiene 7 bases y 10 cuotas (42, 43 y 44 no llevan base)",
+              len(bases_ded) == 7 and len(cuotas_ded) == 10,
+              f"bases={len(bases_ded)} cuotas={len(cuotas_ded)}")
+
+    # Y la comprobacion que de verdad ata las dos lecturas: en el impreso,
+    # cada fila del deducible es (base, cuota) con la base impar-1. Si la
+    # transcripcion de una columna estuviera desplazada, esto cae.
+    parejas = [(28,29),(30,31),(32,33),(34,35),(36,37),(38,39),(40,41)]
+    comprobar("cada base del deducible va con la cuota siguiente, como en el impreso",
+              all(b in bases_ded and c in cuotas_ded for b, c in parejas),
+              str([(b,c) for b,c in parejas if b not in bases_ded or c not in cuotas_ded]))
 
     print()
     if FALLOS:

@@ -7,6 +7,83 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 15-09-2026 (sesión Cloud, cuarta entrada) — Las bases, y la estructura del 303 leída de la columna del impreso
+
+Quedaba pendiente la mitad simétrica: el 27/45 arregló las **cuotas**, pero el
+desglose de un `NO_CUADRA` enseña cuatro diferencias y las dos de **base**
+seguían comparándose contra `01+04+07` — sólo el régimen general ordinario, sin
+la base de la ISP (casilla 12) ni la de las intracomunitarias (10). El mismo
+defecto que tenía la cuota, y un número grande ahí manda a investigar un
+descuadre que no existe.
+
+### El impreso da la estructura sin que haya que interpretarla
+
+Extrayendo el formulario de 2022 apareció algo que no esperaba: el PDF **agrupa
+las casillas por columna**.
+
+```
+deducible  BASE   28 30 32 34 36 38 40
+deducible  CUOTA  29 31 33 35 37 39 41 42 43 44
+devengado  CUOTA  03 06 09 11 13 15 18 21 24 26
+devengado  BASE   01 04 07 10 12 14 16 19 22 25
+devengado  TIPO   02 05 08 17 20 23
+```
+
+Eso es una **confirmación independiente** de las dos fórmulas: la columna de
+cuotas del devengado es, casilla por casilla, la fórmula de la 27; la del
+deducible es la de la 45. Salen de la estructura, no de la línea del total. Y de
+paso da lo que faltaba para las bases. El impreso de 2024 añade los tripletes de
+tipos reducidos temporales, cada uno `(base, tipo, cuota)`.
+
+### Una diferencia de fondo, y por eso va en su propia clave
+
+**El 303 no imprime ningún total de bases.** No hay una casilla *"total base
+devengada"*. Así que `BASES_DEVENGADO` **no es una fórmula citada del impreso**:
+es la columna entera, sumada por nosotros. Sigue siendo el conjunto correcto
+contra el que comparar —y es incomparablemente mejor que `01+04+07`— pero su
+respaldo es la estructura del impreso, no una línea que diga *"= tal + tal"*.
+El script lo declara con esas palabras al imprimirlo.
+
+### Y una tercera columna que faltaba nombrar
+
+`CASILLAS_DE_TIPO` = 02, 05, 08, 17, 20, 23, 151, 154, 157, 166, 169. Varias
+vienen **preimpresas** en el formulario (4,00 / 10,00 / 21,00 / 1,75 / 0,50 /
+1,40 / 5,20): cualquier lógica que las trate como importe se equivoca en los
+1.168 PDF a la vez. Ya se usó para que el aviso de recargo de equivalencia no
+salte con un porcentaje preimpreso; ahora está nombrada y probada.
+
+### Exportaciones e importaciones, que preguntó Diego
+
+- **Exportaciones** (casilla 60) y **entregas intracomunitarias** (59) están en
+  *Información adicional*, fuera de la liquidación, y son **operaciones
+  exentas**: no llevan IVA, así que no pasan por el 477. **No afectan a la
+  comparación.** Un cliente exportador no da problema por ese lado.
+- **Importaciones**: sí entran, en la 32/33 (corrientes) y 34/35 (inversión), y
+  las dos cuotas están dentro de la fórmula de la 45. Si ContaPlus lleva el IVA
+  del DUA al 472, quedan cubiertas; si lo lleva aparte, no. **Es una pregunta
+  empírica sin contestar**, y por eso el aviso de "conceptos que no podemos
+  tener" las nombra en vez de afirmar nada. Ahora la comparación de bases ayuda
+  a distinguirlo: si la base 32/34 trae importe y nuestra base no cuadra, ahí
+  está la respuesta.
+
+### Pruebas
+
+Familia L de `ensayo_extraer_casillas.py`: las tres columnas no se pisan, ninguna
+casilla de tipo se cuela entre bases o cuotas, el devengado tiene 15 filas en las
+dos columnas, el deducible tiene 7 bases y 10 cuotas (42, 43 y 44 no llevan base)
+y cada base va con la cuota siguiente. Más 5 comprobaciones nuevas en
+`ensayo_verificar_303_pdf.py`.
+
+Resaboteado en cuatro variantes —volver a `01+04+07`, desplazar la columna de
+bases del deducible, marcar una casilla de cuota como si fuera de tipo, dar las
+bases por cuadradas siempre—: **las cuatro caen, en las comprobaciones exactas.**
+
+### Estado tras la sesión
+
+`audit_project.py`: **36 ✅ · 1 ⚠️ · 0 ❌**. Motor **65/65**, adversarial
+**112/112**, **27/27 suites**, privacidad sin hallazgos. **No se tocó
+`motor_veredicto.py`** ni se añadió ningún guard.
+
 ## 15-09-2026 (sesión Cloud, tercera entrada) — Las fórmulas del 303, verificadas contra el impreso oficial de cuatro ejercicios
 
 Diego preguntó si no podíamos ir a la AEAT y asegurarnos al 100% de que el
