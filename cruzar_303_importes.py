@@ -12,6 +12,25 @@ estructural, no un bug: en un 303 los importes viven en una REJILLA, y al
 aplanar la rejilla a texto el numero que queda cerca de una etiqueta suele
 ser el de otra casilla. Aparcado, y con razon.
 
+> ⚠️ **REVISADO 14-09 Y 15-09-2026 (revision de rigor, misma fecha, antes
+> de empujar a origin): "la razon es estructural, no un bug" resulto ser
+> solo PARCIALMENTE cierto.** El 1,2% tenia dos bugs de lectura reales por
+> medio, los dos identificados y cerrados con el impreso delante (no
+> adivinados): el patron de etiqueta casaba con digitos DENTRO de un
+> importe, y `extraer_casillas()` se quedaba con la PRIMERA aparicion de
+> una etiqueta aunque no llevara numero detras -- perdiendo el valor real
+> que estaba mas adelante en la rejilla. Con los dos arreglados, probado
+> contra el corpus real (3 clientes, 9 trimestres, 15-09-2026): **lectura
+> correcta 9/9**, no 1,2%. El argumento de fondo (la rejilla se aplana en
+> un orden que no siempre coincide con la lectura humana) seguia siendo
+> real y sigue explicando POR QUE hacian falta esos arreglos -- pero ya no
+> es una barrera estructural insalvable, era una lectura sin terminar de
+> arreglar. Esto NO decide si este script sigue haciendo falta: solo deja
+> escrito que la premisa que lo justificaba ha cambiado, para que quien
+> decida sobre su futuro lo haga con el dato de hoy, no con el de agosto.
+> Detalle completo en `PROJECT_STATUS.md` (15-09, octava entrada) y
+> `FASE0_RESULTADOS.md` (14-bis).
+
 Este script no repite ese error porque no necesita resolverlo. Le da la
 vuelta a la pregunta:
 

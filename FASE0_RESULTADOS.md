@@ -716,6 +716,20 @@ tubería alrededor de un objetivo aún no confirmado sería trabajo
 prematuro. **Pendiente: la muestra manual, y decidir después si merece la
 pena un extractor consciente de tabla/posición.**
 
+> ⚠️ **SUPERADO — 14-09 y 15-09-2026.** El "1,2% de consistencia" de aquí
+> arriba tenía dos bugs de lectura por medio, los dos ya cerrados: el
+> patrón de etiqueta casaba con dígitos DENTRO de un importe (arreglado
+> 14-09, con el impreso delante) y `extraer_casillas()` se quedaba con la
+> PRIMERA aparición de una etiqueta aunque no llevara número detrás
+> (arreglado 15-09, caso real SP_C_13). La "muestra manual" que este
+> párrafo pedía como pendiente ya se hizo — 3 clientes, 9 trimestres reales
+> — con resultado: **lectura correcta 9/9**, ya no hace falta la
+> comparación a mano que este párrafo proponía. Detalle completo en
+> `PROJECT_STATUS.md` (15-09, octava entrada) y en `PENDIENTE.md` punto
+> 1. La decisión de "no seguir invirtiendo" queda revocada por los hechos,
+> no reescrita aquí para no perder el rastro de por qué hacía falta
+> investigar en su momento.
+
 ### Lo que esta sección NO responde
 
 Sigue sin tocar el **Punto 1** (§ siguiente): la consistencia por par
