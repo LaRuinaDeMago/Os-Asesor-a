@@ -3,11 +3,31 @@
 # Nace del fallo silencioso de un caso real anonimizado (NIF mal leído casó con OTRO proveedor real).
 import re, unicodedata, difflib
 
+# La validación de NIF que decide veredictos es UNA sola, y es la del motor.
+# `nif_check` no importa nada, así que no hay riesgo de import circular.
+from nif_check import valida_nif as _valida_nif_del_motor
+
 # ---------- 1. VALIDACIÓN ESTRUCTURAL DEL NIF (dígito de control) ----------
 def _limpia(nif): return re.sub(r'[^A-Z0-9]', '', (nif or '').upper())
 
 def valida_nif(nif):
-    """Devuelve (valido:bool, tipo:str, motivo:str)."""
+    """Devuelve (valido:bool, tipo:str, motivo:str).
+
+    ⚠️ NO LA USA EL MOTOR, Y NO DEBE USARLA. Desde el 15-09-2026, `triangula()`
+    llama a `nif_check.valida_nif` (importada arriba como
+    `_valida_nif_del_motor`), que es la única implementación que decide
+    veredictos.
+
+    Esta se queda porque `diag_nif.py` existe precisamente para COMPARAR las
+    dos contra el corpus real — de esa comparación salieron las correcciones
+    del 25-08-2026 que hoy viven en `nif_check.py`. Borrarla dejaría ese
+    diagnóstico comparando una cosa consigo misma.
+
+    La diferencia, medida el 15-09: ésta sólo sabe decir sí/no. Para un campo
+    vacío, de 1-2 caracteres, o un DNI/CIF al que le falta sólo el dígito de
+    control, dice `False` — y eso, convertido en veredicto, es un FALLO
+    inventado sobre un NIF que nunca se llegó a capturar.
+    """
     n = _limpia(nif)
     if not n: return False, '', 'vacío'
     # NIF persona física: 8 dígitos + letra
@@ -76,12 +96,42 @@ def triangula(nif_cabecera, nombre_cabecera, nombre_margen, nif_margen, tabla_cl
     Devuelve dict con veredicto: OK | ALERTA | ALTA | RECHAZO y el detalle.
     """
     out = {'nif': _limpia(nif_cabecera), 'fuentes': {}, 'veredicto': None, 'motivos': []}
-    # Fuente 1: NIF de cabecera, estructuralmente válido
-    ok_nif, tipo, motivo = valida_nif(nif_cabecera)
+    # Fuente 1: NIF de cabecera, estructuralmente válido.
+    #
+    # CORREGIDO 15-09-2026. Aquí se llamaba a la valida_nif LOCAL de este
+    # módulo, que sólo devuelve True/False. El motor usa `nif_check.valida_nif`,
+    # que devuelve TRES estados desde la corrección del 25-08-2026 (verificada
+    # sobre el corpus real). Resultado: la misma factura podía recibir
+    # SIN_DATO del guard de NIF y FALLO del guard de triangulación.
+    #
+    # Es el mismo bug, en la misma forma, que el del "tipo 0" del 15-09:
+    # un arreglo aplicado en un fichero y no en el otro que calcula lo mismo.
+    # Medido antes de tocar nada: '1', '12', '12345678' y 'B1234567' daban
+    # None/SIN_DATO en nif_check y False aquí -> RECHAZO -> FALLO del motor.
+    # Y 'DE123456789' (NIF-IVA UE) daba None/NO_COMPROBADO allí y True aquí.
+    #
+    # Ahora manda `nif_check`, que es la del motor, y se distinguen los tres:
+    #   True  -> hay NIF y es correcto: se sigue triangulando.
+    #   False -> hay NIF y el dígito de control lo desmiente: RECHAZO. Es el
+    #            único caso con EVIDENCIA de que la identidad está mal.
+    #   None  -> no hay NIF que evaluar (campo vacío o demasiado corto), o el
+    #            formato no se puede comprobar aquí (NIF-IVA UE, que exige
+    #            VIES). NO es RECHAZO: declarar FALLO sin evidencia es el
+    #            mismo error que el "OK por omisión" que el proyecto prohíbe,
+    #            en sentido inverso (así lo dice ya el comentario de
+    #            nif_check.py). Se devuelve ALERTA, que el motor traduce a
+    #            NO_COMPROBADO.
+    ok_nif, tipo, motivo = _valida_nif_del_motor(nif_cabecera)
     out['fuentes']['nif_cabecera'] = {'valor': _limpia(nif_cabecera), 'valido': ok_nif, 'tipo': tipo}
-    if not ok_nif:
+    if ok_nif is False:
         out['veredicto'] = 'RECHAZO'
         out['motivos'].append(f'NIF no supera el dígito de control ({motivo}) → captura defectuosa')
+        return out
+    if ok_nif is None:
+        out['veredicto'] = 'ALERTA'
+        out['motivos'].append(
+            f'no se puede triangular por el NIF de cabecera ({tipo}: {motivo}) '
+            f'→ no hay evidencia de que la identidad esté mal, pero tampoco de que esté bien')
         return out
     # Fuente 2: NIF del margen (si se leyó) debe coincidir con el de cabecera
     if nif_margen:

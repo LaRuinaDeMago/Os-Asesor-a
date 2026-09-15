@@ -346,6 +346,52 @@ v, _ = evaluar({**BUENA_K, 'proveedor': 'EMPRESA DISTINTA SA',
 comprobar("K", "triangulacion: NIF casa pero el NOMBRE no (el peor caso) -> no VERDE",
           v != "VERDE", f"veredicto={v}", "AMBAR o ROJO", "P0")
 
+# 3-bis — ANADIDO 15-09-2026, defecto real encontrado en el repaso completo.
+# triangula() llamaba a la valida_nif LOCAL de triangulacion_identidad_v0 (dos
+# estados: si/no) en vez de a la del motor (nif_check, TRES estados desde la
+# correccion del 25-08 verificada sobre el corpus real). Consecuencia medida:
+# un NIF que nunca se llego a capturar (campo vacio, de 1-2 caracteres, o un
+# DNI/CIF al que le falta solo el digito de control) daba False -> RECHAZO ->
+# ROJO. Un FALLO inventado sobre un dato que no existe: el mismo error que el
+# "OK por omision" que este proyecto prohibe, en sentido inverso.
+#
+# Ojo con lo que NO se prueba aqui: el guard solo se dispara si la captura
+# declara nif_margen/nombre_margen, asi que estos casos llevan margen a
+# proposito. Sin margen el guard es NO_APLICA y el defecto no se ve.
+from triangulacion_identidad_v0 import triangula as _triangula
+
+r = _triangula('12345678', 'PROVEEDOR PILOTO SL', 'PROVEEDOR PILOTO SL', NIF_OK, {})
+comprobar("K", "triangulacion: DNI sin letra (incompleto, no invalido) -> NO es RECHAZO",
+          r['veredicto'] != 'RECHAZO', f"veredicto={r['veredicto']}", "ALERTA", "P0")
+r = _triangula('1', 'PROVEEDOR PILOTO SL', 'PROVEEDOR PILOTO SL', NIF_OK, {})
+comprobar("K", "triangulacion: campo de 1 caracter (nunca capturado) -> NO es RECHAZO",
+          r['veredicto'] != 'RECHAZO', f"veredicto={r['veredicto']}", "ALERTA", "P0")
+r = _triangula('DE123456789', 'PROVEEDOR UE', 'PROVEEDOR UE', '', {})
+comprobar("K", "triangulacion: NIF-IVA UE no verificable aqui -> NO se da por bueno",
+          r['veredicto'] != 'OK', f"veredicto={r['veredicto']}", "ALERTA", "P0")
+r = _triangula('12345678Y', 'PROVEEDOR PILOTO SL', 'PROVEEDOR PILOTO SL', NIF_OK, {})
+comprobar("K", "triangulacion: digito de control DESMENTIDO sigue siendo RECHAZO",
+          r['veredicto'] == 'RECHAZO', f"veredicto={r['veredicto']}", "RECHAZO", "P0")
+
+# Y el atrapalotodo del mapeo: guard_triangulacion_identidad terminaba en un
+# `return "OK"` para cualquier veredicto que no fuera RECHAZO/ALERTA/ALTA. Un
+# estado nuevo en triangula() -- o un dict sin 'veredicto' -- salia OK sin que
+# nadie lo hubiera comprobado. Ahora el OK hay que decirlo explicitamente.
+import motor_veredicto as _mv
+import contrato_datos as _cd
+import triangulacion_identidad_v0 as _tri_mod
+_guardado = _tri_mod.triangula
+try:
+    _tri_mod.triangula = lambda *a, **k: {'veredicto': 'ESTADO_QUE_NADIE_HA_PREVISTO',
+                                          'motivos': ['inventado por la prueba']}
+    _canon = _cd.canonizar({'nif': NIF_OK, 'proveedor': 'PROVEEDOR PILOTO SL',
+                            'nif_margen': NIF_OK, 'nombre_margen': 'PROVEEDOR PILOTO SL'})
+    estado, _det = _mv.guard_triangulacion_identidad(_canon, {})
+    comprobar("K", "triangulacion: un veredicto que el motor no conoce -> NO_COMPROBADO, nunca OK",
+              estado == "NO_COMPROBADO", f"estado={estado}", "NO_COMPROBADO", "P0")
+finally:
+    _tri_mod.triangula = _guardado
+
 
 print("\n=== FAMILIA L — El 5 confundido con un 8 (medido, no supuesto) ===")
 # La preocupacion central del titular, convertida en prueba: se coge una factura

@@ -7,6 +7,90 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 15-09-2026 (sesión local, decimotercera entrada) — DOS DEFECTOS REALES EN EL MOTOR, encontrados buscando sistemáticamente la forma del bug del "tipo 0"
+
+Tercera pasada del repaso, pedida así: *"analizar todo absolutamente de principio
+a fin [...] para que todo esté bien pulido"*. Las dos pasadas anteriores habían
+ido mirando **una dimensión cada vez**, que es justo por qué cada una encontraba
+cosas nuevas. Esta se hizo **sistemática y con scripts**, no a ojo.
+
+**Cómo se buscó.** El bug nº 2 del 15-09 (`verificar_303_pdf.py` tenía su propia
+suma de la contabilidad y nunca recibió el arreglo del "tipo 0") tiene una
+**forma** reconocible: *la misma lógica escrita en dos ficheros, arreglada en uno
+solo*. En vez de esperar a tropezarse con el siguiente, se buscó esa forma con un
+barrido AST de todo el repositorio: funciones de dominio con el mismo nombre en
+más de un fichero de producción, y constantes con el mismo nombre y distinto
+valor. Tres dimensiones más se barrieron igual (referencias muertas en docs —
+**cero reales**, todas eran referencias partidas por salto de línea).
+
+### Defecto 1 — la triangulación de identidad usaba OTRO validador de NIF
+
+**La cadena, verificada entera:** `motor_veredicto.py` →
+`guard_triangulacion_identidad` (cableado al veredicto, línea 1467) →
+`triangula()` → `valida_nif` **local de `triangulacion_identidad_v0.py`** →
+`if not ok_nif: RECHAZO` → el motor lo traduce a **`FALLO`**.
+
+El motor usa `nif_check.valida_nif`, que devuelve **tres** estados desde la
+corrección del 25-08-2026 (verificada sobre el corpus real). La local devuelve
+**dos**. Medido antes de tocar nada:
+
+| Entrada | `nif_check` (motor) | local (triangulación) | Consecuencia |
+|---|---|---|---|
+| `'1'`, `'12'` | `None` / SIN_DATO | `False` | **ROJO inventado** |
+| `'12345678'` (DNI sin letra) | `None` / SIN_DATO | `False` | **ROJO inventado** |
+| `'B1234567'` (CIF sin control) | `None` / SIN_DATO | `False` | **ROJO inventado** |
+| `'DE123456789'` (NIF-IVA UE) | `None` / NO_COMPROBADO | `True` | **OK sin comprobar** |
+| `'1234567L'` (correcto) | `True` | `True` | igual |
+
+Es decir: **la misma factura podía recibir `SIN_DATO` del guard de NIF y `FALLO`
+del guard de triangulación.** Y el comentario de `nif_check.py` ya decía por qué
+eso está prohibido: *"declararlo FALLO es el mismo error que el 'OK por omisión'
+que este proyecto prohíbe, en sentido inverso: aquí no hay NIF que evaluar"*.
+
+**Arreglado:** `triangula()` llama ahora a `nif_check`. `False` (dígito de control
+desmentido) sigue siendo RECHAZO — es el único caso con **evidencia** de que la
+identidad está mal. `None` pasa a ALERTA → **NO_COMPROBADO**. La `valida_nif`
+local se queda, con un docstring que prohíbe usarla para veredictos, porque
+`diag_nif.py` existe precisamente para comparar las dos contra el corpus real.
+
+### Defecto 2 — un `return "OK"` atrapalotodo en el núcleo del motor
+
+`guard_triangulacion_identidad` terminaba en un `return "OK"` sin condición:
+**cualquier** veredicto que no fuera RECHAZO/ALERTA/ALTA salía OK — un `None`, o
+un estado nuevo que alguien añadiera mañana a `triangula()` sin tocar este mapeo.
+Un OK por omisión en el motor, que es exactamente lo que este proyecto tiene
+prohibido. Ahora el OK hay que **decirlo**, y lo desconocido cae a NO_COMPROBADO.
+
+### Y la afirmación caducada que lo explica todo
+
+`diag_nif.py` describía `triangulacion_identidad_v0.py` como *"un prototipo de
+triangulación de identidad, **no conectado al motor**"*. **Dejó de ser cierto y
+nadie actualizó la línea** — el propio docstring del motor dice *"triangula()
+existía desde julio con test propio y NADIE la llamaba [...] Ahora sí"*. Al
+cablearse `triangula()` se cableó también, sin querer, su validador de NIF: ahí
+nació el defecto 1. Corregido.
+
+### Disciplina y alcance real
+
+- `test_motor_veredicto.py`: **100% en verde ANTES y DESPUÉS** (regla de
+  `.claude/rules/contabilidad.md`).
+- `test_adversarial.py`: de 112 a **117 pruebas, 117 en verde** — 5 nuevas, 4 de
+  ellas P0, incluida una que sustituye `triangula()` por un veredicto inventado
+  para comprobar que el atrapalotodo ya no existe.
+- `audit_project.py`: 41 verdes, código 2 (el ⚠️ de dependencias de siempre).
+- Comprobado que **no hay regresión**: con margen coincidente y proveedor en el
+  histórico, un DNI correcto sigue dando `OK`. (En la primera tabla de
+  comprobación salía ALERTA y parecía una regresión — era el banco de pruebas,
+  que pasaba un NIF de margen distinto. Comprobado antes de darlo por bueno.)
+
+> **Alcance real hoy:** el guard sólo se dispara si la captura declara
+> `nif_margen`/`nombre_margen`, y esa captura es la de IA, **bloqueada por el
+> DPA** (`anthropic` y `google-genai` ni siquiera están instaladas). Así que
+> ninguna factura real ha recibido nunca uno de esos ROJO inventados. **No es un
+> incidente, es una mina desactivada**: habría mordido en la primera factura real
+> procesada después de firmar el DPA, que es justo cuando menos se mira el motor
+> y más se confía en él.
+
 ## 15-09-2026 (sesión local, duodécima entrada) — Tres pendientes reales que no estaban en la única lista de pendientes
 
 Segunda pasada del repaso, pedida expresamente: *"¿has guardado la tabla de los

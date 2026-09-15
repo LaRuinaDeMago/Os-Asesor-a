@@ -163,7 +163,16 @@ def guard_triangulacion_identidad(canon, maestro_proveedores):
         return "NO_COMPROBADO", f"triangulacion ALERTA: {motivos}"
     if v == 'ALTA':
         return "NO_APLICA", f"proveedor nuevo, no esta en el historico: {motivos}"
-    return "OK", "identidad triangulada: cabecera, margen, historico y nombre concuerdan"
+    if v == 'OK':
+        return "OK", "identidad triangulada: cabecera, margen, historico y nombre concuerdan"
+    # CORREGIDO 15-09-2026. Aqui habia un `return "OK"` atrapalotodo: CUALQUIER
+    # veredicto que no fuera RECHAZO/ALERTA/ALTA salia OK, incluido un None (si
+    # triangula() devolviera un dict sin 'veredicto') o un estado nuevo que
+    # alguien anadiera manana a triangula() sin tocar este mapeo. Eso es un OK
+    # por omision en el nucleo del motor, que es exactamente lo que este
+    # proyecto tiene prohibido. Ahora el OK hay que ganarselo diciendolo, y lo
+    # desconocido cae a NO_COMPROBADO, que no es un aprobado.
+    return "NO_COMPROBADO", f"triangulacion devuelve un veredicto que este motor no sabe interpretar: {v!r}"
 
 
 def guard_recargo_equivalencia(canon, tramos):

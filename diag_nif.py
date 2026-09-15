@@ -13,12 +13,29 @@ en "formato no reconocido": cae en la rama CIF y se valida con el algoritmo
 DE CIF, que no es el suyo. Un NIF-IVA extranjero (proveedor intracomunitario,
 prefijo de pais + alfanumerico) no tiene ninguna rama: siempre "DESCONOCIDO".
 
-Existe una SEGUNDA implementacion en el repo, triangulacion_identidad_v0.py
-(un prototipo de triangulacion de identidad, no conectado al motor), que SI
-reconoce NIE con el algoritmo correcto (sustituir X/Y/Z por 0/1/2 y aplicar
-el mismo modulo 23 que el DNI) y NIF-IVA UE por formato. Este script usa esa
-implementacion como REFERENCIA para medir cuanto explica, sin cambiar nada
-todavia.
+Existe una SEGUNDA implementacion en el repo, triangulacion_identidad_v0.py,
+que SI reconoce NIE con el algoritmo correcto (sustituir X/Y/Z por 0/1/2 y
+aplicar el mismo modulo 23 que el DNI) y NIF-IVA UE por formato. Este script
+usa esa implementacion como REFERENCIA para medir cuanto explica, sin cambiar
+nada todavia.
+
+⚠️ CORREGIDO 15-09-2026 — este docstring decia que triangulacion_identidad_v0
+era "un prototipo NO CONECTADO AL MOTOR". **Dejo de ser cierto y nadie
+actualizo esta linea.** motor_veredicto.py importa `triangula` de ese modulo
+en guard_triangulacion_identidad, cableado al veredicto; su propio docstring
+lo dice: "triangula() existia desde julio con test propio y NADIE la llamaba
+[...] Ahora si".
+
+Y eso destapo un defecto real, arreglado el mismo dia: al cablearse, se
+cableo tambien la valida_nif LOCAL de ese modulo, que solo tiene DOS estados.
+Un NIF que nunca se capturo (vacio, 1-2 caracteres, o un DNI/CIF sin su
+digito de control) salia RECHAZO -> ROJO, cuando nif_check.py -- el validador
+del motor -- lo declara SIN_DATO desde la correccion del 25-08. La misma
+factura podia recibir SIN_DATO de un guard y FALLO de otro.
+
+Desde el arreglo, `triangula()` llama a nif_check. Este script SIGUE
+comparando las dos implementaciones a proposito: de esa comparacion salieron
+las correcciones del 25-08, y es la unica forma de ver si vuelven a separarse.
 
 Solo cuenta y clasifica por PATRON ESTRUCTURAL (longitud, si empieza por
 X/Y/Z, si encaja con un prefijo de pais UE). Nunca imprime un NIF real.
