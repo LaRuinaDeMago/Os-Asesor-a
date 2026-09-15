@@ -39,99 +39,97 @@
     archivo de modelos AEAT presentados  \\PC01\Documentos
 
   ═════════════════════════════════════════════════════════════════════
-  1 · EL CUADRE CONTRA EL 303 PRESENTADO   <- EN MARCHA, YA CON RESULTADO
+  1 · EL CUADRE CONTRA EL 303 PRESENTADO   <- PASO A CERRADO, VER PASO C
   ═════════════════════════════════════════════════════════════════════
       Es la ÚNICA verdad externa que este proyecto va a tener nunca.
       Todo lo demás se valida contra sí mismo.
 
-      YA MEDIDO (14-09), primeros casos reales:
-          SP_C_10  ->  CUADRA EXACTO
-          SP_C_11  ->  CUADRA EXACTO
-          SP_C_13  ->  la diferencia coincide EXACTA, en devengado y en
-                       deducible, con la cuota de ISP del propio PDF
-                       (casillas 12/13, no modeladas). Nada sin explicar.
+      [X] A · CONFIRMADO CON DATOS REALES (15-09-2026, sesión local):
+          3 clientes, 9 trimestres —
 
-      Y un bug real encontrado por el camino, ya arreglado: el "tipo 0"
-      que aparecía en las 20 fichas medidas y dejaba el TOTAL en 0,00 era
-      el asiento de liquidación trimestral de IVA (o ISP). Ya no se suma
-      al total, y se sigue declarando aparte.
+              casos totales : 9   cuadran exacto : 2
+              cuadran con redondeo (<=1 EUR) : 6
+              NO cuadran : 1 (SP_C_13 -- explicado ENTERO por ISP,
+                              formacion facturada por proveedor
+                              extranjero sin IVA, confirmado por Diego)
+              lectura correcta : 9/9
 
-      ─── LO SIGUIENTE: UN SOLO COMANDO, y contesta las dos dudas ───
+          SP_C_10 y SP_C_11 (los que ya cuadraban con el lector viejo):
+          SIN REGRESION, y con mas cobertura que antes (4 trimestres cada
+          uno, no solo el ya probado). El umbral de SIGUIENTES_PASOS.md §4
+          sigue sin alcanzarse con solo 3 clientes -- ver punto C para
+          ampliar la muestra cuando toque, no es urgente.
 
-      [ ] A · PASA EL MANIFEST QUE YA TIENES.  Nada más:
+          Por el camino, TRES bugs reales encontrados y cerrados (detalle
+          completo en PROJECT_STATUS.md, 15-09, octava entrada -- sesion
+          local):
+            1) extraer_casillas() se quedaba con la PRIMERA aparicion de
+               una etiqueta de casilla, aunque no llevara importe detras
+               (la formula impresa del propio 303 repite las etiquetas
+               sueltas). Arreglado con localizar_valor_casilla(), que
+               prueba todas las apariciones.
+            2) verificar_303_pdf.py tenia su PROPIA suma de la
+               contabilidad, y nunca recibio el arreglo del "tipo 0" que
+               ya tenia cuadre_303_ficha.py desde el commit 6b2acb2 --
+               mismo bug, dos sitios. Ya arreglado en los dos.
+            3) explicar_por_isp() solo comprobaba la CUOTA de ISP, nunca
+               la BASE, y aplicaba el ajuste aunque un lado ya cuadrara
+               sin el (mensaje falso de "sin explicar"). Ahora comprueba
+               los dos y solo ajusta donde hace falta.
 
-              git pull
-              python verificar_303_pdf.py --manifest verificacion_303_LOCAL.txt
+          Herramienta nueva para diagnosticar sin ver un dato:
+          `diag_orden_extraccion_pdf.py` -- nunca imprime contenido del
+          PDF, solo distancias en caracteres y booleanos.
 
-          Pégame SOLO el bloque RESUMEN. Son recuentos: no lleva ni una
-          clave, ni una ruta, ni un nombre.
+      CÓMO LEER EL RESUMEN, para referencia (ya no hace falta explicarlo
+      cada vez, pero queda aquí por si otra sesión lo necesita). Trae DOS
+      bloques, y el segundo se lee PRIMERO:
 
-          QUÉ VAS A VER, Y CÓMO LEERLO. El RESUMEN trae ahora DOS bloques,
-          y el segundo se lee PRIMERO:
+        1) ¿Se ha leído bien el PDF?   <- ESTE PRIMERO
+           El impreso se cuadra contra SU PROPIA aritmética, la que lleva
+           escrita al lado de cada total:
+               27 = 152+167+03+155+06+09+11+13+15+158+170+18+21+24+26
+               45 = 29+31+33+35+37+39+41+42+43+44
+               46 = 27 - 45
+           Si eso cuadra al céntimo, la lectura es buena. Tres estados:
+               lectura correcta      -> fíate del bloque 2
+               lectura INCORRECTA    -> el descuadre es DEL LECTOR.
+                                        Mira ese PDF, no el asiento
+               sin poder comprobarla -> NO es un aprobado
 
-            1) ¿Se ha leído bien el PDF?   <- ESTE PRIMERO
-               El impreso se cuadra contra SU PROPIA aritmética, la que
-               lleva escrita al lado de cada total:
-                   27 = 152+167+03+155+06+09+11+13+15+158+170+18+21+24+26
-                   45 = 29+31+33+35+37+39+41+42+43+44
-                   46 = 27 - 45
-               Si eso cuadra al céntimo, la lectura es buena. Tres estados,
-               los mismos del motor:
-                   lectura correcta      -> fíate del bloque 2
-                   lectura INCORRECTA    -> el descuadre es DEL LECTOR.
-                                            Mira ese PDF, no el asiento
-                   sin poder comprobarla -> NO es un aprobado
+        2) ¿Cuadra contra la contabilidad?
+           Si NO cuadra contra 03+06+09 (régimen general) pero SÍ contra
+           las casillas 27/45 (los totales del propio modelo), el script
+           te lo dice con estas palabras:
+               "la diferencia de arriba es de CASILLA, no de contabilidad"
+           Y si el 303 declara prorrata (44), bienes de inversión (43),
+           REAGP (42), rectificación de deducciones (41), importaciones
+           (33/35) o recargo de equivalencia, avisa aparte:
+               ESTE 303 DECLARA COSAS QUE NUESTRA RECONSTRUCCION NO PUEDE TENER
+           Esos casos NO PUEDEN cuadrar y no es un defecto de nadie -- la
+           reconstrucción sale sólo de las cuentas 477/472 por tipo.
 
-            2) ¿Cuadra contra la contabilidad?
-               Y cuando NO cuadra, el script añade una segunda comparación
-               contra las casillas 27 y 45 (los totales del propio modelo).
-               Si ahí SÍ cuadra, te lo dice con estas palabras:
-                   "la diferencia de arriba es de CASILLA, no de
-                    contabilidad"
-               Eso es lo que le pasa a SP_C_13: nuestra reconstrucción suma
-               todo el 477 del trimestre, pero 03+06+09 es sólo el régimen
-               general — la ISP va en la 12/13, las intracomunitarias en la
-               10/11. La 27 sí las incluye todas.
+           La casilla 44 (prorrata) "se cumplimentará ÚNICAMENTE EN EL 4T
+           O MES 12" (cita AEAT, 15-09) -- un cliente con prorrata tiene
+           1T/2T/3T perfectamente comparables, sólo se escapa el 4T.
 
-          LO QUE EL 27/45 **NO** ARREGLA — y desde el 15-09 el script te
-          lo dice solo, no tienes que acordarte. Si el 303 declara prorrata
-          (casilla 44), regularización de bienes de inversión (43),
-          compensaciones REAGP (42), rectificación de deducciones (41),
-          importaciones (33/35) o recargo de equivalencia (18/21/24/26...),
-          imprime:
+           LO QUE HAY QUE DECIDIR (es tuyo, no del script): cuál de las
+           dos comparaciones manda como veredicto oficial. Ahora se
+           declaran las dos y el veredicto lo sigue dando 03+06+09.
+           Cambiarlo es una decisión contable, no técnica.
 
-              ESTE 303 DECLARA COSAS QUE NUESTRA RECONSTRUCCION NO PUEDE TENER
-                - regularizacion por el porcentaje definitivo de prorrata
-                  (casilla 44=-312,45 EUR)
-
-          Esos casos NO PUEDEN cuadrar, y no es un defecto de nadie: la
-          reconstrucción sale sólo de las cuentas 477/472 por tipo, y eso no
-          vive ahí. El RESUMEN los cuenta aparte. Míralo ANTES de buscar un
-          bug.
-
-          Y un respiro, confirmado con la AEAT (cita literal, 15-09): la
-          casilla 44 (prorrata) "se cumplimentará ÚNICAMENTE EN EL 4T O MES
-          12". Un cliente con prorrata tiene 1T, 2T y 3T perfectamente
-          comparables — sólo se te escapa el 4T.
-
-          LO QUE HAY QUE DECIDIR DESPUÉS (es tuyo, no del script): cuál de
-          las dos comparaciones manda. Ahora se declaran las dos y el
-          veredicto lo sigue dando 03+06+09. Cambiarlo es una decisión
-          contable.
-
-          Y NO OLVIDES LA REGRESIÓN: SP_C_10 y SP_C_11 cuadraban exacto con
-          el lector VIEJO. Si con el nuevo dejan de cuadrar, el arreglo ha
-          hecho daño -> dímelo y se revierte, son dos commits.
-
-      [ ] B · SÓLO SI EL BLOQUE 1 SALE MAL en varios casos:
+      [ ] B · SÓLO SI EL BLOQUE 1 (lectura) SALE MAL en varios casos,
+          o si en algún momento quieres el dato de fondo, sin prisa:
 
               python extraer_303_pdf.py "RUTA_DEL_ARCHIVO_DE_MODELOS"
 
           Mide la lectura sobre los 1.168 PDF de golpe. Pégame sólo la
-          línea de la tasa. (El "1,2%" de toda la vida se midió DOS veces
-          mal: con el regex de importes roto, arreglado el 26-08, y con el
-          patrón de casillas adivinado, arreglado el 14-09. Nadie lo ha
-          vuelto a medir desde ninguno de los dos.)
+          línea de la tasa. (El "1,2%" de toda la vida se midió mal DOS
+          veces: regex de importes roto -- 26-08 --, patrón de casillas
+          adivinado -- 14-09. Y con los tres arreglos del 15-09, que
+          resolvieron justo el caso que fallaba en los 9 trimestres reales
+          probados, es de esperar que suba bastante. Nadie lo ha vuelto a
+          medir desde el último arreglo.)
 
       [ ] C · AÑADIR MÁS CLIENTES, con UNA LÍNEA por cliente.
           El manifest ya no se escribe por trimestre (14-09). Dos formas:
@@ -161,6 +159,14 @@
           El fichero del manifest DEBE llevar _LOCAL en el nombre. Por
           consola sólo salen recuentos, trimestres y euros: nunca una
           clave, una carpeta ni una ruta.
+
+          ACORDADO 15-09-2026: el manifest es PERMANENTE, solo crece.
+          Nunca se recrea desde cero ni se recorta a un solo cliente para
+          una prueba puntual -- eso fue justo lo que pasó esta sesión con
+          SP_C_10/SP_C_11 (ya resueltos el 14-09, pero el manifest solo
+          tenía a SP_C_13) y costó tiempo recuperarlo. El paso 2 (abrir
+          ContaPlus, anotar el código) es "una vez por cliente, para
+          siempre" SOLO si el resultado no se pierde entre sesiones.
 
       Si hace falta regenerar la base (comprobar antes si ya está hecha —
       el 28-08 se regeneró y dio 509 combinaciones y 1.204 trimestres):

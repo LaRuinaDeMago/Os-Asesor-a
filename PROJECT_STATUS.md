@@ -7,6 +7,116 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 15-09-2026 (sesión local, octava entrada) — El primer caso real del cuadre 303 destapó tres bugs reales en la lectura, cerrados y confirmados en 3 clientes y 9 trimestres
+
+Primera sesión local tras fusionar el trabajo de BOE/normativa. Siguiendo
+`PENDIENTE.md` punto 1.A, Diego ejecutó `verificar_303_pdf.py --manifest
+verificacion_303_LOCAL.txt` contra el manifest real (SP_C_13, 2025T2). El
+primer resultado fue `NO_CUADRA` con una diferencia de miles de euros —
+sospechosamente distinto de lo que la sesión del 14-09 había medido para ese
+mismo caso (entonces solo faltaba explicar el ISP). Investigarlo, sin que
+ningún dato real llegara nunca a esta conversación, destapó tres defectos
+reales encadenados.
+
+### 🔴 Incidente de privacidad, en esta misma sesión — documentado sin datos
+
+Durante la investigación, Diego pegó en el chat dos capturas de pantalla: la
+ficha `_LOCAL` de `cuadre_303_ficha.py` (con el código pseudónimo `SP_C_13`,
+sin NIF ni razón social) y una página real del 303 presentado (cifras reales
+de un cliente real). Más tarde, al ejecutar un script desde dentro de la
+carpeta del cliente en vez de desde la carpeta del proyecto, el nombre real
+de ese cliente apareció en texto plano en el *prompt* de PowerShell pegado al
+chat — dos veces. Señalado en el momento, con la cita literal de
+`.claude/rules/datos.md` (corrección 29-07-2026: "ejecución local ≠
+conversación local", la transcripción viaja a servidores de Anthropic igual).
+No se puede deshacer desde esta sesión. Ninguno de los dos hechos llegó a un
+commit ni a un fichero del repositorio. Lección de proceso, ya aplicada el
+resto de la sesión: los comandos que tocan un `_LOCAL` o una ruta real los
+ejecuta Diego, y solo se comparte el bloque `RESUMEN` (o, para diagnósticos a
+medida, salida puramente estructural — números y booleanos, nunca contenido).
+Guardado como regla de memoria para sesiones futuras.
+
+### Bug 1 — `extraer_casillas()` se quedaba con la PRIMERA aparición de una etiqueta, aunque no llevara ningún número detrás
+
+Diagnosticado con `diag_orden_extraccion_pdf.py` (nuevo), que no imprime
+nunca contenido del PDF — solo, por cada etiqueta de casilla, la distancia en
+caracteres hasta el siguiente importe y hasta la siguiente etiqueta. Sobre el
+PDF real de SP_C_13, la etiqueta "07" aparecía **tres veces** en el texto
+extraído; la primera no llevaba ningún importe cerca (ruido: una fecha, la
+propia fórmula impresa del total, que cita "+ 06 + 09 + 11 + 13..." con las
+etiquetas sueltas). `extraer_casillas()` y `extraer_casillas_oficiales()`
+usaban `patron.search(texto)` sin bucle: se quedaban con esa primera
+aparición y nunca llegaban a la segunda, que sí tenía el valor real
+(6.285,14 €). Arreglado con `localizar_valor_casilla()` (nueva, en
+`extraer_303_pdf.py`), que prueba todas las apariciones en orden hasta
+encontrar una con número detrás — reutilizada por los dos sitios, para que no
+puedan volver a divergir. 5 comprobaciones nuevas en `ensayo_extraer_casillas.py`
+(familia M), reproduciendo la forma exacta del bug con cifras inventadas.
+
+### Bug 2 — `totales_contabilidad()` tenía su PROPIA suma, y nunca recibió el arreglo del "tipo 0" del 14-09
+
+El commit `6b2acb2` ya había excluido el tipo `"0"` (el asiento de
+liquidación/cierre trimestral de IVA, no una venta ni una compra) del TOTAL
+en `cuadre_303_ficha.py`. `verificar_303_pdf.py` tiene su propia función
+independiente para lo mismo, que nunca recibió ese arreglo — reproducía el
+mismo síntoma ("TOTAL cancelado") con datos reales: la cuota devengada y la
+deducible de SP_C_13 quedaban casi enteras canceladas por su propio tipo
+`"0"`. Arreglado con el mismo criterio ya validado (91,3% ratio de
+cancelación, 72% contrapartida administrativa), declarando lo excluido en el
+resultado (`liquidacion_excluida`) en vez de descartarlo en silencio — misma
+disciplina que ya tenía `cuadre_303_ficha.py`. 4 comprobaciones nuevas en
+`ensayo_verificar_303_pdf.py`.
+
+### Bug 3 — `explicar_por_isp()` solo comprobaba la CUOTA de ISP, no la BASE, y aplicaba el ajuste aunque un lado ya cuadrara
+
+Con los dos bugs anteriores arreglados, el devengado de SP_C_13 pasó a
+cuadrar exacto (0,00 €) — pero `explicar_por_isp()` le sumaba igual la cuota
+de ISP (420 €) a los dos lados sin comprobar si hacía falta, informando "420 €
+sin explicar" sobre un lado que ya era perfecto. Y quedaba sin explicar del
+todo un `-2.000,00 €` en la base deducible, que coincidía al céntimo con la
+BASE de ISP (casilla 12) — nunca comprobada, solo la cuota (casilla 13).
+Arreglado: ahora comprueba también la base, y el ajuste de ISP solo se aplica
+al lado que de verdad lo necesitaba (`_evaluar_ajuste_isp()`, nueva). 9
+comprobaciones nuevas. Diego confirmó por su cuenta, sin que el código se lo
+pidiera, que esos 2.000 € son de una formación facturada por un proveedor
+extranjero sin IVA — exactamente el patrón de ISP que el script ya había
+encontrado solo.
+
+### Validado contra datos reales: 3 clientes, 9 trimestres
+
+Con SP_C_10 y SP_C_11 añadidos al manifest (las dos rutas que Diego ya tenía
+comprobadas a mano el 14-09), la pasada completa dio:
+
+```
+casos totales : 9   ·   cuadran exacto : 2   ·   cuadran con redondeo (≤1 €) : 6
+NO cuadran : 1 (SP_C_13, explicado entero por ISP)   ·   lectura correcta : 9/9
+```
+
+**Sin regresión**: los dos clientes que ya cuadraban con el lector viejo
+siguen cuadrando con el nuevo (y con más cobertura — 4 trimestres cada uno,
+no solo el que se había probado antes).
+
+### Sobre automatizar la identidad código↔carpeta (discutido, no tocado)
+
+Diego preguntó varias veces si se podía automatizar del todo la asignación
+`SP_C_NN` ↔ carpeta de `\\PC01\Documentos` (filtrando por nombre, por
+`S.L.`, etc.). Reconfirmado contra el código actual: `emparejar_carpetas.py`
+solo compara a nivel de COPIA completa, nunca de código individual, y el
+motivo de fondo no cambió (`datempre.dbf` con 0 registros: el código no
+lleva ningún nombre pegado en ningún fichero que un script pueda leer). Sigue
+siendo el único paso manual, "una vez por cliente, para siempre" — lo que sí
+se acuerda es tratar `verificacion_303_LOCAL.txt` como un fichero
+**permanente, que solo crece**, para que este trabajo no se pierda entre
+sesiones como pasó con SP_C_10/SP_C_11 esta vez.
+
+### Estado tras la sesión
+
+`audit_project.py`: código 2 (mismo ⚠️ esperado de siempre: `anthropic` /
+`google-genai` sin instalar). **105 archivos · 30/30 suites · motor 65/65 ·
+adversarial 112/112.** No se tocó `motor_veredicto.py`. Ficheros modificados:
+`extraer_303_pdf.py`, `verificar_303_pdf.py`, `ensayo_extraer_casillas.py`,
+`ensayo_verificar_303_pdf.py`; nuevo: `diag_orden_extraccion_pdf.py`.
+
 ## 15-09-2026 (sesión Cloud, séptima entrada) — Diego tenía razón: si puedo leer el impreso de la AEAT, puedo leer el BOE. Ocho citas verificadas y un vigilante automático
 
 Diego señaló una inconsistencia real y tenía toda la razón: esta misma sesión se
