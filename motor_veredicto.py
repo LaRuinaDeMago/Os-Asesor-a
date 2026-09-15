@@ -1044,8 +1044,28 @@ def construir_cache_iva_por_concepto(facturas_verificadas):
     return cache
 
 
+#: AMPLIADA 15-09-2026, tras leer el art. 91.Dos LIVA en el texto consolidado
+#: del BOE (fuentes_externas.py, clave "iva.productos_al_4"; vigente desde el
+#: 1-1-2025, redaccion del RD-ley 4/2024). Anadidos los cuatro apartados que
+#: faltaban por el otro lado de la lista (91.Dos.2o-5o): libros/periodicos/
+#: revistas, medicamentos de uso humano, vehiculos para movilidad reducida y
+#: protesis. Antes de esto, una factura de libros al 4% habria salido
+#: NO_COMPROBADO (categoria no catalogada) en vez de aprobarse correctamente.
+#:
+#: NO TOCADO A PROPOSITO, y sigue como riesgo declarado (mismo motivo que ya
+#: constaba en PENDIENTE.md antes de esta ampliacion): "pan" y
+#: fruta/verdura/hortaliza/legumbre/tuberculo/cereal son mas amplios que la
+#: ley -- exige "pan COMUN" y "productos naturales segun el Codigo
+#: Alimentario", y un string suelto no distingue eso de un pan especial o un
+#: procesado. Arreglarlo de verdad exigiria que la captura declare esa
+#: distincion, que hoy no existe -- y el guard que consume esta tabla
+#: (`guard_tipo_producto_iva_semantico`) esta DORMIDO en produccion: nada en
+#: el pipeline real produce `categoria_producto` todavia (confirmado por
+#: grep, 15-09-2026), asi que este riesgo no afecta a ninguna factura hoy.
 TABLA_IVA_4 = {"pan", "harina panificable", "leche", "queso", "huevos", "fruta", "verdura",
-               "hortaliza", "legumbre", "tuberculo", "cereal", "aceite de oliva"}
+               "hortaliza", "legumbre", "tuberculo", "cereal", "aceite de oliva",
+               "libro", "periodico", "revista", "medicamento humano",
+               "vehiculo movilidad reducida", "protesis"}
 
 
 def guard_tipo_producto_iva_semantico(categoria_producto, tipo_declarado):

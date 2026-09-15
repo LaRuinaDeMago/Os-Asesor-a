@@ -78,6 +78,15 @@ PATRON_NOMBRE = re.compile(
 # explicar parte del 1,2% de consistencia interna que se atribuyo
 # entero a la rejilla del PDF. Ahora manda contrato_datos.py.
 NUM_ES = RE_IMPORTE_EN_TEXTO
+#: DECISION TOMADA 15-09-2026 (revisando las citas del BOE, `fuentes_externas.py`
+#: clave "iva.tipos_legales"): el 5% NO aparece en el texto vigente hoy de los
+#: arts. 90/91 LIVA -- fue un tipo temporal de los RD-ley de la crisis de
+#: precios, ya derogado. Se mantiene aqui A PROPOSITO, sin quitarlo: esta tupla
+#: no valida facturas de hoy, valida la LECTURA de un archivo de PDF que va de
+#: 2016 a 2026, y en parte de ese periodo el 5% si estuvo legalmente vigente.
+#: Quitarlo marcaria como "tipo no legal" una factura antigua que en su momento
+#: era perfectamente correcta. Revisar esta decision si el archivo deja de
+#: incluir ejercicios en los que el 5% estuvo vigente.
 TIPOS_LEGALES = (0, 4, 5, 10, 21)
 TOL_TIPO = 0.6   # puntos porcentuales de margen sobre el tipo legal mas cercano
 

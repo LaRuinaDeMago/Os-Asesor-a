@@ -145,6 +145,29 @@ print("\n=== IVA semantico (tabla oficial 2026) ===")
 check(guard_tipo_producto_iva_semantico("aceite de oliva", 4)[0] == "OK", "Aceite oliva 4% correcto")
 check(guard_tipo_producto_iva_semantico("aceite de oliva", 10)[0] == "FALLO", "Aceite oliva al 10% detectado como error")
 
+# ANADIDOS 15-09-2026: los cuatro apartados del art. 91.Dos LIVA que faltaban
+# (2o-5o) -- libros/prensa, medicamentos de uso humano, movilidad reducida,
+# protesis. Sin esto, una factura de libros al 4% salia NO_COMPROBADO en vez
+# de aprobarse.
+check(guard_tipo_producto_iva_semantico("libro", 4)[0] == "OK", "Libro al 4% correcto")
+check(guard_tipo_producto_iva_semantico("libro", 21)[0] == "FALLO", "Libro al 21% detectado como error")
+check(guard_tipo_producto_iva_semantico("periodico", 4)[0] == "OK", "Periodico al 4% correcto")
+check(guard_tipo_producto_iva_semantico("revista", 4)[0] == "OK", "Revista al 4% correcto")
+check(guard_tipo_producto_iva_semantico("medicamento humano", 4)[0] == "OK", "Medicamento de uso humano al 4% correcto")
+check(guard_tipo_producto_iva_semantico("vehiculo movilidad reducida", 4)[0] == "OK", "Vehiculo de movilidad reducida al 4% correcto")
+check(guard_tipo_producto_iva_semantico("protesis", 4)[0] == "OK", "Protesis al 4% correcto")
+
+# Y lo que sigue siendo un riesgo declarado, no arreglado: "pan" a secas
+# sigue aprobando al 4% aunque la ley exija "pan COMUN" -- documentado junto
+# a TABLA_IVA_4, no corregido hoy porque el guard esta dormido en produccion.
+check(guard_tipo_producto_iva_semantico("pan", 4)[0] == "OK",
+      "'pan' generico sigue aprobado al 4% -- riesgo declarado, no resuelto (ver comentario junto a TABLA_IVA_4)")
+
+# Una categoria que sigue sin estar en ninguna tabla no se inventa un
+# veredicto -- NO_COMPROBADO, nunca OK ni FALLO por omision.
+check(guard_tipo_producto_iva_semantico("juguete", 4)[0] == "NO_COMPROBADO",
+      "categoria no catalogada -> NO_COMPROBADO, no se inventa un tipo esperado")
+
 print("\n=== Veredicto integrado (fila real completa: caso piloto C.382) ===")
 fila_piloto = {
     'fecha_expedicion': '2026-06-25', 'nº_documento': 'C.382', 'proveedor': 'PROVEEDOR PILOTO EJEMPLO',

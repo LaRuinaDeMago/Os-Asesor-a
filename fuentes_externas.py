@@ -190,30 +190,36 @@ FUENTES = (
         modulo="motor_veredicto", atributo="TABLA_IVA_4",
         valor={"pan", "harina panificable", "leche", "queso", "huevos", "fruta",
                "verdura", "hortaliza", "legumbre", "tuberculo", "cereal",
-               "aceite de oliva"},
-        fuente="Ley 37/1992 del IVA, art. 91.Dos.1.1o",
+               "aceite de oliva", "libro", "periodico", "revista",
+               "medicamento humano", "vehiculo movilidad reducida", "protesis"},
+        fuente="Ley 37/1992 del IVA, art. 91.Dos.1o-5o",
         url="https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740",
         verificado="2026-09-15", estado=PARCIAL,
         norma_boe="BOE-A-1992-28740", bloque_boe="a91",
         vigencia_boe="20250101", huella_boe="fa5e6f111bf2dd98",
-        nota="LEIDO EN EL BOE el 15-09-2026 (art. 91.Dos.1.1o, en vigor desde el "
-             "1-1-2025, redaccion dada por el RD-ley 4/2024). Tres resultados:\n"
+        nota="LEIDO EN EL BOE el 15-09-2026 (art. 91.Dos.1o-5o, en vigor desde el "
+             "1-1-2025, redaccion dada por el RD-ley 4/2024). Tres resultados, y "
+             "una decision tomada el mismo dia sobre dos de los tres:\n"
              " (1) BUENA NOTICIA: el ACEITE DE OLIVA ya no es temporal. El RD-ley "
              "     4/2024 lo incorporo al 4% de forma permanente ('g) Los aceites "
              "     de oliva'). La alarma que se anoto queda resuelta.\n"
-             " (2) PERO 'pan' ES DEMASIADO AMPLIO. La ley dice 'el pan COMUN'. Un "
-             "     pan especial o de molde tributa al 10%, y esta tabla lo "
-             "     aprobaria al 4%. Mismo problema en 'fruta/verdura/hortaliza/"
-             "     legumbre/tuberculo/cereal': la ley exige que tengan 'la "
-             "     condicion de productos naturales de acuerdo con el Codigo "
-             "     Alimentario'. Un procesado no entra.\n"
-             " (3) Y LA LISTA ESTA INCOMPLETA por el otro lado: el art. 91.Dos "
-             "     incluye ademas libros, periodicos y revistas (2o), "
-             "     medicamentos de uso humano (3o), vehiculos para personas con "
-             "     movilidad reducida (4o) y protesis (5o). Una factura de libros "
-             "     al 4% saldria marcada como tipo incorrecto.\n"
-             "NO SE TOCA LA TABLA: cambiarla mueve el comportamiento del motor y "
-             "es una decision contable de Diego. Queda medido y escrito."),
+             " (2) LA LISTA ESTABA INCOMPLETA por el lado de 2o-5o: libros, "
+             "     periodicos y revistas, medicamentos de uso humano, vehiculos "
+             "     para movilidad reducida y protesis. ARREGLADO el 15-09-2026: "
+             "     anadidos los seis terminos que faltaban. Antes, una factura "
+             "     de libros al 4% salia NO_COMPROBADO en vez de aprobarse.\n"
+             " (3) PERO 'pan' SIGUE SIENDO DEMASIADO AMPLIO, sin tocar a "
+             "     proposito. La ley dice 'el pan COMUN'. Un pan especial o de "
+             "     molde tributa al 10%, y esta tabla lo aprobaria al 4%. Mismo "
+             "     problema en 'fruta/verdura/hortaliza/legumbre/tuberculo/"
+             "     cereal': la ley exige 'la condicion de productos naturales "
+             "     de acuerdo con el Codigo Alimentario'. Riesgo declarado, no "
+             "     resuelto: exigiria que la captura distinga 'pan comun' de "
+             "     un pan especial, campo que no existe todavia. Y no afecta a "
+             "     ninguna factura real hoy: `guard_tipo_producto_iva_"
+             "     semantico` esta dormido en produccion (nada en el pipeline "
+             "     real produce `categoria_producto` todavia, confirmado por "
+             "     grep el 15-09-2026)."),
 )
 
 
