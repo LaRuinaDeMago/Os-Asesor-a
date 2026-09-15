@@ -486,14 +486,38 @@
               de `guard_tipo_operacion_especial` sigue sin leerse: no
               tiene la misma estructura de articulado fiscal y merece su
               propia pasada.
-            - `nif_check.py` exige control-letra para `"PQSW"` y
-              `triangulacion_identidad_v0.py` para `"PQRSNW"`: faltan
-              **R** (congregaciones religiosas) y **N** (entidades
-              extranjeras). **No se ha tocado a propósito** — la norma
-              leída no fija ese algoritmo, así que cambiarlo sería
-              elegirlo a ojo, el error que este proyecto ya tiene
-              documentado cuatro veces. Se cierra contrastando contra la
-              especificación técnica de la AEAT, no contra el BOE.
+            - [X] `nif_check.py` — **RESUELTO 15-09-2026 (sesión Cloud).**
+              Exigía control-letra solo para `"PQSW"`; `triangulacion_
+              identidad_v0.py` ya usaba `"PQRSNW"` desde antes — la misma
+              regla, arreglada en un fichero y no en el otro. Contrastado
+              contra la especificación técnica de la AEAT (tabla oficial
+              "letra inicial y código de control según la forma jurídica",
+              verificada en dos fuentes independientes, no adivinada):
+              faltaban **R** (congregaciones e instituciones religiosas) y
+              **N** (entidades extranjeras) en el grupo de control-solo-
+              letra. Medido antes de tocar nada: un CIF sintético con letra
+              R o N y control en dígito pasaba `OK` cuando debía ser
+              `FALLO`. Arreglado; `diff_comportamiento_motor.py::cif_valido`
+              (el generador de CIF de prueba "cuando toques el motor")
+              actualizado igual, para que no se desincronice del mismo modo.
+              Prueba nueva en `test_motor_veredicto.py` (construida por
+              partes, sin dejar un literal con forma de NIF en el código —
+              si no, salta `scripts/privacy_scan.py`, como ya casi pasa al
+              escribirla). `test_motor_veredicto.py` y `test_adversarial.py`
+              en verde antes y después (regla de `.claude/rules/
+              contabilidad.md`).
+
+              **Y de propina, el mismo agujero pero en la barrera de
+              privacidad:** el patrón de CIF de `scripts/privacy_scan.py`
+              tampoco incluía la `R` — mismo patrón de bug que el ya
+              documentado y cerrado el 26-08 para `X/Y/Z` (prefijo de NIE).
+              Un CIF real que empezara por R no se habría detectado.
+              Verificado antes de tocar nada (mismos 7 dígitos y control:
+              con letra N daba match, con R no). Arreglado, con prueba
+              nueva en
+              `test_privacidad.py` (`cebo_cif_r`, mismo estilo que
+              `cebo_nie`); suite 30/30 → **31/31**. Escáner ejecutado sobre
+              todo el repositorio tras el cambio: sin hallazgos.
 
       [ ] D · **Vigilancia automática, ya montada, PENDIENTE DE DECIDIR
           EL MECANISMO (15-09-2026).** El comando en sí funciona:

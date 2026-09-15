@@ -79,6 +79,22 @@ def cebo_cif():
     return "B" + d + str((10 - (pares + impares) % 10) % 10)
 
 
+def cebo_cif_r():
+    """CIF inventado con letra inicial R (congregaciones e instituciones
+    religiosas), compuesto en ejecucion.
+
+    Anadido 15-09-2026: la clase de letras de organizacion del patron de CIF
+    no incluia la R -- mismo agujero que el de cebo_nie() para X/Y/Z (26-08),
+    encontrado al arreglar el mismo hueco en nif_check.py (faltaba R en el
+    grupo de control-solo-letra). Probado antes de corregirlo: este CIF no
+    se detectaba."""
+    d = "1122334"
+    pares = sum(int(d[i]) for i in (1, 3, 5))
+    impares = sum((lambda x: x // 10 + x % 10)(int(d[i]) * 2) for i in (0, 2, 4, 6))
+    control = (10 - (pares + impares) % 10) % 10
+    return "R" + d + "JABCDEFGHI"[control]
+
+
 def cebo_nie():
     """NIE inventado (extranjero residente) con letra de control correcta.
 
@@ -186,6 +202,9 @@ def main():
         comprobar("un NIE (extranjero residente) en un .py (agujero encontrado 26-08)",
                   escanea(escribir(tmp, "cliente.py", f"titular = '{cebo_nie()}'\n")),
                   "el patron no incluia X/Y/Z, el prefijo de un NIE real", "P0")
+        comprobar("un CIF con letra R (agujero encontrado 15-09)",
+                  escanea(escribir(tmp, "proveedor.py", f"nif = '{cebo_cif_r()}'\n")),
+                  "el patron no incluia la R, congregaciones e instituciones religiosas", "P0")
         comprobar("un DNI en un .sh (agujero encontrado el 19-08)",
                   escanea(escribir(tmp, "script.sh", f"#!/bin/sh\necho {cebo_dni()}\n")),
                   "los .sh nunca se habian escaneado", "P0")

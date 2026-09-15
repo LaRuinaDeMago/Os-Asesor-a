@@ -83,7 +83,18 @@ def valida_nif(nif):
         total = suma_par + suma_impar
         digito_control = (10 - (total % 10)) % 10
         letras_cif = "JABCDEFGHI"
-        if letra_org in "PQSW":
+        # CORREGIDO 15-09-2026 (PENDIENTE.md 2.C-bis): faltaban R (congregaciones
+        # e instituciones religiosas) y N (entidades extranjeras) en el grupo de
+        # control-solo-letra. triangulacion_identidad_v0.py ya usaba "PQRSNW"
+        # desde antes -- la misma regla, arreglada en un fichero y no en este,
+        # el mismo patron de bug que el proyecto ya persigue con un barrido AST.
+        # Verificado contra la tabla oficial de la AEAT (letra inicial y codigo
+        # de control por forma juridica), no adivinado: un CIF sintetico con
+        # letra_org en "N" o "R" y control en digito (en vez de letra) pasaba
+        # OK antes de este arreglo, y no deberia (ver test_motor_veredicto.py,
+        # bloque "CIF con letra R/N", con los casos construidos por partes
+        # para no dejar un literal con forma de NIF en el codigo fuente).
+        if letra_org in "NPQRSW":
             ok = control == letras_cif[digito_control]
         elif letra_org in "ABEH":
             ok = control == str(digito_control)

@@ -92,7 +92,12 @@ def cif_valido(letra, n):
         x = int(d[i]) * 2
         impar += x // 10 + x % 10
     control = (10 - (par + impar) % 10) % 10
-    return f"{letra}{d}{'JABCDEFGHI'[control] if letra in 'PQSW' else control}"
+    # Mismo grupo letra-control que nif_check.py (corregido 15-09-2026 para
+    # incluir N y R) -- si este helper se queda con el set viejo, genera un
+    # CIF "valido" que nif_check.py rechazaria, y una prueba que use esta
+    # funcion con N o R fallaria por un desfase aqui, no por un cambio real
+    # del motor.
+    return f"{letra}{d}{'JABCDEFGHI'[control] if letra in 'NPQRSW' else control}"
 
 
 def cif_con_control_incorrecto(letra, n):

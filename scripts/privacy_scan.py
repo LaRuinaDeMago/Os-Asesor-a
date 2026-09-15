@@ -48,7 +48,14 @@ RAIZ = Path(__file__).resolve().parent.parent
 # nif_check.py), no de [0-9A-J] como el del CIF - probado antes de tocar
 # nada: anadir solo la letra inicial dejaba fuera 'X1234567L' igual, porque
 # la 'L' no cabe en [0-9A-J].
-PATRON_NIF = re.compile(r'\b\d{8}[A-Za-z]\b|\b[A-HJNPQSUVW]\d{7}[0-9A-J]\b|\b[XYZ]\d{7}[A-Za-z]\b')
+# CORREGIDO 15-09-2026: faltaba la R (congregaciones e instituciones
+# religiosas) en la clase de letras de organizacion del CIF -- mismo patron
+# de bug ya documentado y arreglado el 26-08-2026 para X/Y/Z (prefijo de
+# NIE). Verificado contra la tabla oficial de la AEAT (letra inicial y
+# codigo de control por forma juridica): un CIF real que empiece por R
+# pasaba sin ser detectado. Probado con test_privacidad.py::cebo_cif_r
+# antes de corregirlo: no se detectaba.
+PATRON_NIF = re.compile(r'\b\d{8}[A-Za-z]\b|\b[A-HJNPQRSUVW]\d{7}[0-9A-J]\b|\b[XYZ]\d{7}[A-Za-z]\b')
 PATRON_IBAN = re.compile(r'\bES\d{2}\s?\d{4}\s?\d{4}\s?\d{2}\s?\d{10}\b')
 PATRON_TELEFONO = re.compile(r'\b[6789]\d{2}[\s.-]?\d{3}[\s.-]?\d{3}\b')
 

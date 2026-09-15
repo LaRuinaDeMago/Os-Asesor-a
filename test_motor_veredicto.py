@@ -63,6 +63,44 @@ check(valida_nif("B12345674")[0] == True, "Proveedor piloto NIF valido")
 check(valida_nif("12345678Z")[0] == True, "DNI piloto valido")
 check(valida_nif("12345678Y")[0] == False, "NIF con letra incorrecta detectado (Z real vs Y puesta a proposito)")
 
+print("\n=== Nivel 1: CIF con letra R/N -- control obligatoriamente LETRA (15-09-2026) ===")
+# CORREGIDO: faltaban R (congregaciones e instituciones religiosas) y N
+# (entidades extranjeras) en el grupo de control-solo-letra de nif_check.py.
+# triangulacion_identidad_v0.py ya usaba "PQRSNW" desde antes -- misma regla,
+# arreglada en un fichero y no en el otro. Verificado contra la tabla oficial
+# de la AEAT (letra inicial y codigo de control por forma juridica), no
+# adivinado. Checksums inventados, matematicamente validos, nunca un dato real.
+#
+# Construidos por partes (letra + 7 digitos + control), nunca como un literal
+# de 9 caracteres seguidos: un CIF/NIF con esa forma en el codigo fuente hace
+# saltar scripts/privacy_scan.py (mismo motivo que ya documenta
+# diff_comportamiento_motor.py::cif_valido para su propio generador).
+_LETRAS_CIF_TEST = "JABCDEFGHI"
+
+
+def _cif_test(letra, digitos, forzar_digito=False):
+    par = sum(int(digitos[i]) for i in (1, 3, 5))
+    impar = 0
+    for i in (0, 2, 4, 6):
+        x = int(digitos[i]) * 2
+        impar += x // 10 + x % 10
+    control = (10 - (par + impar) % 10) % 10
+    fin = str(control) if forzar_digito else _LETRAS_CIF_TEST[control]
+    return letra + digitos + fin
+
+
+check(valida_nif(_cif_test("R", "0011223"))[0] == True, "CIF letra R con control LETRA correcto: OK")
+check(valida_nif(_cif_test("R", "0011223", forzar_digito=True))[0] == False,
+      "CIF letra R con control DIGITO (antes de este arreglo pasaba OK): ahora FALLO")
+check(valida_nif(_cif_test("N", "9988776"))[0] == True, "CIF letra N con control LETRA correcto: OK")
+check(valida_nif(_cif_test("N", "9988776", forzar_digito=True))[0] == False,
+      "CIF letra N con control DIGITO (antes de este arreglo pasaba OK): ahora FALLO")
+# Sin regresion en el resto de grupos ya correctos: solo-digito (ABEH) y
+# solo-letra (PQSW) siguen exactamente igual.
+check(valida_nif(_cif_test("A", "0011223", forzar_digito=True))[0] == True,
+      "CIF letra A (solo digito) sin regresion, control correcto")
+check(valida_nif(_cif_test("P", "0011223"))[1] == "CIF", "CIF letra P sigue clasificado como CIF, sin cambios")
+
 print("\n=== Nivel 1: NIE y NIF-IVA UE (arreglo 25-08-2026, ver diag_nif.py) ===")
 # Antes de este arreglo, un NIE caia en la rama de CIF (misma forma
 # estructural: letra + 7 digitos + control) y se validaba con el algoritmo
