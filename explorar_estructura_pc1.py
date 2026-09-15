@@ -93,6 +93,15 @@ PALABRAS_FISCALES = re.compile(
     re.IGNORECASE,
 )
 
+#: ANADIDO 15-09-2026: Diego comprobo a mano (busqueda de Windows sobre PC1,
+#: sin que ningun nombre pasara por el chat) que unos 5.305 PDF contienen la
+#: palabra "modelo". Senal fuerte -- es la forma habitual de referirse a un
+#: impreso de la AEAT -- pero AMBIGUA a proposito: "modelo de contrato",
+#: "modelo de carta" tambien la llevan. Se cuenta aparte, nunca se suma sin
+#: mas a "con algo reconocible", para no inflar el numero con falsos
+#: positivos que no son modelos presentados.
+_RE_PALABRA_MODELO = re.compile(r'\bmodelo\b', re.IGNORECASE)
+
 #: Trimestre o periodo en el nombre: "1T"/"2T"/"3T"/"4T", "1er/2do/3er/4to
 #: trimestre", "mensual", o un mes con anio. Deliberadamente laxo: aqui solo
 #: interesa saber SI hay algo con pinta de periodo, no cual exactamente.
@@ -145,6 +154,9 @@ def main():
     total_con_palabra_fiscal = 0    # "iva", "retenciones", etc., sin numero
     con_algo_reconocible = 0        # modelo (estricto o suelto) O palabra fiscal
     sin_nada_reconocible = 0        # ni numero ni palabra -- el resto de verdad
+    total_con_palabra_modelo = 0    # "modelo" literal -- ambigua, se cuenta aparte
+    palabra_modelo_y_numero = 0     # "modelo" + un numero (estricto o suelto) a la vez
+    palabra_modelo_sola = 0         # "modelo" SIN ningun numero junto -- el caso ambiguo de verdad
 
     for carpeta in primer_nivel:
         profundidad_por_carpeta[carpeta.path] = set()
@@ -171,6 +183,13 @@ def main():
                 modelo_suelto = any(_RE_MODELO_SUELTO[m].search(n) for m in MODELOS_CONOCIDOS)
                 if modelo_suelto:
                     total_con_modelo_suelto += 1
+
+                if _RE_PALABRA_MODELO.search(n):
+                    total_con_palabra_modelo += 1
+                    if modelos_en_este or modelo_suelto:
+                        palabra_modelo_y_numero += 1
+                    else:
+                        palabra_modelo_sola += 1
                 palabra_fiscal = bool(PALABRAS_FISCALES.search(n))
                 if palabra_fiscal:
                     total_con_palabra_fiscal += 1
@@ -266,6 +285,16 @@ def main():
     print(f"    sin NADA reconocible de lo anterior                        : "
           f"{sin_nada_reconocible:,} "
           f"({round(sin_nada_reconocible*100.0/total_ficheros,1) if total_ficheros else 0}%)")
+    print()
+
+    print("LA PALABRA 'MODELO' LITERAL EN EL NOMBRE (ambigua a proposito:")
+    print("'modelo de contrato' tambien la lleva, no solo un impreso AEAT):")
+    print(f"    ficheros con 'modelo' en el nombre       : {total_con_palabra_modelo:,} "
+          f"({round(total_con_palabra_modelo*100.0/total_ficheros,1) if total_ficheros else 0}%)")
+    print(f"    de esos, ADEMAS con un numero de modelo  : {palabra_modelo_y_numero:,} "
+          "  <- estos casi seguro SI son un impreso AEAT")
+    print(f"    de esos, 'modelo' SIN ningun numero junto: {palabra_modelo_sola:,} "
+          "  <- aqui vive la ambiguedad real (contratos, cartas...)")
     print()
 
     print("PERIODO EN EL NOMBRE (trimestre/mes/'mensual'):")
