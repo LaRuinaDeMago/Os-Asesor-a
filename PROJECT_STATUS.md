@@ -7,6 +7,53 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 15-09-2026 (sesión local, duodécima entrada) — Tres pendientes reales que no estaban en la única lista de pendientes
+
+Segunda pasada del repaso, pedida expresamente: *"¿has guardado la tabla de los
+tiempos y lo que hemos descubierto de PC1?"*. Comprobado número por número en vez
+de contestar de memoria — y la respuesta corta es **sí**: los tiempos (18,5 / 4 /
+3 / 2 min, 51 s/factura) están en `FLUJO_TRABAJO_REAL.md`, y los hallazgos de PC1
+(14.395 PDF, 24,0%, 1.154 del 303, 2.360 `.tgd`, 2.198 `.dat`, 88,6%, 13.526
+`.jpg`, 207 certificados) están repartidos entre `PENDIENTE.md`,
+`PROJECT_STATUS.md` y `EMPEZAR_AQUI.md`. Ningún dato se ha perdido.
+
+**Pero la comprobación destapó otra cosa, y es el hallazgo que importa de esta
+pasada: tres pendientes reales vivían sólo en prosa, y no en `PENDIENTE.md`** —
+que la cabecera de ese mismo fichero define como *"la ÚNICA lista de pendientes
+del proyecto"*, precisamente porque repartirlos es como se pierden. Medido:
+`PENDIENTE.md` tenía **0 apariciones** de "lote", "cronometr", "albar" y
+"certificad". Es el mismo fallo que ya se documentó el 14-09 ("siete commits sin
+una línea aquí"), repetido una semana después.
+
+**Los tres, ya añadidos:**
+
+1. **Cronometrar 2-3 lotes más** (nuevo punto 4.A). Hoy existe **un solo lote**
+   medido. Sin más puntos, "51 s/factura" es una anécdota, no una unidad
+   económica — y es el número que decide si el techo del motor es del 8% o del
+   40%.
+2. **El "albarán valorado"** (nuevo punto 4.B). **Bloquea construir el detector**,
+   y es una pregunta para Diego, no técnica. La regla simple ("dice ALBARÁN y no
+   FACTURA") se probó con seis casos inventados y funciona; lo que no cierra es
+   el albarán con precios que hace de factura informal.
+3. **Los 207 certificados digitales de PC1** (añadido al punto 3). No son
+   documentos, son **credenciales de Sede Electrónica** de clientes. Su exclusión
+   de cualquier procesado masivo futuro tiene que ser **explícita**, nunca "no
+   coincidía la extensión que buscábamos": un filtro que los deja fuera de
+   casualidad no es una barrera — es la misma regla que el motor tiene prohibido
+   romper (lo no comprobado no es un OK), y la misma forma exacta del agujero del
+   ZIP con extensión `.DAT` del 19-08.
+
+**Y un cuarto hueco, de trazabilidad:** `FLUJO_TRABAJO_REAL.md` se escribió y se
+subió el mismo día (`606dd12`) **sin una sola entrada en este fichero**. Sólo lo
+citaba la tabla de documentos de `EMPEZAR_AQUI.md`. Quien consultara
+`PROJECT_STATUS.md` por fecha —que es como manda consultarlo `CLAUDE.md`— no
+habría encontrado nunca el documento que contesta la pregunta más importante que
+tenían abierta las dos revisiones externas. Esta entrada lo cierra.
+
+**Limpieza de ramas cerrada:** borrada `origin/claude/github-retomada-o4zyic`
+tras verificar (no suponer) que llevaba 0 commits que master no tuviera. El
+repositorio remoto queda con **una sola rama**, `master`.
+
 ## 15-09-2026 (sesión local, undécima entrada) — Repaso de limpieza: la raíz baja de 105 a 87 `.py`, y una instrucción ya cumplida deja de ser lo primero que lee cada sesión
 
 Repaso pedido explícitamente antes de abrir trabajo nuevo: *"repasemos todo lo

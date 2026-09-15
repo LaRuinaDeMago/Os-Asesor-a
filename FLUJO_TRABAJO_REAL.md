@@ -162,3 +162,20 @@ concreta sea representativa de todas.
 
 **No es una tarea con fecha.** Se añade la próxima vez que Diego organice un
 lote, de forma natural, sin agendar nada aparte.
+
+---
+
+## 5. Dónde están estos pendientes de verdad
+
+> **Añadido el 15-09-2026, en el repaso.** Cuando se escribió este fichero, los
+> dos pendientes que salen de él —cronometrar más lotes (§4) y resolver el
+> "albarán valorado" (§2.2)— se quedaron **sólo aquí, en prosa**. No estaban en
+> `PENDIENTE.md`, que la cabecera de ese mismo fichero define como *"la ÚNICA
+> lista de pendientes del proyecto"*, y que es lo que `arranque.py` imprime al
+> empezar cualquier sesión. Un pendiente que sólo vive en un documento temático
+> es un pendiente que nadie va a ver.
+>
+> **Ya corregido:** son los puntos **4.A** (los lotes) y **4.B** (el albarán
+> valorado) de `PENDIENTE.md`. Este fichero sigue siendo el que explica **por
+> qué** y con qué números; la lista de pendientes es la que manda sobre **qué
+> queda por hacer**.

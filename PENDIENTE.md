@@ -294,8 +294,56 @@
           desde el 12-08, más de un mes -- era lo de mayor impacto por
           coste de toda la lista).
       [ ] Clave de recuperación del cifrado, guardada FUERA del equipo.
+          Es lo que queda de mayor impacto por coste de toda la lista,
+          ahora que el USB está hecho: un USB cifrado cuya única clave
+          vive en el equipo cifrado no protege de que se rompa el equipo.
       [ ] Confirmar si la copia del USB incluye modelos, escrituras y DNI,
           o sólo contabilidad.
+      [ ] **207 certificados digitales dentro de PC1** (.pfx/.p12/.cer/
+          .crt/.key/.pem), detectados por `explorar_estructura_pc1.py` el
+          15-09. No son documentos: son **credenciales de acceso a la Sede
+          Electrónica** de clientes. Dos cosas, las dos sin hacer:
+            - Que su exclusión de cualquier procesado masivo futuro sea
+              **explícita y declarada**, nunca "no coincide la extensión
+              que buscábamos". Es la misma regla de siempre: lo que no se
+              ha comprobado no es un OK. Un filtro por extensión que los
+              deja fuera *de casualidad* no es una barrera.
+            - Decidir si deben seguir donde están. Es una pregunta de
+              custodia, no técnica, y es tuya.
+
+  ═════════════════════════════════════════════════════════════════════
+  4 · EL TECHO DEL MOTOR — lo que salió del flujo de trabajo real
+  ═════════════════════════════════════════════════════════════════════
+      Abierto el 15-09-2026. Dos revisiones externas coincidieron en la
+      misma pregunta, y no había ni un dato en el repositorio para
+      contestarla: **¿qué fracción del tiempo real de Diego cae dentro de
+      lo que el motor sí puede hacer?** Un motor perfecto sobre el 8% del
+      tiempo tiene un techo del 8%. Todo el detalle en
+      `FLUJO_TRABAJO_REAL.md`; aquí sólo lo que queda por hacer.
+
+      [ ] A · CRONOMETRAR 2-3 LOTES MÁS. Hoy existe **un solo lote**
+          medido (30 facturas: ~3 min ordenar + ~4 min fotografiar +
+          ~18,5 min contabilizar ≈ 51 s/factura). Un parte de horas de
+          una semana se descartó explícitamente: varía demasiado entre
+          semanas, meses y trimestres para ser representativo.
+          Lo sostenible es mirar el reloj en lotes que ya se iban a
+          organizar igual, eligiéndolos distintos entre sí: un autónomo
+          con pocos proveedores, una S.L. con más volumen, y uno con
+          facturas de IVA mixto.
+          **No es una tarea con fecha** — se hace la próxima vez que
+          toque un lote, sin agendar nada aparte.
+
+      [ ] B · EL "ALBARÁN VALORADO" — pregunta para Diego, y **bloquea
+          construir nada**. La regla "si dice ALBARÁN y no dice FACTURA,
+          es un albarán" se probó con seis casos inventados y distingue
+          bien lo normal. El caso que no cierra es el albarán que SÍ
+          lleva precios y a veces hace de factura informal: diría
+          "albarán" en el título y podría tener que tratarse como
+          factura real.
+          **¿Pasa eso con tus clientes, y con qué frecuencia?** Hasta
+          que eso se conteste no se añade el guard — regla de CLAUDE.md:
+          ningún guard sin un caso real que lo pida, y este lo tiene a
+          medias.
 
   ═════════════════════════════════════════════════════════════════════
   APARCADO — no es un pendiente, no lo busques
