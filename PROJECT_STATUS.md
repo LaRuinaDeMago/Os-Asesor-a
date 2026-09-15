@@ -7,6 +7,89 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 15-09-2026 (sesión Cloud, sexta entrada) — `autoridad_guards.py`: qué norma hay detrás de cada guard, y cuáles no tienen ninguna
+
+Segundo ladrillo del módulo de normativa, y el que de verdad lo conecta con el
+motor. La dirección es la inversa de la que parece: **no es que el motor
+consulte la normativa, es que cada guard pueda citar su autoridad.**
+
+### Las tres preguntas que contesta
+
+- Si mañana cambia una norma, **¿qué guards hay que revisar?**
+- Cuando un guard salta, **¿se le puede decir al cliente por qué, con cita?**
+- ¿Cuáles de los 28 son **derecho** y cuáles son **criterio nuestro**?
+
+La tercera es la que más se olvida, y evita el peor error posible de cara a un
+cliente: **presentar como obligación legal lo que es un criterio del despacho.**
+
+### El reparto, y no es el que uno esperaría
+
+| origen | guards | qué significa |
+|---|---|---|
+| **NORMA** | 16 | aplica una norma jurídica concreta |
+| **TÉCNICO** | 11 | calidad del dato: no hay norma detrás, **ni hace falta** |
+| **CRITERIO** | 1 | criterio profesional del despacho, no derecho |
+
+Los 11 técnicos no son un hueco: `guard_confianza_captura` mide lo que sabemos
+de **nuestra propia lectura**, `guard_importe_atipico` es estadística contra el
+histórico —por eso no puede dar ROJO nunca—, `guard_anti_duplicado` implementa
+una clave nuestra. Decir que no tienen norma detrás es la respuesta correcta.
+
+Y `guard_cuenta_gasto_coherente` es el único CRITERIO: el PGC fija la estructura
+de cuentas, **no cuál le toca a cada proveedor**. Eso son diez años de oficio
+sistematizados, y presentarlo como obligación legal sería falso.
+
+### CERO de 16 verificadas, y está escrito en grande
+
+**Ninguna cita está verificada.** Lo que hay es una **propuesta** para que Diego
+valide artículo por artículo con el texto delante. Se ha hecho así a propósito:
+inventar una referencia legal en un motor contable sería el peor fallo de todo
+el proyecto, y hoy mismo se vio a un resumen automático afirmar artículos que no
+dicen lo que parecen.
+
+Dos citas **no las propone Claude**: ya estaban en `motor_veredicto.py` (art. 154
+LIVA en `guard_recargo_equivalencia`; la tabla de tipos en
+`guard_tipo_producto_iva_semantico`). Se anotan con esa procedencia, que no es lo
+mismo — pero **que estén escritas tampoco las verifica**.
+
+### No se tocó el motor. Ni una línea.
+
+Se podía haber metido la cita dentro de cada guard. Se decidió que no: el motor
+es la pieza que `.claude/rules/contabilidad.md` protege con tests antes y
+después, y esto es **metadato, no lógica**. Un registro externo da el mismo
+resultado con riesgo cero — el mismo patrón que `fuentes_externas.py`.
+
+**Verificado, no afirmado:** el md5 de `motor_veredicto.py` es idéntico antes y
+después (`661612a2…`), y `layout_diario_contaplus.py` y `orquestador.py`
+tampoco se tocaron. Tests del motor **65/65** y adversarial **112/112** en los
+dos momentos.
+
+### Un hallazgo real, encontrado al registrar
+
+`TABLA_IVA_4` —la lista de productos al 4% de la que depende
+`guard_tipo_producto_iva_semantico`— **sale directamente del art. 91.Dos LIVA y
+no estaba registrada en ningún sitio**. Y contiene *aceite de oliva*, que pasó al
+4% por una medida **temporal** (antes 10%). Si eso ha revertido y la tabla sigue
+igual, **el guard aprueba un tipo incorrecto**. Anotada como `SIN_VERIFICAR` y
+subida a `PENDIENTE.md` como tarea con nombre.
+
+### 23º auditor: `ensayo_autoridad_guards.py`
+
+21 comprobaciones. **No prueba que las citas sean correctas** —eso lo dice el
+texto oficial, no un test—. Prueba que el mecanismo no miente: que ningún guard
+se quede sin decidir, que una anotación huérfana salte, y sobre todo **que una
+cita PROPUESTA no pueda pasar por verificada por el paso del tiempo**, que es el
+riesgo real de un registro así.
+
+Encontró dos anotaciones mías sin nota explicativa. Resaboteado en tres variantes
+—auto-aprobarse las citas marcándolas VERIFICADO, ponerle una norma inventada a
+un guard técnico, dejar de leer los guards del AST del motor—: **las tres caen.**
+
+### Estado tras la sesión
+
+`audit_project.py`: **40 ✅ · 1 ⚠️ · 0 ❌**. Motor **65/65**, adversarial
+**112/112**, **29/29 suites**, privacidad sin hallazgos.
+
 ## 15-09-2026 (sesión Cloud, quinta entrada) — `fuentes_externas.py`: el primer ladrillo del módulo de normativa, y es el único que se puede poner hoy
 
 Diego plantea, para el futuro, un módulo de normativa conectado a todo: BOE,

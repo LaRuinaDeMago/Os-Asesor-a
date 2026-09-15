@@ -466,7 +466,13 @@ def check_estados_y_cobertura():
                              # no un test-- sino que el mecanismo sabe darse
                              # cuenta de que uno cambio o de que la
                              # verificacion envejecio.
-                             ("ensayo_fuentes_externas.py", "Fuentes externas: el registro sabe darse cuenta")):
+                             ("ensayo_fuentes_externas.py", "Fuentes externas: el registro sabe darse cuenta"),
+                             # Lo que prueba NO es que las citas legales sean
+                             # correctas -- eso lo dice el texto oficial, no un
+                             # test. Prueba que una cita PROPUESTA no pueda pasar
+                             # por verificada por el paso del tiempo, que es el
+                             # riesgo real de un registro de autoridad.
+                             ("ensayo_autoridad_guards.py", "Autoridad de los guards: una propuesta no es un hecho")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue
@@ -514,6 +520,42 @@ def check_fuentes_externas():
     check("Fuentes externas: los numeros que no decidimos nosotros",
           not disc and not cad, " | ".join(partes),
           estado=(FALLO if disc else (NO_COMPROBADO if cad else OK)))
+
+
+def check_autoridad_guards():
+    """ANADIDO 15-09-2026. El motor tiene 28 guards que codifican reglas
+    contables y fiscales. `autoridad_guards.py` anota, para cada uno, si lo que
+    aplica es una NORMA, es CALIDAD DEL DATO, o es CRITERIO del despacho.
+
+    Esto comprueba que ninguno se quede sin esa decision -- misma idea que
+    check_cableado y que check_suites_sin_cablear: un guard nuevo nace con la
+    pregunta contestada, o la auditoria se pone roja.
+
+    NO comprueba que las citas sean correctas: eso no lo puede decir un
+    programa, lo dice el texto oficial. Por eso el recuento de VERIFICADAS se
+    imprime aparte y hoy es CERO de 16 -- todo son propuestas para validar.
+    Imprimirlo en cada pasada es lo que impide que una propuesta se convierta
+    en un hecho por el simple paso del tiempo.
+    """
+    try:
+        import autoridad_guards as ag
+    except ImportError as e:
+        check("Autoridad de los guards", False, f"no se puede importar ({type(e).__name__})")
+        return
+    sin_autoridad, sobran, por_estado, por_origen = ag.revisar()
+    verificadas = por_estado.get(ag.VERIFICADO, 0)
+    total_norma = por_origen.get(ag.NORMA, 0)
+    partes = [f"{sum(por_origen.values())} guards anotados "
+              f"({total_norma} norma, {por_origen.get(ag.TECNICO, 0)} tecnicos, "
+              f"{por_origen.get(ag.CRITERIO, 0)} criterio)",
+              f"citas verificadas contra el texto oficial: {verificadas}/{total_norma}"]
+    if sin_autoridad:
+        partes.append("SIN ANOTAR: " + ", ".join(sin_autoridad)
+                      + " - un guard sin decidir si aplica norma o criterio")
+    if sobran:
+        partes.append(f"anotaciones que sobran (ese guard ya no existe): {sobran}")
+    check("Autoridad de los guards: norma, dato o criterio",
+          not sin_autoridad and not sobran, " | ".join(partes))
 
 
 def check_dependencias():
@@ -810,6 +852,7 @@ if __name__ == "__main__":
     check_modulos_huerfanos()
     check_dependencias()
     check_fuentes_externas()
+    check_autoridad_guards()
     check_tests()
     check_adversarial()
     check_estados_y_cobertura()

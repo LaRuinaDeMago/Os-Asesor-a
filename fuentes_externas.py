@@ -82,7 +82,8 @@ class Fuente:
         # Las tuplas de casillas se comparan como CONJUNTO: el orden en el
         # impreso no es el orden en que nos convenga escribirlas, y exigir
         # el orden daria rojos que no significan nada.
-        if isinstance(actual, (tuple, list)) and isinstance(self.valor, (tuple, list)):
+        if (isinstance(actual, (tuple, list, set, frozenset))
+                and isinstance(self.valor, (tuple, list, set, frozenset))):
             if set(actual) != set(self.valor):
                 return False, (f"el codigo tiene {sorted(set(actual))} y aqui esta "
                                f"anotado {sorted(set(self.valor))}")
@@ -164,6 +165,23 @@ FUENTES = (
              "leido en ninguna fuente: el 5% fue un tipo temporal y hay que "
              "comprobar si sigue vigente y desde/hasta cuando. Primer sitio donde "
              "mirar si aparecen tramos marcados como tipo ilegal."),
+    Fuente(
+        clave="iva.productos_al_4",
+        descripcion="Productos que tributan al tipo superreducido del 4%",
+        modulo="motor_veredicto", atributo="TABLA_IVA_4",
+        valor={"pan", "harina panificable", "leche", "queso", "huevos", "fruta",
+               "verdura", "hortaliza", "legumbre", "tuberculo", "cereal",
+               "aceite de oliva"},
+        fuente="Ley 37/1992 del IVA, art. 91.Dos.1.1o",
+        url="https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740",
+        verificado="2026-09-15", estado=SIN_VERIFICAR,
+        nota="SIN_VERIFICAR, y es la mas delicada del registro: la lista sale "
+             "directamente de la ley y de ella depende guard_tipo_producto_iva_"
+             "semantico, que decide si un 4% esta bien puesto. El aceite de oliva "
+             "paso al 4% por una medida TEMPORAL (antes 10%), asi que hay dos "
+             "preguntas abiertas: si sigue ahi, y si la lista esta completa. "
+             "Encontrada el 15-09-2026 al registrar la autoridad de los guards; "
+             "llevaba sin registrar desde que se escribio."),
 )
 
 

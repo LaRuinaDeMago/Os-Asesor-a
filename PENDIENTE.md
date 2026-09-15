@@ -185,7 +185,37 @@
       cuántos clientes hacen falta antes de dar el paso por bueno.
 
   ═════════════════════════════════════════════════════════════════════
-  2 · LO QUE NO ES CÓDIGO, y lleva abierto desde el 12-08
+  2 · DOS NÚMEROS QUE SALEN DE LA LEY Y NADIE HA COMPROBADO   <- NUEVO
+  ═════════════════════════════════════════════════════════════════════
+      Del registro creado el 15-09 (`python fuentes_externas.py`). No
+      corre prisa como el 303, pero es trabajo tuyo y de nadie más:
+      un asesor con el texto delante, cinco minutos cada uno.
+
+      [ ] A · `TABLA_IVA_4` — la lista de productos al 4% (art. 91.Dos
+          LIVA). De ella depende `guard_tipo_producto_iva_semantico`,
+          que decide si un 4% está bien puesto.
+          **EL ACEITE DE OLIVA ESTÁ EN LA LISTA, y pasó al 4% por una
+          medida TEMPORAL (antes 10%).** Si eso ha revertido y aquí
+          sigue, el guard aprueba un tipo incorrecto. Dos preguntas:
+          ¿sigue vigente?, ¿está completa la lista?
+
+      [ ] B · `TIPOS_LEGALES = (0, 4, 5, 10, 21)`. El 4, el 10 y el 21
+          se leyeron preimpresos en el formulario oficial. **El 0 y el 5
+          no se han leído en ninguna fuente**; el 5% también fue
+          temporal. Es el primer sitio donde mirar si aparecen tramos
+          marcados como tipo ilegal.
+
+      [ ] C · Las 16 citas legales de `autoridad_guards.py`
+          (`python autoridad_guards.py`). **Ninguna está verificada:
+          son una propuesta.** Se valida abriendo el texto y leyendo el
+          artículo: si dice lo que el guard hace, se pasa a VERIFICADO
+          con url y fecha; si no, se corrige o se marca SIN_IDENTIFICAR.
+          Las dos salidas son buenas; dejarla en PROPUESTO para siempre,
+          no. La auditoría imprime el recuento en cada pasada para que
+          no se convierta en un hecho por el paso del tiempo.
+
+  ═════════════════════════════════════════════════════════════════════
+  3 · LO QUE NO ES CÓDIGO, y lleva abierto desde el 12-08
   ═════════════════════════════════════════════════════════════════════
       [ ] Cifrar el USB de copia.  15 minutos. Es lo de MAYOR impacto por
           coste de toda esta lista, y lleva casi un mes abierto.
