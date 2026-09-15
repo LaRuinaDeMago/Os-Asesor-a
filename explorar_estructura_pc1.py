@@ -179,6 +179,19 @@ def main():
     palabra_modelo_y_numero = 0     # "modelo" + un numero (estricto o suelto) a la vez
     palabra_modelo_sola = 0         # "modelo" SIN ningun numero junto -- el caso ambiguo de verdad
 
+    #: ANADIDO 15-09-2026: el patron "suelto" seguia disparado incluso tras
+    #: excluir años (modelo 202: +5.035 todavia). Hipotesis: con 13.526 .jpg
+    #: (fotos de camara/escaner, que numeran secuencialmente: "IMG_1202.jpg"),
+    #: cualquier secuencia de 3 digitos comun aparece por pura casualidad como
+    #: subcadena de un numero de foto, sin relacion con ningun modelo. Un
+    #: modelo oficial vive en un PDF, nunca en una foto -- asi que se mide
+    #: TAMBIEN restringido solo a .pdf, para separar la senal real del ruido
+    #: de la numeracion de camara.
+    total_pdfs = 0
+    con_modelo_reconocido_pdf = Counter()
+    total_con_algun_modelo_pdf = 0
+    palabra_modelo_y_numero_pdf = 0
+
     for carpeta in primer_nivel:
         profundidad_por_carpeta[carpeta.path] = set()
         for dp, _, fns in os.walk(carpeta.path):
@@ -201,6 +214,14 @@ def main():
                 else:
                     total_sin_ningun_modelo += 1
 
+                es_pdf = ext == ".pdf"
+                if es_pdf:
+                    total_pdfs += 1
+                    if modelos_en_este:
+                        total_con_algun_modelo_pdf += 1
+                        for m in modelos_en_este:
+                            con_modelo_reconocido_pdf[m] += 1
+
                 anio_matches = list(_RE_ANIO.finditer(n))
                 modelos_suelto_en_este = [
                     m for m in MODELOS_CONOCIDOS
@@ -216,6 +237,8 @@ def main():
                     total_con_palabra_modelo += 1
                     if modelos_en_este or modelo_suelto:
                         palabra_modelo_y_numero += 1
+                        if es_pdf:
+                            palabra_modelo_y_numero_pdf += 1
                     else:
                         palabra_modelo_sola += 1
                 palabra_fiscal = bool(PALABRAS_FISCALES.search(n))
@@ -298,9 +321,25 @@ def main():
         print(f"        modelo {modelo:<5} {n:>7,}")
     print()
 
-    print("SEGUNDA PASADA -- dos señales mas, para saber si el patron")
-    print("estricto se estaba quedando corto (anadido tras una primera")
-    print("medicion real que dio un 9,2% muy por debajo de lo esperado):")
+    print("LO MISMO, PERO SOLO SOBRE LOS .PDF -- esta es la señal que de")
+    print("verdad importa: un modelo oficial vive en un PDF, nunca en una")
+    print("foto, así que mezclar los .jpg en el porcentaje diluye el número:")
+    print(f"    PDF totales                              : {total_pdfs:,}")
+    print(f"    con ALGUN modelo conocido (solo PDF)     : {total_con_algun_modelo_pdf:,} "
+          f"({round(total_con_algun_modelo_pdf*100.0/total_pdfs,1) if total_pdfs else 0}% de los PDF)")
+    print(f"    'modelo' + numero a la vez (solo PDF)    : {palabra_modelo_y_numero_pdf:,} "
+          f"({round(palabra_modelo_y_numero_pdf*100.0/total_pdfs,1) if total_pdfs else 0}% de los PDF)")
+    print("    desglose por modelo, solo PDF:")
+    for modelo, n in con_modelo_reconocido_pdf.most_common():
+        print(f"        modelo {modelo:<5} {n:>7,}")
+    print()
+
+    print("SEGUNDA PASADA (DIAGNOSTICO, NO USAR PARA DECIDIR) -- el patron")
+    print("'suelto' resulto ser ruidoso: con 13.526 .jpg numerados por camara")
+    print("o escaner, cualquier secuencia de 3 digitos comun aparece como")
+    print("subcadena de un numero de foto sin relacion con ningun modelo")
+    print("(ej. modelo 131 subio de 11 a 666 -- no es una fecha pegada, es")
+    print("ruido de numeracion). Se deja aqui por transparencia, no como dato:")
     print(f"    con el mismo numero de modelo, SIN exigir que este aislado : "
           f"{total_con_modelo_suelto:,} "
           f"({round(total_con_modelo_suelto*100.0/total_ficheros,1) if total_ficheros else 0}%)")
