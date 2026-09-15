@@ -319,6 +319,44 @@
           comprobación cubre **18 artículos**. Ejecutado de verdad:
           *18 sin cambios, 0 cambiados, 0 no comprobados.*
 
+      [X] C-ter · LOS IMPRESOS DE LOS MODELOS, VIGILADOS — 15-09-2026.
+          Pregunta de Diego: ¿esto del BOE se puede hacer con todos los
+          modelos del año laboral (303, 130, 111, 115, 347, 349)?
+          **Sí, y resultó más urgente de lo que parecía.**
+
+          El lector del 303 está construido sobre la FORMA del impreso
+          (dónde cae cada casilla, qué aritmética imprime). Esa forma la
+          fija el ANEXO de una Orden ministerial. Si el anexo cambia, el
+          impreso cambia — y el extractor **no da error: da números**.
+          Es el peor fallo posible aquí, y ningún test puede verlo,
+          porque los tests usan el impreso viejo.
+
+          **Medido al montarlo, y nadie lo sabía:**
+              modelo 303  ANEXO I -> en vigor desde 20260127 (HAC/27/2026)
+              modelo 347  ANEXO   -> en vigor desde 20251213 (HAC/1431/2025)
+
+          Los dos cambiaron en los últimos nueve meses. **Queda por
+          mirar si el cambio del 303 afecta a las casillas que usa
+          `extraer_303_pdf.py`** — eso lo lee un asesor, no un programa.
+
+          Montado `modelos_aeat.py` (5 bloques de 4 Órdenes: 303, 130,
+          347 ×2, 349), enganchado a `boe_normativa.py --comprobar`, que
+          pasa a vigilar **23 bloques**. Ejecutado de verdad: *23 sin
+          cambios, 0 cambiados, 0 no comprobados.*
+
+          OJO al ampliarlo: el nombre del bloque del anexo **no es
+          uniforme** entre Órdenes (el 303 usa `ani`, el 130 usa `ai`).
+          Se mira con `modelos_aeat.indice("BOE-A-...")`.
+
+      [ ] C-quater · MODELOS QUE FALTAN POR IDENTIFICAR: **111, 115,
+          190, 390, 036/037, 180**. No se han registrado a ojo: hace
+          falta confirmar el identificador BOE de su Orden contra la
+          fuente oficial. Motivo concreto, del mismo día: un primer
+          intento a ojo con la Orden del NIF devolvió una resolución
+          sobre equipos termosifón. Adivinar un `BOE-A-` no sale barato.
+          La lista y qué falta de cada uno están en
+          `modelos_aeat.PENDIENTES_DE_IDENTIFICAR`.
+
       [ ] C-bis · LO QUE QUEDÓ DECLARADO Y SIN CERRAR, para no darlo por
           hecho:
             - Los **porcentajes de retención** que reconoce

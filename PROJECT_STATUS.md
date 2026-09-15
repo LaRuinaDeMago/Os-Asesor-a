@@ -7,6 +7,73 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 15-09-2026 (sesión local, decimoquinta entrada) — El impreso del 303 cambió en enero de 2026 y nadie lo sabía
+
+Pregunta de Diego, después de ver el trabajo de las citas: *"¿esto no podemos
+hacerlo con todo? el 303, el 130, el 111, el 115, el 347, el 349... y el Plan
+General Contable también"*. Se probó antes de opinar, y la respuesta corta es
+**sí, y hacía más falta de lo que parecía.**
+
+### La distinción que hace que esto valga la pena
+
+Lo que se vigila de un modelo **no es la norma, es el IMPRESO**. El lector del
+303 (`extraer_303_pdf.py`, 1.023 documentos, 99,8%) está construido sobre la
+FORMA del papel: dónde cae cada casilla, qué etiquetas lleva, qué aritmética
+imprime al lado de los totales. Esa forma la fija el **ANEXO** de una Orden
+ministerial.
+
+> **Cuando el anexo cambia, el extractor no da error: da números.** Es el peor
+> fallo posible en este proyecto, y es justo el que ningún test puede ver,
+> porque los tests usan el impreso viejo.
+
+### Lo que se encontró, medido
+
+    modelo 303  ANEXO I -> en vigor desde 20260127 (Orden HAC/27/2026)
+    modelo 347  ANEXO   -> en vigor desde 20251213 (Orden HAC/1431/2025)
+
+**Los dos impresos cambiaron en los últimos nueve meses.** El proyecto no tenía
+ninguna forma de enterarse. Queda abierto —y es trabajo de asesor, no de
+programa— **mirar si el cambio del 303 afecta a las casillas que el lector
+usa**. Nótese el detalle que lo explica: el **art. 1** de esa misma Orden tiene
+redacción de 2017, así que vigilar el articulado no habría detectado nada. El
+cambio estaba en el anexo.
+
+### Lo construido
+
+`modelos_aeat.py`: 5 bloques de 4 Órdenes verificadas contra la API (303
+EHA/3786/2008, 130 EHA/672/2007, 347 EHA/3012/2008 ×2 anexos, 349
+EHA/769/2010), con la misma forma de objeto que `Fuente` y `Autoridad` — así
+entra en `boe_normativa.comprobar()` sin tocar el comprobador. La vigilancia
+pasa de 18 a **23 bloques**. Ejecutado: *23 sin cambios, 0 cambiados, 0 no
+comprobados.*
+
+Trampa anotada para quien lo amplíe: **el nombre del bloque del anexo no es
+uniforme** entre Órdenes (el 303 usa `ani`, el 130 usa `ai`). Por eso
+`modelos_aeat.indice()` existe.
+
+### El auditor hizo su trabajo, y conviene dejarlo escrito
+
+Al añadir `ensayo_modelos_aeat.py`, `audit_project.py` pasó a **código 1 —
+defecto real**, con dos avisos: *"módulos sin conectar"* y *"NADIE EJECUTA:
+ensayo_modelos_aeat.py — existen, pueden estar en rojo, y esta auditoría diría
+que todo va bien"*. Exactamente lo que ese auditor existe para cazar, cazado
+sobre código escrito ese mismo minuto. Corregido (suite con `main()` y cableada
+a la auditoría): **42 verdes, código 2**.
+
+### Lo que NO se ha hecho, y por qué
+
+- **111, 115, 190, 390, 036/037, 180**: sin registrar. Sus identificadores BOE
+  no se han confirmado contra la fuente oficial, y **no se registran a ojo** —
+  el mismo día, un intento a ojo con la Orden del NIF devolvió una resolución
+  sobre equipos termosifón. Declarados en
+  `modelos_aeat.PENDIENTES_DE_IDENTIFICAR`, que el ensayo obliga a mantener no
+  vacío.
+- **El PGC (RD 1514/2007)**: se comprobó que su articulado SÍ se lee
+  (`BOE-A-2007-19884`, arts. 1 y 2), pero lo valioso para el motor —el cuadro
+  de cuentas— vive en los anexos (Parte quinta), y **no se ha registrado
+  todavía a propósito**: no serviría de nada hasta que un guard lo consulte.
+  Regla de `CLAUDE.md`: ninguna fuente nueva sin un caso real que la pida.
+
 ## 15-09-2026 (sesión local, decimocuarta entrada) — Las 8 citas legales que faltaban: 15 de 16 verificadas, y la vigilancia del BOE pasa de 2 artículos a 18
 
 Cerrado el punto 2.C de `PENDIENTE.md`, leyendo el texto consolidado del BOE

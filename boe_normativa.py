@@ -141,9 +141,16 @@ def main():
         # pero sin huella, asi que aunque se hubieran pasado por aqui habrian
         # salido todas como "cambiadas". Una verificacion que nadie vuelve a
         # mirar no caduca con un aviso: caduca en silencio.
+        # Y desde el mismo dia, los ANEXOS de las Ordenes que aprueban los
+        # modelos. Es una vigilancia distinta de las otras dos: aquellas miran
+        # si cambia la REGLA que un guard cita; esta mira si cambia el IMPRESO
+        # sobre el que estan construidos los lectores de PDF. Un impreso que
+        # cambia no rompe el lector con un error -- lo rompe dando numeros.
+        import modelos_aeat as ma
         registros = list(fx.FUENTES) + [
             a for a in ag.AUTORIDADES
-            if getattr(a, "bloque_boe", "") and getattr(a, "huella_boe", "")]
+            if getattr(a, "bloque_boe", "") and getattr(a, "huella_boe", "")
+        ] + list(ma.MODELOS)
         iguales, cambiados, fallidos = comprobar(registros)
         print(f"Comprobados contra el BOE: {len(iguales)} sin cambios, "
               f"{len(cambiados)} CAMBIADOS, {len(fallidos)} no comprobados")

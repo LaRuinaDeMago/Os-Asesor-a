@@ -481,7 +481,16 @@ def check_estados_y_cobertura():
                              # consolidado trae las historicas Y las reformas de
                              # entrada en vigor futura) y que un fallo de red no
                              # se confunde con "no ha cambiado".
-                             ("ensayo_boe_normativa.py", "BOE: elige la redaccion en vigor, y no aprueba lo que no ha podido leer")):
+                             ("ensayo_boe_normativa.py", "BOE: elige la redaccion en vigor, y no aprueba lo que no ha podido leer"),
+                             # El registro de modelos AEAT. Tampoco toca la red,
+                             # por lo mismo. Lo que prueba es la FORMA: que cada
+                             # entrada trae lo que la vigilancia necesita, que no
+                             # hay huellas repetidas (senal de copiar-pegar), que
+                             # un modelo no puede estar a la vez registrado y
+                             # "pendiente de identificar", y que boe_normativa
+                             # los recoge de verdad -- leyendo su codigo como
+                             # texto, no ejecutandolo.
+                             ("ensayo_modelos_aeat.py", "Modelos AEAT: el impreso que cambia sin avisar")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue
