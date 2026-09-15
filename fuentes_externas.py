@@ -55,7 +55,8 @@ MESES_HASTA_CADUCAR = 12
 
 class Fuente:
     def __init__(self, clave, descripcion, modulo, atributo, valor,
-                 fuente, url, verificado, estado, nota=""):
+                 fuente, url, verificado, estado, nota="",
+                 norma_boe="", bloque_boe="", vigencia_boe="", huella_boe=""):
         self.clave = clave
         self.descripcion = descripcion
         self.modulo = modulo
@@ -66,6 +67,14 @@ class Fuente:
         self.verificado = verificado          # "AAAA-MM-DD"
         self.estado = estado
         self.nota = nota
+        # Enganche con boe_normativa.py. Si `bloque_boe` esta puesto,
+        # `python boe_normativa.py --comprobar` descarga ese articulo del texto
+        # consolidado y avisa si ha cambiado desde `vigencia_boe`/`huella_boe`.
+        # La auditoria NO descarga nada: mira lo guardado. La red es explicita.
+        self.norma_boe = norma_boe
+        self.bloque_boe = bloque_boe
+        self.vigencia_boe = vigencia_boe
+        self.huella_boe = huella_boe
 
     def valor_en_codigo(self):
         """Lo que la constante vale AHORA, importando el modulo de verdad.
@@ -158,13 +167,23 @@ FUENTES = (
         modulo="extraer_303_pdf", atributo="TIPOS_LEGALES",
         valor=(0, 4, 5, 10, 21),
         fuente="Ley 37/1992 del IVA, arts. 90 y 91",
-        url="https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740",
+        url="https://www.boe.es/datosabiertos/api/legislacion-consolidada/"
+            "id/BOE-A-1992-28740/texto/bloque/a91",
         verificado="2026-09-15", estado=PARCIAL,
-        nota="PARCIAL a proposito: el 4, el 10 y el 21 se leyeron PREIMPRESOS en "
-             "el formulario oficial (casillas 02, 05 y 08). El 0 y el 5 NO se han "
-             "leido en ninguna fuente: el 5% fue un tipo temporal y hay que "
-             "comprobar si sigue vigente y desde/hasta cuando. Primer sitio donde "
-             "mirar si aparecen tramos marcados como tipo ilegal."),
+        norma_boe="BOE-A-1992-28740", bloque_boe="a91",
+        vigencia_boe="20250101", huella_boe="fa5e6f111bf2dd98",
+        nota="LEIDO EN EL TEXTO CONSOLIDADO DEL BOE el 15-09-2026, articulo por "
+             "articulo. CUATRO de los cinco quedan confirmados: 21% (art. 90.Uno, "
+             "en vigor desde 2012), 10% (art. 91.Uno), 4% (art. 91.Dos) y 0% "
+             "(art. 91.Cuatro, entregas en concepto de donativo -- existe y es "
+             "permanente, no era una errata). EL 5% NO APARECE ni en el 90 ni en "
+             "el 91: fue un tipo temporal de los RD-ley de la crisis de precios. "
+             "SIGUE COMO PARCIAL POR ESO, y la decision es de Diego, no mia: "
+             "TIPOS_LEGALES lo usa el LECTOR DE PDF para validar su propia "
+             "lectura sobre un archivo de 2016 a 2026, y en parte de ese periodo "
+             "el 5% SI estuvo vigente. Para ese uso, aceptarlo es correcto. "
+             "Seria incorrecto reutilizar esta tupla para validar el tipo de una "
+             "factura de hoy."),
     Fuente(
         clave="iva.productos_al_4",
         descripcion="Productos que tributan al tipo superreducido del 4%",
@@ -174,14 +193,27 @@ FUENTES = (
                "aceite de oliva"},
         fuente="Ley 37/1992 del IVA, art. 91.Dos.1.1o",
         url="https://www.boe.es/buscar/act.php?id=BOE-A-1992-28740",
-        verificado="2026-09-15", estado=SIN_VERIFICAR,
-        nota="SIN_VERIFICAR, y es la mas delicada del registro: la lista sale "
-             "directamente de la ley y de ella depende guard_tipo_producto_iva_"
-             "semantico, que decide si un 4% esta bien puesto. El aceite de oliva "
-             "paso al 4% por una medida TEMPORAL (antes 10%), asi que hay dos "
-             "preguntas abiertas: si sigue ahi, y si la lista esta completa. "
-             "Encontrada el 15-09-2026 al registrar la autoridad de los guards; "
-             "llevaba sin registrar desde que se escribio."),
+        verificado="2026-09-15", estado=PARCIAL,
+        norma_boe="BOE-A-1992-28740", bloque_boe="a91",
+        vigencia_boe="20250101", huella_boe="fa5e6f111bf2dd98",
+        nota="LEIDO EN EL BOE el 15-09-2026 (art. 91.Dos.1.1o, en vigor desde el "
+             "1-1-2025, redaccion dada por el RD-ley 4/2024). Tres resultados:\n"
+             " (1) BUENA NOTICIA: el ACEITE DE OLIVA ya no es temporal. El RD-ley "
+             "     4/2024 lo incorporo al 4% de forma permanente ('g) Los aceites "
+             "     de oliva'). La alarma que se anoto queda resuelta.\n"
+             " (2) PERO 'pan' ES DEMASIADO AMPLIO. La ley dice 'el pan COMUN'. Un "
+             "     pan especial o de molde tributa al 10%, y esta tabla lo "
+             "     aprobaria al 4%. Mismo problema en 'fruta/verdura/hortaliza/"
+             "     legumbre/tuberculo/cereal': la ley exige que tengan 'la "
+             "     condicion de productos naturales de acuerdo con el Codigo "
+             "     Alimentario'. Un procesado no entra.\n"
+             " (3) Y LA LISTA ESTA INCOMPLETA por el otro lado: el art. 91.Dos "
+             "     incluye ademas libros, periodicos y revistas (2o), "
+             "     medicamentos de uso humano (3o), vehiculos para personas con "
+             "     movilidad reducida (4o) y protesis (5o). Una factura de libros "
+             "     al 4% saldria marcada como tipo incorrecto.\n"
+             "NO SE TOCA LA TABLA: cambiarla mueve el comportamiento del motor y "
+             "es una decision contable de Diego. Queda medido y escrito."),
 )
 
 

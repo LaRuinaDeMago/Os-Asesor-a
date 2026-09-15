@@ -60,7 +60,12 @@ SIN_IDENTIFICAR = "SIN_IDENTIFICAR"  # no sabemos que norma lo respalda
 #: Procedencias
 DEL_CODIGO = "ya citado en motor_veredicto.py"
 PROPUESTA_CLAUDE = "propuesto por Claude el 15-09-2026, SIN contrastar"
+LEIDO_EN_BOE = "leido en el texto consolidado del BOE el 15-09-2026"
 NO_APLICA = "no procede: no es una regla juridica"
+
+#: Base de la url de la API de datos abiertos del BOE (legislacion consolidada)
+_BOE = ("https://www.boe.es/datosabiertos/api/legislacion-consolidada/"
+        "id/BOE-A-1992-28740/texto/bloque/{}")
 
 
 class Autoridad:
@@ -74,10 +79,26 @@ class Autoridad:
         self.nota = nota
         self.url = url
         self.verificado = verificado
+        # Enganche con boe_normativa.py, solo para las leidas en el BOE.
+        self.norma_boe = "BOE-A-1992-28740"
+        self.bloque_boe = ""
+        self.vigencia_boe = ""
+        self.huella_boe = ""
 
 
 def _n(guard, norma, nota="", procedencia=PROPUESTA_CLAUDE):
     return Autoridad(guard, NORMA, norma, PROPUESTO, procedencia, nota)
+
+
+def _v(guard, norma, bloque, vigencia, nota):
+    """Cita LEIDA en el texto consolidado del BOE: se guarda el bloque, desde
+    cuando esta en vigor esa redaccion, y la url exacta desde la que se leyo.
+    `boe_normativa.py --comprobar` vuelve a descargarla y avisa si cambia."""
+    a = Autoridad(guard, NORMA, norma, VERIFICADO, LEIDO_EN_BOE, nota,
+                  url=_BOE.format(bloque), verificado="2026-09-15")
+    a.bloque_boe = bloque
+    a.vigencia_boe = vigencia
+    return a
 
 
 def _t(guard, nota):
@@ -90,30 +111,35 @@ def _c(guard, nota):
 
 AUTORIDADES = (
     # ---------- reglas que vienen de una norma ------------------------
-    _n("guard_recargo_equivalencia", "Ley 37/1992 (LIVA), art. 154",
-       "La cita ya estaba en el docstring del guard desde el 20-08-2026. Sigue "
-       "sin contrastarse contra el texto: que este escrita no la verifica.",
-       procedencia=DEL_CODIGO),
-    _n("guard_tipo_producto_iva_semantico", "Ley 37/1992 (LIVA), arts. 90 y 91",
-       "El guard ya dice 'tabla oficial 2026 (AEAT/LIVA)'. La lista concreta de "
-       "productos al 4% (TABLA_IVA_4) esta ademas registrada en "
-       "fuentes_externas.py, donde caduca sola.",
-       procedencia=DEL_CODIGO),
-    _n("guard_aritmetica_base_tipo", "Ley 37/1992 (LIVA), arts. 78 y 90",
-       "base x tipo = cuota no es una convencion nuestra: es la definicion de "
-       "base imponible y de tipo. Contrastar cual es el articulo exacto."),
-    _n("guard_aritmetica_tramos", "Ley 37/1992 (LIVA), arts. 78 y 90",
-       "Misma regla que el anterior, para varios tipos en una factura."),
-    _n("guard_cuadre_total", "Ley 37/1992 (LIVA), arts. 78 y 88",
-       "base + cuota repercutida = total a pagar. Confirmar si el 88 "
-       "(repercusion) es la referencia correcta o basta el 78."),
-    _n("guard_suma_tramos", "Ley 37/1992 (LIVA), art. 78",
-       "La suma de las bases por tramo tiene que dar la base total declarada. "
-       "Es la misma definicion de base imponible, aplicada a una factura con "
-       "varios tipos."),
-    _n("guard_suma_tramos_general", "Ley 37/1992 (LIVA), art. 78",
-       "Version del anterior para cualquier numero de tramos. Al validar la "
-       "cita, vale para los dos: es la misma regla."),
+    _v("guard_recargo_equivalencia", "Ley 37/1992 (LIVA), art. 154", "a154", "20150101",
+       "CONFIRMADA. La cita ya estaba en el docstring del guard desde el "
+       "20-08-2026 y era correcta: el art. 154 se titula 'Contenido del regimen "
+       "especial del recargo de equivalencia'. Leida en el BOE el 15-09-2026."),
+    _v("guard_tipo_producto_iva_semantico", "Ley 37/1992 (LIVA), art. 91.Dos", "a91", "20250101",
+       "CONFIRMADA, y con hallazgo. El art. 91.Dos.1.1o lista los productos al "
+       "4%. Leerlo destapo que TABLA_IVA_4 dice 'pan' donde la ley dice 'pan "
+       "COMUN', no exige que frutas y verduras sean 'productos naturales segun "
+       "el Codigo Alimentario', y deja fuera libros, medicamentos y protesis, "
+       "que tambien van al 4%. Detalle completo en fuentes_externas.py "
+       "(iva.productos_al_4). La tabla NO se ha tocado: es decision contable."),
+    _v("guard_aritmetica_base_tipo", "Ley 37/1992 (LIVA), arts. 78 y 90", "a78", "20171110",
+       "CONFIRMADA. El art. 78 se titula 'Base imponible. Regla general' y el 90 "
+       "'Tipo impositivo general'. base x tipo = cuota no es convencion nuestra: "
+       "sale de esas dos definiciones."),
+    _v("guard_aritmetica_tramos", "Ley 37/1992 (LIVA), arts. 78 y 90", "a78", "20171110",
+       "Misma regla que guard_aritmetica_base_tipo, para varios tipos en una "
+       "factura. Misma cita, confirmada el 15-09-2026."),
+    _v("guard_cuadre_total", "Ley 37/1992 (LIVA), arts. 78 y 88", "a88", "20130101",
+       "CONFIRMADA: el art. 88 se titula 'Repercusion del impuesto' y su "
+       "apartado Uno obliga a repercutir INTEGRAMENTE el importe sobre el "
+       "destinatario. Por eso base + cuota tiene que dar el total."),
+    _v("guard_suma_tramos", "Ley 37/1992 (LIVA), art. 78", "a78", "20171110",
+       "CONFIRMADA. La suma de las bases por tramo tiene que dar la base total: "
+       "es la definicion de base imponible del art. 78, aplicada a una factura "
+       "con varios tipos."),
+    _v("guard_suma_tramos_general", "Ley 37/1992 (LIVA), art. 78", "a78", "20171110",
+       "Version del anterior para cualquier numero de tramos. Misma cita, misma "
+       "regla, confirmada el 15-09-2026."),
     _n("guard_nif_digito_control", "Orden EHA/451/2008 (composicion del NIF)",
        "PENDIENTE de comprobar que sigue vigente y que es la norma que fija el "
        "algoritmo del digito de control, no solo el formato."),
@@ -133,8 +159,11 @@ AUTORIDADES = (
        "visto de ese proveedor. La norma explica por que la forma es estable, no "
        "obliga a ninguna forma concreta. Candidato serio a reclasificarse como "
        "TECNICO al validarlo."),
-    _n("guard_sentido_compra_venta", "Ley 37/1992 (LIVA), art. 84 (sujeto pasivo)",
-       "Quien emite y quien recibe determina el sentido. Contrastar."),
+    _v("guard_sentido_compra_venta", "Ley 37/1992 (LIVA), art. 84", "a84", "20230101",
+       "CONFIRMADA: el art. 84 se titula 'Sujetos pasivos' y su apartado Uno.1o "
+       "los define por quien realiza la entrega o presta el servicio. El sentido "
+       "lo da eso, no el titulo del papel. Su apartado Uno.2o es ademas el de la "
+       "inversion del sujeto pasivo, que aparece en el cuadre del 303."),
     _n("guard_ejercicio_coherente", "Ley 37/1992 (LIVA), arts. 75 y 99",
        "Devengo e imputacion temporal de las deducciones. Cual de los dos manda "
        "aqui es justo lo que hay que decidir leyendolos."),

@@ -81,15 +81,31 @@ def main():
     comprobar("hay citas de norma registradas", normas >= 10, str(normas))
     comprobar("el registro sabe cuantas estan verificadas de verdad",
               isinstance(verificadas, int))
-    comprobar("HOY no hay ninguna verificada, y el registro lo dice",
-              verificadas == 0,
-              "si esto cambia sin haber leido los textos, alguien se ha "
-              "auto-aprobado")
-    comprobar("toda cita de norma declara de donde sale la PROPUESTA",
+    comprobar("toda cita de norma declara de donde sale", 
               all(a.procedencia for a in ag.AUTORIDADES if a.origen == ag.NORMA))
-    comprobar("una cita VERIFICADA tendria que traer url y fecha, y ninguna las trae",
-              all(not (a.estado == ag.VERIFICADO and not (a.url and a.verificado))
-                  for a in ag.AUTORIDADES))
+
+    # EL INVARIANTE, que sustituye a la foto del 15-09 ("hoy hay 0 verificadas").
+    # Aquella comprobacion era correcta ese dia y se quedo obsoleta en cuanto se
+    # leyeron los textos, que es justo lo que tenia que pasar. Lo que NO puede
+    # cambiar nunca es esto: marcar algo VERIFICADO obliga a decir DONDE se leyo,
+    # CUANDO, y QUE REDACCION. Sin las cuatro cosas no se puede auto-aprobar.
+    verificadas_sin_respaldo = [
+        a.guard for a in ag.AUTORIDADES
+        if a.estado == ag.VERIFICADO
+        and not (a.url and a.verificado and a.bloque_boe and a.vigencia_boe)]
+    comprobar("ninguna cita VERIFICADA se libra de decir url, fecha, bloque y vigencia",
+              not verificadas_sin_respaldo, str(verificadas_sin_respaldo))
+    comprobar("y las que siguen PROPUESTAS no fingen tener respaldo",
+              all(not (a.estado == ag.PROPUESTO and a.bloque_boe)
+                  for a in ag.AUTORIDADES),
+              str([a.guard for a in ag.AUTORIDADES
+                   if a.estado == ag.PROPUESTO and a.bloque_boe]))
+    comprobar("la vigencia guardada tiene forma de fecha AAAAMMDD",
+              all(len(a.vigencia_boe) == 8 and a.vigencia_boe.isdigit()
+                  for a in ag.AUTORIDADES if a.bloque_boe),
+              str([(a.guard, a.vigencia_boe) for a in ag.AUTORIDADES
+                   if a.bloque_boe and len(a.vigencia_boe) != 8]))
+    print(f"       (informativo: {verificadas} de {normas} citas verificadas hoy)")
 
     print("\nD. Los tres origenes dicen cosas distintas, y eso es el punto")
     # Presentar como obligacion legal lo que es criterio del despacho seria el

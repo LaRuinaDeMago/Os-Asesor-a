@@ -185,34 +185,54 @@
       cuántos clientes hacen falta antes de dar el paso por bueno.
 
   ═════════════════════════════════════════════════════════════════════
-  2 · DOS NÚMEROS QUE SALEN DE LA LEY Y NADIE HA COMPROBADO   <- NUEVO
+  2 · NORMATIVA: LO LEÍDO EN EL BOE, Y LO QUE HAY QUE DECIDIR
   ═════════════════════════════════════════════════════════════════════
       Del registro creado el 15-09 (`python fuentes_externas.py`). No
       corre prisa como el 303, pero es trabajo tuyo y de nadie más:
       un asesor con el texto delante, cinco minutos cada uno.
 
-      [ ] A · `TABLA_IVA_4` — la lista de productos al 4% (art. 91.Dos
-          LIVA). De ella depende `guard_tipo_producto_iva_semantico`,
-          que decide si un 4% está bien puesto.
-          **EL ACEITE DE OLIVA ESTÁ EN LA LISTA, y pasó al 4% por una
-          medida TEMPORAL (antes 10%).** Si eso ha revertido y aquí
-          sigue, el guard aprueba un tipo incorrecto. Dos preguntas:
-          ¿sigue vigente?, ¿está completa la lista?
+      YA LEÍDO EN EL BOE (15-09, texto consolidado, artículo por
+      artículo). Lo que queda es DECIDIR, no buscar:
 
-      [ ] B · `TIPOS_LEGALES = (0, 4, 5, 10, 21)`. El 4, el 10 y el 21
-          se leyeron preimpresos en el formulario oficial. **El 0 y el 5
-          no se han leído en ninguna fuente**; el 5% también fue
-          temporal. Es el primer sitio donde mirar si aparecen tramos
-          marcados como tipo ilegal.
+      [ ] A · `TABLA_IVA_4` — tres hallazgos, ninguno tocado porque
+          cambiar la tabla mueve el motor y es decisión contable tuya:
+            · El ACEITE DE OLIVA **ya no es temporal**: el RD-ley
+              4/2024 lo dejó al 4% de forma permanente desde el
+              1-1-2025. La alarma queda resuelta, y en el sentido bueno.
+            · Pero la tabla dice **"pan"** y la ley dice **"pan COMÚN"**.
+              Un pan especial va al 10% y esta tabla lo aprobaría al 4%.
+              Igual con fruta/verdura/…: la ley exige que sean
+              "productos naturales según el Código Alimentario".
+            · Y **falta media lista**: el art. 91.Dos incluye también
+              libros, periódicos y revistas, medicamentos de uso humano,
+              vehículos para movilidad reducida y prótesis. Una factura
+              de libros al 4% saldría marcada como tipo incorrecto.
+          Decide tú si se afina la tabla o se deja como está.
 
-      [ ] C · Las 16 citas legales de `autoridad_guards.py`
-          (`python autoridad_guards.py`). **Ninguna está verificada:
-          son una propuesta.** Se valida abriendo el texto y leyendo el
-          artículo: si dice lo que el guard hace, se pasa a VERIFICADO
-          con url y fecha; si no, se corrige o se marca SIN_IDENTIFICAR.
-          Las dos salidas son buenas; dejarla en PROPUESTO para siempre,
-          no. La auditoría imprime el recuento en cada pasada para que
-          no se convierta en un hecho por el paso del tiempo.
+      [ ] B · `TIPOS_LEGALES = (0, 4, 5, 10, 21)`. **Cuatro confirmados**
+          en el BOE: 21% (art. 90.Uno), 10% (art. 91.Uno), 4%
+          (art. 91.Dos) y 0% (art. 91.Cuatro, donativos — existe y es
+          permanente). **El 5% NO aparece** ni en el 90 ni en el 91: era
+          un tipo temporal.
+          **Y probablemente haya que dejarlo igual:** esa tupla la usa
+          el LECTOR DE PDF para validar su propia lectura sobre un
+          archivo de 2016 a 2026, y en parte de ese periodo el 5% sí
+          estuvo vigente. Sería incorrecto reutilizarla para validar una
+          factura de hoy. Sólo hay que decidirlo y anotarlo.
+
+      [ ] C · Las citas de `autoridad_guards.py`: **8 de 16 ya están
+          VERIFICADAS** contra el texto consolidado (arts. 78, 84, 88,
+          90, 91 y 154). Quedan 8 PROPUESTAS, que son las de fuera de la
+          LIVA: Reglamento de facturación (RD 1619/2012), retenciones de
+          IRPF (RD 439/2007) y la composición del NIF. Se leen igual —
+          dímelo y las traigo.
+
+      [ ] D · **Vigilancia automática, ya montada.** Un comando:
+                  python boe_normativa.py --comprobar
+          Descarga del BOE los artículos registrados y avisa si alguno
+          ha cambiado desde que se leyó. No interpreta el cambio: lo
+          detecta y te manda a leerlo. Merece la pena dejarlo en una
+          tarea programada mensual.
 
   ═════════════════════════════════════════════════════════════════════
   3 · LO QUE NO ES CÓDIGO, y lleva abierto desde el 12-08

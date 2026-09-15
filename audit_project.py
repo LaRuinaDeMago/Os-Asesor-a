@@ -472,7 +472,16 @@ def check_estados_y_cobertura():
                              # test. Prueba que una cita PROPUESTA no pueda pasar
                              # por verificada por el paso del tiempo, que es el
                              # riesgo real de un registro de autoridad.
-                             ("ensayo_autoridad_guards.py", "Autoridad de los guards: una propuesta no es un hecho")):
+                             ("ensayo_autoridad_guards.py", "Autoridad de los guards: una propuesta no es un hecho"),
+                             # El detector de cambios del BOE. No toca la red en
+                             # el ensayo, a proposito: descargar lo haria fallar
+                             # sin salida a internet, tardar en cada auditoria y
+                             # --lo peor-- dejar de ser determinista. Lo que
+                             # prueba es que elige la redaccion EN VIGOR (el
+                             # consolidado trae las historicas Y las reformas de
+                             # entrada en vigor futura) y que un fallo de red no
+                             # se confunde con "no ha cambiado".
+                             ("ensayo_boe_normativa.py", "BOE: elige la redaccion en vigor, y no aprueba lo que no ha podido leer")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue

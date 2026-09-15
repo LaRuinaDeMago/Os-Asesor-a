@@ -7,6 +7,128 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 15-09-2026 (sesión Cloud, séptima entrada) — Diego tenía razón: si puedo leer el impreso de la AEAT, puedo leer el BOE. Ocho citas verificadas y un vigilante automático
+
+Diego señaló una inconsistencia real y tenía toda la razón: esta misma sesión se
+había bajado el formulario del 303 y leído la fórmula **de los bytes del PDF** —
+y salió exacta—, y acto seguido dejaba 16 citas legales como *"esto lo verificas
+tú"*. Eso hacía el módulo inútil: *"¿para qué serviría este cerebro si tengo que
+verificar los artículos uno a uno?"*.
+
+La distinción que sí se sostiene es más fina de lo que se había explicado:
+
+| | quién lo hace |
+|---|---|
+| *"¿el art. 91.Dos sigue listando el aceite de oliva al 4%?"* | **automatizable**: es texto contra texto |
+| *"¿este gasto de este cliente es deducible?"* | **criterio**, y lo firma el asesor |
+
+Lo anterior dejaba **lo primero** en manos de Diego. Corregido.
+
+### La API de datos abiertos del BOE responde, y trae las fechas de vigencia
+
+`https://www.boe.es/datosabiertos/api/legislacion-consolidada/id/{norma}/texto/bloque/{art}`
+devuelve el texto consolidado con **todas las versiones históricas**, cada una
+con su `fecha_vigencia` y la norma que la modificó. Con eso se puede saber qué
+redacción rige hoy, sin interpretar nada.
+
+### Lo verificado, leído artículo por artículo
+
+| artículo | qué dice | en vigor desde |
+|---|---|---|
+| **90.Uno** | tipo general **21%** | 2012-07-15 |
+| **91.Uno** | tipo reducido **10%** | — |
+| **91.Dos** | tipo superreducido **4%** | 2025-01-01 |
+| **91.Cuatro** | tipo **0%** — entregas en concepto de donativo | — |
+| **78** | Base imponible. Regla general | 2017-11-10 |
+| **88** | Repercusión del impuesto | 2013-01-01 |
+| **84** | Sujetos pasivos (y su Uno.2º, la ISP) | 2023-01-01 |
+| **154** | Régimen especial del recargo de equivalencia | 2015-01-01 |
+
+**8 de 16 citas pasan de PROPUESTA a VERIFICADA**, cada una con su url, su
+bloque y la fecha de vigencia de la redacción leída. Las 8 que quedan son las de
+fuera de la LIVA (Reglamento de facturación, retenciones de IRPF, composición
+del NIF).
+
+### Tres hallazgos reales sobre `TABLA_IVA_4`
+
+1. **El aceite de oliva ya no es temporal.** El RD-ley 4/2024 lo incorporó al 4%
+   de forma permanente desde el 1-1-2025 (*"g) Los aceites de oliva"*). **La
+   alarma levantada esta misma mañana queda resuelta, y en el sentido bueno.**
+2. **Pero la tabla dice "pan" y la ley dice "pan COMÚN".** Un pan especial
+   tributa al 10% y esta tabla lo aprobaría al 4%. Lo mismo con
+   fruta/verdura/hortaliza/…: la ley exige que tengan *"la condición de
+   productos naturales de acuerdo con el Código Alimentario"*.
+3. **Y falta media lista por el otro lado**: el art. 91.Dos incluye además
+   libros, periódicos y revistas, medicamentos de uso humano, vehículos para
+   personas con movilidad reducida y prótesis. Una factura de libros al 4%
+   saldría marcada como tipo incorrecto.
+
+**La tabla no se ha tocado**: cambiarla mueve el comportamiento del motor y es
+una decisión contable. Queda medido, escrito y en `PENDIENTE.md`.
+
+### Y el 5% de `TIPOS_LEGALES`, que no es lo que parecía
+
+Cuatro de los cinco tipos quedan confirmados. **El 5% no aparece ni en el 90 ni
+en el 91**: era un tipo temporal de los RD-ley de la crisis de precios. Pero
+**probablemente haya que dejarlo igual**, y el motivo importa: esa tupla la usa
+el **lector de PDF** para validar su propia lectura sobre un archivo de 2016 a
+2026, y en parte de ese periodo el 5% sí estuvo vigente. Para ese uso, aceptarlo
+es correcto. Sería incorrecto reutilizarla para validar una factura de hoy.
+Anotado en el registro con esas palabras.
+
+### 24º auditor: `boe_normativa.py` — la vigilancia automática, en su versión honesta
+
+Un comando, `python boe_normativa.py --comprobar`, descarga los artículos
+registrados y compara contra la huella guardada. Contesta **una sola pregunta, y
+la contesta sola**: *¿ha cambiado este artículo desde el día que lo leímos?*
+
+**Lo que no hace, ni hará, es decir qué significa el cambio.** Esa es la línea
+exacta entre esto y un resumidor: aquello produce una **afirmación** nueva (y hoy
+mismo se vio a uno inventarse las casillas 40-43); esto produce una
+**comparación** entre dos textos oficiales. Una se puede equivocar, la otra no.
+
+Detalles con su motivo:
+
+- **La auditoría no toca la red.** Descargar la haría fallar sin salida a
+  internet, tardar, y dejar de ser determinista. La red es explícita y va aparte.
+- **Elige la redacción EN VIGOR**, no la última del fichero: el consolidado trae
+  las históricas **y** las reformas con entrada en vigor **futura**.
+- **Ignora la redacción derogada** que el BOE conserva como nota dentro de la
+  versión vigente. Incluirla sería dar por vigente lo que ya no lo está.
+- **La huella normaliza espacios**: si cambiara por un reformateo del BOE, el
+  aviso se volvería ruido y se dejaría de mirar — el final del ❌ que se enseñó
+  a ignorar.
+- **Un fallo de red sale como NO COMPROBADO, nunca como "sin cambios"**, y se
+  reporta sólo el *tipo* de excepción, nunca su mensaje.
+
+`ensayo_boe_normativa.py`: 23 comprobaciones, **sin tocar la red**, contra XML
+sintéticos que imitan la estructura real. Resaboteado en cuatro variantes —coger
+la versión futura, incluir la derogada, hacer la huella sensible al reformateo,
+contar un fallo de red como "sin cambios"—: **las cuatro caen.**
+
+Y probado contra el BOE **de verdad**: `2 sin cambios, 0 cambiados`. Falseando
+una huella guardada, avisa con la vigencia, la norma modificadora y la huella
+real.
+
+### Una comprobación del ensayo anterior que caducó, y estaba bien que caducara
+
+`ensayo_autoridad_guards.py` afirmaba *"hoy no hay ninguna verificada"*. Era
+cierto esa mañana y se rompió en cuanto se leyeron los textos — que es
+exactamente lo que tenía que pasar. Sustituida por el **invariante**, que no
+caduca nunca: marcar algo VERIFICADO obliga a declarar **url, fecha, bloque y
+vigencia**. Sin las cuatro cosas no se puede auto-aprobar.
+
+### El motor, otra vez intacto
+
+md5 de `motor_veredicto.py` idéntico a la línea base (`661612a2…`). Tests
+**65/65** y adversarial **112/112**.
+
+### Estado tras la sesión
+
+`audit_project.py`: **41 ✅ · 1 ⚠️ · 0 ❌**. **30/30 suites**, privacidad sin
+hallazgos. **No se tocó `motor_veredicto.py`** ni se añadió ningún guard. Todo
+lo consultado es legislación pública: ningún dato de cliente.
+
 ## 15-09-2026 (sesión Cloud, sexta entrada) — `autoridad_guards.py`: qué norma hay detrás de cada guard, y cuáles no tienen ninguna
 
 Segundo ladrillo del módulo de normativa, y el que de verdad lo conecta con el
