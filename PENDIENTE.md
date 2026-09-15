@@ -282,9 +282,61 @@
           VERIFICADAS** contra el texto consolidado (arts. 78, 84, 88,
           90, 91 y 154). Quedan 8 PROPUESTAS, que son las de fuera de la
           LIVA: Reglamento de facturación (RD 1619/2012), retenciones de
-          IRPF (RD 439/2007) y la composición del NIF. Se leen igual —
-          dímelo y las traigo. **SIN EMPEZAR** (15-09: se aparcó para
-          atender otra cosa antes de llegar a este punto).
+          IRPF (RD 439/2007) y la composición del NIF.
+
+          ✅ **RESUELTO 15-09-2026. De 8 verificadas a 15 de 16**, y la que
+          falta está declarada PARCIAL a propósito, no olvidada.
+
+          Leídos en el texto consolidado, artículo por artículo:
+            LIVA         a13 (hecho imponible), a15 (concepto de AIB),
+                         a20 (exenciones interiores), a75 (devengo),
+                         a99 (ejercicio del derecho a la deducción)
+            RD 1619/2012 a6 (contenido de la factura), a15 (rectificativas)
+            RD 439/2007  a74 (obligación de retener)
+            Orden EHA/451/2008  a2 a a5 (composición del NIF)
+
+          **El hallazgo que importa, y es un límite real:**
+          `guard_nif_digito_control` CALCULA el carácter de control, y ese
+          **algoritmo no está en el texto legal de ninguna de las dos
+          normas** que regulan el NIF — la Orden se acaba en el art. 5 y
+          el RD 1065/2007 art. 22 sólo delega ("en los términos que
+          establezca el Ministro"). Es especificación técnica de la AEAT,
+          no artículo citable. Por eso PARCIAL: la composición sí está
+          verificada, el algoritmo no. Llamarlo VERIFICADO sería el mismo
+          falso verde de siempre.
+
+          Dos correcciones de camino, por comprobar en vez de suponer:
+            - Esta línea decía que las 8 restantes eran "las de fuera de
+              la LIVA". **Falso:** cinco artículos eran de la LIVA.
+            - La Orden del NIF se citaba con un identificador BOE que da
+              404 contra la API. El real es `BOE-A-2008-3580`.
+
+          Y el arreglo de fondo, que vale más que las citas:
+          `--comprobar` sólo vigilaba `fuentes_externas` (**2 artículos**).
+          Las citas verificadas de `autoridad_guards` se guardaban con su
+          bloque pero **sin huella**, así que no las vigilaba nadie. Ahora
+          las huellas viven en una tabla única (`HUELLAS`) y la
+          comprobación cubre **18 artículos**. Ejecutado de verdad:
+          *18 sin cambios, 0 cambiados, 0 no comprobados.*
+
+      [ ] C-bis · LO QUE QUEDÓ DECLARADO Y SIN CERRAR, para no darlo por
+          hecho:
+            - Los **porcentajes de retención** que reconoce
+              `guard_retencion_vs_error` NO se han contrastado. El
+              artículo que los ampara sí; los números no. Y son lo que
+              más cambia de todo el fichero.
+            - El **RD 1514/2007 (PGC)** para el supuesto de inmovilizado
+              de `guard_tipo_operacion_especial` sigue sin leerse: no
+              tiene la misma estructura de articulado fiscal y merece su
+              propia pasada.
+            - `nif_check.py` exige control-letra para `"PQSW"` y
+              `triangulacion_identidad_v0.py` para `"PQRSNW"`: faltan
+              **R** (congregaciones religiosas) y **N** (entidades
+              extranjeras). **No se ha tocado a propósito** — la norma
+              leída no fija ese algoritmo, así que cambiarlo sería
+              elegirlo a ojo, el error que este proyecto ya tiene
+              documentado cuatro veces. Se cierra contrastando contra la
+              especificación técnica de la AEAT, no contra el BOE.
 
       [ ] D · **Vigilancia automática, ya montada, PENDIENTE DE DECIDIR
           EL MECANISMO (15-09-2026).** El comando en sí funciona:
@@ -304,6 +356,14 @@
           en tu propio PC** — sin nube, sin agente de IA, Windows la
           ejecuta sola. Queda por montar la próxima vez que se retome
           este punto.
+
+          **Y ahora vigila mucho más que cuando se escribió esto
+          (15-09-2026):** pasó de 2 artículos a **18**, porque las citas
+          verificadas de `autoridad_guards.py` no las miraba nadie (ver
+          punto 2.C). Eso cambia lo que está en juego: ya no es "avisa si
+          cambia el art. 91", es **la única forma de que las 15 citas que
+          respaldan los guards no caduquen en silencio.** Sigue siendo
+          una tarea de Windows de cinco minutos.
 
   ═════════════════════════════════════════════════════════════════════
   3 · LO QUE NO ES CÓDIGO

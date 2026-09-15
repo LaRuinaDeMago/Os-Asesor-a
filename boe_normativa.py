@@ -133,7 +133,18 @@ def main():
 
     if args.comprobar:
         import fuentes_externas as fx
-        iguales, cambiados, fallidos = comprobar(fx.FUENTES)
+        import autoridad_guards as ag
+        # AMPLIADO 15-09-2026. Antes esto solo miraba `fuentes_externas`, que
+        # tenia DOS articulos enganchados. Las 15 citas VERIFICADAS de
+        # `autoridad_guards` -- las que respaldan los guards que deciden
+        # veredictos -- no las vigilaba nadie: se registraban con su bloque
+        # pero sin huella, asi que aunque se hubieran pasado por aqui habrian
+        # salido todas como "cambiadas". Una verificacion que nadie vuelve a
+        # mirar no caduca con un aviso: caduca en silencio.
+        registros = list(fx.FUENTES) + [
+            a for a in ag.AUTORIDADES
+            if getattr(a, "bloque_boe", "") and getattr(a, "huella_boe", "")]
+        iguales, cambiados, fallidos = comprobar(registros)
         print(f"Comprobados contra el BOE: {len(iguales)} sin cambios, "
               f"{len(cambiados)} CAMBIADOS, {len(fallidos)} no comprobados")
         for clave, antes, ahora, norma_mod, h in cambiados:

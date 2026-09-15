@@ -54,6 +54,7 @@ CRITERIO = "CRITERIO"  # criterio profesional del despacho, no derecho
 
 # --- cuanto nos fiamos de la cita -------------------------------------
 VERIFICADO = "VERIFICADO"          # leido en el texto oficial, con url y fecha
+PARCIAL = "PARCIAL"                # parte leida en el BOE, parte NO esta ahi
 PROPUESTO = "PROPUESTO"            # plausible; NADIE lo ha contrastado
 SIN_IDENTIFICAR = "SIN_IDENTIFICAR"  # no sabemos que norma lo respalda
 
@@ -63,9 +64,45 @@ PROPUESTA_CLAUDE = "propuesto por Claude el 15-09-2026, SIN contrastar"
 LEIDO_EN_BOE = "leido en el texto consolidado del BOE el 15-09-2026"
 NO_APLICA = "no procede: no es una regla juridica"
 
-#: Base de la url de la API de datos abiertos del BOE (legislacion consolidada)
+#: Base de la url de la API de datos abiertos del BOE (legislacion consolidada).
+#: AMPLIADO 15-09-2026: antes tenia la LIVA incrustada en la cadena, asi que
+#: cualquier cita de OTRA norma no podia registrarse como leida aunque se
+#: hubiera leido. Ahora la norma es un parametro.
 _BOE = ("https://www.boe.es/datosabiertos/api/legislacion-consolidada/"
-        "id/BOE-A-1992-28740/texto/bloque/{}")
+        "id/{norma}/texto/bloque/{bloque}")
+
+#: Identificadores BOE de las normas que este registro cita.
+LIVA = "BOE-A-1992-28740"           # Ley 37/1992, del IVA
+RGLTO_FACTURACION = "BOE-A-2012-14696"  # RD 1619/2012
+RGLTO_IRPF = "BOE-A-2007-6820"      # RD 439/2007
+ORDEN_NIF = "BOE-A-2008-3580"       # Orden EHA/451/2008
+
+#: Huella del texto EN VIGOR de cada articulo, el dia que se leyo. Es lo que
+#: `boe_normativa.py --comprobar` vuelve a calcular para avisar de un cambio.
+#:
+#: Una tabla y no un argumento repetido en cada cita, por dos motivos: varias
+#: citas comparten articulo (el 78 respalda cuatro guards), y despues de cada
+#: comprobacion mensual hay UN solo sitio que tocar. La huella se saca con:
+#:      python boe_normativa.py --ver a78 [--norma BOE-A-...]
+#:
+#: Medidas todas el 15-09-2026. Control cruzado: la del a91 coincide con la que
+#: `fuentes_externas.py` guardaba por su cuenta desde antes.
+HUELLAS = {
+    (LIVA, "a13"):  ("20210701", "6ce2aaceccecf91f"),
+    (LIVA, "a15"):  ("20200301", "8c07a54544a4aef7"),
+    (LIVA, "a20"):  ("20190101", "61ab35ccde6ece3d"),
+    (LIVA, "a75"):  ("20210701", "03dcb0914230d5d3"),
+    (LIVA, "a78"):  ("20171110", "3f80f8b9b6b337f6"),
+    (LIVA, "a84"):  ("20230101", "5b624c97b7ad47e2"),
+    (LIVA, "a88"):  ("20130101", "fe73d620f53651f7"),
+    (LIVA, "a91"):  ("20250101", "fa5e6f111bf2dd98"),
+    (LIVA, "a99"):  ("20121031", "7a4fc6fb486df241"),
+    (LIVA, "a154"): ("20150101", "626f099121d29f84"),
+    (RGLTO_FACTURACION, "a6"):  ("20231207", "8f47333e149b8871"),
+    (RGLTO_FACTURACION, "a15"): ("20180101", "17831bd4f9f48ab3"),
+    (RGLTO_IRPF, "a74"):        ("20070401", "83d96294a4b277bb"),
+    (ORDEN_NIF, "a3"):          ("20160116", "cfab279a43269685"),
+}
 
 
 class Autoridad:
@@ -85,20 +122,52 @@ class Autoridad:
         self.vigencia_boe = ""
         self.huella_boe = ""
 
+    @property
+    def clave(self):
+        """Nombre con el que `boe_normativa.comprobar()` identifica el registro.
+        Existe desde el 15-09-2026, cuando la vigilancia del BOE paso a cubrir
+        tambien este registro y no solo `fuentes_externas`."""
+        return f"{self.guard} ({self.norma})"
+
 
 def _n(guard, norma, nota="", procedencia=PROPUESTA_CLAUDE):
     return Autoridad(guard, NORMA, norma, PROPUESTO, procedencia, nota)
 
 
-def _v(guard, norma, bloque, vigencia, nota):
+def _v(guard, norma, bloque, vigencia, nota, norma_boe=LIVA, estado=VERIFICADO,
+       huella=""):
     """Cita LEIDA en el texto consolidado del BOE: se guarda el bloque, desde
     cuando esta en vigor esa redaccion, y la url exacta desde la que se leyo.
-    `boe_normativa.py --comprobar` vuelve a descargarla y avisa si cambia."""
-    a = Autoridad(guard, NORMA, norma, VERIFICADO, LEIDO_EN_BOE, nota,
-                  url=_BOE.format(bloque), verificado="2026-09-15")
+    `boe_normativa.py --comprobar` vuelve a descargarla y avisa si cambia.
+
+    `huella` ANADIDA el 15-09-2026, y es lo que hace que la frase de arriba sea
+    verdad. Hasta hoy no existia: las citas se registraban como VERIFICADAS con
+    su bloque, pero SIN huella, y `--comprobar` solo miraba `fuentes_externas`.
+    Resultado: 15 citas verificadas y solo 2 vigiladas. Una verificacion que
+    nadie vuelve a mirar no caduca con un aviso, caduca en silencio -- que es
+    justo lo que este registro existe para evitar."""
+    a = Autoridad(guard, NORMA, norma, estado, LEIDO_EN_BOE, nota,
+                  url=_BOE.format(norma=norma_boe, bloque=bloque),
+                  verificado="2026-09-15")
+    a.norma_boe = norma_boe
     a.bloque_boe = bloque
-    a.vigencia_boe = vigencia
+    a.huella_boe = huella or HUELLAS.get((norma_boe, bloque), ("", ""))[1]
+    # La vigencia manda desde HUELLAS si esta: es lo ultimo medido contra el
+    # BOE. Si la cita declara otra cosa, gana la medicion, no el texto escrito
+    # a mano -- misma jerarquia de siempre (codigo y medicion sobre documento).
+    a.vigencia_boe = HUELLAS.get((norma_boe, bloque), (vigencia, ""))[0] or vigencia
     return a
+
+
+def _vp(guard, norma, bloque, vigencia, nota, norma_boe=LIVA):
+    """Cita PARCIAL: se ha leido el articulo y respalda una PARTE de lo que el
+    guard hace, pero la otra parte NO esta en ese texto legal. Existe porque el
+    caso apareció de verdad (15-09-2026, guard_nif_digito_control): la
+    composicion del NIF si esta en la norma, pero el ALGORITMO del caracter de
+    control no esta en el texto consolidado de ninguna de las dos normas que lo
+    regulan. Llamar VERIFICADO a eso seria exactamente el falso verde que este
+    proyecto prohibe."""
+    return _v(guard, norma, bloque, vigencia, nota, norma_boe, estado=PARCIAL)
 
 
 def _t(guard, nota):
@@ -140,42 +209,89 @@ AUTORIDADES = (
     _v("guard_suma_tramos_general", "Ley 37/1992 (LIVA), art. 78", "a78", "20171110",
        "Version del anterior para cualquier numero de tramos. Misma cita, misma "
        "regla, confirmada el 15-09-2026."),
-    _n("guard_nif_digito_control", "Orden EHA/451/2008 (composicion del NIF)",
-       "PENDIENTE de comprobar que sigue vigente y que es la norma que fija el "
-       "algoritmo del digito de control, no solo el formato."),
-    _n("guard_retencion_vs_error", "RD 439/2007 (Reglamento IRPF), retenciones",
-       "El guard reconoce porcentajes tipicos de retencion (arrendamiento, "
-       "profesionales). Hay que fijar los articulos y, sobre todo, LOS "
-       "PORCENTAJES VIGENTES: son lo que mas cambia de todo este fichero."),
-    _n("guard_signo_efectivo", "RD 1619/2012 (Reglamento de facturacion), art. 15",
-       "Facturas rectificativas. Confirmar que el 15 es el de rectificativas."),
-    _n("guard_secuencia_documental_proveedor",
+    _vp("guard_nif_digito_control", "Orden EHA/451/2008 (composicion del NIF)",
+        "a3", "20160116",
+        "PARCIAL, y el matiz es el hallazgo: LEIDO el 15-09-2026 (norma "
+        "BOE-A-2008-3580, no la que se habia supuesto). Los arts. 2 a 5 SI "
+        "respaldan la COMPOSICION -- 9 caracteres (letra de forma juridica + 7 "
+        "digitos + caracter de control), la lista de claves del art. 3 (A "
+        "anonimas, B limitadas, ... V otros), la N de entidad extranjera (art. "
+        "4) y la W de establecimiento permanente (art. 5). Pero lo que este "
+        "guard CALCULA es el caracter de control, y ese ALGORITMO no esta en el "
+        "texto: la Orden se acaba en el art. 5, y el RD 1065/2007 art. 22 se "
+        "limita a delegar ('en los terminos que establezca el Ministro'). Es "
+        "especificacion tecnica de la AEAT, no articulo citable. Por eso PARCIAL "
+        "y no VERIFICADO.",
+        norma_boe=ORDEN_NIF),
+    _v("guard_retencion_vs_error", "RD 439/2007 (Reglamento IRPF), art. 74",
+       "a74", "20070401",
+       "CONFIRMADO el articulo el 15-09-2026: el art. 74 se titula 'Obligacion "
+       "de practicar retenciones e ingresos a cuenta del IRPF' -- es el que "
+       "respalda que exista la retencion. AVISO que sigue abierto: los "
+       "PORCENTAJES concretos que el guard reconoce NO se han contrastado, y son "
+       "lo que mas cambia de todo este fichero. Verificado el fundamento, no "
+       "todavia los numeros.",
+       norma_boe=RGLTO_IRPF),
+    _v("guard_signo_efectivo", "RD 1619/2012 (Reglamento de facturacion), art. 15",
+       "a15", "20180101",
+       "CONFIRMADA: el art. 15 se titula 'Facturas rectificativas'. Leido en el "
+       "BOE el 15-09-2026.",
+       norma_boe=RGLTO_FACTURACION),
+    _v("guard_secuencia_documental_proveedor",
        "RD 1619/2012 (Reglamento de facturacion), art. 6.1.a)",
-       "Numeracion correlativa. El mismo articulo respalda el modulo de facturas "
-       "EMITIDAS (numeracion_correlativa.py): si se verifica una, vale para las dos."),
-    _n("guard_estructura_reconocida",
+       "a6", "20231207",
+       "CONFIRMADA: el art. 6 se titula 'Contenido de la factura' y su 1.a) es "
+       "el numero y, en su caso, serie -- la numeracion correlativa. El mismo "
+       "articulo respalda el modulo de facturas EMITIDAS "
+       "(numeracion_correlativa.py): una verificacion vale para las dos.",
+       norma_boe=RGLTO_FACTURACION),
+    _v("guard_estructura_reconocida",
        "RD 1619/2012 (Reglamento de facturacion), art. 6",
-       "OJO: este guard no comprueba la norma, comprueba el PARECIDO con lo ya "
-       "visto de ese proveedor. La norma explica por que la forma es estable, no "
-       "obliga a ninguna forma concreta. Candidato serio a reclasificarse como "
-       "TECNICO al validarlo."),
+       "a6", "20231207",
+       "Articulo CONFIRMADO ('Contenido de la factura', leido el 15-09-2026), "
+       "pero OJO, que esto no cambia: este guard no comprueba la norma, "
+       "comprueba el PARECIDO con lo ya visto de ese proveedor. La norma explica "
+       "por que la forma es estable; no obliga a ninguna forma concreta. Sigue "
+       "siendo candidato serio a reclasificarse como TECNICO.",
+       norma_boe=RGLTO_FACTURACION),
     _v("guard_sentido_compra_venta", "Ley 37/1992 (LIVA), art. 84", "a84", "20230101",
        "CONFIRMADA: el art. 84 se titula 'Sujetos pasivos' y su apartado Uno.1o "
        "los define por quien realiza la entrega o presta el servicio. El sentido "
        "lo da eso, no el titulo del papel. Su apartado Uno.2o es ademas el de la "
        "inversion del sujeto pasivo, que aparece en el cuadre del 303."),
-    _n("guard_ejercicio_coherente", "Ley 37/1992 (LIVA), arts. 75 y 99",
-       "Devengo e imputacion temporal de las deducciones. Cual de los dos manda "
-       "aqui es justo lo que hay que decidir leyendolos."),
-    _n("guard_tipo_operacion_especial",
+    _v("guard_ejercicio_coherente", "Ley 37/1992 (LIVA), arts. 75 y 99",
+       "a99", "20121031",
+       "CONFIRMADOS los dos el 15-09-2026: el art. 75 se titula 'Devengo del "
+       "impuesto' y el 99 'Ejercicio del derecho a la deduccion'. Y la lectura "
+       "contesta la pregunta que quedaba abierta: NO manda uno de los dos, son "
+       "dos cosas distintas -- el 75 fija CUANDO nace el impuesto de una "
+       "operacion, y el 99 en que periodos puede el sujeto pasivo ejercer la "
+       "deduccion (hasta cuatro anos). Por eso un asiento con fecha de un "
+       "ejercicio y deduccion en otro no es automaticamente un error: es lo que "
+       "este guard frena a AMBAR en vez de declarar FALLO, y esa eleccion queda "
+       "ahora respaldada por el texto y no por intuicion."),
+    _v("guard_tipo_operacion_especial",
        "Varias: LIVA art. 84.Uno.2 (ISP), arts. 13 y 15 (intracomunitarias), "
        "RD 1514/2007 PGC (inmovilizado)",
-       "Este guard detecta VARIOS supuestos distintos de una vez. Al validarlo "
-       "habra que partirlo en una cita por supuesto, o dejarlo como TECNICO de "
-       "deteccion: hoy no decide nada, solo frena a AMBAR."),
-    _n("guard_naturaleza_operacion", "Ley 37/1992 (LIVA), arts. 20 y 90",
-       "Coherencia entre el IVA aplicado y la naturaleza declarada: exenciones "
-       "(art. 20) frente a tipo general. Contrastar."),
+       "a15", "20200301",
+       "PARCIALMENTE confirmada, y se declara cual es la parte que falta. "
+       "LEIDOS el 15-09-2026: art. 13 ('Hecho imponible', el de las "
+       "adquisiciones intracomunitarias) y art. 15 ('Concepto de adquisicion "
+       "intracomunitaria de bienes'). El art. 84.Uno.2 (ISP) ya estaba "
+       "verificado con guard_sentido_compra_venta. LO QUE NO SE HA LEIDO: el RD "
+       "1514/2007 (PGC) para el supuesto de inmovilizado -- no se ha tocado "
+       "porque ese no es texto fiscal del BOE consolidado con la misma "
+       "estructura de articulos y merece su propia pasada. Sigue en pie lo de "
+       "siempre: este guard detecta VARIOS supuestos de una vez y hoy no decide "
+       "nada, solo frena a AMBAR."),
+    _v("guard_naturaleza_operacion", "Ley 37/1992 (LIVA), arts. 20 y 90",
+       "a20", "20190101",
+       "CONFIRMADA: el art. 20 se titula 'Exenciones en operaciones interiores' "
+       "y el art. 90 es el tipo general, ya verificado con "
+       "guard_aritmetica_base_tipo. La coherencia que mira este guard -- que el "
+       "IVA aplicado case con la naturaleza declarada de la operacion -- se "
+       "apoya justo en esos dos: o la operacion esta exenta (art. 20) o lleva un "
+       "tipo (art. 90), no las dos cosas. Leido en el BOE el 15-09-2026."),
 
     # ---------- calidad del dato: no hay norma, ni hace falta ---------
     _t("guard_integridad_datos",

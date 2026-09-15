@@ -7,6 +7,79 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 15-09-2026 (sesión local, decimocuarta entrada) — Las 8 citas legales que faltaban: 15 de 16 verificadas, y la vigilancia del BOE pasa de 2 artículos a 18
+
+Cerrado el punto 2.C de `PENDIENTE.md`, leyendo el texto consolidado del BOE
+artículo por artículo con la herramienta que el propio proyecto ya tenía
+(`boe_normativa.py --ver`), que compara texto contra texto y no interpreta nada.
+
+**Leídos y confirmados:** LIVA a13 (hecho imponible), a15 (concepto de AIB), a20
+(exenciones interiores), a75 (devengo), a99 (ejercicio del derecho a la
+deducción); RD 1619/2012 a6 (contenido de la factura) y a15 (rectificativas); RD
+439/2007 a74 (obligación de retener); Orden EHA/451/2008 a2–a5 (composición del
+NIF). **De 8 citas verificadas a 15 de 16.**
+
+### El hallazgo que importa: un límite real, no un trámite
+
+`guard_nif_digito_control` **calcula** el carácter de control de un NIF. Ese
+**algoritmo no está en el texto legal de ninguna de las dos normas que regulan el
+NIF**: la Orden EHA/451/2008 se acaba en el art. 5 (comprobado — el a6 devuelve
+404) y el RD 1065/2007 art. 22 se limita a delegar *"en los términos que
+establezca el Ministro"*. Es especificación técnica de la AEAT, no artículo
+citable.
+
+Se ha añadido por eso un estado **PARCIAL** al registro: la composición sí está
+verificada (9 caracteres, las claves A/B/…/V del art. 3, la N de entidad
+extranjera, la W de establecimiento permanente), el algoritmo no. Llamar
+VERIFICADO a eso sería exactamente el falso verde que este proyecto prohíbe.
+
+### El arreglo de fondo, que vale más que las citas
+
+**`boe_normativa.py --comprobar` sólo vigilaba `fuentes_externas` — 2 artículos.**
+Las citas de `autoridad_guards.py` se registraban como VERIFICADAS con su bloque
+del BOE pero **sin huella**, así que no las vigilaba nadie; y aunque se hubieran
+pasado al comprobador, habrían salido *todas* como "cambiadas". Es decir: 15
+citas verificadas y 2 vigiladas.
+
+> Una verificación que nadie vuelve a mirar **no caduca con un aviso: caduca en
+> silencio.** Que es justo lo que ese registro existe para evitar.
+
+Arreglado: las huellas viven ahora en una tabla única (`HUELLAS`, un solo sitio
+que tocar tras cada comprobación mensual, porque varias citas comparten artículo
+— el 78 respalda cuatro guards), `Autoridad` expone `.clave`, y `--comprobar`
+recorre los dos registros. **Ejecutado de verdad contra el BOE: 18 comprobados,
+0 cambiados, 0 no comprobados.** Control cruzado de método: la huella del a91
+calculada hoy coincide con la que `fuentes_externas.py` guardaba por su cuenta
+desde antes.
+
+### Tres cosas corregidas por comprobar en vez de suponer
+
+1. `PENDIENTE.md` decía que las 8 citas restantes eran *"las de fuera de la
+   LIVA"*. **Falso:** cinco artículos eran de la LIVA.
+2. La Orden del NIF se citaba con un identificador BOE que **da 404** contra la
+   API. El real es `BOE-A-2008-3580`. Se encontró buscándolo en la fuente
+   oficial, después de que un primer intento a ojo (`BOE-A-2008-3390`) devolviera
+   una resolución sobre equipos termosifón.
+3. `_v()` tenía la LIVA **incrustada en la cadena de la URL**, así que ninguna
+   cita de otra norma podía registrarse como leída aunque se hubiera leído.
+
+### Lo que queda declarado y sin cerrar (punto 2.C-bis, nuevo)
+
+- Los **porcentajes de retención** de `guard_retencion_vs_error` no se han
+  contrastado. El artículo que los ampara sí; los números no — y son lo que más
+  cambia de todo el fichero.
+- El **RD 1514/2007 (PGC)** para el inmovilizado de
+  `guard_tipo_operacion_especial` sigue sin leerse.
+- **Divergencia encontrada y NO tocada a propósito:** `nif_check.py` exige
+  control-letra para `"PQSW"` y `triangulacion_identidad_v0.py` para `"PQRSNW"`
+  — faltan **R** (congregaciones religiosas) y **N** (entidades extranjeras). La
+  norma leída **no fija ese algoritmo**, así que cambiarlo ahora sería elegirlo a
+  ojo: el error que este proyecto ya tiene documentado cuatro veces. Se cierra
+  contra la especificación técnica de la AEAT, no contra el BOE.
+
+Suites: `ensayo_boe_normativa`, `ensayo_autoridad_guards`, `ensayo_fuentes_externas`
+y `test_motor_veredicto` **en verde**; `audit_project.py` 41 verdes, código 2.
+
 ## 15-09-2026 (sesión local, decimotercera entrada) — DOS DEFECTOS REALES EN EL MOTOR, encontrados buscando sistemáticamente la forma del bug del "tipo 0"
 
 Tercera pasada del repaso, pedida así: *"analizar todo absolutamente de principio
