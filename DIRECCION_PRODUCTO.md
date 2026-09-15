@@ -112,9 +112,24 @@ objetivo; al contrario, cuanto más ambicioso, más carga soporta.
 
 ### 3. Base de clientes
 
-La cartera actual es de 33 clientes (14 S.L. + 19 autónomos). El salto que
-describe la dirección supone otra composición de cartera. **De dónde salen esos
-clientes es un problema sin resolver** y no se resuelve con producto.
+La cartera es de **34 clientes en 2026 (13 S.L. + 21 autónomos)**, y era de
+**33 en 2025 (14 S.L. + 19 autónomos)** — ha habido altas y bajas entre los dos
+ejercicios. El salto que describe la dirección supone otra composición de
+cartera. **De dónde salen esos clientes es un problema sin resolver** y no se
+resuelve con producto.
+
+> **Corregido el 15-09-2026, en el repaso.** Esta línea decía *"la cartera
+> **actual** es de 33 clientes (14 S.L. + 19 autónomos)"*: es la foto de **2025**
+> etiquetada como actual, estando ya en 2026. El desglose de 2026 lo dio Diego
+> en la sesión del 15-09 y no se había escrito en ningún fichero del
+> repositorio — comprobado buscándolo antes de añadirlo.
+>
+> **Lo que sigue sin saberse, y es distinto:** la cartera **año por año hacia
+> atrás** (quién entró, quién salió, en qué ejercicio). Diego lo dice
+> explícitamente: *"no sé muy bien exactamente en todos los años atrás los
+> clientes que han habido"*. Importa porque el corpus va de 2016 a 2026 y
+> cualquier lectura de su evolución cruza altas y bajas que nadie ha
+> reconstruido todavía.
 
 Queda declarado como pendiente, no como detalle.
 

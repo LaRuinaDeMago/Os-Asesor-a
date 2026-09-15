@@ -54,6 +54,40 @@ tenían abierta las dos revisiones externas. Esta entrada lo cierra.
 tras verificar (no suponer) que llevaba 0 commits que master no tuviera. El
 repositorio remoto queda con **una sola rama**, `master`.
 
+### Barrido de contradicciones entre documentos
+
+Con 330 KB de histórico, dos documentos se desalinean sin que nadie lo note. Dos
+cifras cruzadas a mano:
+
+**1 · El semáforo: NO hay contradicción.** Circulan cuatro ÁMBAR distintos
+(9,26%, 12,82%, 18,23%, 28,28%) y parecía un problema. No lo es:
+`EMPEZAR_AQUI.md` lleva un bloque ⚠️ explícito que los reconcilia, nombra la
+vigente (**ROJO 3,03% · ÁMBAR 12,82% · VERDE 84,15%**, 28-08) y explica por qué
+el VERDE bajó *por mejorar* (tres cachés de historial dormidas). Coincide con
+`PENDIENTE.md`. **El ROJO 3,03% no se ha movido en ninguna medición.** Sin
+acción: ya estaba bien resuelto.
+
+**2 · La cartera SÍ estaba desfasada, y en el sitio peor.**
+`DIRECCION_PRODUCTO.md` decía *"la cartera **actual** es de 33 clientes (14 S.L.
++ 19 autónomos)"* — la foto de **2025**, etiquetada como actual, estando ya en
+2026. El desglose de 2026 (**34 clientes: 13 S.L. + 21 autónomos**) lo dio Diego
+en esta misma sesión y, comprobado antes de escribirlo, **no estaba en ningún
+fichero del repositorio**. Corregido ahí y en `TECHO_Y_LIMITES.md`, donde
+sostiene un argumento cuantitativo (el recargo de equivalencia es cotidiano en
+autónomos): pasa de 19/33 = 57,6% a **21/34 = 61,8%** — el argumento no cambia
+de sentido, se refuerza.
+
+> **Lo que sigue sin saberse, y es otra cosa:** la cartera **año por año hacia
+> atrás** (quién entró y quién salió en cada ejercicio). Dicho por Diego: *"no
+> sé muy bien exactamente en todos los años atrás los clientes que han habido"*.
+> Importa porque el corpus va de 2016 a 2026. Anotado en `DIRECCION_PRODUCTO.md`.
+
+> **Lo que se decide NO tocar:** las otras apariciones de "33 clientes"
+> (`ARQUITECTURA_DATOS.md`, `.claude/rules/datos.md`) sostienen un argumento de
+> **magnitud**, no de precisión — que con una cartera así de pequeña en un
+> mercado local la reidentificación es trivial. Ese razonamiento es idéntico con
+> 34. Cambiarlas sería ruido, y una de ellas es un fichero de reglas.
+
 ## 15-09-2026 (sesión local, undécima entrada) — Repaso de limpieza: la raíz baja de 105 a 87 `.py`, y una instrucción ya cumplida deja de ser lo primero que lee cada sesión
 
 Repaso pedido explícitamente antes de abrir trabajo nuevo: *"repasemos todo lo

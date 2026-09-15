@@ -41,7 +41,10 @@ cinco son perfectamente legales y salen ROJO.**
 | **Recargo de equivalencia 5,2%** | 🔴 **ROJO** | `cuadre_total: total_calc=121.0 decl=126.2 DESCUADRE` |
 
 **El de recargo de equivalencia no es un caso de laboratorio: es cotidiano en
-autónomos de comercio, y 19 de los 33 clientes de la cartera son autónomos.**
+autónomos de comercio, y 21 de los 34 clientes de la cartera son autónomos**
+(cifra de 2026; cuando se escribió esta línea eran 19 de 33, los de 2025 —
+actualizada en el repaso del 15-09-2026). El argumento no cambia de sentido, se
+refuerza: los autónomos pasan de ser el 57,6% de la cartera al **61,8%**.
 
 ### Por qué pasa, causa a causa
 
