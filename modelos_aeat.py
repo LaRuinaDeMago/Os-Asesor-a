@@ -101,20 +101,52 @@ MODELOS = (
                "Declaracion recapitulativa de operaciones intracomunitarias. "
                "Tiene relacion directa con la ISP que ya aparecio en el cuadre "
                "del 303 (caso real de un cliente, 15-09-2026)."),
+    ModeloAEAT("390", "Orden EHA/3111/2009", "BOE-A-2009-18472", "ani",
+               "20260127", "868c15d218ea9712",
+               "Resumen anual de IVA. Su ANEXO I cambio la MISMA fecha que el "
+               "del 303 (27-01-2026): las dos modificaciones vienen de la "
+               "misma Orden HAC/27/2026, que toco los dos impresos a la vez."),
+    ModeloAEAT("036", "Orden EHA/1274/2007", "BOE-A-2007-9508", "ai",
+               "20250203", "c028a4f7bb125148",
+               "Declaracion censal de alta/modificacion/baja. El modelo 037 "
+               "(declaracion simplificada, mismo Orden, ANEXO II) esta "
+               "SUPRIMIDO desde esta misma fecha -- ya no se presenta, no "
+               "hace falta vigilarlo aparte."),
 )
 
 #: Modelos que Diego presenta y que AUN NO estan aqui, con lo que falta para
 #: cerrarlos. No se han registrado a ojo: hace falta confirmar el identificador
-#: BOE de su Orden contra la fuente oficial, igual que se hizo con estos cinco
+#: BOE de su Orden contra la fuente oficial, igual que se hizo con estos siete
 #: -- un primer intento a ojo con la Orden del NIF devolvio, el mismo dia, una
 #: resolucion sobre equipos termosifon. Adivinar un BOE-A no es barato.
+#:
+#: Los tres que siguen aqui NO es que falte el BOE-A -- ya esta encontrado y
+#: verificado contra la propia API del BOE (15-09-2026) -- es que lo que hay
+#: dentro no encaja en el mismo patron que 303/130/347/349/390/036, y forzarlo
+#: seria exactamente el mismo error que adivinar.
 PENDIENTES_DE_IDENTIFICAR = {
-    "111": "Retenciones e ingresos a cuenta (trabajo/actividades). Falta el BOE-A.",
-    "115": "Retenciones por arrendamiento de inmuebles urbanos. Falta el BOE-A.",
-    "190": "Resumen anual de retenciones. Falta el BOE-A.",
-    "390": "Resumen anual de IVA. Falta el BOE-A (Orden EHA/3111/2009).",
-    "036/037": "Declaracion censal. Falta el BOE-A (Orden EHA/1274/2007).",
-    "180": "Resumen anual de retenciones por arrendamientos. Falta el BOE-A.",
+    "111": "Orden EHA/586/2011 (BOE-A-2011-4948) IDENTIFICADA, pero su indice "
+           "consolidado no trae NINGUN bloque ANEXO -- articulos y "
+           "disposiciones solamente. Nada que vigilar por huella con este "
+           "mecanismo: no hay decidido si vigilar otra cosa (un articulo) o "
+           "dejarlo declarado como no vigilable.",
+    "190": "Orden EHA/3127/2009 (BOE-A-2009-18567) IDENTIFICADA, pero su "
+           "ANEXO I -- el impreso -- esta 'Suprimido' desde el 13-12-2025 "
+           "(BOE-A-2025-25390): ya no hay formulario que fotografiar. Quedan "
+           "ANEXO y ANEXO II, disenos de fichero para la presentacion "
+           "telematica, no el impreso en si.",
+    "115/180": "Orden de 20 de noviembre de 2000 (BOE-A-2000-21430) "
+               "IDENTIFICADA, pero trae 6 anexos heredados de la doble "
+               "tarifa peseta/euro (I-IV: modelos 115 y 180 en cada moneda; "
+               "V: recibo; VI: disenos de fichero). Cual sigue vigente de "
+               "verdad para cada modelo no se adivina sin lectura de un "
+               "asesor. Y un aviso tecnico de paso: el ANEXO I de esta Orden "
+               "y el ANEXO I del modelo 130 (ya registrado arriba) devuelven "
+               "la MISMA huella (5a9ae17c78b3f6fd) siendo documentos "
+               "distintos -- los dos se reducen al mismo texto trivial "
+               "'ANEXO I' porque el impreso real es una imagen sin texto "
+               "extraible. La huella no puede distinguir un cambio de "
+               "imagen en estos casos; solo la fecha de vigencia avisaria.",
 }
 
 

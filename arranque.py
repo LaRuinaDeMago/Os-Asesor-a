@@ -207,7 +207,12 @@ def main():
 
     titulo("Y AHORA: lee EMPEZAR_AQUI.md")
     print("Es el punto de entrada narrativo: por que las cosas son como son.")
-    print("PROJECT_STATUS.md (140 KB) es la referencia detallada — se CONSULTA")
+    status_path = os.path.join(AQUI, "PROJECT_STATUS.md")
+    if os.path.exists(status_path):
+        kb = os.path.getsize(status_path) / 1024
+        print(f"PROJECT_STATUS.md ({kb:.0f} KB) es la referencia detallada — se CONSULTA")
+    else:
+        print("PROJECT_STATUS.md es la referencia detallada — se CONSULTA")
     print("buscando una fecha concreta, no se lee entero al empezar.")
     print()
     return 0

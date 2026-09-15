@@ -423,14 +423,58 @@
           uniforme** entre Órdenes (el 303 usa `ani`, el 130 usa `ai`).
           Se mira con `modelos_aeat.indice("BOE-A-...")`.
 
-      [ ] C-quater · MODELOS QUE FALTAN POR IDENTIFICAR: **111, 115,
-          190, 390, 036/037, 180**. No se han registrado a ojo: hace
-          falta confirmar el identificador BOE de su Orden contra la
-          fuente oficial. Motivo concreto, del mismo día: un primer
-          intento a ojo con la Orden del NIF devolvió una resolución
-          sobre equipos termosifón. Adivinar un `BOE-A-` no sale barato.
-          La lista y qué falta de cada uno están en
-          `modelos_aeat.PENDIENTES_DE_IDENTIFICAR`.
+      [~] C-quater · MODELOS QUE FALTAN POR IDENTIFICAR — AVANZADO
+          15-09-2026 (sesión Cloud), no cerrado del todo. Ninguna Orden se
+          registró a ojo: cada `BOE-A-` se confirmó contra la propia API
+          del BOE (`modelos_aeat.indice(...)`), el mismo motivo por el que
+          esto llevaba abierto — un primer intento a ojo con la Orden del
+          NIF devolvió una resolución sobre equipos termosifón. Adivinar
+          un `BOE-A-` no sale barato.
+
+          **Dos ya registrados y vigilados de verdad, en `MODELOS`:**
+            - `390` — Orden EHA/3111/2009 (BOE-A-2009-18472), ANEXO I.
+              Cambió el 27-01-2026, MISMA fecha que el 303 — las dos
+              vienen de la Orden HAC/27/2026, que tocó los dos impresos
+              a la vez y nadie lo había cruzado hasta ahora.
+            - `036` — Orden EHA/1274/2007 (BOE-A-2007-9508), ANEXO I. De
+              paso, un hallazgo que no estaba en la lista: el `037`
+              (declaración simplificada, mismo Orden, ANEXO II) está
+              **suprimido desde el 03-02-2025** — ya no se presenta, así
+              que no hace falta vigilarlo aparte. `037` sale de la lista
+              de pendientes, no por descuido sino porque ya no existe.
+
+          **Tres siguen en `PENDIENTES_DE_IDENTIFICAR`, y ya NO por falta
+          del `BOE-A` — el `BOE-A` de los tres está encontrado y
+          verificado — sino porque forzarlos sería el mismo error que
+          adivinar uno:**
+            - `111` — Orden EHA/586/2011 (BOE-A-2011-4948) confirmada,
+              pero su índice consolidado no trae NINGÚN bloque ANEXO.
+              Nada que vigilar por huella con este mecanismo tal cual
+              está — falta decidir si se vigila otra cosa (un artículo)
+              o se declara no vigilable.
+            - `190` — Orden EHA/3127/2009 (BOE-A-2009-18567) confirmada,
+              pero su ANEXO I —el impreso— está `(Suprimido)` desde el
+              13-12-2025: ya no hay formulario que fotografiar, solo
+              diseños de fichero para la presentación telemática.
+            - `115/180` — Orden de 20 de noviembre de 2000
+              (BOE-A-2000-21430) confirmada, pero trae 6 anexos de la
+              doble tarifa peseta/euro y no está claro sin un asesor cuál
+              sigue vigente para cada modelo.
+
+          **Y un hallazgo técnico de paso, que no es de este cambio sino
+          que ya vivía en el `130` registrado desde el 15-09:** el ANEXO I
+          del `130` y el ANEXO I de `115/180` devuelven la MISMA huella
+          (`5a9ae17c78b3f6fd`) siendo documentos distintos — los dos se
+          reducen al mismo texto trivial `"ANEXO I"` porque el impreso de
+          verdad es una imagen sin texto extraíble. **La huella no puede
+          distinguir un cambio de imagen en estos casos**; solo la fecha
+          de vigencia avisaría. No es un bug de este cambio — es un límite
+          del mecanismo que conviene tener presente antes de fiarse ciegamente
+          de un "sin cambios" en un modelo cuyo anexo es solo imagen.
+
+          `boe_normativa.py --comprobar` vigila ahora **25 bloques**, no
+          23 — ejecutado de verdad: *25 sin cambios, 0 cambiados, 0 no
+          comprobados.*
 
       [ ] C-bis · LO QUE QUEDÓ DECLARADO Y SIN CERRAR, para no darlo por
           hecho:
