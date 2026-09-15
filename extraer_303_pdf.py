@@ -434,15 +434,45 @@ def extraer_numero_tras(texto, pos_inicio, ventana=80):
     return _num_es_a_float(m.group(0)) if m else None
 
 
+def localizar_valor_casilla(texto, n):
+    """Busca el valor de la casilla n probando CADA aparicion de su etiqueta
+    en el texto, en orden, hasta que una de ellas tenga un numero detras.
+
+    Por que hace falta un bucle y no basta con la primera aparicion
+    (encontrado 15-09-2026, caso real SP_C_13 2025T2, con el diagnostico
+    hecho a ciegas: solo distancias en caracteres, nunca un importe): la
+    etiqueta de una casilla es un numero de dos o tres digitos aislado, y ese
+    mismo numero puede aparecer antes en el documento por pura coincidencia
+    -- la formula que el propio impreso escribe junto al total ("...+ 06 + 09
+    + 11 + 13..." contiene la etiqueta "06" suelta, identica a la de la
+    casilla de verdad), una fecha, un codigo. Si la PRIMERA aparicion es una
+    de esas coincidencias, no lleva ningun importe detras dentro de la
+    ventana -- u otra etiqueta se cruza antes -- y quedarse solo con ella
+    pierde el valor real que esta mas adelante, en la rejilla de verdad.
+    Medido en el caso real: la casilla 07 (base del 21%, con dato) volvia
+    NO_ENCONTRADA porque su primera aparicion en el texto no era la rejilla.
+
+    Devuelve None solo si NINGUNA aparicion tiene un numero detras -- que es
+    lo mismo que dice el impreso cuando la casilla esta en blanco.
+    """
+    patron = patron_casilla(n)
+    pos = 0
+    while True:
+        m = patron.search(texto, pos)
+        if not m:
+            return None
+        v = extraer_numero_tras(texto, m.end())
+        if v is not None:
+            return v
+        pos = m.end()
+
+
 def extraer_casillas(texto):
     valores = {}
     for n in CASILLAS_DEVENGADO + CASILLAS_DEDUCIBLE:
-        patron = patron_casilla(n)
-        m = patron.search(texto)
-        if m:
-            v = extraer_numero_tras(texto, m.end())
-            if v is not None:
-                valores[n] = v
+        v = localizar_valor_casilla(texto, n)
+        if v is not None:
+            valores[n] = v
     return valores
 
 

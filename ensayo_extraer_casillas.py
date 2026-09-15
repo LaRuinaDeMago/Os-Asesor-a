@@ -42,7 +42,8 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
 from extraer_303_pdf import (extraer_casillas, patron_casilla,
-                              extraer_numero_tras, TIPOS_LEGALES, TOL_TIPO,
+                              extraer_numero_tras, localizar_valor_casilla,
+                              TIPOS_LEGALES, TOL_TIPO,
                               cuadre_interno, veredicto_lectura,
                               conceptos_que_no_podemos_tener,
                               FORMULAS_IMPRESAS_VERIFICADAS, FORMULA_45_VERIFICADA,
@@ -315,6 +316,54 @@ def main():
     comprobar("cada base del deducible va con la cuota siguiente, como en el impreso",
               all(b in bases_ded and c in cuotas_ded for b, c in parejas),
               str([(b,c) for b,c in parejas if b not in bases_ded or c not in cuotas_ded]))
+
+    print("\nM. EL BUG REAL (SP_C_13, 2025T2): una coincidencia mas temprana")
+    print("   no puede tapar el valor de verdad que viene despues")
+    # Encontrado con un diagnostico ciego (solo distancias en caracteres,
+    # ningun importe): la casilla 07 tenia dato en el PDF real y
+    # extraer_casillas() la devolvia como no encontrada. Causa: su etiqueta
+    # "07" aparece SUELTA mas de una vez en el documento (una fecha, un
+    # codigo, la formula impresa que cita otras casillas...), y el codigo
+    # viejo se quedaba con la PRIMERA aparicion aunque no llevara ningun
+    # numero detras -- nunca llegaba a probar la de la rejilla de verdad.
+    #
+    # Cifras inventadas, misma FORMA que el caso real: una fecha con "07"
+    # suelto, sin importe cerca (otra etiqueta se cruza antes), y mas abajo
+    # la rejilla de verdad con la casilla 07 rellena.
+    texto_con_fecha_antes = "\n".join([
+        "Periodo: 07 08 2025",     # "07" fantasma: justo detras viene "08",
+                                    # otra etiqueta, nunca un importe
+        "01 02 4,00 03",
+        "04 05 10,00 06",
+        "07 9.999,99 08 21,00 09 2.099,99",
+    ])
+    v_fecha = extraer_casillas(texto_con_fecha_antes)
+    comprobar("la casilla 07 se encuentra pese a la coincidencia temprana",
+              v_fecha.get(7) == 9999.99, f"07={v_fecha.get(7)}")
+
+    # La misma idea, pero con la FORMULA impresa que el propio 303 escribe
+    # junto al total -- "(...+ 06 + 09 + 11 + 13...)" -- citando etiquetas
+    # sueltas de casillas ANTES de la rejilla real. Ninguna casilla debe
+    # confundir esa cita con su propio valor.
+    texto_con_formula_antes = "\n".join([
+        "Total cuota devengada (03 + 06 + 09 + 11 + 13) ... importe pendiente",
+        "01 02 4,00 03 500,00",
+        "04 05 10,00 06",
+        "07 9.999,99 08 21,00 09 2.099,99",
+    ])
+    v_formula = extraer_casillas(texto_con_formula_antes)
+    comprobar("la 03 de la formula no tapa la 03 real de la rejilla",
+              v_formula.get(3) == 500.00, f"03={v_formula.get(3)}")
+    comprobar("la 06 de la formula no inventa un valor donde el impreso esta en blanco",
+              6 not in v_formula, f"06={v_formula.get(6)}")
+    comprobar("la 09 se sigue encontrando aunque la formula la cite antes",
+              v_formula.get(9) == 2099.99, f"09={v_formula.get(9)}")
+
+    # Y si NINGUNA aparicion lleva numero detras (la casilla esta realmente
+    # en blanco, aunque su etiqueta salga citada varias veces), sigue sin
+    # inventarse nada -- localizar_valor_casilla devuelve None, no un 0.
+    comprobar("si ninguna aparicion tiene numero detras, no se inventa nada",
+              localizar_valor_casilla("07 08 2025, casilla 07 sin dato", 7) is None)
 
     print()
     if FALLOS:
