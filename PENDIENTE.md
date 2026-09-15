@@ -228,6 +228,24 @@
           contrastarse contra los 4 trimestres de 303 ya extraidos, pero
           en volumen puro el 130 dobla al 390.
 
+      [ ] E · UN UMBRAL QUE DESCARTA DATOS Y NADIE HA MEDIDO (15-09-2026).
+          `enlazador_clientes_303.py` y `diag_verificar_carpeta_cliente.py`
+          llevan `MIN_NIFS = 3`, y en el primero **filtra de verdad**
+          (lineas 160 y 181: los cubos con menos de 3 contrapartes se caen
+          antes de enlazar). Comprobado: **ningun documento justifica ese
+          3**. Lo unico escrito sobre este umbral es que el `5` original
+          de `fase0_huella_cliente.py` fue *"una eleccion arbitraria sin
+          medir"* (`FASE0_RESULTADOS.md` §369) que descarto 106
+          contenedores -- entre ellos un bulto de 40 con exactamente 3 NIF
+          con pinta de autonomos pequenos. Por eso `fase0_reagrupa.py` lo
+          bajo a 1.
+
+          **NO se ha cambiado a proposito.** Bajarlo a ojo seria repetir
+          exactamente el mismo error en sentido contrario. Lo que toca es
+          medirlo: cuantos cubos caen con 3, con 2 y con 1, y si los que
+          caen son clientes reales pequenos o ruido. Hasta entonces queda
+          declarado como **no comprobado, que no es un aprobado**.
+
   ═════════════════════════════════════════════════════════════════════
   2 · NORMATIVA: LO LEÍDO EN EL BOE, Y LO QUE HAY QUE DECIDIR
   ═════════════════════════════════════════════════════════════════════
