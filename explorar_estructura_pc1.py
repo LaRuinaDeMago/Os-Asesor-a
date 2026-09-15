@@ -57,6 +57,16 @@ MODELOS_CONOCIDOS = (
     "190", "200", "202", "296", "303", "347", "349", "390",
 )
 
+#: ANADIDO 15-09-2026, sobre una revision externa que senalo esto con razon:
+#: un certificado digital (FNMT, Sede Electronica...) NO es un documento, es
+#: una CREDENCIAL de acceso en nombre de un cliente. Si algun dia un script
+#: recorre PC1 en bloque para procesar documentos, esto no puede caer dentro
+#: del mismo tratamiento que un PDF por descuido de que la extension no
+#: coincide con ".pdf" -- tiene que quedar fuera, marcado, a proposito.
+#: Se cuenta aqui, SIN abrir ni tocar el fichero, para que se vea desde la
+#: primera pasada si hay alguno y cuantos.
+EXTENSIONES_CREDENCIAL = (".pfx", ".p12", ".cer", ".crt", ".key", ".pem")
+
 #: Un numero de 3 digitos aislado (no pegado a otro digito ni a una coma/
 #: punto decimal) -- misma logica de "etiqueta aislada" que ya usa
 #: extraer_303_pdf.py para las casillas del 303.
@@ -108,6 +118,7 @@ def main():
     con_periodo = 0
     con_modelo_y_periodo = 0
     con_anio = 0
+    credenciales_encontradas = 0
 
     for carpeta in primer_nivel:
         profundidad_por_carpeta[carpeta.path] = set()
@@ -120,6 +131,8 @@ def main():
 
                 ext = os.path.splitext(n)[1].lower() or "(sin extension)"
                 extensiones[ext] += 1
+                if ext in EXTENSIONES_CREDENCIAL:
+                    credenciales_encontradas += 1
 
                 modelos_en_este = [m for m in MODELOS_CONOCIDOS if _RE_MODELO[m].search(n)]
                 if modelos_en_este:
@@ -178,6 +191,18 @@ def main():
         pct = round(n * 100.0 / total_ficheros, 1) if total_ficheros else 0
         print(f"    {ext:<18} {n:>7,}  ({pct}%)")
     print()
+
+    if credenciales_encontradas:
+        print("!" * 70)
+        print(f"  ATENCION: {credenciales_encontradas:,} fichero(s) con extension de")
+        print("  CERTIFICADO DIGITAL (.pfx/.p12/.cer/.crt/.key/.pem) encontrados.")
+        print("  Esto NO es documentacion -- es una CREDENCIAL de acceso a la Sede")
+        print("  Electronica en nombre de un cliente. Si en el futuro algun script")
+        print("  recorre PC1 para procesar documentos en bloque, estos ficheros")
+        print("  tienen que quedar EXCLUIDOS a proposito, nunca solo ignorados")
+        print("  porque su extension no coincide con .pdf.")
+        print("!" * 70)
+        print()
 
     print("RECONOCIMIENTO DE MODELO AEAT POR NOMBRE DE FICHERO:")
     print(f"    con ALGUN modelo conocido en el nombre  : {total_con_algun_modelo:,} "
