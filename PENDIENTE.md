@@ -211,45 +211,54 @@
       YA LEÍDO EN EL BOE (15-09, texto consolidado, artículo por
       artículo). Lo que queda es DECIDIR, no buscar:
 
-      [ ] A · `TABLA_IVA_4` — tres hallazgos, ninguno tocado porque
-          cambiar la tabla mueve el motor y es decisión contable tuya:
-            · El ACEITE DE OLIVA **ya no es temporal**: el RD-ley
-              4/2024 lo dejó al 4% de forma permanente desde el
-              1-1-2025. La alarma queda resuelta, y en el sentido bueno.
-            · Pero la tabla dice **"pan"** y la ley dice **"pan COMÚN"**.
-              Un pan especial va al 10% y esta tabla lo aprobaría al 4%.
-              Igual con fruta/verdura/…: la ley exige que sean
-              "productos naturales según el Código Alimentario".
-            · Y **falta media lista**: el art. 91.Dos incluye también
-              libros, periódicos y revistas, medicamentos de uso humano,
-              vehículos para movilidad reducida y prótesis. Una factura
-              de libros al 4% saldría marcada como tipo incorrecto.
-          Decide tú si se afina la tabla o se deja como está.
+      [X] A · `TABLA_IVA_4` — RESUELTO 15-09-2026 (sesión local). Añadidos
+          los 4 apartados que faltaban del art. 91.Dos LIVA (2º-5º): libros/
+          periódicos/revistas, medicamentos de uso humano, vehículos para
+          movilidad reducida, prótesis. El aceite de oliva ya estaba bien
+          (permanente desde 2025, RD-ley 4/2024).
+          **"pan"/fruta/verdura se dejan SIN TOCAR, a propósito** — riesgo
+          declarado, no resuelto: la ley exige "pan COMÚN" y "productos
+          naturales según el Código Alimentario", y un string suelto no
+          distingue eso de un pan especial o un procesado. Arreglarlo de
+          verdad exige que la captura declare esa distinción, que no existe
+          todavía. **Y no afecta a ninguna factura real hoy de todas formas:**
+          `guard_tipo_producto_iva_semantico` está DORMIDO en producción —
+          confirmado por grep, nada en el pipeline real produce
+          `categoria_producto` todavía. Test antes/después (regla de
+          contabilidad.md): 65/65 los dos. Commit `0360d43`.
 
-      [ ] B · `TIPOS_LEGALES = (0, 4, 5, 10, 21)`. **Cuatro confirmados**
-          en el BOE: 21% (art. 90.Uno), 10% (art. 91.Uno), 4%
-          (art. 91.Dos) y 0% (art. 91.Cuatro, donativos — existe y es
-          permanente). **El 5% NO aparece** ni en el 90 ni en el 91: era
-          un tipo temporal.
-          **Y probablemente haya que dejarlo igual:** esa tupla la usa
-          el LECTOR DE PDF para validar su propia lectura sobre un
-          archivo de 2016 a 2026, y en parte de ese periodo el 5% sí
-          estuvo vigente. Sería incorrecto reutilizarla para validar una
-          factura de hoy. Sólo hay que decidirlo y anotarlo.
+      [X] B · `TIPOS_LEGALES = (0, 4, 5, 10, 21)` — RESUELTO 15-09-2026.
+          Decidido mantener el 5% aunque ya no exista en el BOE vigente:
+          esta tupla valida la lectura de un archivo de 2016-2026, y en
+          parte de ese periodo el 5% sí estuvo legal. Documentado en el
+          propio código (comentario junto a la constante). Commit `0360d43`.
 
       [ ] C · Las citas de `autoridad_guards.py`: **8 de 16 ya están
           VERIFICADAS** contra el texto consolidado (arts. 78, 84, 88,
           90, 91 y 154). Quedan 8 PROPUESTAS, que son las de fuera de la
           LIVA: Reglamento de facturación (RD 1619/2012), retenciones de
           IRPF (RD 439/2007) y la composición del NIF. Se leen igual —
-          dímelo y las traigo.
+          dímelo y las traigo. **SIN EMPEZAR** (15-09: se aparcó para
+          atender otra cosa antes de llegar a este punto).
 
-      [ ] D · **Vigilancia automática, ya montada.** Un comando:
+      [ ] D · **Vigilancia automática, ya montada, PENDIENTE DE DECIDIR
+          EL MECANISMO (15-09-2026).** El comando en sí funciona:
                   python boe_normativa.py --comprobar
-          Descarga del BOE los artículos registrados y avisa si alguno
-          ha cambiado desde que se leyó. No interpreta el cambio: lo
-          detecta y te manda a leerlo. Merece la pena dejarlo en una
-          tarea programada mensual.
+          Descarga del BOE los artículos registrados y avisa si alguno ha
+          cambiado desde que se leyó. No interpreta el cambio, solo lo
+          detecta.
+          **Lo que quedó a medias:** se iba a montar como agente
+          programado en la nube (`/schedule`), y se paró a tiempo, antes
+          de crear nada, al ver que no encaja — ese mecanismo clona el
+          repositorio entero y lanza una sesión de Claude Code completa
+          en la nube cada mes, para un comando que no necesita ninguna
+          inteligencia (el script ya compara de forma determinista) y sin
+          ningún conector (Slack/email) para avisarte de verdad; te
+          tocaría acordarte de mirar `claude.ai/code/routines`.
+          **Lo que sí encaja:** una tarea programada de **Windows, local,
+          en tu propio PC** — sin nube, sin agente de IA, Windows la
+          ejecuta sola. Queda por montar la próxima vez que se retome
+          este punto.
 
   ═════════════════════════════════════════════════════════════════════
   3 · LO QUE NO ES CÓDIGO, y lleva abierto desde el 12-08
