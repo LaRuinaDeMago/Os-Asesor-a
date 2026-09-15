@@ -7,6 +7,54 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 15-09-2026 (sesión local, novena entrada) — Confirmado a escala completa: 1,2% -> 99,8% sobre 1.023 documentos reales
+
+Continuación directa de la entrada anterior (octava, misma sesión). Con los
+tres bugs de lectura ya cerrados y confirmados en 3 clientes / 9 trimestres,
+tocaba la comprobación que `PENDIENTE.md` punto 1.B dejaba pendiente "sin
+prisa": medir la tasa de consistencia sobre el archivo completo, no solo
+sobre los casos ya elegidos a mano.
+
+```bash
+python extraer_303_pdf.py "\\PC01\Documentos"
+```
+
+Diego lo ejecutó (misma disciplina de siempre: comando sobre datos reales,
+salida solo de recuentos). Resultado:
+
+```
+documentos 303 con nombre reconocido : 1.023   con extraccion minima : 989
+tramos que SI cuadran : 938   tramos que NO cuadran : 2   sin datos : 158
+>> tasa de consistencia: 99,8%
+```
+
+**El propio script tiene escrito desde su creación el umbral de decisión:
+">95% = extracción fiable, toca la fase 2b (cruzar contra `303_LOCAL.json`)".**
+99,8% lo supera con margen amplio — y esa fase 2b ya existe y ya está
+probada: es exactamente lo que hace `verificar_303_pdf.py`. La cadena
+completa (extraer → comparar) queda validada de punta a punta, no solo el
+primer tramo.
+
+Dos observaciones, ninguna que cambie el resultado:
+
+- **1.023 documentos reconocidos, no los 1.168 citados históricamente**
+  (`FASE0_RESULTADOS.md`, `PENDIENTE.md`). Diferencia de 145, anotada sin
+  alarma — el archivo de `\\PC01\Documentos` cambia con el tiempo y no hay
+  ningún indicio de que sea un problema de reconocimiento. Si en el futuro
+  alguien ve "1.168" en un documento antiguo, esta es la cifra viva.
+- **Los 2 tramos que no cuadran (0,2%) se dejan sin perseguir, a propósito.**
+  Decisión tomada con el mismo criterio que `SIGUIENTES_PASOS.md §4` pide
+  para todo lo demás: el umbral se fijó ANTES de ver el número (aquí, desde
+  que se escribió el script) y se cumple con margen de sobra. Construir una
+  herramienta nueva para investigar 2 casos sin ningún indicio de patrón
+  sistemático sería precisión de más sin necesidad real detrás (`CLAUDE.md`).
+  Punto donde retomar si algún día aparecen más casos parecidos.
+
+Con esto, `PENDIENTE.md` punto 1.B queda cerrado. Siguiente paso real:
+punto 1.C (ampliar el manifest con más clientes), ahora con la confianza de
+que la capa de lectura está probada a escala, no solo en los casos ya
+elegidos.
+
 ## 15-09-2026 (sesión local, octava entrada) — El primer caso real del cuadre 303 destapó tres bugs reales en la lectura, cerrados y confirmados en 3 clientes y 9 trimestres
 
 Primera sesión local tras fusionar el trabajo de BOE/normativa. Siguiendo

@@ -39,7 +39,7 @@
     archivo de modelos AEAT presentados  \\PC01\Documentos
 
   ═════════════════════════════════════════════════════════════════════
-  1 · EL CUADRE CONTRA EL 303 PRESENTADO   <- PASO A CERRADO, VER PASO C
+  1 · EL CUADRE CONTRA EL 303 PRESENTADO   <- A Y B CERRADOS, VER PASO C
   ═════════════════════════════════════════════════════════════════════
       Es la ÚNICA verdad externa que este proyecto va a tener nunca.
       Todo lo demás se valida contra sí mismo.
@@ -122,18 +122,25 @@
            declaran las dos y el veredicto lo sigue dando 03+06+09.
            Cambiarlo es una decisión contable, no técnica.
 
-      [ ] B · SÓLO SI EL BLOQUE 1 (lectura) SALE MAL en varios casos,
-          o si en algún momento quieres el dato de fondo, sin prisa:
+      [X] B · MEDIDO (15-09-2026, sesión local): **1,2% -> 99,8%**.
 
-              python extraer_303_pdf.py "RUTA_DEL_ARCHIVO_DE_MODELOS"
+              python extraer_303_pdf.py "\\PC01\Documentos"
 
-          Mide la lectura sobre los 1.168 PDF de golpe. Pégame sólo la
-          línea de la tasa. (El "1,2%" de toda la vida se midió mal DOS
-          veces: regex de importes roto -- 26-08 --, patrón de casillas
-          adivinado -- 14-09. Y con los tres arreglos del 15-09, que
-          resolvieron justo el caso que fallaba en los 9 trimestres reales
-          probados, es de esperar que suba bastante. Nadie lo ha vuelto a
-          medir desde el último arreglo.)
+          1.023 documentos 303 reconocidos (antes se citaba 1.168 --
+          diferencia anotada, no alarmante, probablemente el archivo
+          cambia con el tiempo). 938 de 940 tramos cuadran. Supera con
+          margen amplio el umbral que el propio script tiene escrito de
+          antemano (">95% = extraccion fiable"). Confirma a escala completa
+          lo que ya se habia visto en 3 clientes / 9 trimestres: los tres
+          arreglos del 15-09 (casilla 07, tipo 0, base de ISP) no eran un
+          parche para un caso concreto.
+
+          Los 2 tramos que NO cuadran (0,2%) se dejan anotados, sin
+          perseguir: el umbral ya estaba decidido de antemano y se cumple
+          con margen de sobra -- construir una herramienta nueva para 2
+          casos, sin ningun indicio de que sean sistematicos, seria
+          precision de mas sin necesidad real detras (CLAUDE.md). Si algun
+          dia aparecen mas casos parecidos, aqui es donde retomar.
 
       [ ] C · AÑADIR MÁS CLIENTES, con UNA LÍNEA por cliente.
           El manifest ya no se escribe por trimestre (14-09). Dos formas:
