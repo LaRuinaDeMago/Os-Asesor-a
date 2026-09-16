@@ -118,12 +118,100 @@ que el propio auditor vigila—, y `check_dependencias()` habría declarado que
 falta Pillow **aunque estuviera instalada**, porque se instala como `Pillow` y
 se importa como `PIL`. Un aviso falso enseña a ignorar los avisos.
 
+### 5. El repaso del repaso: cinco defectos en lo que ya se había dado por bueno
+
+Revisión minuciosa de lo escrito el mismo día. Salieron cinco cosas y **tres
+eran de esta misma sesión**. Todas de la misma familia: código que parecía
+comprobar algo y no comprobaba nada.
+
+| Qué | Por qué importaba |
+|---|---|
+| `num_es(-300,00)` devolvía **`-.300,00`** | El signo contaba como dígito en la agrupación de miles. Dormido desde antes (commit 6d1140c); la receta de retención fue la primera en formatear un negativo. Era un importe **malformado en el papel** contra el que se mide el OCR |
+| `arranque.py` descartaba el código de salida de `git` | Un `git log` que falla devuelve vacío → "0 commits" → "es un resto" → **proponía borrar una rama que no había podido medir**. La peor versión del falso verde: el paso que sugiere es irreversible |
+| Varias pruebas **no podían fallar** | Comprobaban que `calcular()` coincidiera consigo misma. Sustituidas por una tabla `ESPERADO` con los números escritos a mano. Comprobado saboteando una base: antes pasaba, ahora caen 5 pruebas P0 |
+| El formato del NIF del pie, duplicado | Si cambiaba en el dibujo, la batería seguiría validando el formato viejo. Extraído a `nif_del_pie()` |
+| **`irpf_retencion` con el signo cambiado** | Ver abajo |
+
+De paso, `num_es` pasa a redondear con **HALF_UP explícito** en vez del `round()`
+de Python, que redondea la mitad al par (`round(0.5)` da 0). No cambia ningún
+importe de las recetas, pero un formateador de dinero que redondea de una forma
+en la que nadie piensa es una trampa esperando al caso que sí la pise.
+
+### 6. La afirmación que estaba escrita sin medir
+
+En la documentación se escribió que *"el motor debería ponerse ROJO"* con la
+receta del descuadre, y no se había comprobado. Al medirlo:
+
+**Era cierta**, y ahora está verificada: `doble_lectura_total: el total difiere
+entre las dos ubicaciones leidas: 1210.0 vs 1120.0`. Primera vez en el proyecto
+que ese guard se ve disparar sobre un documento.
+
+**Pero `con_retencion` daba ROJO y no debía:** `total_calc=2720.0 decl=2120.0`.
+No era el motor. El prompt de captura pide la retención *"EN NEGATIVO si
+existe"* y `guard_cuadre_total` la SUMA; la verdad conocida la escribía en
+positivo, así que el descuadre era el doble de la retención. El daño habría sido
+del revés y peor: Gemini habría devuelto −300,00 **correctamente**, la verdad
+habría dicho 300,00, y se habría perseguido al modelo por un signo nuestro.
+
+Eso destapó un **hueco de cobertura del propio motor**: los tres casos de
+`test_motor_veredicto.py` llevaban `irpf_retencion: '0'`, así que la rama de
+retención de `guard_cuadre_total` no la ejercitaba nadie. Cerrado el mismo día:
+6 pruebas nuevas (80 → 86), incluida la que exige que **con el signo cambiado
+FALLE** —sin ella la prueba no ejercitaría la rama, sólo pasaría por delante—.
+Firma reconocible para la próxima vez: **un descuadre que es exactamente el
+doble de la retención es el signo, no un error de lectura.**
+
+### 7. `comparar_captura_vs_verdad.py` — la comparación deja de hacerse a ojo
+
+`PENDIENTE.md` decía, en el Paso 1: *"COMPARA campo a campo contra la verdad que
+imprimió"*. Quince campos, a ojo, con prisa. Era el paso del que depende todo el
+proyecto y el único sin herramienta. Comparar a ojo falla de tres formas
+silenciosas: dar por bueno `1.420,00` frente a `1420.50` de un vistazo; pasar
+por alto un campo que **no vino** (un campo ausente no llama la atención);
+y "corregir" mentalmente lo que el modelo devolvió, porque uno ya sabe qué
+debería poner.
+
+Ahora es un comando con código de salida (0 / 1 / 2, los tres de siempre), que
+lee cada campo con **el parser del propio contrato** —el mismo que usa el
+motor, así que no hay un segundo parser que pueda divergir—, contesta solo las
+cuatro preguntas del Paso 1, y termina pasando lo que el modelo leyó por el
+motor.
+
+Dos decisiones de diseño que son el fondo del asunto:
+
+- **`nif_margen` NO se normaliza.** En la muestra de letras la puntuación ES la
+  medición: normalizar los guiones destruiría el experimento y además lo dejaría
+  en verde.
+- **Lo que no esté declarado SINTETICO se trata como REAL** y entonces no
+  imprime ni un valor, ni el nombre de la muestra, ni la ruta del fichero. Misma
+  regla que `puerta_cloud.py`. Esa barrera tenía **dos fugas** que sólo
+  aparecieron al escribir la batería: seguía imprimiendo el nombre y la ruta, y
+  las dos las elige una persona y pueden llevar el nombre de un cliente.
+
+`test_comparar_captura.py`: 47 pruebas, que sabotean la barrera de dos formas
+—una `es_sintetico` optimista y un `nif_margen` normalizado— y exigen que se
+ponga roja las dos veces.
+
+**Y un hallazgo que importa más que la herramienta:** al simular una lectura en
+**espejo** (el modelo copia el total del cuadro en `total_factura_2` en vez de
+leer el pie) el motor da **VERDE**, y es correcto que lo dé: ve dos totales
+iguales. Es decir, **el guard de doble lectura sólo vale si las dos lecturas son
+independientes de verdad**. Si el modelo copia, el guard no protege nada y
+además lo firma en verde. No se arregla en el motor —no puede saber de dónde
+salió el segundo número—: se arregla comprobándolo, que es exactamente lo que
+mide `doble_lectura_descuadre`.
+
 ### Estado al cerrar
 
-`python audit_project.py` → **47 comprobaciones en verde, 0 en rojo, 35/35
+`python audit_project.py` → **48 comprobaciones en verde, 0 en rojo, 36/36
 suites**. Código de salida 2, por el único ⚠️ de siempre en Cloud: dbfread,
 pdfplumber, anthropic y google-genai sin instalar, que es el entorno y no un
-defecto.
+defecto. `test_motor_veredicto.py` 86/86. `test_muestras_sinteticas.py` 110/110.
+`test_comparar_captura.py` 47/47.
+
+El hook de privacidad se ganó el sueldo una vez: bloqueó un commit porque la
+primera versión de la batería del comparador llevaba literales con forma de NIF.
+Ahora se componen.
 
 ## 16-09-2026 (sesión Cloud) — La frontera de datos deja de ser una regla escrita y pasa a ser un mecanismo
 
