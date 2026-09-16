@@ -607,8 +607,14 @@ def check_dependencias():
         paquete = linea.split(">=")[0].split("#")[0].strip()
         if not paquete:
             continue
+        # AÑADIDO 19-09-2026: "Pillow" (el nombre de pip) cayo en el
+        # `.get(paquete, paquete)` de abajo e intento `import Pillow`, que no
+        # existe -- el modulo real se llama PIL. Encontrado al añadir Pillow
+        # a requirements.txt para crear_muestras_sinteticas.py: la auditoria
+        # reporto "EMPEORO" con Pillow ya instalado y funcionando. Mismo
+        # patron que ya resolvieron las tres entradas anteriores del mapa.
         modulo = {"google-genai": "google.genai", "dbfread": "dbfread",
-                  "anthropic": "anthropic"}.get(paquete, paquete)
+                  "anthropic": "anthropic", "Pillow": "PIL"}.get(paquete, paquete)
         try:
             __import__(modulo)
         except ImportError:

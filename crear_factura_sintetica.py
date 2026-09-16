@@ -74,12 +74,19 @@ EMISOR = "SUMINISTROS EJEMPLO FICTICIO SL"
 DIRECCION = "Calle Inventada 00, 00000 Ciudad Ejemplo"
 
 
-def nif_sintetico():
+def nif_sintetico(digitos="9876543"):
     """CIF inventado, con digito de control CORRECTO, compuesto en ejecucion.
 
     Compuesto y no escrito como literal: ver el docstring del modulo. La letra
-    de organizacion es B (sociedad limitada), que lleva control NUMERICO."""
-    digitos = "9876543"
+    de organizacion es B (sociedad limitada), que lleva control NUMERICO.
+
+    `digitos` es un parametro (19-09-2026, reutilizada por
+    crear_muestras_sinteticas.py) para poder componer varios NIF sinteticos
+    DISTINTOS con el mismo algoritmo -- sin este parametro, el otro fichero
+    habria tenido que copiar el calculo del digito de control, exactamente
+    el patron que diag_logica_duplicada.py existe para cazar. El valor por
+    defecto es el de siempre: nada cambia para quien ya llamaba a esto sin
+    argumentos."""
     pares = sum(int(digitos[i]) for i in (1, 3, 5))
     impares = sum((lambda x: x // 10 + x % 10)(int(digitos[i]) * 2)
                   for i in (0, 2, 4, 6))
