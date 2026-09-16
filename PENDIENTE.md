@@ -36,6 +36,12 @@
   │ compartir una rama larga entre el PC y la nube. Cada sesión crea  │
   │ la suya, la fusiona a master al terminar, y la borra. master es   │
   │ el único punto de encuentro.                                     │
+  │                                                                   │
+  │ ⚠️ EL BORRADO LO TIENES QUE DAR TÚ. Desde una sesión Cloud no se  │
+  │ puede: el proxy de git deja pasar los push de commits pero        │
+  │ rechaza el refspec de borrado (comprobado 16-09-2026 con las dos  │
+  │ sintaxis y con reintentos). Es de un clic en GitHub, o desde tu   │
+  │ PC con el comando que te imprime `arranque.py`.                   │
   └───────────────────────────────────────────────────────────────────┘
 
   ╔═══════════════════════════════════════════════════════════════════╗

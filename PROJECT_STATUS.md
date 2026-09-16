@@ -50,6 +50,16 @@ apuntar a una rama **que aún no está en GitHub**. Las dos se resuelven con
 `git fetch --unshallow --prune`, y hasta hacerlo lo que dice git local no es
 la verdad del servidor.
 
+**Y una tercera, operativa, que conviene saber antes de planificar:** desde una
+sesión Cloud **no se puede borrar una rama del remoto**. El proxy de git deja
+pasar los `push` de commits —esta sesión empujó cuatro veces— pero rechaza el
+refspec de borrado, con las dos sintaxis (`--delete` y `:refs/heads/...`) y con
+reintentos: `send-pack: unexpected disconnect` seguido de un `Everything
+up-to-date` engañoso. No es un fallo transitorio, es política del entorno.
+**El borrado de ramas es un paso manual**, de un clic en GitHub o de un comando
+desde el PC. Que la regla del 11-09 pida borrar la rama al terminar significa,
+en la práctica, que ese último paso lo cierra Diego.
+
 ### 3. Lo construido: `crear_muestras_sinteticas.py`
 
 El Paso 1 del 16-09 dejó dos preguntas sin contestar y lo declaró: `total_
