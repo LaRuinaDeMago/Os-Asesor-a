@@ -146,10 +146,27 @@ def leer_factura_gemini(path_imagen, permiso, modelo="gemini-3.1-flash-lite"):
     with open(path_imagen, "rb") as f:
         imagen_bytes = f.read()
 
-    ext = os.path.splitext(path_imagen)[1].lower()
-    media_type = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png"}.get(
-        ext.lstrip("."), "image/jpeg"
-    )
+    # CORREGIDO 16-09-2026 (encontrado en el PASO 1 real, primera ejecucion
+    # de esta funcion contra la API de verdad, con la factura sintetica en
+    # PDF): la extension ".pdf" no estaba en el mapa y caia en el "por
+    # defecto" de abajo, asi que se enviaba como si fuera un JPEG -- Gemini
+    # lo rechazo con "Unable to process input image". Una extension que no
+    # reconocemos NO puede adivinarse como imagen: es el mismo "OK por
+    # omision" que este proyecto prohibe en el motor, aqui aplicado a un
+    # mime_type en vez de a un veredicto.
+    ext = os.path.splitext(path_imagen)[1].lower().lstrip(".")
+    media_type = {
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "png": "image/png",
+        "pdf": "application/pdf",
+    }.get(ext)
+    if media_type is None:
+        raise ValueError(
+            f"Extension de fichero no reconocida para enviar a Gemini: '.{ext}'. "
+            "Anadir aqui su mime_type real antes de adivinar uno -- ver "
+            "CORREGIDO 16-09-2026 en este mismo fichero."
+        )
 
     client = genai.Client(api_key=api_key)
     # CORREGIDO 16-09-2026, contrastado con la documentacion oficial del SDK
@@ -194,6 +211,16 @@ def leer_factura_gemini(path_imagen, permiso, modelo="gemini-3.1-flash-lite"):
 
     datos["foto_origen"] = os.path.basename(path_imagen)
     datos["_lector"] = "gemini"
+    # AÑADIDO 16-09-2026: puerta_cloud.Lote.anotar_resultado() ya existia para
+    # dejar constancia de tokens/coste, pero nadie la llamaba -- el registro
+    # de la primera llamada real salio con tokens_entrada/tokens_salida en
+    # null. Se guardan aqui, con prefijo "_", para que leer_factura() los
+    # saque y se los pase al lote; nunca llegan al motor (evaluar_fila_v4 no
+    # los espera). getattr con default None: si el SDK cambia de forma, un
+    # None visible es mejor que un fallo silencioso o un 0 inventado.
+    uso = getattr(respuesta, "usage_metadata", None)
+    datos["_tokens_entrada"] = getattr(uso, "prompt_token_count", None)
+    datos["_tokens_salida"] = getattr(uso, "candidates_token_count", None)
     return datos
 
 
@@ -212,10 +239,23 @@ def leer_factura(path_imagen, lote, modelo=None, proveedor="gemini"):
         )
     permiso = lote.consumir(path_imagen)
     if proveedor == "gemini":
-        return leer_factura_gemini(path_imagen, permiso)
-    # modelo=None significa "el que tenga por defecto la rama de Claude", no None.
-    return (_leer_factura_claude(path_imagen, permiso, modelo) if modelo
-            else _leer_factura_claude(path_imagen, permiso))
+        datos = leer_factura_gemini(path_imagen, permiso)
+    else:
+        # modelo=None significa "el que tenga por defecto la rama de Claude", no None.
+        datos = (_leer_factura_claude(path_imagen, permiso, modelo) if modelo
+                 else _leer_factura_claude(path_imagen, permiso))
+    # AÑADIDO 16-09-2026: hasta hoy nadie llamaba a anotar_resultado() -- el
+    # registro de la primera llamada real salio con tokens/coste en null a
+    # pesar de que el mecanismo ya existia. Los campos "_tokens_*" son un
+    # canal interno entre las funciones de lectura y este punto unico: no
+    # deben llegar nunca a evaluar_fila_v4 ni al CSV, por eso se sacan con
+    # pop() antes de devolver `datos`.
+    lote.anotar_resultado(
+        path_imagen,
+        tokens_entrada=datos.pop("_tokens_entrada", None),
+        tokens_salida=datos.pop("_tokens_salida", None),
+    )
+    return datos
 
 
 def _leer_factura_claude(path_imagen, permiso, modelo="claude-sonnet-5"):
@@ -247,10 +287,26 @@ def _leer_factura_claude(path_imagen, permiso, modelo="claude-sonnet-5"):
     with open(path_imagen, "rb") as f:
         imagen_b64 = base64.standard_b64encode(f.read()).decode("utf-8")
 
-    ext = os.path.splitext(path_imagen)[1].lower()
-    media_type = {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png"}.get(
-        ext.lstrip("."), "image/jpeg"
-    )
+    # CORREGIDO 16-09-2026: mismo bug que en leer_factura_gemini() (misma
+    # logica duplicada en dos ficheros -- ver diag_logica_duplicada.py), y el
+    # mismo motivo. NO arregla el problema mas profundo de esta rama: el
+    # bloque de contenido de abajo lleva "type": "image" fijo, y la API de
+    # Claude exige "type": "document" para un PDF -- eso sigue sin tocar
+    # porque esta ruta (4, ver modo_trabajo.py) es hoy inalcanzable sin
+    # ANTHROPIC_API_KEY ni DPA. Si algun dia se activa, revisar esto primero.
+    ext = os.path.splitext(path_imagen)[1].lower().lstrip(".")
+    media_type = {
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "png": "image/png",
+        "pdf": "application/pdf",
+    }.get(ext)
+    if media_type is None:
+        raise ValueError(
+            f"Extension de fichero no reconocida para enviar a Claude: '.{ext}'. "
+            "Anadir aqui su mime_type real antes de adivinar uno -- ver "
+            "CORREGIDO 16-09-2026 en este mismo fichero."
+        )
 
     client = anthropic.Anthropic(api_key=api_key)
     respuesta = client.messages.create(
@@ -284,6 +340,11 @@ def _leer_factura_claude(path_imagen, permiso, modelo="claude-sonnet-5"):
 
     datos["foto_origen"] = os.path.basename(path_imagen)
     datos["_lector"] = "claude"
+    # AÑADIDO 16-09-2026: mismo enganche que en leer_factura_gemini() para que
+    # anotar_resultado() reciba tokens reales en vez de null.
+    uso = getattr(respuesta, "usage", None)
+    datos["_tokens_entrada"] = getattr(uso, "input_tokens", None)
+    datos["_tokens_salida"] = getattr(uso, "output_tokens", None)
     return datos
 
 
