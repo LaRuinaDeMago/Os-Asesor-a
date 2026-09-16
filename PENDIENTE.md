@@ -15,25 +15,113 @@
      la cabecera de este fichero dice que no puede pasar. -->
 
   ┌───────────────────────────────────────────────────────────────────┐
-  │ RAMAS — comprobado y cerrado el 15-09-2026                        │
+  │ RAMAS — comprobado el 16-09-2026 (sesión Cloud)                   │
   │                                                                   │
-  │ Ya no hay nada que hacer aquí. Medido, no recordado: la única     │
-  │ rama local es `master`, y `master` y `origin/master` están al     │
-  │ día la una con la otra (0 commits de diferencia en los dos        │
-  │ sentidos). La antigua `claude/github-retomada-o4zyic` lleva CERO  │
-  │ commits que master no tenga — está estrictamente atrasada.        │
+  │ Todo el trabajo del 16-09 está FUSIONADO en `master` y empujado.  │
+  │ Medido, no recordado: `claude/cierre-verificacion-exhaustiva-     │
+  │ w1otrt` y `origin/master` están a 0 commits en los dos sentidos.  │
+  │ Esa rama ya no contiene nada que master no tenga; se puede borrar │
+  │ cuando quieras, y no corre prisa:                                 │
+  │     git push origin --delete claude/cierre-verificacion-...       │
   │                                                                   │
   │ Lo que SÍ sigue vigente, y es permanente (CLAUDE.md, regla del    │
   │ 11-09, con incidente real detrás): nunca compartir una rama larga │
   │ entre el PC y la nube. Cada sesión crea la suya, la fusiona a     │
   │ master al terminar, y la borra. master es el único punto de       │
   │ encuentro.                                                        │
-  │                                                                   │
-  │ (Antes aquí había un "ANTES DE NADA, UNA SOLA VEZ: git checkout   │
-  │ master && git pull". Estaba hecho desde el mismo día que se       │
-  │ escribió, y era lo PRIMERO que leía cada sesión al arrancar:      │
-  │ una instrucción ya cumplida ocupando el sitio de la que importa.) │
   └───────────────────────────────────────────────────────────────────┘
+
+  ╔═══════════════════════════════════════════════════════════════════╗
+  ║ MAÑANA, SESIÓN LOCAL — EMPIEZA POR AQUÍ                           ║
+  ║ Escrito el 16-09-2026 al cerrar la sesión Cloud.                  ║
+  ╚═══════════════════════════════════════════════════════════════════╝
+
+      En el PC de la asesoría el intérprete es `python`, no `python3`,
+      y las variables se ponen con `set VAR=1`, no con `export`.
+
+      ── PREPARACIÓN (una vez, ~5 minutos) ──────────────────────────
+
+        1) git checkout master && git pull
+        2) pip install -r requirements.txt
+           Instala dbfread, pdfplumber, google-genai y anthropic.
+        3) sh scripts/install_hooks.sh      (los hooks NO se clonan)
+        4) python audit_project.py
+
+        QUÉ ESPERAR EN EL PASO 4, y esto es nuevo: con las cuatro
+        dependencias instaladas, el aviso ⚠️ de dependencias desaparece
+        y la auditoría puede devolver **código 0 por primera vez**.
+        46 comprobaciones en verde. Si devuelve 1, eso manda sobre todo
+        lo demás y se mira antes de seguir.
+
+        5) python modo_trabajo.py
+           Te dice, medido, qué puedes hacer y qué falta encender. Si
+           algo de lo de abajo no sale en verde ahí, empieza por eso.
+
+      ── PASO 1 · EL ENSAYO EN VACÍO (haz esto ANTES que nada) ──────
+
+      **Es lo mejor que puedes hacer mañana, y no necesita DPA.** Pasa
+      una factura FABRICADA por la cadena entera con Gemini de verdad.
+      Valida la clave, el SDK, el prompt, la puerta, el registro de
+      coste y el motor — con cero exposición legal. Cuando después
+      llegue la factura real, el único dato nuevo será el dato.
+
+        a) Activa facturación en Gemini y pon la clave:
+               set GEMINI_API_KEY=...
+               set OS_ASESORIA_CLOUD=1
+           (NO pongas OS_ASESORIA_DATOS_REALES: no hace falta, y la
+            puerta debe seguir bloqueando lo real hasta el paso 2)
+
+        b) python crear_factura_sintetica.py
+           Genera `factura_sintetica_01.html` e imprime la VERDAD
+           CONOCIDA de ese documento. Ábrelo en el navegador y guárdalo
+           como PDF o hazle una captura de pantalla.
+
+        c) python captura_orquestador.py --imagen <la captura> \
+               --procedencia SINTETICO
+
+        d) COMPARA campo a campo contra la verdad que imprimió (b).
+           Las cuatro preguntas que hay que contestar están ahí, y la
+           primera es la que más importa:
+
+             · ¿Viene `tramos_iva` con los DOS tramos, incluido el 5%?
+               El 5% no tiene campo plano equivalente: si no llega por
+               ahí, se pierde entero. Es el defecto que se encontró y
+               arregló el 16-09 — esto lo prueba contra un modelo real.
+             · ¿`total_factura_2` trae el total del PIE o ha copiado el
+               del cuadro? Si lo copia, la doble lectura es un espejo.
+             · ¿`nif_margen` trae el NIF del pie?
+             · ¿El número sale como `A26/7.612`, con barra y punto?
+
+        e) Mira `registro_cloud.jsonl`: ahí está el primer coste real
+           medido del proyecto. €/documento deja de ser una estimación.
+
+      ── PASO 2 · LA DECISIÓN DEL DPA ───────────────────────────────
+
+      Son DOS decisiones, no una (ver punto 1 de EL ORDEN):
+        · Google/Gemini con facturación activa — la capa gratuita de AI
+          Studio entrena con tus datos. Google entra como SEGUNDO
+          encargado del tratamiento, con su propio DPA.
+        · Anthropic, y SÓLO si algún día quieres la ruta 4 (que yo vea
+          el documento original). Para el flujo normal no hace falta.
+
+      ── PASO 3 · UNA FACTURA REAL, UNA SOLA ────────────────────────
+
+        set OS_ASESORIA_DATOS_REALES=1
+        python captura_orquestador.py --imagen factura.jpg \
+            --procedencia REAL --confirmo-envio 1
+
+      La confirmación es el RECUENTO EXACTO, no un "sí". Si no coincide
+      con los documentos encontrados, la puerta bloquea.
+
+      ── LO QUE NO HAY QUE HACER MAÑANA ─────────────────────────────
+
+        · No construir el router ni presupuestos ni reintentos: sus
+          constantes se miden con las primeras facturas (§5).
+        · No construir `proyeccion_minima.py` hasta tener el primer CSV
+          real delante (§5.A-bis).
+        · No procesar un lote grande antes de que UNA factura haya ido
+          de punta a punta. Es "Puerta 1 antes que Puerta 2", la regla
+          que este proyecto ya ha violado cuatro veces.
 
   ═════════════════════════════════════════════════════════════════════
   EL ORDEN — por dónde seguir, y por qué en ese orden

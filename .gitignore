@@ -25,6 +25,13 @@
 # se versiona ninguna otra salida de ejecución.
 registro_cloud.jsonl
 
+# Facturas sintéticas generadas por crear_factura_sintetica.py. El GENERADOR sí
+# se versiona (no contiene ningún literal con forma de NIF: lo compone al
+# ejecutarse); su SALIDA no, porque lleva un NIF con checksum válido y el
+# escáner de privacidad —correctamente— no puede distinguir un NIF sintético de
+# uno real. Se regenera cuando haga falta.
+factura_sintetica_*.html
+
 # Censo del despacho: la columna 'nombre' lleva razones sociales reales.
 censo_despacho_v8.csv
 

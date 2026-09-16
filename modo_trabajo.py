@@ -117,8 +117,14 @@ TAREAS = (
           ("proyeccion_minima",), "0 EUR de API",
           "Ruta 3. La herramienta no existe todavia: se construye con el "
           "primer CSV real delante"),
+    # `puerta_datos_reales` va aqui aunque la clave sea de Anthropic y la puerta
+    # se pensara para Gemini: es la DECLARACION de que existe cobertura legal
+    # para que un documento real salga. Sin ella, tener la clave puesta bastaria
+    # para que esta linea saliera en verde -- un falso verde en la herramienta
+    # que existe precisamente para decidir, que es el peor sitio donde ponerlo.
     Tarea("Que Claude VEA una factura real",
-          ("clave_anthropic", "sesion_local"), "Por tokens",
+          ("clave_anthropic", "sesion_local", "puerta_datos_reales"),
+          "Por tokens",
           "Ruta 4, excepcional. En Cloud/Web es imposible por diseño"),
 )
 
@@ -218,7 +224,13 @@ def main():
     print("\n--- 4. Que se puede hacer AHORA, y que hay que encender --------")
     for t in TAREAS:
         faltan = [n for n in t.necesita if not cap.get(n)]
-        marca = "✅" if not faltan else "⛔"
+        # Marcas ASCII y no ✅/⛔ a proposito: la consola del PC de la asesoria
+        # es cp1252 y no sabe codificar esos simbolos, asi que los dos se verian
+        # como '?' -- y este informe existe para DECIDIR. En audit_project.py el
+        # simbolo es accesorio (el texto de al lado ya lo dice todo); aqui es la
+        # informacion. Un indicador ilegible en la maquina donde se usa no es un
+        # detalle estetico.
+        marca = "[ SI ]" if not faltan else "[ NO ]"
         print(f"  {marca} {t.nombre}   [{t.coste}]")
         if faltan:
             print(f"       falta: {', '.join(faltan)}")
