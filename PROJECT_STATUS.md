@@ -108,9 +108,13 @@ líneas la banda se corría y acababa sobre la raya del bloque de totales, con l
 que la tinta de la RAYA daba por buena una etiqueta invisible. Un guard al que
 le vale la tinta del vecino es un falso verde.
 
-`test_muestras_sinteticas.py`: **73 pruebas**, reintroduce el defecto exacto y
-exige que el guard se ponga rojo en las tres recetas y que al deshacerlo vuelvan
-a pasar. Cableada en `audit_project.py`.
+`test_muestras_sinteticas.py` reintroduce el defecto exacto y exige que el guard
+se ponga rojo en **todas** las recetas, y que al deshacerlo vuelvan a pasar.
+Cableada en `audit_project.py`. (El recuento de pruebas va en "Estado al
+cerrar", al final de esta entrada, y no aquí: escrito en mitad del relato
+quedaría congelado en la cifra de ese momento y contradiría al cierre de la
+misma entrada — que es lo que pasó, y es el mismo defecto que esta sesión
+corrigió en el bloque de RAMAS.)
 
 Dos arreglos menores por el camino: el módulo hacía `sys.exit(1)` en la cabecera
 si faltaba Pillow —lo que mata el proceso de quien lo importe, justo el defecto

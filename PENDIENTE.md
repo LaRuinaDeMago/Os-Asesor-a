@@ -47,8 +47,8 @@
   └───────────────────────────────────────────────────────────────────┘
 
   ╔═══════════════════════════════════════════════════════════════════╗
-  ║ MAÑANA, SESIÓN LOCAL — EMPIEZA POR AQUÍ                           ║
-  ║ Escrito el 16-09-2026 al cerrar la sesión Cloud.                  ║
+  ║ SESIÓN LOCAL — EMPIEZA POR AQUÍ                                   ║
+  ║ Reescrito el 16-09-2026 al cerrar la SEGUNDA sesión Cloud.        ║
   ╚═══════════════════════════════════════════════════════════════════╝
 
       En el PC de la asesoría el intérprete es `python`, no `python3`,
@@ -58,19 +58,82 @@
 
         1) git checkout master && git pull
         2) pip install -r requirements.txt
-           Instala dbfread, pdfplumber, google-genai y anthropic.
+           Instala dbfread, pdfplumber, google-genai, anthropic y
+           **Pillow** (nueva el 16-09: dibuja las muestras sintéticas).
         3) sh scripts/install_hooks.sh      (los hooks NO se clonan)
         4) python audit_project.py
 
-        QUÉ ESPERAR EN EL PASO 4, y esto es nuevo: con las cuatro
-        dependencias instaladas, el aviso ⚠️ de dependencias desaparece
-        y la auditoría puede devolver **código 0 por primera vez**.
-        46 comprobaciones en verde. Si devuelve 1, eso manda sobre todo
-        lo demás y se mira antes de seguir.
+        QUÉ ESPERAR EN EL PASO 4: con las cinco dependencias
+        instaladas, el aviso ⚠️ de dependencias desaparece y la
+        auditoría puede devolver **código 0 por primera vez**. Son
+        **48 comprobaciones y 36 suites**. Si devuelve 1, eso manda
+        sobre todo lo demás y se mira antes de seguir.
 
         5) python modo_trabajo.py
            Te dice, medido, qué puedes hacer y qué falta encender. Si
            algo de lo de abajo no sale en verde ahí, empieza por eso.
+
+      ╭─────────────────────────────────────────────────────────────╮
+      │ LO PRIMERO QUE HAY QUE HACER, Y SON TRES COMANDOS           │
+      ╰─────────────────────────────────────────────────────────────╯
+
+        Todo lo que se podía construir sin datos reales ya está. Lo
+        que falta es **una medición**, y sólo se puede hacer aquí.
+
+          set GEMINI_API_KEY=...
+          set OS_ASESORIA_CLOUD=1
+          (NO pongas OS_ASESORIA_DATOS_REALES: estas muestras son
+           SINTÉTICAS y no lo necesitan. La puerta debe seguir
+           bloqueando lo real.)
+
+          python crear_muestras_sinteticas.py
+
+        Escribe `muestras_sinteticas/` con **cinco recetas × dos
+        versiones** (limpia y degradada) y un `_verdad.json` por
+        receta. Luego, **empezando por las `_limpia`**:
+
+          python captura_orquestador.py ^
+                 --imagen muestras_sinteticas/doble_lectura_descuadre_limpia.png ^
+                 --procedencia SINTETICO > captura.json
+          python comparar_captura_vs_verdad.py captura.json
+
+        El comparador encuentra el fichero de verdad solo, compara
+        campo a campo con el parser del propio contrato, **contesta
+        las cuatro preguntas del Paso 1 él solo**, y termina pasando lo
+        que el modelo leyó por el motor.
+
+        Códigos de salida, los tres de siempre:
+          `0` todo comprobado y coincidiendo
+          `1` hay una diferencia real
+          `2` nada discrepa pero **algún campo no vino** — y eso NO es
+              un aprobado
+
+        EL ORDEN IMPORTA, y no es una preferencia: primero la `_limpia`
+        de cada receta. Si la limpia ya falla, la degradada no añade
+        información — el problema no es la foto. Sólo cuando la limpia
+        acierta, la degradada mide de verdad cuánto aguanta, porque el
+        documento es EL MISMO y la única variable que cambia es la foto.
+
+        POR CUÁL EMPEZAR, si sólo vas a hacer una: por
+        `doble_lectura_descuadre`. Es la que contesta la pregunta que
+        lleva abierta desde el Paso 1 y la única que puede demostrar
+        que la doble lectura no es un espejo.
+
+        LO QUE YA SE SABE DE ANTEMANO, medido contra el motor con la
+        verdad conocida (si al pasar la IMAGEN sale otra cosa, señala a
+        la LECTURA, no al motor):
+
+          doble_lectura_descuadre  → ROJO, y por `doble_lectura_total`
+          doble_lectura_letras     → AMBAR
+          con_retencion            → AMBAR
+          inversion_sujeto_pasivo  → AMBAR
+          recargo_equivalencia     → AMBAR
+
+        Los AMBAR **no son un defecto**: la verdad conocida describe el
+        DOCUMENTO, y `verificacion` —la confianza que el modelo declara
+        sobre su propia lectura— no es una propiedad del papel. Al pasar
+        la imagen por Gemini ese campo sí vendrá, y entonces los AMBAR
+        deberían subir a VERDE. **Si no suben, eso sí es un hallazgo.**
 
       ── PASO 1 · EL ENSAYO EN VACÍO (haz esto ANTES que nada) ──────
 
