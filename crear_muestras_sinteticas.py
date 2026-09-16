@@ -701,7 +701,19 @@ def dibujar(receta, cifras):
         # Va ENCIMA de la raya del pie y en negrita: es la unica forma que tiene
         # el modelo de saber que esta factura no es una a la que se le olvido el
         # IVA. Si esto no se lee, la muestra no mide nada.
-        _texto(d, (izq, y_pie - 70), receta["mencion_legal"], fuente(18, True),
+        f_mencion = fuente(18, True)
+        ancho = d.textbbox((0, 0), receta["mencion_legal"], font=f_mencion)[2]
+        if izq + ancho > dcha:
+            # No se dibuja lo que no cabe. Pillow no avisa: escribe fuera del
+            # papel y se pierde el final en silencio -- y la muestra saldria con
+            # la mencion cortada, con lo que el modelo "no sabria leerla" por un
+            # fallo del dibujo. Es el mismo patron que la tinta blanca.
+            raise AssertionError(
+                f"{receta['nombre']}: la mencion legal mide {ancho} px y el "
+                f"margen util es {dcha - izq} px. Se saldria del papel y se "
+                f"perderia el final sin avisar. Acortala o partela en dos "
+                f"lineas -- no la dibujes fuera.")
+        _texto(d, (izq, y_pie - 70), receta["mencion_legal"], f_mencion,
                (34, 34, 34))
         zonas.append(("mencion legal", izq, izq + 900, y_pie - 70, y_pie - 40))
 

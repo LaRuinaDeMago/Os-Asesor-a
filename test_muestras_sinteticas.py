@@ -368,6 +368,24 @@ def pruebas_dibujo():
                   for r in m.RECETAS),
               severidad="P0")
 
+    # Una mencion legal que no cabe tiene que RECHAZARSE, no salirse del papel.
+    # Pillow no avisa: escribe fuera y se pierde el final en silencio. La muestra
+    # saldria con la mencion cortada y el modelo "no sabria leerla" por un fallo
+    # del dibujo -- el mismo patron que la tinta blanca.
+    con_mencion = [r for r in m.RECETAS if r.get("mencion_legal")]
+    comprobar("hay alguna receta con mencion legal", bool(con_mencion),
+              severidad="P0")
+    for receta in con_mencion:
+        larga = dict(receta)
+        larga["mencion_legal"] = receta["mencion_legal"] * 2
+        comprobar(f"{receta['nombre']}: una mencion que no cabe se rechaza, no "
+                  f"se dibuja fuera del papel",
+                  _falla(lambda: m.dibujar(larga, m.calcular(larga)),
+                         AssertionError), severidad="P0")
+        comprobar(f"{receta['nombre']}: y la de verdad si cabe",
+                  not _falla(lambda: m.dibujar(receta, m.calcular(receta)),
+                             AssertionError), severidad="P0")
+
     # La degradacion tiene que ser DETERMINISTA: si no, dos ejecuciones no se
     # pueden comparar y la muestra deja de medir.
     receta = m.RECETAS[0]

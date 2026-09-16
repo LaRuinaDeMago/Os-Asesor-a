@@ -201,13 +201,66 @@ además lo firma en verde. No se arregla en el motor —no puede saber de dónde
 salió el segundo número—: se arregla comprobándolo, que es exactamente lo que
 mide `doble_lectura_descuadre`.
 
+### 8. Los dos guards que existían y nunca habían visto un documento
+
+`guard_naturaleza_operacion` y `guard_recargo_equivalencia` están en el motor
+desde el 20-08-2026, los dos cerraron un techo real, y hasta hoy **sólo habían
+visto filas**. Dos recetas más, cada una con caso real detrás:
+
+- **`inversion_sujeto_pasivo`** — base 3.500,00 sin IVA, con la mención del
+  art. 84.Uno.2º impresa. Mide si el modelo LEE esa mención: si vuelve `SUJETA`,
+  el motor deja de poder distinguir *"sin IVA y bien"* de *"se les olvidó el
+  IVA"*. Caso real: el descuadre del 303 de SP_C_13, el único de nueve
+  trimestres que no cuadraba, se explicó entero por ISP. Lo que se cambia y se
+  declara: emisor español con CIF sintético, porque uno extranjero no tiene CIF
+  español y `nif_digito_control` taparía lo que se mide.
+- **`recargo_equivalencia`** — base 1.000,00 + IVA 210,00 + recargo 5,2% =
+  52,00, total 1.262,00. El guard nació porque una factura **correcta** de un
+  minorista persona física salía ROJO sin contemplarlo.
+
+Pieza nueva que hizo falta: una línea con `tipo=None`, que aporta base y **no**
+genera tramo. El motor tiene una rama entera para las operaciones sin IVA
+repercutido y **exige `tramos_iva` vacía**; un tramo al 0% la sacaría de esa
+rama y mediría otra cosa. En el papel, guion en las columnas de IVA.
+
+El importe del recargo no se escribe: sale de `RECARGO_POR_TIPO` del contrato,
+el mismo dato con el que el motor lo comprueba.
+
+### 9. Tres defectos propios más, de la misma familia de siempre
+
+1. **El porcentaje del recargo se imprimía `5.2%`, con punto inglés.** En una
+   factura española pone `5,2%`. No es cosmética: el separador decimal es uno de
+   los caracteres donde un OCR se equivoca, así que la muestra no medía lo que
+   va a llegar. Sólo se vio mirando la imagen.
+
+2. **El informe del comparador caía en su propio falso verde.** Contestaba "SI"
+   a la pregunta del tramo al 5% sobre una muestra **sin ningún tramo al 5%**, y
+   daba por buena la lectura del pie en las muestras donde pie y cabecera llevan
+   lo mismo —donde coincidir no distingue haber leído de haber copiado, que es
+   el defecto de diseño por el que existen estas muestras—. Ahora cada respuesta
+   lleva, cuando toca, **lo que esa coincidencia NO demuestra** y qué muestra sí
+   lo demuestra. Probado en las dos direcciones: un aviso que sale siempre
+   taparía el caso en que la muestra sí demuestra algo.
+
+3. **`comparar_tramos` trataba una lista vacía como "no vino".** Con la receta
+   de ISP eso la habría condenado a código 2 para siempre **por acertar**.
+   Vacía contra vacía es una coincidencia; inventarse un desglose donde no debe
+   haberlo es una diferencia.
+
+Y un guard preventivo, por una fragilidad que se midió antes de que mordiera: la
+mención legal cabía por 44 px. Una más larga se habría salido del papel **sin
+que Pillow avise**, y la muestra habría salido con el texto cortado — el modelo
+"no sabría leerla" por un fallo del dibujo. Ahora no se dibuja lo que no cabe:
+se para y se dice.
+
 ### Estado al cerrar
 
 `python audit_project.py` → **48 comprobaciones en verde, 0 en rojo, 36/36
 suites**. Código de salida 2, por el único ⚠️ de siempre en Cloud: dbfread,
 pdfplumber, anthropic y google-genai sin instalar, que es el entorno y no un
-defecto. `test_motor_veredicto.py` 86/86. `test_muestras_sinteticas.py` 110/110.
-`test_comparar_captura.py` 47/47.
+defecto. `test_motor_veredicto.py` 86/86. `test_muestras_sinteticas.py` 175/175.
+`test_comparar_captura.py` 61/61. Cinco recetas sintéticas, cada una en versión
+limpia y degradada.
 
 El hook de privacidad se ganó el sueldo una vez: bloqueó un commit porque la
 primera versión de la batería del comparador llevaba literales con forma de NIF.
