@@ -95,6 +95,18 @@
         e) Mira `registro_cloud.jsonl`: ahí está el primer coste real
            medido del proyecto. €/documento deja de ser una estimación.
 
+        SI FALLA LA LLAMADA, dónde mirar primero (declarado el 16-09
+        porque desde Cloud no se pudo ejecutar: ni SDK ni clave):
+          · Error de MODELO no encontrado → `gemini-3.1-flash-lite` se
+            verificó vigente contra la documentación oficial el 16-09,
+            pero los modelos se retiran. Es lo primero que caduca.
+          · Error de FORMA de la petición → la llamada usa
+            `types.Part.from_bytes(...)`, que es la forma documentada del
+            SDK. Si tu versión de `google-genai` fuera antigua y no lo
+            tuviera: `pip install -U google-genai`.
+          · La puerta bloquea → `python puerta_cloud.py` dice por qué en
+            una línea, y `python modo_trabajo.py` qué falta encender.
+
       ── PASO 2 · LA DECISIÓN DEL DPA ───────────────────────────────
 
       Son DOS decisiones, no una (ver punto 1 de EL ORDEN):

@@ -112,10 +112,21 @@ def leer_factura_gemini(path_imagen, permiso, modelo="gemini-3.1-flash-lite"):
     REQUIERE: variable de entorno GEMINI_API_KEY, de una cuenta de PAGO
     (no la capa gratis de AI Studio - esa entrena con tus datos, confirmado
     el 28-07-2026). La capa de pago SI trae DPA, sin necesidad de pasar por
-    Vertex - confirmado con los propios terminos de Google."""
+    Vertex - confirmado con los propios terminos de Google.
+
+    EL IDENTIFICADOR DE MODELO, verificado el 16-09-2026 contra la
+    documentacion oficial: `gemini-3.1-flash-lite` existe y esta vigente. Se
+    comprobo a proposito, y no por escrupulo: este proyecto ya se tropezo una
+    vez con un identificador inventado (`claude-sonnet-4-6`, 27-08-2026), que
+    no habria fallado hasta la primera llamada real.
+
+    Y es justo el tipo de dato que CADUCA sin avisar: los modelos se retiran.
+    Si manana la API contesta con un error de modelo no encontrado, eso es lo
+    PRIMERO que hay que mirar, antes de sospechar del codigo."""
     puerta_cloud.exigir_permiso(permiso, path_imagen)
     try:
         from google import genai
+        from google.genai import types
     except ImportError:
         raise RuntimeError(
             "Falta el paquete 'google-genai' (pip install google-genai --break-system-packages). "
@@ -141,10 +152,21 @@ def leer_factura_gemini(path_imagen, permiso, modelo="gemini-3.1-flash-lite"):
     )
 
     client = genai.Client(api_key=api_key)
+    # CORREGIDO 16-09-2026, contrastado con la documentacion oficial del SDK
+    # antes de la primera llamada real. Antes iba un diccionario crudo
+    # {"inline_data": {...}}. La documentacion dice que los parametros pueden
+    # ser dicts, asi que probablemente funcionaba -- pero no aparece en ningun
+    # ejemplo, y "probablemente" no es una respuesta aceptable para la UNICA
+    # linea de la que depende que manana la cadena arranque. `Part.from_bytes`
+    # es la forma documentada y con ejemplo.
+    #
+    # NO se ha podido EJECUTAR aqui (ni el SDK instalado ni clave, y esta
+    # sesion es Cloud): su primera prueba real es el PASO 1 de PENDIENTE.md,
+    # con la factura sintetica. Se declara asi en vez de darlo por bueno.
     respuesta = client.models.generate_content(
         model=modelo,
         contents=[
-            {"inline_data": {"mime_type": media_type, "data": imagen_bytes}},
+            types.Part.from_bytes(data=imagen_bytes, mime_type=media_type),
             PROMPT_CAPTURA,
         ],
     )
