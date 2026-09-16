@@ -728,7 +728,20 @@ def verdad_conocida(receta, cifras, nif, nif_pie):
                        for t in cifras["tramos"]],
     }
     if cifras["retencion"] is not None:
-        v["irpf_retencion"] = cifras["retencion"]
+        # EN NEGATIVO, y no por gusto: es la convencion que el propio prompt de
+        # captura le pide a la IA -- "retencion de IRPF si aparece, EN NEGATIVO
+        # si existe, 0 si no aplica" (captura_orquestador.py). El motor la SUMA
+        # (`guard_cuadre_total`: base + IVA + irpf + recargo), asi que con el
+        # signo correcto el total cuadra y con el signo cambiado da un descuadre
+        # de DOS VECES la retencion.
+        #
+        # Escrita en positivo estuvo, hasta que se paso esta misma verdad por el
+        # motor de verdad: dio ROJO con "total_calc=2720.0 decl=2120.0". Y el
+        # dano habria sido el de siempre y del reves: Gemini habria devuelto
+        # -300,00 correctamente, la verdad conocida habria dicho 300,00, y la
+        # comparacion habria cantado un fallo del modelo que no existia. La
+        # regla de medir, torcida otra vez.
+        v["irpf_retencion"] = -cifras["retencion"]
     # Campos planos por tipo: solo existen para 21/10/4. El 5% vive unicamente
     # dentro de `tramos_iva` -- es el hueco que el contrato tiene declarado y el
     # motivo por el que ese campo tuvo que arreglarse el 16-09-2026.

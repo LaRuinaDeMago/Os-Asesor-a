@@ -362,6 +362,88 @@ def pruebas_dibujo():
               a != limpia.tobytes(), severidad="P0")
 
 
+# ---------------------------------------------------------------------------
+# 6. La verdad conocida, pasada por el MOTOR de verdad
+# ---------------------------------------------------------------------------
+# Esto existe por una afirmacion que se escribio en la documentacion antes de
+# medirla: "el motor deberia ponerse ROJO" con la receta del descuadre. Resulto
+# ser cierta -- pero al ir a comprobarla aparecio otra cosa que no lo era.
+#
+# `con_retencion` daba ROJO con `total_calc=2720.0 decl=2120.0`, y NO era un
+# fallo del motor: la verdad conocida escribia la retencion en POSITIVO. El
+# prompt de captura le pide a la IA "retencion de IRPF si aparece, EN NEGATIVO
+# si existe", y `guard_cuadre_total` la SUMA (base + IVA + irpf + recargo). Con
+# el signo cambiado el descuadre es de dos veces la retencion.
+#
+# El dano habria sido del reves y peor: Gemini habria devuelto -300,00 bien, la
+# verdad habria dicho 300,00, y la comparacion habria cantado un fallo del
+# modelo que no existia.
+#
+#: El veredicto que el motor tiene que dar sobre CADA verdad conocida.
+VEREDICTO_ESPERADO = {
+    # AMBAR y no VERDE, y no es un defecto: la verdad conocida describe el
+    # DOCUMENTO, y `verificacion` (la confianza que el modelo declara de su
+    # propia lectura) no es una propiedad del papel -- la pone la captura. Sin
+    # ella el motor dice NO_COMPROBADO y baja a AMBAR, que es exactamente lo que
+    # tiene que hacer: si no se ha podido comprobar, no es OK.
+    "doble_lectura_letras": ("AMBAR", None),
+    "con_retencion": ("AMBAR", None),
+    # ROJO, y por el guard concreto: no vale que salga rojo por otra cosa.
+    "doble_lectura_descuadre": ("ROJO", "doble_lectura_total"),
+}
+
+
+def pruebas_motor():
+    from motor_veredicto import evaluar_fila_v4
+
+    comprobar("toda receta tiene veredicto esperado declarado",
+              {r["nombre"] for r in m.RECETAS} == set(VEREDICTO_ESPERADO),
+              severidad="P0")
+
+    for receta in m.RECETAS:
+        nombre = receta["nombre"]
+        if nombre not in VEREDICTO_ESPERADO:
+            continue
+        c = m.calcular(receta)
+        nif = nif_sintetico(receta["nif_digitos"], receta["nif_letra"])
+        verdad = m.verdad_conocida(receta, c, nif, m.nif_del_pie(receta, nif))
+        fila = {k: v for k, v in verdad.items() if not k.startswith("_")}
+
+        # alta_cliente_anio=2020 para que `fecha_posterior_alta` no falle por
+        # una fecha de 2026; no influye en lo que se mide aqui.
+        veredicto, motivo, guards = evaluar_fila_v4(
+            fila, set(), {}, {}, {}, {}, 2020, None, None)
+        esperado, guard_culpable = VEREDICTO_ESPERADO[nombre]
+
+        comprobar(f"{nombre}: el motor da {esperado}", veredicto == esperado,
+                  f"dio {veredicto}: {motivo}", "P0")
+
+        fallos = [k for k, est in guards.items() if est[0] == "FALLO"]
+        if guard_culpable:
+            comprobar(f"{nombre}: y el guard que falla es {guard_culpable}",
+                      fallos == [guard_culpable],
+                      f"fallaron {fallos or 'ninguno'}", "P0")
+        else:
+            comprobar(f"{nombre}: y ningun guard esta en FALLO",
+                      not fallos, f"fallaron {fallos}", "P0")
+
+    # El signo de la retencion, fijado contra su autoridad: el prompt.
+    con_ret = [r for r in m.RECETAS if r["retencion_pct"] is not None]
+    for receta in con_ret:
+        c = m.calcular(receta)
+        nif = nif_sintetico(receta["nif_digitos"], receta["nif_letra"])
+        verdad = m.verdad_conocida(receta, c, nif, m.nif_del_pie(receta, nif))
+        comprobar(f"{receta['nombre']}: irpf_retencion va en NEGATIVO, como "
+                  f"pide el prompt de captura",
+                  verdad["irpf_retencion"] < 0,
+                  f"vale {verdad['irpf_retencion']}", "P0")
+        comprobar(f"{receta['nombre']}: base + IVA + irpf = total (por eso el "
+                  f"signo importa)",
+                  round(verdad["base_total"] + verdad["iva_total"]
+                        + verdad["irpf_retencion"], 2) == verdad["total_factura"],
+                  severidad="P0")
+
+
 def main():
     print("=" * 72)
     print("MUESTRAS SINTETICAS — bateria")
@@ -372,6 +454,7 @@ def main():
     pruebas_recetas()
     pruebas_contrato()
     pruebas_dibujo()
+    pruebas_motor()
 
     fallan = [r for r in resultados if not r[1]]
     p0 = [r for r in fallan if r[3] == "P0"]

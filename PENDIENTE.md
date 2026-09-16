@@ -132,6 +132,41 @@
           márgenes en trapecio). Que la degradada pase no significa que
           una foto en ángulo pase: eso no se ha medido.
 
+          **LO QUE EL MOTOR DICE DE CADA UNA — medido, no supuesto.** La
+          verdad conocida se ha pasado por `evaluar_fila_v4` de verdad.
+          Sabiéndolo de antemano, un veredicto distinto al pasar la
+          IMAGEN señala a la lectura, no al motor:
+
+            doble_lectura_descuadre  → **ROJO**, y por el guard correcto:
+                `doble_lectura_total: el total difiere entre las dos
+                ubicaciones leidas: 1210.0 vs 1120.0`. Primera vez que
+                ese guard se ve disparar sobre un documento.
+            doble_lectura_letras     → AMBAR
+            con_retencion            → AMBAR
+
+          Los dos AMBAR **no son un defecto**: la verdad conocida
+          describe el DOCUMENTO, y `verificacion` —la confianza que el
+          modelo declara sobre su propia lectura— no es una propiedad
+          del papel, la pone la captura. Sin ella el motor dice
+          NO_COMPROBADO y baja a AMBAR, que es lo que tiene que hacer.
+          Al pasar la IMAGEN por Gemini ese campo sí vendrá.
+
+          ⚠️ **Y un detalle de contrato que costó encontrar:**
+          `irpf_retencion` va **EN NEGATIVO**. Lo pide así el prompt de
+          `captura_orquestador.py` y `guard_cuadre_total` la SUMA
+          (base + IVA + irpf + recargo). Con el signo cambiado el
+          descuadre es de DOS VECES la retención: la primera versión de
+          esta muestra lo escribía en positivo y el motor daba
+          `total_calc=2720.0 decl=2120.0`. Si alguna vez ves ese patrón
+          —un descuadre que es justo el doble de la retención— es el
+          signo, no el motor.
+
+          **Nota de cobertura, aparte:** `test_motor_veredicto.py` no
+          tiene hoy ningún caso con retención distinta de 0 (los tres
+          llevan `irpf_retencion: '0'`). Esa rama de `guard_cuadre_total`
+          no la ejercita la suite del motor; la ejercita ahora
+          `test_muestras_sinteticas.py`, pero conviene saberlo.
+
       **Y dos defectos reales encontrados en la primera ejecución contra
       la API de verdad — exactamente para eso servía este paso:**
         1. El PDF se enviaba etiquetado como `image/jpeg` (el mapa de
