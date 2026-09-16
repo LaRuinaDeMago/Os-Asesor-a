@@ -161,11 +161,21 @@
           —un descuadre que es justo el doble de la retención— es el
           signo, no el motor.
 
-          **Nota de cobertura, aparte:** `test_motor_veredicto.py` no
-          tiene hoy ningún caso con retención distinta de 0 (los tres
-          llevan `irpf_retencion: '0'`). Esa rama de `guard_cuadre_total`
-          no la ejercita la suite del motor; la ejercita ahora
-          `test_muestras_sinteticas.py`, pero conviene saberlo.
+          **Hueco de cobertura que apareció por el camino — ✅ CERRADO
+          el mismo día.** `test_motor_veredicto.py` no tenía ningún caso
+          con retención distinta de 0: los tres llevaban
+          `irpf_retencion: '0'`, así que la rama de retención de
+          `guard_cuadre_total` no la ejercitaba nadie. Añadidas 6
+          pruebas (la suite pasa de 80 a 86, en verde antes y después):
+          con la retención en negativo cuadra; **con el signo cambiado
+          tiene que FALLAR** —si no, la prueba no estaría ejercitando la
+          rama, sólo pasando por delante—; y la factura entera sale
+          VERDE por el motor completo.
+
+          El detalle que ahorra tiempo si vuelve a pasar: el descuadre
+          del signo cambiado vale **2.720 = 2.120 + 2×300**. Un
+          descuadre que es exactamente el doble de la retención es la
+          firma del signo, no un error de lectura.
 
           ─────────────────────────────────────────────────────────────
           ✅ **Y LA COMPARACIÓN YA NO SE HACE A OJO (16-09-2026).**

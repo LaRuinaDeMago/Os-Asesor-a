@@ -505,6 +505,65 @@ check(guard_secuencia_documental_proveedor('P', 'F-130', _sec2, nif='B7')[0] == 
 check(guard_secuencia_documental_proveedor('P', 'F-99000', _sec2, nif='B7')[0] == "FALLO",
       "y uno absurdamente lejano sigue siendo FALLO")
 
+print("\n=== HUECO DE COBERTURA (16-09-2026): una factura CON RETENCION ===")
+# Hasta hoy los tres casos de esta suite llevaban `irpf_retencion: '0'`, asi que
+# la rama de retencion de guard_cuadre_total NO la ejercitaba nadie. El hueco
+# aparecio al pasar una muestra sintetica con IRPF por el motor: daba un
+# descuadre de DOS VECES la retencion, y no era el motor -- era el SIGNO.
+#
+# La convencion la fija el prompt de captura_orquestador.py: "retencion de IRPF
+# si aparece, EN NEGATIVO si existe, 0 si no aplica". Por eso guard_cuadre_total
+# la SUMA (base + IVA + irpf + recargo). Este bloque deja esa convencion escrita
+# en una prueba, que es donde no se pierde.
+#
+# Caso piloto (anonimizado): servicios profesionales, base 2.000,00 al 21%,
+# cuota 420,00, retencion del 15% = 300,00. Total 2.120,00, que NO es base+IVA.
+_base_prof, _iva_prof, _ret_prof, _total_prof = 2000.00, 420.00, -300.00, 2120.00
+
+_est_cu, _det_cu = guard_cuadre_total(0, 0, _base_prof, _iva_prof, _ret_prof,
+                                      _total_prof)
+check(_est_cu == "OK",
+      f"con la retencion EN NEGATIVO, base+IVA+irpf cuadra con el total "
+      f"(dio {_est_cu}: {_det_cu})")
+
+# Y con el signo cambiado tiene que FALLAR: si no, esta prueba no estaria
+# ejercitando la rama, solo pasando por delante.
+_est_mal, _det_mal = guard_cuadre_total(0, 0, _base_prof, _iva_prof,
+                                        abs(_ret_prof), _total_prof)
+check(_est_mal == "FALLO",
+      f"y con la retencion en POSITIVO da FALLO, con un descuadre del doble "
+      f"de la retencion (dio {_est_mal}: {_det_mal})")
+check("2720" in _det_mal,
+      f"el descuadre del signo cambiado es 2720 = 2120 + 2x300, la firma que "
+      f"delata el signo y no un error de lectura (dio {_det_mal})")
+
+# El otro guard que mira la retencion sigue coincidiendo con el primero.
+_est_rv, _det_rv = guard_retencion_vs_error(_base_prof, _iva_prof, _ret_prof,
+                                            _total_prof)
+check(_est_rv == "OK",
+      f"guard_retencion_vs_error reconoce el 15% declarado (dio {_est_rv}: {_det_rv})")
+
+# Y la factura entera por el motor: VERDE, no ROJO por un descuadre fantasma.
+_fila_prof = {
+    'fecha_expedicion': '2026-06-02', 'nº_documento': '2026/084',
+    # CIF sintetico VALIDO (digito de control correcto) y ya conocido por
+    # scripts/privacy_scan.py. El B...78 que usa el resto del fichero es
+    # invalido A PROPOSITO -- sirve para probar que se detecta un NIF malo -- y
+    # aqui daria ROJO por el NIF, tapando lo que se quiere medir.
+    'proveedor': 'SERVICIOS PROFESIONALES DE MUESTRA SL', 'nif': 'B12345674',
+    'base_10': '0', 'base_4': '0', 'base_21': '2000.00',
+    'base_total': '2000.00', 'iva_total': '420.00',
+    'irpf_retencion': '-300.00', 'total_factura': '2120.00',
+    'verificacion': 'OK',
+}
+_v_prof, _mot_prof, _g_prof = evaluar_fila_v4(_fila_prof, set(), {}, {}, {}, {},
+                                              2020, None, None)
+check(_g_prof['cuadre_total'][0] == "OK",
+      f"la factura con retencion no da descuadre en el motor completo "
+      f"(dio {_g_prof['cuadre_total']})")
+check(_v_prof != "ROJO",
+      f"y no sale ROJO por una retencion bien declarada (dio {_v_prof}: {_mot_prof})")
+
 print(f"\n{'='*50}")
 if FALLOS:
     print(f"❌ {len(FALLOS)} PRUEBA(S) FALLIDA(S): {FALLOS}")
