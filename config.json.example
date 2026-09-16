@@ -1,0 +1,13 @@
+{
+  "_comentario": "JSON no admite comentarios de verdad, asi que este campo (ignorado por orquestador.py, que solo lee las claves que conoce) documenta el fichero. Copia esto a config.json (NO se versiona, ver .gitignore) y AÑADE tus claves reales -- no las dejes en este .example.",
+
+  "_alta_cliente_anio": "Año en que el CLIENTE TITULAR de esta tanda (el que pasas con --nif-titular) se dio de alta. Añade la clave real 'alta_cliente_anio' con un entero (ej. 2015). OJO: NO pongas aqui un 0 de relleno -- guard_fecha_posterior_alta trata 'ausente' (None) como NO_COMPROBADO honesto, pero un 0 real pasaria la comprobacion 'año_factura >= 0' como OK en TODAS las facturas, silenciosamente. Ausente es mas seguro que un cero.",
+
+  "_ejercicio_tanda": "Año fiscal de las facturas de esta tanda (ej. 2026). Añade la clave real 'ejercicio_tanda' con un entero. Sin ella, ejercicio_coherente se queda en NO_APLICA -- ese guard si es seguro con ausencia.",
+
+  "_cache_formato_documentos": "Opcional. Ruta a un .json de cache entre ejecuciones -- no hace falta para una tanda de una sola factura. Añade la clave 'cache_formato_documentos' solo si la usas.",
+
+  "_cache_secuencia_documental": "Opcional, igual que arriba, para 'cache_secuencia_documental'.",
+
+  "_cache_cuenta_gasto": "Opcional. Ruta donde persistir el mapeo cuenta_gasto aprendido de --diario. Añade la clave 'cache_cuenta_gasto' solo si la usas."
+}

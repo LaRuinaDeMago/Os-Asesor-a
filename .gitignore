@@ -17,6 +17,14 @@
 # Denylist local de apellidos reales (si Diego decide crear una) — nunca sube.
 .privacy_local_denylist.txt
 
+# config.json (orquestador.py), 19-09-2026: alta_cliente_anio y
+# ejercicio_tanda son datos operativos DE UN CLIENTE REAL concreto (no un
+# NIF, pero tampoco genericos: van ligados a que NIF se pase con
+# --nif-titular en esa misma ejecucion). Mismo criterio de minimizacion que
+# el resto de _LOCAL: se queda en el disco de Diego. La forma del fichero
+# (sin valores reales) vive en config.json.example, que si se versiona.
+config.json
+
 # Registro de la puerta cloud (puerta_cloud.py). Es dato OPERATIVO de la
 # maquina donde se procesa, no fuente. Por diseño solo contiene huellas y
 # recuentos —CAMPOS_REGISTRO es una lista cerrada y test_puerta_cloud.py
