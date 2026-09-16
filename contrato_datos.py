@@ -46,6 +46,8 @@ Este modulo maneja valores reales en memoria, pero NUNCA los emite: los informes
 de incidencia citan el NOMBRE DEL CAMPO y su estado, jamas su contenido. Es la
 misma regla que ya siguen scripts/privacy_scan.py y los scripts de la Fase 0.
 """
+import ast
+import json
 import re
 from datetime import date, datetime
 
@@ -131,6 +133,46 @@ class Dato:
     def __repr__(self):
         # A PROPOSITO no incluye el valor: este repr puede acabar en un log.
         return f"<Dato {self.estado}>"
+
+
+#: Los unicos campos del contrato cuyo valor es una ESTRUCTURA (lista o dict) y
+#: no un escalar. Son justo los dos que el prompt v2 anadio, y justo los dos
+#: que una serializacion plana (CSV) convierte en texto sin que nadie avise.
+CAMPOS_ESTRUCTURADOS = ('tramos_iva', 'confianza_campos')
+
+
+def parse_estructura(x):
+    """Devuelve la lista/dict que `x` representa, venga ya como tal o como texto.
+
+    Acepta las dos formas en que un campo estructurado llega escrito:
+      - JSON            '[{"tipo": 21, ...}]'   (lo normal si alguien serializa)
+      - repr de Python  "[{'tipo': 21, ...}]"   (lo que escribe csv.DictWriter)
+
+    Si no se puede interpretar, devuelve el valor TAL CUAL. Deliberado: quien
+    pregunta por el tipo (isinstance) vera que no es una estructura y caera en
+    su rama de "no declarado", que es la correcta. Inventar aqui una lista
+    vacia seria peor -- convertiria "no he podido leerlo" en "no habia nada",
+    que es el falso verde que este proyecto tiene prohibido.
+
+    `ast.literal_eval` solo evalua literales (listas, dicts, numeros, cadenas):
+    no ejecuta codigo, asi que un CSV manipulado no puede correr nada.
+    """
+    if isinstance(x, (list, tuple, dict)):
+        return x
+    if not isinstance(x, str) or not x.strip():
+        return x
+    texto = x.strip()
+    if texto[0] not in "[{":
+        return x
+    try:
+        return json.loads(texto)
+    except (ValueError, TypeError):
+        pass
+    try:
+        v = ast.literal_eval(texto)
+    except (ValueError, SyntaxError, TypeError, MemoryError, RecursionError):
+        return x
+    return v if isinstance(v, (list, tuple, dict)) else x
 
 
 def parse_numero(x):
@@ -278,6 +320,31 @@ class FacturaCanonica:
 
     def __init__(self, cruda):
         self.cruda = cruda if isinstance(cruda, dict) else {}
+        # CORREGIDO 16-09-2026 — un campo estructurado que llega como TEXTO
+        # sigue significando lo mismo.
+        #
+        # EL DEFECTO, reproducido antes de tocar nada: la captura escribe un
+        # CSV (`csv.DictWriter`) y el orquestador lo lee (`csv.DictReader`,
+        # linea 175). En ese viaje `tramos_iva` y `confianza_campos` -- los dos
+        # unicos campos ANIDADOS que pide el prompt v2 -- dejan de ser una
+        # lista/dict y pasan a ser la cadena de su repr. Y los dos consumidores
+        # preguntan por el TIPO: `tramos()` hace isinstance(list, tuple) y
+        # `guard_confianza_campo` hace isinstance(dict). Los dos fallaban en
+        # silencio: los tramos se perdian (medido: un tramo al 5%, que no tiene
+        # campo plano equivalente, desaparecia entero) y el guard de confianza
+        # se declaraba NO_APLICA para siempre.
+        #
+        # No daba error: daba un veredicto peor. Justo lo que el prompt v2
+        # existe para evitar, apagado por una serializacion.
+        #
+        # Se arregla AQUI y no en cada consumidor porque este es el sitio cuyo
+        # trabajo es exactamente ese: que un dato signifique lo mismo llegue
+        # como llegue (`parse_numero` ya acepta '1.234,56' y '1,234.56' por la
+        # misma razon). Arreglado aqui, se arregla para todo consumidor
+        # presente y futuro, venga el dato de un CSV, de un JSON o de memoria.
+        for campo in CAMPOS_ESTRUCTURADOS:
+            if campo in self.cruda:
+                self.cruda[campo] = parse_estructura(self.cruda[campo])
         self.campos = {}
 
         for c in CAMPOS_MONETARIOS:

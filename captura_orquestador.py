@@ -13,11 +13,23 @@ infraestructura documentada en .claude/rules/datos.md). Esta clave NUNCA se
 pega en un chat - se configura en el propio entorno donde corra esto (Claude
 Code, tu ordenador), nunca en una conversacion.
 
-Uso:
+Uso (ACTUALIZADO 16-09-2026 — nada sale sin pasar por `puerta_cloud.py`):
+
     export GEMINI_API_KEY="tu-clave-real"     # proveedor por defecto
-    # export ANTHROPIC_API_KEY="..."        # solo si se usa --proveedor claude
-    python3 captura_orquestador.py --imagen factura.jpg
-    python3 captura_orquestador.py --carpeta /ruta/con/fotos/ --salida facturas.csv
+    export OS_ASESORIA_CLOUD=1                # ¿puede salir algo? Por defecto NO
+
+    # Documentos FABRICADOS (probar la cadena entera; no hace falta DPA):
+    python3 captura_orquestador.py --carpeta ./fotos_prueba/ \
+        --procedencia SINTETICO --salida facturas.csv
+
+    # Documentos REALES: ademas la llave legal y el RECUENTO EXACTO del lote
+    export OS_ASESORIA_DATOS_REALES=1         # declara que existe el DPA
+    python3 captura_orquestador.py --carpeta /ruta/con/fotos/ \
+        --procedencia REAL --confirmo-envio 30 --salida facturas.csv
+
+SIN `--procedencia` la puerta trata los documentos como REALES y bloquea: lo
+que no se ha declarado no se da por comprobado. Para ver en que estado esta
+todo ahora mismo:  `python3 puerta_cloud.py`  y  `python3 modo_trabajo.py`.
 """
 import argparse
 import base64

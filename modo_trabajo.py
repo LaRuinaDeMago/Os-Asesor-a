@@ -43,6 +43,12 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
 
 import puerta_cloud
 
+#: La ruta del corpus tal como la documentan `PENDIENTE.md` y `EMPEZAR_AQUI.md`.
+#: No es un dato de cliente (es la carpeta de la maquina de Diego) y ya vive en
+#: el repositorio. Se usa como valor por defecto para que el informe acierte en
+#: el PC de la asesoria sin configurar nada; `OS_ASESORIA_CORPUS` lo sobrescribe.
+CORPUS_DOCUMENTADO = r"C:\Users\SERVILAB\Desktop\100% contabilidad"
+
 #: Rutas por las que un dato puede llegar a un modelo. Estan ORDENADAS de menos
 #: a mas exposicion, y ese orden es la politica: no se usa una ruta mas
 #: expuesta si una anterior resuelve lo mismo. Es la version operativa de la
@@ -128,7 +134,12 @@ def medir(entorno=None, ruta_corpus=None):
     """Todo lo que se puede comprobar AHORA. Ninguna clave se lee ni se imprime:
     solo si esta puesta."""
     env = os.environ if entorno is None else entorno
-    corpus = ruta_corpus if ruta_corpus is not None else env.get("OS_ASESORIA_CORPUS", "")
+    # La ruta documentada del corpus se prueba TAMBIEN por defecto: si solo se
+    # mirara la variable de entorno, en el PC de la asesoria —donde el corpus
+    # esta ahi mismo— este informe diria "no" y seria un falso negativo. Una
+    # herramienta que se equivoca en lo obvio deja de mirarse.
+    corpus = ruta_corpus if ruta_corpus is not None else (
+        env.get("OS_ASESORIA_CORPUS") or CORPUS_DOCUMENTADO)
     return {
         # Superficie: senales medidas, no una etiqueta. El PC de la asesoria es
         # Windows (documentado: cp1252, `python` y no `python3`), asi que un

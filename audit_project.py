@@ -504,7 +504,15 @@ def check_estados_y_cobertura():
                              # —y el estado incluye si hay claves puestas—, no
                              # imprima NUNCA el valor de una. Se comprueba con
                              # una clave trampa en el entorno.
-                             ("ensayo_modo_trabajo.py", "Modo de trabajo: mide el estado sin filtrar ninguna clave")):
+                             ("ensayo_modo_trabajo.py", "Modo de trabajo: mide el estado sin filtrar ninguna clave"),
+                             # La cadena entera captura -> CSV -> motor, sin
+                             # API. Es la costura que ensayo_contrato_captura
+                             # NO cubre: aquel compara los NOMBRES de campo
+                             # entre dos ficheros; este EJECUTA el viaje. Al
+                             # escribirlo aparecio un defecto real y dormido
+                             # (los campos anidados del prompt v2 no sobrevivian
+                             # a la serializacion del CSV).
+                             ("ensayo_cadena_captura.py", "Cadena captura->CSV->motor: los campos anidados sobreviven")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue

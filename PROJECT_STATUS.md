@@ -122,6 +122,68 @@ escaparía una credencial a la consola — y de la consola a la transcripción.
 
 `audit_project.py`: **45 verdes**, código 2. 33/33 suites ejecutadas.
 
+### Tercera parte — el repaso encontró un defecto real y dormido en la costura
+
+Diego pidió repasarlo todo "para ver que todo esto tenía sentido". El repaso
+encontró lo que buscaba, y no era cosmético.
+
+**La pregunta que lo destapó:** `ensayo_contrato_captura.py` comprueba que los
+NOMBRES de campo que pide la captura son los que usa el motor. Necesario, y no
+basta: comprueba las etiquetas, no el viaje. **Nadie había ejecutado nunca un
+JSON con la forma exacta del prompt y visto salir un veredicto por el otro
+extremo.**
+
+**El defecto, reproducido antes de tocar nada:** la captura escribe un CSV
+(`csv.DictWriter`) y el orquestador lo lee (`csv.DictReader`, línea 175). En ese
+viaje los **dos únicos campos anidados del prompt v2** —`tramos_iva` y
+`confianza_campos`— dejaban de ser lista/dict y pasaban a ser la cadena de su
+`repr`. Y sus dos consumidores preguntan por el TIPO:
+
+- `contrato_datos.tramos()` hace `isinstance(crudos, (list, tuple))` → falso →
+  caía al camino legado `base_10/base_4/base_21`.
+- `guard_confianza_por_campo` hace `isinstance(conf, dict)` → falso →
+  `NO_APLICA` **para siempre**.
+
+**Medido, no supuesto:** una factura con un tramo al **5%** —el tipo que no
+tiene campo plano equivalente, y justo el caso para el que se añadió
+`tramos_iva`— llegaba al motor con `tramos: []`. El tramo desaparecía entero.
+No daba error: **daba un veredicto peor**, que es exactamente lo que el prompt
+v2 existe para evitar.
+
+Primer intento de comprobación con una factura al 21% pasó **por casualidad**:
+los campos planos coincidían con los tramos, así que el camino legado producía
+el mismo resultado. Sólo el 5% lo delata. Merece la pena anotarlo: una
+comprobación que pasa no siempre prueba lo que uno cree.
+
+**Arreglado en `contrato_datos.parse_estructura`**, y ahí y no en cada
+consumidor a propósito: es la capa cuyo trabajo es que un dato signifique lo
+mismo llegue como llegue (`parse_numero` ya acepta `1.234,56` y `1,234.56` por
+la misma razón). Acepta JSON y `repr` de Python; lo que no puede interpretar lo
+**deja tal cual**, nunca lo convierte en lista vacía — convertir "no he podido
+leerlo" en "no había nada" sería el falso verde de siempre.
+
+**`ensayo_cadena_captura.py` (nuevo)** recorre la cadena entera sin API ni datos
+reales, usando la MISMA serialización que producción y llamando al motor
+EXACTAMENTE como lo llama `orquestador.py`. Eso último no es un detalle: la
+primera versión de este ensayo pasaba `vistos_duplicado={}` cuando es un `set`,
+y llamaba aparte a `calcular_veredicto_v4` cuando `evaluar_fila_v4` ya devuelve
+el veredicto. Las dos cosas las cantó el ensayo al ejecutarse — un ensayo que
+inventa su propia llamada prueba una cadena que no existe.
+
+Con control negativo: sin `parse_estructura`, el 5% se pierde otra vez y el
+guard de confianza vuelve a callarse. 14/14.
+
+**Dos huecos menores del mismo repaso, también cerrados:** el bloque `Uso:` de
+`captura_orquestador.py` seguía enseñando el comando de ayer (sin
+`--procedencia`), que ahora siempre bloquea — quien lo copiara se quedaba
+parado sin saber por qué; y `modo_trabajo.py` sólo miraba
+`OS_ASESORIA_CORPUS`, así que en el PC de la asesoría habría dicho "corpus: no"
+teniéndolo delante. Una herramienta que se equivoca en lo obvio deja de mirarse.
+
+`audit_project.py`: **46 verdes**, código 2. 34/34 suites. `test_motor_veredicto.py`
+y `test_adversarial.py` idénticos antes y después del cambio a `contrato_datos.py`
+(regla de `.claude/rules/contabilidad.md`).
+
 ## 15-09-2026 (sesión local, decimosexta entrada — CIERRE) — El orden de trabajo, escrito por fin donde se lee
 
 Cierre de la sesión. Última comprobación, y encontró **lo mismo que las cuatro

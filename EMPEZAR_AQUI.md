@@ -590,6 +590,7 @@ Todos corren dentro de `audit_project.py`: basta el primer comando.
 | `test_puerta_cloud.py` | ¿la puerta se niega cuando toca? | **un documento real enviado sin autorización, o sin que quede rastro** |
 | `check_salida_unica_cloud` | ¿hay una segunda salida a una IA? | **el punto de salida nuevo que nadie declaró** |
 | `ensayo_modo_trabajo.py` | ¿el informe de estado filtra una clave? | **una credencial impresa por consola, y de ahí a la transcripción** |
+| `ensayo_cadena_captura.py` | ¿el JSON del prompt llega entero al motor? | **el campo que se pierde al serializar y degrada el veredicto en silencio** |
 
 Todos corren dentro de `audit_project.py`: basta el primer comando — y desde
 el 11-09-2026 hay un auditor que comprueba justo eso, que no se quede ninguno
@@ -1004,6 +1005,14 @@ suscripción, nunca la API key. Datos reales = sentado en el PC de la asesoría.
 
 `test_adversarial.py`: **48/48 en verde**, familias J y K.
 
+> ✅ **ACTUALIZADO 16-09-2026: la CADENA sí está probada ya, sin API.**
+> `ensayo_cadena_captura.py` recorre JSON-como-lo-pide-el-prompt → CSV → motor
+> → veredicto. Al escribirlo apareció un defecto real: los dos campos anidados
+> de v2 (`tramos_iva`, `confianza_campos`) **no sobrevivían a la serialización
+> del CSV** y se perdían en silencio — un tramo al 5% llegaba al motor como si
+> la factura no declarara desglose. Arreglado en `contrato_datos.parse_estructura`.
+> Detalle en `PROJECT_STATUS.md`, 16-09-2026.
+>
 > ⚠️ **PERO el prompt v2 NO se ha probado nunca contra una factura real.** Los
 > campos nuevos son aditivos —si el modelo no los devuelve, los guards son
 > `NO_APLICA` y todo se comporta como antes— pero pedir más campos puede diluir
