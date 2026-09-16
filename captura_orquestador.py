@@ -26,6 +26,8 @@ import json
 import os
 import sys
 
+import puerta_cloud
+
 PROMPT_CAPTURA = """Eres un lector de facturas para un despacho de asesoria fiscal español.
 Lee la imagen adjunta (una factura de un proveedor) y devuelve EXCLUSIVAMENTE
 un objeto JSON con estos campos exactos, sin texto adicional antes ni despues:
@@ -84,16 +86,22 @@ correcta y esperada: muchas facturas solo traen el dato una vez."""
 # ------------------------------------------------------------------------
 
 
-def leer_factura_gemini(path_imagen, modelo="gemini-3.1-flash-lite"):
+def leer_factura_gemini(path_imagen, permiso, modelo="gemini-3.1-flash-lite"):
     """Igual que leer_factura() pero con Gemini - MISMO prompt, MISMO esquema
     de salida, para que comparar Claude vs Gemini con las mismas 91 facturas
     ya conocidas sea una comparacion justa (mismo experimento, un solo lector
     distinto cada vez).
 
+    `permiso` es OBLIGATORIO y tiene que ser el de ESTE documento: lo concede
+    `puerta_cloud.Lote.consumir()`. Sin el, esta funcion no envia nada. Ver
+    puerta_cloud.py para por que la garantia vive aqui y no en una convencion
+    de nombres.
+
     REQUIERE: variable de entorno GEMINI_API_KEY, de una cuenta de PAGO
     (no la capa gratis de AI Studio - esa entrena con tus datos, confirmado
     el 28-07-2026). La capa de pago SI trae DPA, sin necesidad de pasar por
     Vertex - confirmado con los propios terminos de Google."""
+    puerta_cloud.exigir_permiso(permiso, path_imagen)
     try:
         from google import genai
     except ImportError:
@@ -134,10 +142,20 @@ def leer_factura_gemini(path_imagen, modelo="gemini-3.1-flash-lite"):
 
     try:
         datos = json.loads(texto_limpio)
-    except json.JSONDecodeError as e:
+    except json.JSONDecodeError:
+        # CORREGIDO 16-09-2026: este mensaje llevaba `texto[:300]` (la respuesta
+        # CRUDA del modelo) y la ruta del fichero. Sobre una factura real eso es
+        # el nombre del proveedor, su NIF y los importes, impresos por consola --
+        # y en una sesion de Remote Control la consola acaba en la transcripcion.
+        # Es exactamente el riesgo que `.claude/rules/datos.md` tiene tabulado
+        # ("un script peta e imprime una fila en el mensaje de error") con su
+        # mitigacion: solo el TIPO, nunca el contenido. Estaba dormido porque
+        # ninguna factura real ha pasado aun por aqui; habria mordido el dia uno.
         raise RuntimeError(
-            f"Gemini no devolvió JSON válido para {path_imagen}. Respuesta cruda: "
-            f"{texto[:300]}... Error: {e}. NO se inventa un dato de repuesto."
+            f"Gemini no devolvió JSON válido (documento "
+            f"{puerta_cloud.referencia_documento(path_imagen)}). La respuesta "
+            f"cruda NO se incluye a proposito. NO se inventa un dato de repuesto: "
+            f"esta factura va a revision manual."
         )
 
     datos["foto_origen"] = os.path.basename(path_imagen)
@@ -145,21 +163,36 @@ def leer_factura_gemini(path_imagen, modelo="gemini-3.1-flash-lite"):
     return datos
 
 
-def leer_factura(path_imagen, modelo=None, proveedor="gemini"):
+def leer_factura(path_imagen, lote, modelo=None, proveedor="gemini"):
     """Punto de entrada unico: proveedor='claude' o 'gemini'. Mismo prompt,
-    mismo esquema de salida en los dos casos - lo unico que cambia es quien lee."""
+    mismo esquema de salida en los dos casos - lo unico que cambia es quien lee.
+
+    `lote` es la autorizacion de puerta_cloud. Se pide permiso para ESTE
+    documento antes de tocar nada; si la puerta dice que no, se lanza
+    SalidaBloqueada y no se envia un solo byte. `lote=None` tambien bloquea:
+    el que se olvide de pasarlo no se salta la puerta, choca con ella."""
+    if lote is None:
+        raise puerta_cloud.SalidaBloqueada(
+            "Falta el lote de puerta_cloud. Nada sale de aqui sin autorizacion: "
+            "ver `python3 puerta_cloud.py` para el estado de la puerta."
+        )
+    permiso = lote.consumir(path_imagen)
     if proveedor == "gemini":
-        return leer_factura_gemini(path_imagen)
+        return leer_factura_gemini(path_imagen, permiso)
     # modelo=None significa "el que tenga por defecto la rama de Claude", no None.
-    return _leer_factura_claude(path_imagen, modelo) if modelo else _leer_factura_claude(path_imagen)
+    return (_leer_factura_claude(path_imagen, permiso, modelo) if modelo
+            else _leer_factura_claude(path_imagen, permiso))
 
 
-def _leer_factura_claude(path_imagen, modelo="claude-sonnet-5"):
+def _leer_factura_claude(path_imagen, permiso, modelo="claude-sonnet-5"):
     """Llama a la API de Claude con la imagen y devuelve un dict con los
     campos ya parseados, listos para evaluar_fila_v4(). Lanza una excepcion
     clara si la API no responde JSON valido - NUNCA devuelve datos a medias
     silenciosamente (mismo principio que el resto del motor: nunca ocultar
-    un fallo de lectura como si fuera un dato bueno)."""
+    un fallo de lectura como si fuera un dato bueno).
+
+    `permiso` es OBLIGATORIO, igual que en la rama de Gemini."""
+    puerta_cloud.exigir_permiso(permiso, path_imagen)
     try:
         import anthropic
     except ImportError:
@@ -205,10 +238,13 @@ def _leer_factura_claude(path_imagen, modelo="claude-sonnet-5"):
 
     try:
         datos = json.loads(texto_limpio)
-    except json.JSONDecodeError as e:
+    except json.JSONDecodeError:
+        # Misma correccion que en la rama de Gemini (16-09-2026), y el mismo
+        # motivo: el mensaje llevaba la respuesta cruda y la ruta.
         raise RuntimeError(
-            f"La API no devolvió JSON válido para {path_imagen}. Respuesta cruda: "
-            f"{texto[:300]}... Error: {e}. NO se inventa un dato de repuesto - "
+            f"La API no devolvió JSON válido (documento "
+            f"{puerta_cloud.referencia_documento(path_imagen)}). La respuesta "
+            f"cruda NO se incluye a proposito. NO se inventa un dato de repuesto - "
             f"esta factura debe marcarse para revisión manual, no procesarse a ciegas."
         )
 
@@ -217,25 +253,43 @@ def _leer_factura_claude(path_imagen, modelo="claude-sonnet-5"):
     return datos
 
 
-def procesar_carpeta(carpeta, path_salida, proveedor="gemini"):
+def procesar_carpeta(carpeta, path_salida, proveedor="gemini",
+                     procedencia=None, confirmacion=None):
     """Lee todas las imagenes de una carpeta y escribe un CSV con los campos
-    ya estructurados - listo para pasar directamente a orquestador.py."""
+    ya estructurados - listo para pasar directamente a orquestador.py.
+
+    LO QUE SALE POR CONSOLA (corregido 16-09-2026): recuentos, huellas y el
+    TIPO de cada error. Nunca el nombre del fichero, ni el del proveedor, ni un
+    importe, ni el mensaje de una excepcion. Antes de hoy imprimia las cuatro
+    cosas, y el CSV -- que si lleva todo eso -- se queda en el disco, que es
+    donde debe estar."""
     extensiones = (".jpg", ".jpeg", ".png")
     archivos = sorted(f for f in os.listdir(carpeta) if f.lower().endswith(extensiones))
-    print(f"Encontradas {len(archivos)} imagenes en {carpeta} - leyendo con {proveedor}")
+    print(f"Encontradas {len(archivos)} imagenes - leyendo con {proveedor}")
+
+    lote = puerta_cloud.abrir_lote(len(archivos), procedencia, proveedor,
+                                   confirmacion=confirmacion)
+    if not lote.permitido:
+        print(f"\nLA PUERTA HA BLOQUEADO ESTE LOTE: {lote.motivo}")
+        print("Nada se ha enviado. `python3 puerta_cloud.py` explica el estado.")
+        return 1
 
     filas = []
-    errores = []
-    for nombre in archivos:
+    errores = {}
+    for i, nombre in enumerate(archivos, 1):
         path = os.path.join(carpeta, nombre)
+        huella = puerta_cloud.referencia_documento(path)
         try:
-            datos = leer_factura(path, proveedor=proveedor)
+            datos = leer_factura(path, lote, proveedor=proveedor)
             filas.append(datos)
             estado = datos.get("verificacion", "?")
-            print(f"  OK ({estado}): {nombre} -> {datos.get('proveedor','?')} / {datos.get('total_factura','?')}")
+            print(f"  OK ({estado}): {i}/{len(archivos)}  doc {huella}")
         except Exception as e:
-            errores.append((nombre, str(e)))
-            print(f"  ERROR: {nombre} -> {e}")
+            # Solo el TIPO de la excepcion, nunca str(e): el mensaje arrastra
+            # datos (.claude/rules/datos.md, tabla de riesgos).
+            tipo = type(e).__name__
+            errores[tipo] = errores.get(tipo, 0) + 1
+            print(f"  ERROR ({tipo}): {i}/{len(archivos)}  doc {huella}")
 
     if filas:
         # CORREGIDO 26-08-2026 (auditoria propia). Usaba solo las claves de la
@@ -258,11 +312,19 @@ def procesar_carpeta(carpeta, path_salida, proveedor="gemini"):
             w = csv.DictWriter(f, fieldnames=campos)
             w.writeheader()
             w.writerows(filas)
-        print(f"\nEscrito {path_salida}: {len(filas)} facturas leídas, {len(errores)} errores")
+        print(f"\nEscrito {path_salida}: {len(filas)} facturas leídas, "
+              f"{sum(errores.values())} errores")
     if errores:
-        print("\nFacturas que necesitan revisión manual (no se procesaron):")
-        for nombre, err in errores:
-            print(f"  - {nombre}: {err}")
+        print("\nFacturas que necesitan revisión manual (no se procesaron),")
+        print("por TIPO de error — el detalle esta en el CSV, que no sale de aqui:")
+        for tipo, cuantas in sorted(errores.items()):
+            print(f"  - {tipo}: {cuantas}")
+    # Codigo de salida: 0 SOLO si no fallo ninguna. Antes de hoy devolvia
+    # siempre exito, asi que una corrida en la que fallaron las 30 facturas
+    # terminaba con codigo 0 -- un OK que significa "no he podido hacer nada",
+    # que es el mismo falso verde que el motor tiene prohibido dar. Misma regla
+    # que audit_project.py: si algo falla, se nota en el codigo de salida.
+    return 1 if errores else 0
 
 
 if __name__ == "__main__":
@@ -272,12 +334,29 @@ if __name__ == "__main__":
     parser.add_argument("--salida", default="facturas_capturadas.csv")
     parser.add_argument("--proveedor", choices=["gemini", "claude"], default="gemini",
                          help="Qué modelo lee la factura (mismo prompt/esquema en los dos)")
+    parser.add_argument("--procedencia", choices=[puerta_cloud.SINTETICO, puerta_cloud.REAL],
+                         default=None,
+                         help="Qué son estos documentos. Si no se declara, la puerta "
+                              "los trata como REAL (lo no comprobado no es un OK)")
+    parser.add_argument("--confirmo-envio", type=int, default=None, dest="confirmo_envio",
+                         help="Solo para --procedencia REAL: el NUMERO EXACTO de "
+                              "documentos que van a salir. Tiene que coincidir con los "
+                              "que se encuentren; si no, se bloquea. Es un numero y no "
+                              "un 'si' a proposito: obliga a mirar cuantos son")
     args = parser.parse_args()
 
     if args.imagen:
-        datos = leer_factura(args.imagen, proveedor=args.proveedor)
+        lote = puerta_cloud.abrir_lote(1, args.procedencia, args.proveedor,
+                                       confirmacion=args.confirmo_envio)
+        if not lote.permitido:
+            print(f"LA PUERTA HA BLOQUEADO ESTE ENVIO: {lote.motivo}")
+            print("Nada se ha enviado. `python3 puerta_cloud.py` explica el estado.")
+            sys.exit(1)
+        datos = leer_factura(args.imagen, lote, proveedor=args.proveedor)
         print(json.dumps(datos, ensure_ascii=False, indent=2))
     elif args.carpeta:
-        procesar_carpeta(args.carpeta, args.salida, proveedor=args.proveedor)
+        sys.exit(procesar_carpeta(args.carpeta, args.salida, proveedor=args.proveedor,
+                                  procedencia=args.procedencia,
+                                  confirmacion=args.confirmo_envio))
     else:
         parser.print_help()

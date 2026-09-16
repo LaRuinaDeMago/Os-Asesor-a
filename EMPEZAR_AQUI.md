@@ -587,6 +587,8 @@ Todos corren dentro de `audit_project.py`: basta el primer comando.
 | `ensayo_arranque.py` | ¿el arranque de TODA sesión revienta o toca datos? | **toda sesión empieza con un error, o el arranque abre un `_LOCAL`** |
 | `check_suites_sin_cablear` | ¿y quién ejecuta a los que preguntan todo esto? | **la prueba que existe, está en verde, y nadie ejecuta nunca** |
 | `ensayo_suites_cableadas.py` | ¿ese auditor sigue despierto? | **el auditor apagado en silencio, que además firma como revisado** |
+| `test_puerta_cloud.py` | ¿la puerta se niega cuando toca? | **un documento real enviado sin autorización, o sin que quede rastro** |
+| `check_salida_unica_cloud` | ¿hay una segunda salida a una IA? | **el punto de salida nuevo que nadie declaró** |
 
 Todos corren dentro de `audit_project.py`: basta el primer comando — y desde
 el 11-09-2026 hay un auditor que comprueba justo eso, que no se quede ninguno

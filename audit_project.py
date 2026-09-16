@@ -490,7 +490,15 @@ def check_estados_y_cobertura():
                              # "pendiente de identificar", y que boe_normativa
                              # los recoge de verdad -- leyendo su codigo como
                              # texto, no ejecutandolo.
-                             ("ensayo_modelos_aeat.py", "Modelos AEAT: el impreso que cambia sin avisar")):
+                             ("ensayo_modelos_aeat.py", "Modelos AEAT: el impreso que cambia sin avisar"),
+                             # La puerta por la que sale (o no) un documento
+                             # hacia una IA. No toca la red ni abre ningun
+                             # fichero: ejercita la DECISION. Va aqui porque es
+                             # la frontera de datos del proyecto convertida en
+                             # mecanismo, y una barrera que nadie intenta forzar
+                             # no es una barrera, es una intencion -- por eso la
+                             # bateria incluye sus propios controles negativos.
+                             ("test_puerta_cloud.py", "Puerta cloud: cerrada por defecto, y lo no declarado es real")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue
@@ -741,6 +749,113 @@ def check_salida_al_importar():
           f"matan a quien los importe (y apagan su ensayo en silencio): {', '.join(sorted(fallos))}")
 
 
+#: El UNICO fichero de produccion autorizado a hablar con una API de IA. No es
+#: una preferencia de estilo: es la frontera de datos del proyecto, y esta
+#: escrita aqui para que anadir una segunda salida sea imposible EN SILENCIO.
+SALIDA_CLOUD_AUTORIZADA = "captura_orquestador.py"
+
+
+def _llamadas_api_ia(nodo):
+    """Nodos Call que son una llamada a una API de IA, por AST y no por texto.
+
+    Por AST a proposito (leccion de check_cableado, 21-08-2026): un auditor que
+    mira la FORMA acusa a inocentes en cuanto alguien reformatea una linea, y
+    ademas se traga cualquier variante que no imagino. Aqui se reconoce la
+    LLAMADA, escrita como se escriba."""
+    for n in ast.walk(nodo):
+        if not (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)):
+            continue
+        if n.func.attr == "generate_content":          # Gemini
+            yield n
+        elif (n.func.attr == "create"                   # Anthropic
+              and isinstance(n.func.value, ast.Attribute)
+              and n.func.value.attr == "messages"):
+            yield n
+
+
+def _importa_sdk_ia(arbol):
+    for n in ast.walk(arbol):
+        if isinstance(n, ast.Import):
+            if any(a.name.split(".")[0] == "anthropic" or a.name == "google.genai"
+                   for a in n.names):
+                return True
+        elif isinstance(n, ast.ImportFrom):
+            if n.module == "google" and any(a.name == "genai" for a in n.names):
+                return True
+            if (n.module or "").split(".")[0] == "anthropic":
+                return True
+    return False
+
+
+def check_salida_unica_cloud():
+    """ANADIDO 16-09-2026. Ningun dato sale hacia una IA sin pasar por la puerta.
+
+    POR QUE ES UN AUDITOR Y NO UNA REGLA ESCRITA: hasta hoy, "el modelo solo ve
+    lo que necesita" vivia en `.claude/rules/datos.md`, es decir, dependia de
+    que quien escribe el proximo fichero se acuerde. Este proyecto ya sabe como
+    acaba eso: la regla de los .zip estaba escrita sobre la EXTENSION y los
+    contenedores de ContaPlus, que son ZIP con extension .DAT, pasaron por
+    delante ocho dias — y el escaner ademas los declaraba limpios.
+
+    Comprueba tres cosas, y las tres son la misma idea:
+
+      1. Solo `SALIDA_CLOUD_AUTORIZADA` importa un SDK de IA o llama a su API.
+         Un segundo punto de salida en cualquier otro fichero es un ❌.
+      2. Ese fichero importa `puerta_cloud`.
+      3. TODA funcion suya que llame a una API llama tambien a
+         `exigir_permiso`. Este es el punto fuerte: la garantia no depende del
+         grafo de llamadas ni de que nadie use por dentro la funcion de bajo
+         nivel, sino de una invariante LOCAL y comprobable en la propia funcion
+         que toca la API.
+
+    Probado con el defecto reintroducido a proposito (una llamada a
+    generate_content en otro fichero, y la linea de exigir_permiso borrada): se
+    pone rojo y dice fichero y linea."""
+    fuera, sin_permiso = [], []
+    autorizado_ok = False
+    revisados = 0
+    for f in [str(p) for p in Path(".").rglob("*.py") if ".git" not in p.parts]:
+        try:
+            arbol = ast.parse(open(f, encoding="utf-8").read())
+        except SyntaxError:
+            continue                       # ya lo reporta check_sintaxis()
+        llamadas = list(_llamadas_api_ia(arbol))
+        if not llamadas and not _importa_sdk_ia(arbol):
+            continue
+        revisados += 1
+        if os.path.basename(f) != SALIDA_CLOUD_AUTORIZADA:
+            fuera.append(f"{os.path.basename(f)}:{llamadas[0].lineno if llamadas else 1}")
+            continue
+        autorizado_ok = any(
+            isinstance(n, (ast.Import, ast.ImportFrom))
+            and "puerta_cloud" in ast.dump(n) for n in ast.walk(arbol))
+        # La invariante local: la funcion que envia, pide permiso.
+        for fn in ast.walk(arbol):
+            if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            envia = list(_llamadas_api_ia(fn))
+            if not envia:
+                continue
+            pide = any(isinstance(n, ast.Call)
+                       and isinstance(n.func, ast.Attribute)
+                       and n.func.attr == "exigir_permiso"
+                       for n in ast.walk(fn))
+            if not pide:
+                sin_permiso.append(f"{os.path.basename(f)}:{fn.name}:{envia[0].lineno}")
+
+    problemas = []
+    if fuera:
+        problemas.append(f"llaman a una IA fuera de la puerta: {', '.join(sorted(fuera))}")
+    if revisados and not autorizado_ok:
+        problemas.append(f"{SALIDA_CLOUD_AUTORIZADA} no importa puerta_cloud")
+    if sin_permiso:
+        problemas.append(f"envian sin exigir_permiso: {', '.join(sorted(sin_permiso))}")
+    check("Salida a IA: una sola puerta, y pide permiso", not problemas,
+          f"un unico punto de salida ({SALIDA_CLOUD_AUTORIZADA}), pasa por "
+          f"puerta_cloud y ninguna funcion envia sin exigir permiso"
+          if not problemas else " | ".join(problemas))
+
+
 #: Una suite puede quedar legitimamente fuera de la auditoria, pero NUNCA en
 #: silencio: se anota aqui con motivo y fecha, y check_suites_sin_cablear() la
 #: imprime en cada pasada. Hoy esta vacio a proposito — las siete que estaban
@@ -876,6 +991,7 @@ if __name__ == "__main__":
     check_estados_y_cobertura()
     check_subprocess_encoding()
     check_salida_al_importar()
+    check_salida_unica_cloud()
     # LA ULTIMA a proposito: compara contra lo que de verdad ha corrido arriba.
     check_suites_sin_cablear()
     comparar_con_anterior()

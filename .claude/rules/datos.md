@@ -40,6 +40,45 @@ no lo lea".
 > No lo busques en el repositorio; las reglas que salen de él están recogidas
 > aquí y en `CLAUDE.md`.
 
+## ✅ 16-09-2026 — la regla ya NO depende de que alguien se acuerde: hay una puerta
+
+Todo lo que viene debajo sigue vigente palabra por palabra. Lo que cambia es
+que **la frontera ha dejado de ser solo documental**: `puerta_cloud.py` es el
+único punto por el que un documento puede salir hacia una IA, y está **cerrada
+por defecto**.
+
+- Un documento **SINTÉTICO** declarado sale con solo el permiso operativo
+  (`OS_ASESORIA_CLOUD=1`). Eso permite ejercitar la cadena entera foto → JSON →
+  motor **hoy, sin DPA y sin riesgo**.
+- Un documento **REAL** necesita además la llave legal
+  (`OS_ASESORIA_DATOS_REALES=1`, que es la decisión del DPA, no un interruptor
+  técnico) **y** una confirmación humana que es **el recuento exacto** del lote.
+- **Lo que no se declara se trata como REAL.** Un typo, un `None`, un valor que
+  viene mal de una configuración: todos caen del lado seguro. Es la misma regla
+  que el motor — si no se ha podido comprobar, no es OK — y evita el fallo de
+  decidir por una ETIQUETA (`es_real = False`), que sería el bug del `.DAT` otra
+  vez.
+- Cada intento queda en un registro con **lista cerrada de campos**: huellas y
+  recuentos, nunca una ruta, un nombre ni un importe. Un lote **bloqueado**
+  también deja línea: el intento invisible era el que más importaba auditar.
+- `audit_project.py` comprueba por AST que **ninguna otra parte del proyecto**
+  llama a una IA, y que toda función que envía pide permiso. Probado con el
+  defecto reintroducido a propósito, dos veces: se pone rojo con fichero,
+  función y línea.
+
+> **El límite, declarado y no disimulado:** para un fichero de TEXTO el
+> contenido se puede comprobar. Para una IMAGEN, no — una foto de una factura
+> fabricada y una de una real son, para un programa, dos imágenes. La
+> procedencia de una imagen es una **declaración**, no una medición. Por eso el
+> camino REAL exige además las dos llaves y la confirmación humana.
+
+**Y la precisión que obliga a no relajarse con los identificadores sustituidos:**
+pseudonimizar **no es** anonimizar. Si existe una tabla local que devuelve de
+`PROVEEDOR_271` a una empresa concreta, sigue siendo dato confidencial y sigue
+teniendo detrás el secreto profesional. Sustituir el NIF por `C07` es
+**minimización**, que es buena y hay que hacerla — pero no borra ninguna
+obligación por sí sola.
+
 Cloud (GitHub, Claude Code Web): SOLO código, tests, datos sintéticos/anonimizados,
 documentación, arquitectura.
 

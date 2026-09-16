@@ -55,6 +55,20 @@
           sustituye, y cuanto más motor se construya antes de cruzarla,
           más se construye a ciegas.**
 
+          ⚠️ **PRECISIÓN 16-09-2026: son DOS decisiones, no una.** Si el
+          OCR lo hace Gemini, hace falta también la vía de pago de Google
+          con facturación activa (la capa gratuita de AI Studio entrena
+          con tus datos). Google entra entonces como un SEGUNDO encargado
+          del tratamiento, con su propio DPA — exactamente el mismo
+          razonamiento que ya está escrito para Workspace en
+          `.claude/rules/datos.md`. Dos proveedores en la cadena, no uno.
+
+          ✅ **Lo técnico de esta puerta YA ESTÁ (16-09-2026)**, y está
+          cerrado por defecto: `puerta_cloud.py`. Mientras la decisión no
+          se tome, la puerta bloquea todo documento real — y permite
+          ejercitar la cadena entera con documentos SINTÉTICOS declarados,
+          que es todo lo que se puede avanzar sin cruzarla.
+
       2 · UNA FACTURA REAL DE PUNTA A PUNTA. Foto → motor → asiento en
           ContaPlus. **Una**, no un lote. Es "Puerta 1 antes que Puerta
           2" de `ARQUITECTURA_DATOS.md` §4 — la regla que este proyecto
@@ -654,6 +668,78 @@
           histórico"; el cuadro de cuentas entra entonces, con un
           consumidor real. Registrarlo antes sería una fuente más en el
           inventario que ningún guard mira.
+
+  ═════════════════════════════════════════════════════════════════════
+  5 · LA CAPA DE ORQUESTACIÓN (el "router") — DECIDIDO EL ORDEN, NO EL DISEÑO
+  ═════════════════════════════════════════════════════════════════════
+      Abierto el 16-09-2026, de una propuesta de arquitectura de Diego
+      (separar desarrollo de procesamiento real, Gemini como sensor, un
+      router que decida qué modelo ve qué dato y cuánto cuesta).
+
+      **El fondo se acepta entero, y una parte ya existía.** Medido en el
+      repositorio antes de opinar, no supuesto:
+        - Punto único de salida: `captura_orquestador.py` ya era el ÚNICO
+          fichero que llamaba a una API. La capa estaba, sin defenderse.
+        - Contrato de extracción rico (valor + confianza + segunda
+          lectura): el prompt v2 ya pide `confianza_campos`,
+          `total_factura_2`, `nif_margen`/`nombre_margen`. Ya estaba.
+        - Gemini = sensor, motor = autoridad: ya era la arquitectura.
+
+      **Lo que faltaba de verdad — y ya está hecho (16-09-2026):** que la
+      puerta se NIEGUE por defecto, que deje CONSTANCIA, y que exista un
+      auditor que impida una segunda salida en silencio. Ver
+      `puerta_cloud.py`, `test_puerta_cloud.py` (50 comprobaciones, con
+      controles negativos) y el auditor `check_salida_unica_cloud`.
+
+      ─────────────────────────────────────────────────────────────────
+      LO QUE SE DECIDIÓ **NO** CONSTRUIR TODAVÍA, Y POR QUÉ
+      ─────────────────────────────────────────────────────────────────
+      La propuesta incluía presupuesto por documento, circuito de
+      reintentos, selección de modelo, escalado por confianza y una rama
+      de OCR local para ahorrar llamadas. **Nada de eso se ha construido,
+      a propósito**, y el motivo es el mismo que este proyecto ya tiene
+      documentado cuatro veces: es Puerta 2 antes que Puerta 1.
+
+        · Sus constantes no se pueden fijar hoy sin inventárselas. La
+          propia propuesta usaba "60 / 25 / 15" como ejemplo de cuántas
+          facturas traen texto extraíble. Ese número **se mide** con las
+          93 fotos que ya están en el disco, no se estima.
+        · La rama de OCR local es una falsa economía **y un riesgo**:
+          obliga a validar DOS caminos de extracción, cada uno con su
+          forma de equivocarse en silencio, para ahorrar céntimos sobre
+          un proceso que hoy cuesta ~51 s de trabajo humano por factura.
+          Optimizar el coste de API **antes de haberlo medido** es
+          optimizar la variable equivocada.
+        · Fijar umbrales a ojo es el error que ya está documentado en el
+          `5` de `fase0_huella_cliente.py`, el `MIN_NIFS=3` (punto 1.E,
+          todavía abierto) y el `1σ` de `importe_atipico`.
+
+      **Lo que SÍ se congela ahora, porque es barato de fijar y caro de
+      cambiar después:** las interfaces. `FacturaCanonica`, la firma de la
+      puerta y `CAMPOS_REGISTRO`. La POLÍTICA (presupuestos, umbrales,
+      reintentos, qué proveedor) se queda deliberadamente sin congelar:
+      es justo lo que los datos tienen que decidir.
+
+      [ ] A · MEDIR ANTES DE ROUTEAR. Cuando pasen la primera factura y
+          el primer lote, el registro de la puerta ya da €/documento,
+          tokens y tasa de bloqueo sin trabajo extra. Con eso —y no
+          antes— se construyen solo las piezas del router que los números
+          pidan. Es probable que la mitad se caigan por innecesarias.
+
+      [ ] B · UNA MÉTRICA MEJOR QUE LA PRECISIÓN DEL OCR, y conviene
+          fijarla de antemano: **cobertura de automatización segura** —
+          qué fracción de documentos llega de la imagen al asiento sin
+          intervención humana y con error residual aceptable. Un OCR del
+          99,9% con errores semánticos peligrosos es peor que uno del
+          99,5% que sabe decir NO_COMPROBADO. Encaja con lo que el
+          proyecto ya decidió que es LA métrica (falsos verdes).
+
+      [ ] C · UNA DISTINCIÓN QUE SÍ MERECE ENTRAR AL MOTOR cuando haya
+          casos: más OCR **no arregla** una ambigüedad fiscal. Un
+          timeout o un JSON truncado se reintentan; un "IVA 0%" que puede
+          ser exenta, no sujeta o ISP **no se reintenta**, se manda a
+          revisión. Hoy el motor ya lo trata así (`naturaleza_operacion`);
+          lo que falta es que el futuro router no lo desaprenda.
 
   ═════════════════════════════════════════════════════════════════════
   APARCADO — no es un pendiente, no lo busques

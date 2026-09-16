@@ -17,6 +17,14 @@
 # Denylist local de apellidos reales (si Diego decide crear una) — nunca sube.
 .privacy_local_denylist.txt
 
+# Registro de la puerta cloud (puerta_cloud.py). Es dato OPERATIVO de la
+# maquina donde se procesa, no fuente. Por diseño solo contiene huellas y
+# recuentos —CAMPOS_REGISTRO es una lista cerrada y test_puerta_cloud.py
+# comprueba que no se cuela ni una ruta ni un patrón de NIF—, así que es
+# seguro de leer y de pegar su agregado; aun así no se versiona, igual que no
+# se versiona ninguna otra salida de ejecución.
+registro_cloud.jsonl
+
 # Censo del despacho: la columna 'nombre' lleva razones sociales reales.
 censo_despacho_v8.csv
 

@@ -7,6 +7,84 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 16-09-2026 (sesión Cloud) — La frontera de datos deja de ser una regla escrita y pasa a ser un mecanismo
+
+Punto 1 del orden acordado con Diego tras su propuesta de arquitectura
+(separar desarrollo de procesamiento real, Gemini como sensor, un router que
+controle qué modelo ve qué dato). **Se construye sólo la puerta: permiso y
+registro. Nada de política.**
+
+**Lo primero fue medir, no opinar.** Barrido del repositorio: `captura_
+orquestador.py` era ya el ÚNICO fichero de producción que llamaba a una API, y
+el prompt v2 ya pedía confianza por campo y doble lectura. Es decir, tres de
+las piezas que la propuesta daba por construir ya existían. Lo que faltaba de
+verdad era pequeño y concreto: **que la puerta se negara por defecto, que
+dejara constancia, y que nadie pudiera abrir una segunda en silencio.**
+
+### Lo construido
+
+- **`puerta_cloud.py`** — cerrada por defecto. Cuatro condiciones, cada una un
+  hecho distinto del mundo: permiso operativo (`OS_ASESORIA_CLOUD`), llave legal
+  (`OS_ASESORIA_DATOS_REALES`, que es la decisión del DPA), procedencia del
+  documento, y confirmación humana. Un documento **SINTÉTICO** declarado sale
+  con sólo la primera — eso permite ejercitar la cadena entera hoy, sin DPA. Un
+  **REAL** las necesita las cuatro.
+- **La confirmación es un NÚMERO, no un "sí"**, y es por LOTE. Un booleano se
+  escribe una vez en un script y no se vuelve a mirar; una confirmación por
+  documento sobre un lote de 30 produce fatiga de alarma y sellos de goma.
+  Exigir el recuento exacto obliga a mirar cuántos son, y es ejecutable.
+- **Lo no declarado es REAL.** Un typo, un `None`, un valor mal escrito en una
+  configuración: todos caen del lado seguro. Decidir por una ETIQUETA
+  (`es_real=False`) habría sido el bug del `.DAT` otra vez: una barrera que
+  decide por el nombre.
+- **Permiso por documento** (`exigir_permiso`): la función que toca la API
+  exige un salvoconducto que corresponda a ESA ruta. Así la garantía no depende
+  del grafo de llamadas ni de que nadie use por dentro la función de bajo nivel
+  — es una invariante local. Probado: `lote=None`, permiso de otro documento,
+  tupla falsificada y `True` pelado, los cuatro bloqueados.
+- **Registro con lista CERRADA de campos.** Huellas y recuentos, nunca una
+  ruta, un nombre ni un importe. El escritor exige igualdad exacta de campos,
+  no subconjunto — y eso cazó en el acto que `anotar_resultado` se había
+  quedado sin el campo nuevo.
+- **`check_salida_unica_cloud`** en `audit_project.py`: por AST, ningún otro
+  fichero importa un SDK de IA ni llama a su API, y toda función que envía pide
+  permiso. Probado con el defecto reintroducido **dos veces** (una segunda
+  salida en otro fichero, y la línea de `exigir_permiso` borrada): rojo con
+  fichero, función y línea.
+
+### Tres defectos reales encontrados por el camino
+
+1. **`procesar_carpeta()` imprimía por consola, para CADA factura, el nombre
+   del fichero, el nombre del proveedor y el importe total** (y en caso de
+   error, el mensaje completo de la excepción, que incluía los primeros 300
+   caracteres de la respuesta cruda del modelo: NIF, razón social e importes).
+   Es exactamente el riesgo que `.claude/rules/datos.md` tiene tabulado, con su
+   mitigación escrita —"sólo el TIPO de excepción, nunca el mensaje"—, sin
+   aplicar aquí. Estaba dormido porque ninguna factura real ha pasado todavía;
+   **habría mordido el día uno.** Ahora sale: índice, huella y tipo de error.
+2. **Un lote bloqueado no dejaba rastro.** Apareció al ejecutar la cadena de
+   verdad, no leyéndola: la puerta se cerraba, el proceso terminaba, y no
+   quedaba constancia de que alguien había intentado sacar N documentos reales
+   sin DPA — justo el evento que más interesa poder auditar. Nuevo tipo de
+   línea `LOTE`, con cuántos documentos se pretendía enviar.
+3. **`procesar_carpeta()` devolvía éxito aunque fallaran todas las facturas.**
+   Un código 0 que significa "no he podido hacer nada" es el mismo falso verde
+   que el motor tiene prohibido dar. Ahora 0 sólo si no falló ninguna.
+
+### Lo que deliberadamente NO se ha construido
+
+Presupuesto por documento, reintentos, selección de modelo, escalado por
+confianza y OCR local. Sus constantes no se pueden fijar hoy sin inventárselas
+—la propia propuesta usaba "60/25/15" como *ejemplo* de cuántas facturas traen
+texto extraíble— y eso se **mide** con las 93 fotos que ya existen. Detalle del
+razonamiento, y de qué se congela (las interfaces) frente a qué no (la
+política), en `PENDIENTE.md` §5.
+
+**Verificado:** `test_puerta_cloud.py` 50/50 con controles negativos,
+`test_motor_veredicto.py` 80/80, `test_adversarial.py` 117/117 (0 P0),
+`audit_project.py` **44 verdes**, código 2 (sólo el ⚠️ de dependencias),
+escáner de privacidad sobre el repositorio completo sin hallazgos.
+
 ## 15-09-2026 (sesión local, decimosexta entrada — CIERRE) — El orden de trabajo, escrito por fin donde se lee
 
 Cierre de la sesión. Última comprobación, y encontró **lo mismo que las cuatro
