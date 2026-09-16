@@ -498,7 +498,13 @@ def check_estados_y_cobertura():
                              # mecanismo, y una barrera que nadie intenta forzar
                              # no es una barrera, es una intencion -- por eso la
                              # bateria incluye sus propios controles negativos.
-                             ("test_puerta_cloud.py", "Puerta cloud: cerrada por defecto, y lo no declarado es real")):
+                             ("test_puerta_cloud.py", "Puerta cloud: cerrada por defecto, y lo no declarado es real"),
+                             # El informe de modo. Lo que vigila por encima de
+                             # todo es que, existiendo para IMPRIMIR el estado
+                             # —y el estado incluye si hay claves puestas—, no
+                             # imprima NUNCA el valor de una. Se comprueba con
+                             # una clave trampa en el entorno.
+                             ("ensayo_modo_trabajo.py", "Modo de trabajo: mide el estado sin filtrar ninguna clave")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue

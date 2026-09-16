@@ -589,6 +589,7 @@ Todos corren dentro de `audit_project.py`: basta el primer comando.
 | `ensayo_suites_cableadas.py` | ¿ese auditor sigue despierto? | **el auditor apagado en silencio, que además firma como revisado** |
 | `test_puerta_cloud.py` | ¿la puerta se niega cuando toca? | **un documento real enviado sin autorización, o sin que quede rastro** |
 | `check_salida_unica_cloud` | ¿hay una segunda salida a una IA? | **el punto de salida nuevo que nadie declaró** |
+| `ensayo_modo_trabajo.py` | ¿el informe de estado filtra una clave? | **una credencial impresa por consola, y de ahí a la transcripción** |
 
 Todos corren dentro de `audit_project.py`: basta el primer comando — y desde
 el 11-09-2026 hay un auditor que comprueba justo eso, que no se quede ninguno

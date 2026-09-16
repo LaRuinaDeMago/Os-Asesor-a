@@ -720,6 +720,29 @@
       reintentos, qué proveedor) se queda deliberadamente sin congelar:
       es justo lo que los datos tienen que decidir.
 
+      ✅ **SABER EN QUÉ MODO ESTAMOS — HECHO 16-09-2026.** Petición de
+      Diego, y era la pieza que faltaba para trabajar sin preguntar:
+      `python modo_trabajo.py` dice, **medido en el momento**, en qué
+      superficie estamos, qué llaves hay puestas (sólo si están, nunca su
+      valor), qué puede ver Claude, y para cada tarea concreta si se puede
+      hacer AHORA o qué falta encender. Un resumen sale en cada
+      `arranque.py`, así que está delante sin que nadie se acuerde.
+      Las **cuatro rutas** de datos quedan ordenadas de menos a más
+      exposición, y ese orden ES la política: no se usa una ruta más
+      expuesta si una anterior resuelve lo mismo.
+
+      [ ] A-bis · **LA RUTA 3, QUE ES LA QUE FALTA POR CONSTRUIR**
+          (`proyeccion_minima.py`). De lo que Gemini extraiga se construye
+          EN LOCAL una proyección sin identidad —sin NIF, sin razón
+          social, sin ruta— y ESO es lo que Claude ve para analizar un
+          caso. Es la que permite seguir trabajando como aquí sobre
+          facturas reales **sin que la factura viaje**.
+          **Disparador acordado: el primer CSV real.** No antes —
+          construir la proyección sin un CSV delante es decidir a ojo qué
+          campos hacen falta, y ya sabemos cómo acaba eso. `modo_trabajo.py`
+          la declara como NO construida, y lo seguirá diciendo hasta que
+          el fichero exista: no es un olvido, es un pendiente visible.
+
       [ ] A · MEDIR ANTES DE ROUTEAR. Cuando pasen la primera factura y
           el primer lote, el registro de la puerta ya da €/documento,
           tokens y tasa de bloqueo sin trabajo extra. Con eso —y no

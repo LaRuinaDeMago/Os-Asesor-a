@@ -185,6 +185,37 @@ def main():
         print("  Codigos: 0 = verde | 1 = hay un defecto | 2 = algo sin comprobar")
         print("  (o `python arranque.py --completo` para hacerlo todo de una vez)")
 
+    # --- 5-bis. En que modo estamos ----------------------------------------
+    # ANADIDO 16-09-2026 (peticion de Diego). Mientras trabajamos hay que saber
+    # SIN preguntar: que puede salir hacia una IA, que puedo ver yo, y para lo
+    # que venga a continuacion, que hay que encender. Vivia en la cabeza y en
+    # `.claude/rules/datos.md`; ahora se mide y se imprime en cada arranque.
+    seccion("5-bis. Modo de trabajo — que puede salir y que puedo ver")
+    try:
+        import modo_trabajo
+        cap = modo_trabajo.medir()
+        puerta = ("CERRADA: no sale nada" if not cap["puerta_cloud"] else
+                  ("ABIERTA para documentos SINTETICOS declarados"
+                   if not cap["puerta_datos_reales"] else
+                   "ABIERTA para documentos REALES (con confirmacion por lote)"))
+        print(f"  puerta cloud : {puerta}")
+        print(f"  claves puestas: GEMINI {'SI' if cap['clave_gemini'] else 'no'}"
+              f"   ANTHROPIC {'SI' if cap['clave_anthropic'] else 'no'}"
+              f"   (solo presencia, nunca el valor)")
+        ve_original = cap["sesion_local"] and cap["clave_anthropic"]
+        print(f"  Claude puede ver el documento original: "
+              f"{'SI, si hay DPA' if ve_original else 'NO'}")
+        listas = [t.nombre for t in modo_trabajo.TAREAS
+                  if all(cap.get(n) for n in t.necesita)]
+        print(f"  tareas posibles AHORA MISMO: {len(listas)} de {len(modo_trabajo.TAREAS)}")
+        for nombre in listas:
+            print(f"      · {nombre}")
+        print("  El detalle completo, con que falta para cada tarea:")
+        print("      python modo_trabajo.py")
+    except Exception as e:                       # nunca corta el arranque
+        print(f"  No se ha podido medir el modo ({type(e).__name__}).")
+        print("  Comprobar a mano:  python modo_trabajo.py")
+
     # --- 6. Que toca hacer --------------------------------------------------
     seccion("6. Que toca hacer ahora")
     pendiente = os.path.join(AQUI, "PENDIENTE.md")

@@ -85,6 +85,43 @@ política), en `PENDIENTE.md` §5.
 `audit_project.py` **44 verdes**, código 2 (sólo el ⚠️ de dependencias),
 escáner de privacidad sobre el repositorio completo sin hallazgos.
 
+### Segunda parte del mismo día: `modo_trabajo.py` — saber en qué modo estamos
+
+Petición explícita de Diego, y es la pieza que faltaba para trabajar sin
+preguntar: **que en todo momento se sepa qué puede salir hacia una IA, qué
+puede ver Claude, y para lo que venga a continuación qué hay que encender.**
+Eso vivía en `.claude/rules/datos.md` y en la memoria de la conversación — es
+decir, era conocimiento, no mecanismo, que es justo el hallazgo que se repite
+en los cinco últimos cierres de este fichero.
+
+`python modo_trabajo.py` lo **mide**: superficie (por `sys.platform`, que es
+una señal sólida porque el PC de la asesoría es Windows), llaves presentes,
+paquetes, corpus alcanzable, y de ahí **deriva** qué puede ver Claude y qué
+tareas se pueden hacer ahora mismo. Un resumen sale en cada `arranque.py`, así
+que está delante sin que nadie tenga que acordarse.
+
+**Las cuatro rutas de datos, ordenadas de menos a más exposición** — y ese
+orden ES la política (no se usa una ruta más expuesta si una anterior resuelve
+lo mismo):
+
+1. **TRES ROLES** — Claude escribe el script sin ver datos, Diego lo ejecuta,
+   Claude lee el agregado. 0 €. Sigue siendo la preferida aunque haya DPA.
+2. **SENSOR** — Gemini ve la foto, el motor decide, Claude no ve la factura.
+3. **PROYECCIÓN MÍNIMA** — de lo extraído se hace en local una proyección sin
+   identidad y eso es lo que Claude analiza. **La herramienta NO existe
+   todavía**, y `modo_trabajo.py` lo declara en cada ejecución hasta que
+   exista. Disparador acordado: el primer CSV real.
+4. **CLAUDE VE EL DOCUMENTO** — excepcional, exige DPA de Anthropic *y* sesión
+   LOCAL con `ANTHROPIC_API_KEY`. Imposible en Cloud/Web por diseño.
+
+**De las claves comprueba sólo si existen, nunca el valor**, y
+`ensayo_modo_trabajo.py` lo prueba con una clave trampa en el entorno: el
+informe tiene que decir que está puesta y no puede aparecer ni un carácter de
+su valor. Un módulo que existe para imprimir el estado es exactamente donde se
+escaparía una credencial a la consola — y de la consola a la transcripción.
+
+`audit_project.py`: **45 verdes**, código 2. 33/33 suites ejecutadas.
+
 ## 15-09-2026 (sesión local, decimosexta entrada — CIERRE) — El orden de trabajo, escrito por fin donde se lee
 
 Cierre de la sesión. Última comprobación, y encontró **lo mismo que las cuatro

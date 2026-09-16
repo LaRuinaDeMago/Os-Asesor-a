@@ -66,6 +66,20 @@ por defecto**.
   defecto reintroducido a propósito, dos veces: se pone rojo con fichero,
   función y línea.
 
+**Y para saber en qué modo estamos en cualquier momento, sin preguntar ni
+recordar:**
+
+```bash
+python modo_trabajo.py
+```
+
+Dice, medido en el momento: la superficie, qué llaves hay puestas (sólo si
+están, **nunca su valor**), qué puede ver Claude, y para cada tarea si se puede
+hacer ahora o qué falta encender. Un resumen sale en cada `arranque.py`. Las
+cuatro rutas de datos están ahí ordenadas **de menos a más exposición**, y ese
+orden es la política: no se usa una ruta más expuesta si una anterior resuelve
+lo mismo.
+
 > **El límite, declarado y no disimulado:** para un fichero de TEXTO el
 > contenido se puede comprobar. Para una IMAGEN, no — una foto de una factura
 > fabricada y una de una real son, para un programa, dos imágenes. La
