@@ -439,6 +439,24 @@ def _derecha(dib, x_dcha, y, texto, f, color=NEGRO):
     dib.text((x_dcha - ancho, y), texto, font=f, fill=color)
 
 
+def nif_del_pie(receta, nif):
+    """Como se escribe el NIF EN EL PIE, que puede no ser como en la cabecera.
+
+    En un solo sitio a proposito. Estuvo duplicado entre `dibujar()` y la
+    bateria durante un rato, y esa duplicacion tenia un filo: si el formato del
+    pie cambiara en el dibujo, la bateria seguiria comprobando el formato viejo
+    y diria que todo bien. El campo `nif_margen` de la verdad conocida saldria
+    con una cosa y el papel llevaria otra -- justo el tipo de desajuste que
+    haria parecer que el modelo lee mal.
+
+    Los guiones no son decoracion: son el MARCADOR del experimento. Si
+    `nif_margen` vuelve con ellos, el modelo ha leido el pie; si vuelve como la
+    cabecera, lo ha copiado."""
+    if receta["nif_pie_con_guiones"]:
+        return f"{receta['nif_letra']}-{receta['nif_digitos']}-{nif[-1]}"
+    return nif
+
+
 def dibujar(receta, cifras):
     """La factura limpia, como saldria de una impresora."""
     _exigir_pillow()
@@ -533,8 +551,7 @@ def dibujar(receta, cifras):
     d.line([izq, y_pie, dcha, y_pie], fill=(150, 150, 150))
     y_pie += 20
 
-    nif_pie = (f"{receta['nif_letra']}-{receta['nif_digitos']}-{nif[-1]}"
-               if receta["nif_pie_con_guiones"] else nif)
+    nif_pie = nif_del_pie(receta, nif)
     etiqueta_nif = "N.I.F./C.I.F." if receta["nif_pie_con_guiones"] else "NIF"
     _texto(d, (izq, y_pie),
            f"{receta['emisor']}  ·  {etiqueta_nif} {nif_pie}", fuente(17), GRIS)

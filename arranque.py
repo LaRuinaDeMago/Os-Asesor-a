@@ -143,30 +143,53 @@ def main():
     # Asi que se mide. Es la misma regla de siempre en este proyecto -- y el
     # mismo fallo que ya le paso al parrafo de CLAUDE.md que citaba el tamano de
     # PROJECT_STATUS.md ("140 KB" cuando ya iba por 257 KB).
-    if hay_git:
-        _, otras = git("for-each-ref", "--format=%(refname:short)",
-                       "refs/remotes/origin")
-        sobrantes, con_trabajo = [], []
+    if hay_git and "origin/master" in ramas:
+        # Sin `origin/master` no hay contra que comparar, y decir "es un resto"
+        # sin haber podido medir seria proponer BORRAR trabajo. Por eso la
+        # condicion de arriba: si no esta, este bloque entero no se imprime.
+        codigo_refs, otras = git("for-each-ref", "--format=%(refname:short)",
+                                 "refs/remotes/origin")
+        sobrantes, con_trabajo, sin_medir = [], [], []
+        if codigo_refs != 0:
+            sin_medir.append(("(la lista de ramas del remoto)",
+                              "git for-each-ref fallo"))
         for ref in (otras or "").splitlines():
             ref = ref.strip()
             if not ref or ref.endswith("/HEAD") or ref == "origin/master":
                 continue
-            _, propios = git("log", "--oneline", f"origin/master..{ref}")
+            codigo, propios = git("log", "--oneline", f"origin/master..{ref}")
+            if codigo != 0:
+                # NO se clasifica. Un `git log` que falla devuelve vacio, y
+                # vacio aqui significaria "0 commits propios" -> "es un resto"
+                # -> "borrala". Es decir: proponer borrar una rama que no se ha
+                # podido medir. Misma regla que el motor -- lo que no se ha
+                # comprobado no es OK, y menos cuando el siguiente paso que se
+                # sugiere es irreversible.
+                sin_medir.append((ref, f"git log devolvio {codigo}"))
+                continue
             n_propios = len(propios.splitlines()) if propios else 0
             (con_trabajo if n_propios else sobrantes).append((ref, n_propios))
-        if sobrantes or con_trabajo:
-            print()
+
+        print()
+        if not (sobrantes or con_trabajo or sin_medir):
+            print("  otras ramas  : ninguna. Solo master, que es como debe estar.")
+        else:
             print("  otras ramas en el remoto (medido ahora, no recordado):")
-            for ref, _ in sobrantes:
-                print(f"    · {ref}")
-                print(f"      no tiene NADA que master no tenga. Es un resto:")
-                print(f"      git push origin --delete {ref.split('/', 1)[1]}")
-            for ref, n in con_trabajo:
-                print(f"    ⚠ {ref}")
-                print(f"      tiene {n} commit(s) que master NO tiene. Si esa rama")
-                print(f"      se queda ahi, ese trabajo no lo ve nadie.")
-        elif rama != "master":
-            print("  otras ramas   : ninguna suelta en el remoto")
+        for ref, _ in sobrantes:
+            print(f"    · {ref}")
+            print("      no tiene NADA que master no tenga. Es un resto.")
+            print(f"      git push origin --delete {ref.split('/', 1)[1]}")
+            print("      (desde una sesion Cloud NO se puede: el remoto responde")
+            print("       403 al borrado aunque acepte los push. Es de un clic")
+            print("       en GitHub, o desde el PC.)")
+        for ref, n in con_trabajo:
+            print(f"    ⚠ {ref}")
+            print(f"      tiene {n} commit(s) que master NO tiene. Si esa rama")
+            print("      se queda ahi, ese trabajo no lo ve nadie.")
+        for ref, motivo in sin_medir:
+            print(f"    ⚠ {ref}: NO SE HA PODIDO MEDIR ({motivo}).")
+            print("      No se dice si sobra ni si lleva trabajo. Miralo a mano")
+            print("      antes de borrar nada.")
         print("  Regla permanente (CLAUDE.md, 11-09-2026, con incidente real")
         print("  detras): cada sesion crea su rama, la fusiona a master al")
         print("  terminar y la borra. master es el unico punto de encuentro.")

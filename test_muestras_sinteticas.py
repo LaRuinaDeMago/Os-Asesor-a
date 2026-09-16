@@ -141,9 +141,24 @@ def pruebas_letras():
 # 2. El NIF sintetico
 # ---------------------------------------------------------------------------
 def pruebas_nif():
-    comprobar("sin argumentos devuelve el mismo CIF de siempre (no rompe a "
-              "quien ya lo llamaba)",
-              nif_sintetico() == nif_sintetico("9876543", "B"), severidad="P0")
+    # OJO con lo que esta prueba puede y no puede demostrar. Comparar
+    # `nif_sintetico()` con `nif_sintetico("9876543", "B")` NO detecta un cambio
+    # de los valores por defecto: si alguien los cambia, cambian los dos lados y
+    # la prueba sigue pasando. Se deja porque SI detecta que la firma deje de
+    # aceptar argumentos o que el camino por defecto se desvie del explicito --
+    # pero se dice lo que prueba, en vez de dejar que parezca que prueba mas.
+    por_defecto = nif_sintetico()
+    comprobar("el camino por defecto y el explicito dan lo mismo",
+              por_defecto == nif_sintetico("9876543", "B"), severidad="P0")
+    # Y esto si son propiedades, no una tautologia: se cumplen o no, al margen
+    # de cuales sean los valores por defecto.
+    valido, tipo, _mot = nif_check.valida_nif(por_defecto)
+    comprobar("el CIF por defecto es valido, de tipo CIF y de 9 caracteres",
+              valido and tipo == "CIF" and len(por_defecto) == 9,
+              f"{tipo}, valido={valido}, {len(por_defecto)} caracteres", "P0")
+    comprobar("y su letra de organizacion es de control NUMERICO",
+              por_defecto[0] in __import__("crear_factura_sintetica")
+              .LETRAS_CONTROL_NUMERICO, severidad="P0")
 
     for digitos, letra in (("9876543", "B"), ("1234567", "A"), ("2233445", "B")):
         nif = nif_sintetico(digitos, letra)
@@ -162,29 +177,65 @@ def pruebas_nif():
 # ---------------------------------------------------------------------------
 # 3. La aritmetica de cada receta
 # ---------------------------------------------------------------------------
+#: Los numeros que CADA receta tiene que dar, escritos AQUI y a mano.
+#:
+#: Esto no es duplicar `calcular()`: es lo contrario. La version anterior de
+#: esta bateria comprobaba que `base_total` fuera la suma de las bases -- y
+#: `calcular()` lo construye COMO la suma de las bases, asi que la prueba no
+#: podia fallar nunca. Igual con el IVA y con cada cuota: se recalculaba
+#: exactamente lo mismo que se estaba comprobando. Una bateria que pasa igual
+#: con el codigo roto no esta comprobando nada (FAMILIA G de
+#: test_adversarial.py, y la misma leccion de test_puerta_cloud.py).
+#:
+#: Con los valores escritos a mano, un cambio en `calcular()` O en una receta
+#: tiene que pasar por aqui. Anadir una receta obliga a declarar sus numeros,
+#: que es exactamente la friccion que se quiere.
+ESPERADO = {
+    "doble_lectura_letras": {
+        "tramos": ((21, 1000.00, 210.00), (5, 200.00, 10.00)),
+        "base_total": 1200.00, "iva_total": 220.00, "retencion": None,
+        "total": 1420.00, "pie_total": 1420.00,
+    },
+    "doble_lectura_descuadre": {
+        "tramos": ((21, 1000.00, 210.00),),
+        "base_total": 1000.00, "iva_total": 210.00, "retencion": None,
+        # El pie NO coincide con el total: dos digitos permutados.
+        "total": 1210.00, "pie_total": 1120.00,
+    },
+    "con_retencion": {
+        "tramos": ((21, 2000.00, 420.00),),
+        "base_total": 2000.00, "iva_total": 420.00, "retencion": 300.00,
+        # 2000 + 420 - 300. NO es base + IVA, y ese es el punto de la receta.
+        "total": 2120.00, "pie_total": 2120.00,
+    },
+}
+
+
 def pruebas_recetas():
     comprobar("hay al menos una receta", len(m.RECETAS) > 0, severidad="P0")
 
+    # Que no haya recetas sin numeros declarados ni numeros sin receta: si no,
+    # se podria anadir una receta y que esta bateria no la mirase.
+    nombres = {r["nombre"] for r in m.RECETAS}
+    comprobar("toda receta tiene sus numeros declarados en ESPERADO",
+              nombres == set(ESPERADO),
+              f"solo en RECETAS: {nombres - set(ESPERADO)} | "
+              f"solo en ESPERADO: {set(ESPERADO) - nombres}", "P0")
+
     for receta in m.RECETAS:
-        c = m.calcular(receta)
         nombre = receta["nombre"]
+        if nombre not in ESPERADO:
+            continue
+        c, e = m.calcular(receta), ESPERADO[nombre]
 
-        suma_bases = round(sum(t["base"] for t in c["tramos"]), 2)
-        suma_cuotas = round(sum(t["cuota"] for t in c["tramos"]), 2)
-        comprobar(f"{nombre}: base_total es la suma de las bases",
-                  c["base_total"] == suma_bases, severidad="P0")
-        comprobar(f"{nombre}: iva_total es la suma de las cuotas",
-                  c["iva_total"] == suma_cuotas, severidad="P0")
+        for campo in ("base_total", "iva_total", "retencion", "total",
+                      "pie_total"):
+            comprobar(f"{nombre}: {campo} = {e[campo]}",
+                      c[campo] == e[campo], f"salio {c[campo]}", "P0")
 
-        for t in c["tramos"]:
-            esperada = round(t["base"] * t["tipo"] / 100, 2)
-            comprobar(f"{nombre}: la cuota al {t['tipo']}% sale de multiplicar",
-                      t["cuota"] == esperada,
-                      f"{t['cuota']} vs {esperada}", "P0")
-
-        esperado = round(c["base_total"] + c["iva_total"] - (c["retencion"] or 0), 2)
-        comprobar(f"{nombre}: el total cuadra con base + IVA - retencion",
-                  c["total"] == esperado, f"{c['total']} vs {esperado}", "P0")
+        salieron = tuple((t["tipo"], t["base"], t["cuota"]) for t in c["tramos"])
+        comprobar(f"{nombre}: los tramos de IVA son los declarados",
+                  salieron == e["tramos"], f"salieron {salieron}", "P0")
 
     # La receta de retencion existe para que el total NO sea base + IVA. Si
     # coincidieran, no mediria nada: sumar de memoria y leer darian lo mismo.
@@ -229,8 +280,10 @@ def pruebas_contrato():
     for receta in m.RECETAS:
         c = m.calcular(receta)
         nif = nif_sintetico(receta["nif_digitos"], receta["nif_letra"])
-        nif_pie = (f"{receta['nif_letra']}-{receta['nif_digitos']}-{nif[-1]}"
-                   if receta["nif_pie_con_guiones"] else nif)
+        # Se PIDE el del modulo, no se recalcula aqui: recalcularlo seria
+        # comprobar esta bateria contra si misma, y un cambio del formato en el
+        # dibujo pasaria desapercibido.
+        nif_pie = m.nif_del_pie(receta, nif)
         verdad = m.verdad_conocida(receta, c, nif, nif_pie)
 
         comprobar(f"{receta['nombre']}: la verdad pasa el contrato del motor",
