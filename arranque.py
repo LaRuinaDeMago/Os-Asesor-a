@@ -132,6 +132,45 @@ def main():
         if not n_delante and not n_detras:
             print("  master       : sincronizado, nada se queda atras")
 
+    # --- 2-bis. Las OTRAS ramas, medidas ahora ------------------------------
+    # ANADIDO 16-09-2026. Hasta hoy el estado de las ramas se leia de un parrafo
+    # escrito a mano en PENDIENTE.md que empezaba por "Medido, no recordado" y
+    # daba una rama por vaciada. Era cierto el dia que se escribio y dejo de
+    # serlo EL MISMO DIA, en cuanto master avanzo tres commits. Un texto que se
+    # presenta como medicion y se recita de memoria es la forma mas cara de
+    # equivocarse: se lee al principio de cada sesion y se cree.
+    #
+    # Asi que se mide. Es la misma regla de siempre en este proyecto -- y el
+    # mismo fallo que ya le paso al parrafo de CLAUDE.md que citaba el tamano de
+    # PROJECT_STATUS.md ("140 KB" cuando ya iba por 257 KB).
+    if hay_git:
+        _, otras = git("for-each-ref", "--format=%(refname:short)",
+                       "refs/remotes/origin")
+        sobrantes, con_trabajo = [], []
+        for ref in (otras or "").splitlines():
+            ref = ref.strip()
+            if not ref or ref.endswith("/HEAD") or ref == "origin/master":
+                continue
+            _, propios = git("log", "--oneline", f"origin/master..{ref}")
+            n_propios = len(propios.splitlines()) if propios else 0
+            (con_trabajo if n_propios else sobrantes).append((ref, n_propios))
+        if sobrantes or con_trabajo:
+            print()
+            print("  otras ramas en el remoto (medido ahora, no recordado):")
+            for ref, _ in sobrantes:
+                print(f"    · {ref}")
+                print(f"      no tiene NADA que master no tenga. Es un resto:")
+                print(f"      git push origin --delete {ref.split('/', 1)[1]}")
+            for ref, n in con_trabajo:
+                print(f"    ⚠ {ref}")
+                print(f"      tiene {n} commit(s) que master NO tiene. Si esa rama")
+                print(f"      se queda ahi, ese trabajo no lo ve nadie.")
+        elif rama != "master":
+            print("  otras ramas   : ninguna suelta en el remoto")
+        print("  Regla permanente (CLAUDE.md, 11-09-2026, con incidente real")
+        print("  detras): cada sesion crea su rama, la fusiona a master al")
+        print("  terminar y la borra. master es el unico punto de encuentro.")
+
     # --- 3. Barrera de privacidad ------------------------------------------
     seccion("3. Barrera de privacidad")
     hook = os.path.join(AQUI, ".git", "hooks", "pre-commit")

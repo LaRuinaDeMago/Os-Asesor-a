@@ -15,20 +15,27 @@
      la cabecera de este fichero dice que no puede pasar. -->
 
   ┌───────────────────────────────────────────────────────────────────┐
-  │ RAMAS — comprobado el 16-09-2026 (sesión Cloud)                   │
+  │ RAMAS — el estado ya NO se escribe aquí, se MIDE                  │
   │                                                                   │
-  │ Todo el trabajo del 16-09 está FUSIONADO en `master` y empujado.  │
-  │ Medido, no recordado: `claude/cierre-verificacion-exhaustiva-     │
-  │ w1otrt` y `origin/master` están a 0 commits en los dos sentidos.  │
-  │ Esa rama ya no contiene nada que master no tenga; se puede borrar │
-  │ cuando quieras, y no corre prisa:                                 │
-  │     git push origin --delete claude/cierre-verificacion-...       │
+  │ Aquí había un párrafo que empezaba por «Medido, no recordado» y   │
+  │ daba por vaciada una rama concreta. Era cierto el día que se      │
+  │ escribió —16-09-2026— y dejó de serlo ESE MISMO DÍA, en cuanto    │
+  │ master avanzó tres commits. Un texto que se presenta como         │
+  │ medición y en realidad se recita es la forma más cara de          │
+  │ equivocarse: se lee al empezar cada sesión y se cree. Es el mismo │
+  │ fallo que ya le pasó al párrafo de CLAUDE.md que citaba el tamaño │
+  │ de PROJECT_STATUS.md («140 KB» cuando ya iba por 257 KB).         │
   │                                                                   │
-  │ Lo que SÍ sigue vigente, y es permanente (CLAUDE.md, regla del    │
-  │ 11-09, con incidente real detrás): nunca compartir una rama larga │
-  │ entre el PC y la nube. Cada sesión crea la suya, la fusiona a     │
-  │ master al terminar, y la borra. master es el único punto de       │
-  │ encuentro.                                                        │
+  │ Desde el 16-09-2026 lo dice `arranque.py`, midiéndolo en el       │
+  │ momento: qué ramas hay en el remoto, cuáles no tienen nada que    │
+  │ master no tenga (y el comando exacto para borrarlas), y cuáles    │
+  │ llevan trabajo que master no ha visto.                            │
+  │                                                                   │
+  │ Lo que SÍ es permanente, y va escrito porque es una REGLA y no un │
+  │ estado (CLAUDE.md, 11-09-2026, con incidente real detrás): nunca  │
+  │ compartir una rama larga entre el PC y la nube. Cada sesión crea  │
+  │ la suya, la fusiona a master al terminar, y la borra. master es   │
+  │ el único punto de encuentro.                                     │
   └───────────────────────────────────────────────────────────────────┘
 
   ╔═══════════════════════════════════════════════════════════════════╗
@@ -74,8 +81,48 @@
         · `total_factura_2` y `nif_margen` **NO se pudieron comprobar**:
           en esta factura fabricada el pie lleva el mismo valor que el
           cuadro, así que copiar y leer dos veces son indistinguibles.
-          Sin cerrar — pendiente de una factura sintética con valores
-          DISTINTOS en cabecera y pie si se quiere una respuesta real.
+          ✅ **YA HAY CON QUÉ CONTESTARLO (16-09-2026, sesión Cloud).**
+          `crear_muestras_sinteticas.py` fabrica los documentos que
+          faltaban, como IMAGEN y con la verdad conocida al lado:
+
+              python crear_muestras_sinteticas.py
+
+          Escribe `muestras_sinteticas/` (no se versiona) con tres
+          recetas, cada una en versión limpia Y degradada, y un
+          `_verdad.json` por receta con los NOMBRES DE CAMPO DEL
+          CONTRATO — así la comparación es mecánica, no a ojo:
+
+            · `doble_lectura_letras` — el pie lleva el total EN LETRAS
+              ("SON: MIL CUATROCIENTOS VEINTE EUROS") y el NIF con otra
+              puntuación, con guiones, frente al de la cabecera sin
+              ellos. Mismo valor, notación distinta: **no se puede
+              copiar del cuadro**. Si `nif_margen` vuelve con guiones,
+              se ha leído el pie de verdad. Y de paso mide algo que no
+              había medido nadie: si el modelo sabe leer un importe
+              escrito con letras, que es como lo imprime media
+              facturación española.
+            · `doble_lectura_descuadre` — el pie lleva OTRO importe
+              (1.120,00 frente a 1.210,00 del cuadro: dos dígitos
+              permutados, que es el error de tecleo real y no uno
+              inventado). Discriminación total para `total_factura_2`,
+              y **el motor debería ponerse ROJO** — el guard de doble
+              lectura nunca se ha visto disparar sobre un documento.
+            · `con_retencion` — IRPF al 15%: el total NO es base + IVA.
+              Un modelo que suma de memoria en vez de leer falla ahí y
+              sólo ahí. Ejercita `irpf_retencion`, que el contrato
+              declara y ninguna muestra había usado nunca.
+
+          **El orden importa:** primero la `_limpia` de cada receta. Si
+          la limpia ya falla, la degradada no añade información — el
+          problema no es la foto. Sólo cuando la limpia acierta, la
+          degradada mide de verdad cuánto aguanta, porque el documento
+          es EL MISMO y la única variable que cambia es la foto.
+
+          **Límite declarado, para que nadie lo lea de más:** la
+          degradación simula giro, luz desigual, desenfoque, ruido y
+          JPEG, pero **NO la perspectiva** (el papel en ángulo, con los
+          márgenes en trapecio). Que la degradada pase no significa que
+          una foto en ángulo pase: eso no se ha medido.
 
       **Y dos defectos reales encontrados en la primera ejecución contra
       la API de verdad — exactamente para eso servía este paso:**

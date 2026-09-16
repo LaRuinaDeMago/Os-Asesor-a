@@ -7,6 +7,109 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 16-09-2026 (sesión Cloud, segunda) — Las muestras contra las que se mide, y un falso verde propio
+
+Sesión de retomada. Lo primero fue medir el estado, y dos cosas salieron
+distintas de lo que parecía.
+
+### 1. El trabajo de la sesión anterior se había perdido entero
+
+Una sesión Cloud anterior del mismo día generó `crear_muestras_sinteticas.py`
+(451 líneas), tres imágenes y un retoque de `nif_sintetico()`, y **no llegó a
+commitear nada**. El contenedor se recicló y se lo llevó todo: ni fichero en
+disco, ni stash, ni objeto colgante, ni rama en el remoto. Comprobado por las
+cuatro vías antes de darlo por perdido.
+
+**La lección, que no es sobre este fichero:** en una sesión Cloud lo que no
+está commiteado y empujado no existe. Esta sesión commitea antes de enseñar
+nada, y ese orden es el arreglo.
+
+### 2. Las ramas: lo que se leía al arrancar era un falso verde
+
+`PENDIENTE.md` abría con un bloque que empezaba por «**Medido, no recordado**»
+y daba `claude/cierre-verificacion-exhaustiva-w1otrt` por vaciada, a 0 commits
+en los dos sentidos de `origin/master`. Era cierto cuando se escribió —el mismo
+16-09— y **dejó de serlo ese mismo día**, en cuanto master avanzó tres commits.
+
+Un texto que se presenta como medición y en realidad se recita es la forma más
+cara de equivocarse: se lee al empezar cada sesión y se cree. Es exactamente el
+fallo que ya le había pasado al párrafo de `CLAUDE.md` que citaba el tamaño de
+este fichero («140 KB» cuando ya iba por 257 KB).
+
+**Cerrado midiéndolo:** `arranque.py` recorre ahora las ramas del remoto y dice,
+en el momento, cuáles no tienen nada que master no tenga —con el comando exacto
+para borrarlas— y cuáles llevan trabajo que master no ha visto. El bloque de
+`PENDIENTE.md` se queda sólo con la REGLA, que sí es permanente, y el ESTADO
+sale de la medición.
+
+De paso, dos artefactos del entorno Cloud que despistaban y quedan anotados por
+si vuelven a aparecer: el clon llega **superficial** (`.git/shallow`), así que
+`git merge-base` no encuentra ancestro común y `git branch -vv` publica un
+«ahead 72, behind 50» que no existe; y el ref `origin/<rama-de-la-sesión>` puede
+apuntar a una rama **que aún no está en GitHub**. Las dos se resuelven con
+`git fetch --unshallow --prune`, y hasta hacerlo lo que dice git local no es
+la verdad del servidor.
+
+### 3. Lo construido: `crear_muestras_sinteticas.py`
+
+El Paso 1 del 16-09 dejó dos preguntas sin contestar y lo declaró: `total_
+factura_2` y `nif_margen` no se pudieron comprobar porque **en la factura
+fabricada el pie llevaba el mismo valor que el cuadro**. Con eso, una lectura
+honrada y un copia-pega producen la misma salida: la doble lectura seguiría sin
+estar probada aunque saliera «bien».
+
+Eso no era un fallo del motor ni del modelo: era un fallo de diseño del
+DOCUMENTO. Tres recetas que sí se pueden distinguir, cada una como imagen limpia
+y degradada compartiendo verdad conocida —para que la diferencia entre las dos
+sea atribuible a la degradación y a nada más—:
+
+| Receta | Qué pregunta cierra |
+|---|---|
+| `doble_lectura_letras` | pie con el total EN LETRAS y el NIF con otra puntuación. Mismo valor, notación distinta: no se puede copiar del cuadro |
+| `doble_lectura_descuadre` | pie con OTRO importe (dos dígitos permutados). Discriminación total, y dispara el guard de doble lectura |
+| `con_retencion` | IRPF 15%: el total NO es base + IVA. Sumar de memoria y leer dan distinto |
+
+La verdad conocida se escribe con los **nombres de campo del contrato** y se
+pasa por `contrato_datos.canonizar()` antes de guardarla, así que un renombrado
+de campo salta ahí y no como un falso «el modelo no ha traído X».
+
+### 4. Y un defecto real en lo recién escrito, que sólo se vio MIRANDO
+
+La primera versión dibujaba el nombre del emisor y su NIF —los dos
+CAMPOS_CRITICOS—, la columna de Concepto y las etiquetas de totales **en
+blanco sobre papel blanco**: la tinta por defecto de `ImageDraw` sobre RGB es
+blanca (`ink = -1`), y un `d.text()` sin `fill` es invisible.
+
+**Cómo se presentaba es lo grave:** el script devolvía 0, el PNG pesaba lo
+normal y la verdad conocida decía lo correcto. Un documento sin emisor
+declarándose correcto habría hecho perseguir al modelo («no lee el NIF») por un
+fallo del dibujo.
+
+Cerrado con `_texto()` (color explícito obligatorio) y con
+`_comprobar_hay_tinta()`, que verifica que cada bloque que debería llevar texto
+lleva píxeles oscuros de verdad. **Las zonas las calcula el propio dibujo
+mientras dibuja**: escritas a mano no valían —al cambiar una receta de número de
+líneas la banda se corría y acababa sobre la raya del bloque de totales, con lo
+que la tinta de la RAYA daba por buena una etiqueta invisible. Un guard al que
+le vale la tinta del vecino es un falso verde.
+
+`test_muestras_sinteticas.py`: **73 pruebas**, reintroduce el defecto exacto y
+exige que el guard se ponga rojo en las tres recetas y que al deshacerlo vuelvan
+a pasar. Cableada en `audit_project.py`.
+
+Dos arreglos menores por el camino: el módulo hacía `sys.exit(1)` en la cabecera
+si faltaba Pillow —lo que mata el proceso de quien lo importe, justo el defecto
+que el propio auditor vigila—, y `check_dependencias()` habría declarado que
+falta Pillow **aunque estuviera instalada**, porque se instala como `Pillow` y
+se importa como `PIL`. Un aviso falso enseña a ignorar los avisos.
+
+### Estado al cerrar
+
+`python audit_project.py` → **47 comprobaciones en verde, 0 en rojo, 35/35
+suites**. Código de salida 2, por el único ⚠️ de siempre en Cloud: dbfread,
+pdfplumber, anthropic y google-genai sin instalar, que es el entorno y no un
+defecto.
+
 ## 16-09-2026 (sesión Cloud) — La frontera de datos deja de ser una regla escrita y pasa a ser un mecanismo
 
 Punto 1 del orden acordado con Diego tras su propuesta de arquitectura
