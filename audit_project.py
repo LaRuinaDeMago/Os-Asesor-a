@@ -522,7 +522,17 @@ def check_estados_y_cobertura():
                              # en blanco sobre blanco, el defecto que de verdad
                              # ocurrio) y comprueba que el guard de tinta se
                              # pone rojo en las tres recetas.
-                             ("test_muestras_sinteticas.py", "Muestras sinteticas: la regla de medir no esta torcida")):
+                             ("test_muestras_sinteticas.py", "Muestras sinteticas: la regla de medir no esta torcida"),
+                             # comparar_captura_vs_verdad.py (16-09-2026): la
+                             # herramienta que decide si la cadena foto->IA->motor
+                             # funciona. Si se equivoca, se equivoca hacia el lado
+                             # peor -- dando por bueno lo que no lo es. Y ademas
+                             # IMPRIME valores, asi que lleva una barrera: lo que
+                             # no esta declarado SINTETICO se trata como REAL y no
+                             # se imprime ni un valor, ni un nombre, ni una ruta.
+                             # La bateria la sabotea de dos formas y exige que se
+                             # ponga roja las dos veces.
+                             ("test_comparar_captura.py", "Comparador captura/verdad: mide, y no filtra")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue

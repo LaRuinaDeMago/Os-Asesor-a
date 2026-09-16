@@ -167,6 +167,48 @@
           no la ejercita la suite del motor; la ejercita ahora
           `test_muestras_sinteticas.py`, pero conviene saberlo.
 
+          ─────────────────────────────────────────────────────────────
+          ✅ **Y LA COMPARACIÓN YA NO SE HACE A OJO (16-09-2026).**
+
+              python captura_orquestador.py --imagen <muestra> \
+                     --procedencia SINTETICO > captura.json
+              python comparar_captura_vs_verdad.py captura.json
+
+          Encuentra el `_verdad.json` solo, compara campo a campo con el
+          parser del propio contrato (`1.420,00` y `1420.0` son el mismo
+          dato), **contesta las cuatro preguntas del Paso 1 él solo**, y
+          termina pasando lo que el modelo leyó por el motor.
+
+          Códigos de salida, los tres de siempre: `0` todo comprobado y
+          coincidiendo · `1` hay una diferencia real · `2` nada discrepa
+          pero algún campo no vino — que **no es un aprobado**. Un "todo
+          bien" que significa "no vino casi nada" era el peor resultado
+          posible de comparar a ojo.
+
+          Dos decisiones suyas que conviene conocer antes de usarlo:
+
+            · **`nif_margen` NO se normaliza.** En la muestra de letras
+              la puntuación ES la medición: quitar los guiones dejaría
+              en verde justo el caso que se quiere cazar.
+            · **Lo que no esté declarado SINTETICO se trata como REAL** y
+              entonces no imprime ni un valor, ni el nombre de la
+              muestra, ni la ruta del fichero — sólo coincide / no
+              coincide / no vino. La medición se conserva entera; lo que
+              desaparece es el dato. No hay forma de desactivarlo.
+
+          ⚠️ **UN HALLAZGO QUE IMPORTA MÁS QUE LA HERRAMIENTA.** Al
+          simular una lectura en ESPEJO —el modelo copia el total del
+          cuadro en `total_factura_2` en vez de leer el pie— el motor
+          da **VERDE**. Y es correcto que lo dé: ve dos totales iguales.
+
+          Es decir: **el guard de doble lectura sólo vale si las dos
+          lecturas son independientes de verdad.** Si el modelo copia,
+          el guard no protege nada y además lo firma en verde. Eso no se
+          arregla en el motor —él no puede saber de dónde salió el
+          segundo número—: se arregla comprobándolo, y es exactamente lo
+          que mide `doble_lectura_descuadre`. Por eso esa muestra es la
+          más importante de las tres.
+
       **Y dos defectos reales encontrados en la primera ejecución contra
       la API de verdad — exactamente para eso servía este paso:**
         1. El PDF se enviaba etiquetado como `image/jpeg` (el mapa de
