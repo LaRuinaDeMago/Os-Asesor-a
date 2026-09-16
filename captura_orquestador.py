@@ -202,6 +202,15 @@ def leer_factura_gemini(path_imagen, permiso, modelo="gemini-3.1-flash-lite"):
         # ("un script peta e imprime una fila en el mensaje de error") con su
         # mitigacion: solo el TIPO, nunca el contenido. Estaba dormido porque
         # ninguna factura real ha pasado aun por aqui; habria mordido el dia uno.
+        # HUECO DECLARADO 16-09-2026, no arreglado a proposito: la llamada de
+        # arriba SI costo tokens reales, pero se pierden -- esta excepcion
+        # salta antes de la extraccion de usage_metadata de mas abajo, y
+        # leer_factura() nunca llega a anotar_resultado() para este intento.
+        # Arreglarlo exige que los tokens viajen CON la excepcion hasta el
+        # punto unico de registro, y no hay ni un caso real de JSON invalido
+        # contra el que probar ese cambio -- tocar a ciegas el camino que
+        # decide "esta factura va a revision manual" es el riesgo mayor de
+        # este fichero. Se declara en vez de parchearse sin poder verificarlo.
         raise RuntimeError(
             f"Gemini no devolvió JSON válido (documento "
             f"{puerta_cloud.referencia_documento(path_imagen)}). La respuesta "
@@ -331,6 +340,11 @@ def _leer_factura_claude(path_imagen, permiso, modelo="claude-sonnet-5"):
     except json.JSONDecodeError:
         # Misma correccion que en la rama de Gemini (16-09-2026), y el mismo
         # motivo: el mensaje llevaba la respuesta cruda y la ruta.
+        #
+        # Mismo HUECO DECLARADO que en la rama de Gemini, tambien sin
+        # arreglar a proposito (ver esa nota): los tokens de esta llamada se
+        # pierden si el JSON no parsea. Doblemente sin caso real aqui: ni un
+        # JSON invalido de Claude, ni la ruta 4 activa hoy.
         raise RuntimeError(
             f"La API no devolvió JSON válido (documento "
             f"{puerta_cloud.referencia_documento(path_imagen)}). La respuesta "
