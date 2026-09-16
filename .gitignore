@@ -30,7 +30,15 @@ registro_cloud.jsonl
 # ejecutarse); su SALIDA no, porque lleva un NIF con checksum válido y el
 # escáner de privacidad —correctamente— no puede distinguir un NIF sintético de
 # uno real. Se regenera cuando haga falta.
-factura_sintetica_*.html
+#
+# AMPLIADO 16-09-2026: el patrón solo cubría el .html que genera el script.
+# El PASO 1 real (PENDIENTE.md) pide guardarla también como PDF o captura de
+# pantalla para pasarla por Gemini -- "FRA SINTETICA 1.pdf" se coló como no
+# rastreado porque nadie había prevista esa extensión. Mismo NIF sintético,
+# mismo motivo para no subirla, así que el patrón pasa a cubrir cualquier
+# extensión, no solo .html.
+factura_sintetica_*.*
+FRA SINTETICA*.*
 
 # Censo del despacho: la columna 'nombre' lleva razones sociales reales.
 censo_despacho_v8.csv

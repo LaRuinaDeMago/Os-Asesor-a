@@ -59,7 +59,44 @@
 
       ── PASO 1 · EL ENSAYO EN VACÍO (haz esto ANTES que nada) ──────
 
-      **Es lo mejor que puedes hacer mañana, y no necesita DPA.** Pasa
+      ✅ **HECHO Y CERRADO — 16-09-2026, sesión LOCAL.** Ejecutado de
+      verdad, no en seco: clave de Gemini con facturación activa (nivel
+      "Paid" confirmado en AI Studio, no la capa gratis), factura
+      fabricada con `crear_factura_sintetica.py`, guardada como PDF
+      ("FRA SINTETICA 1.pdf") y pasada por `captura_orquestador.py
+      --procedencia SINTETICO` contra la API real.
+
+      **Las cuatro preguntas de (d), contestadas:**
+        · `tramos_iva` llegó con los DOS tramos, 21% y 5% — **confirmado
+          contra la API real**, no solo contra el ensayo sintético. El
+          arreglo del 16-09 (campos anidados) sobrevive de punta a punta.
+        · El número salió `A26/7.612`, con barra y punto — correcto.
+        · `total_factura_2` y `nif_margen` **NO se pudieron comprobar**:
+          en esta factura fabricada el pie lleva el mismo valor que el
+          cuadro, así que copiar y leer dos veces son indistinguibles.
+          Sin cerrar — pendiente de una factura sintética con valores
+          DISTINTOS en cabecera y pie si se quiere una respuesta real.
+
+      **Y dos defectos reales encontrados en la primera ejecución contra
+      la API de verdad — exactamente para eso servía este paso:**
+        1. El PDF se enviaba etiquetado como `image/jpeg` (el mapa de
+           `mime_type` en `leer_factura_gemini()` y `_leer_factura_claude()`
+           no tenía `.pdf` y caía en un "por defecto" silencioso). Gemini
+           lo rechazaba con "Unable to process input image". Arreglado en
+           los dos sitios: extensión no reconocida ahora lanza error, no
+           adivina. `audit_project.py` en 0 antes y después.
+        2. `puerta_cloud.Lote.anotar_resultado()` existía desde el 16-09
+           pero nadie la llamaba — el registro salía con tokens/coste en
+           `null` a pesar de que el mecanismo estaba listo. Enganchado en
+           `leer_factura()`, el punto único; confirmado con tokens reales:
+           **1.562 entrada / 453 salida** por una factura. Con la tarifa
+           pública de `gemini-3.1-flash-lite` (no verificada de forma
+           oficial, solo orientativa): del orden de 0,001 $/factura.
+
+      Punto (e) cumplido con dato real, no estimado: mira
+      `registro_cloud.jsonl`, línea `"tipo": "RESULTADO"`.
+
+      **Es lo mejor que puedes hacer, y no necesita DPA.** Pasa
       una factura FABRICADA por la cadena entera con Gemini de verdad.
       Valida la clave, el SDK, el prompt, la puerta, el registro de
       coste y el motor — con cero exposición legal. Cuando después
@@ -110,10 +147,21 @@
       ── PASO 2 · LA DECISIÓN DEL DPA ───────────────────────────────
 
       Son DOS decisiones, no una (ver punto 1 de EL ORDEN):
-        · Google/Gemini con facturación activa — la capa gratuita de AI
-          Studio entrena con tus datos. Google entra como SEGUNDO
-          encargado del tratamiento, con su propio DPA.
-        · Anthropic, y SÓLO si algún día quieres la ruta 4 (que yo vea
+        [X] Google/Gemini con facturación activa — **HECHA 16-09-2026.**
+          Tarjeta vinculada, prepago de 5 € completado, AI Studio confirma
+          "Se activó el nivel pagado de la API de Gemini". Verificado
+          contra los Términos Adicionales oficiales (`ai.google.dev/
+          gemini-api/terms`, no un resumen de terceros): con cuenta de
+          facturación activa, TODO el uso —incluido lo gratuito— cuenta
+          como "Paid Service" a efectos de dato, y en Paid Service "Google
+          doesn't use your prompts [...] to improve our products". El
+          crédito de bienvenida de 300 $ NO cubre este cargo (excluido
+          explícitamente para la API de Gemini/AI Studio); los 5 € los pagó
+          la tarjeta. Google entra como SEGUNDO encargado del tratamiento,
+          con su propio marco contractual — sigue sin resolver la base
+          legal, informar a los clientes ni el secreto profesional, que
+          siguen siendo del despacho (`.claude/rules/datos.md`).
+        [ ] Anthropic, y SÓLO si algún día quieres la ruta 4 (que yo vea
           el documento original). Para el flujo normal no hace falta.
 
       ── PASO 3 · UNA FACTURA REAL, UNA SOLA ────────────────────────
