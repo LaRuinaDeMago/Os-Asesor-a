@@ -110,3 +110,12 @@ cruce_303_agregado.json
 # .claude/rules/datos.md, pero nunca sube. Anadido el 10-09-2026 tras
 # comprobar con fichero trampa que ni el escaner ni .gitignore lo paraban.
 FLUJO_CONTINUO_PLAN_DEFINITIVO.md
+
+# Muestras de crear_muestras_sinteticas.py (16-09-2026). Mismo criterio exacto
+# que factura_sintetica_*: el GENERADOR sube (no lleva ningún literal con forma
+# de NIF, los compone al ejecutarse llamando a nif_sintetico), su SALIDA no.
+# Las imágenes llevan un NIF con checksum válido dibujado encima, y el escáner
+# de privacidad —correctamente— no puede distinguir un NIF sintético de uno
+# real; menos aún dentro de un PNG, donde ni siquiera es texto. Se regeneran
+# con un comando, así que no hay nada que conservar.
+muestras_sinteticas/

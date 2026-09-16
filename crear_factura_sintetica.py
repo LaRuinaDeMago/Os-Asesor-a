@@ -74,27 +74,70 @@ EMISOR = "SUMINISTROS EJEMPLO FICTICIO SL"
 DIRECCION = "Calle Inventada 00, 00000 Ciudad Ejemplo"
 
 
-def nif_sintetico():
+#: Letras de organizacion cuyo digito de control es NUMERICO. Las que lo
+#: tienen alfabetico (P, Q, S, K, N, R, W) se rechazan abajo en vez de
+#: componerse mal en silencio: un NIF sintetico invalido haria que el motor
+#: diera ROJO por el documento y no por lo que se quiere medir.
+LETRAS_CONTROL_NUMERICO = "ABEH"
+
+
+def nif_sintetico(digitos="9876543", letra="B"):
     """CIF inventado, con digito de control CORRECTO, compuesto en ejecucion.
 
-    Compuesto y no escrito como literal: ver el docstring del modulo. La letra
-    de organizacion es B (sociedad limitada), que lleva control NUMERICO."""
-    digitos = "9876543"
+    Compuesto y no escrito como literal: ver el docstring del modulo. Por
+    defecto devuelve el mismo CIF de siempre (letra B, sociedad limitada), asi
+    que quien ya lo llamaba sin argumentos sigue recibiendo lo mismo.
+
+    Parametrizado el 16-09-2026 para que `crear_muestras_sinteticas.py` pueda
+    fabricar VARIOS emisores distintos sin copiar aqui el algoritmo del digito
+    de control -- que es justo la clase de duplicado que este proyecto ya ha
+    pagado dos veces (mismo bug en dos sitios, PENDIENTE.md 1.A).
+
+    El resultado se verifica contra `nif_check.valida_nif`, el validador del
+    propio proyecto: si algun dia cambia uno de los dos, salta aqui y no en
+    una comparacion de campos donde pareceria un fallo del modelo.
+    """
+    letra = letra.upper()
+    if letra not in LETRAS_CONTROL_NUMERICO:
+        raise ValueError(
+            f"letra de organizacion {letra!r}: esta funcion solo compone las "
+            f"de control NUMERICO ({LETRAS_CONTROL_NUMERICO}). Con control "
+            f"alfabetico el digito se calcula distinto y saldria un NIF falso.")
+    if len(digitos) != 7 or not digitos.isdigit():
+        raise ValueError(f"se esperan 7 digitos, recibido {digitos!r}")
+
     pares = sum(int(digitos[i]) for i in (1, 3, 5))
     impares = sum((lambda x: x // 10 + x % 10)(int(digitos[i]) * 2)
                   for i in (0, 2, 4, 6))
     control = (10 - (pares + impares) % 10) % 10
-    return "B" + digitos + str(control)
+    nif = letra + digitos + str(control)
+
+    import nif_check
+    ok, _tipo, motivo = nif_check.valida_nif(nif)
+    if not ok:
+        raise AssertionError(
+            f"el CIF compuesto no pasa el validador del proyecto: {motivo}. "
+            f"O el algoritmo de aqui o el de nif_check.py ha cambiado.")
+    return nif
 
 
-def eur(x):
-    """Formato espanol: 1.234,56 — que es como lo lee un OCR en una factura."""
+def num_es(x):
+    """Formato espanol SIN moneda: 1.234,56 — como lo imprime una factura.
+
+    Separado de `eur()` el 16-09-2026 porque en un cuadro de importes el simbolo
+    va en la cabecera de la columna, no en cada celda. Tener las dos formas
+    evita que `crear_muestras_sinteticas.py` reescriba el mismo formateo."""
     entero, dec = f"{x:.2f}".split(".")
     miles = ""
     while len(entero) > 3:
         miles = "." + entero[-3:] + miles
         entero = entero[:-3]
-    return f"{entero}{miles},{dec} EUR"
+    return f"{entero}{miles},{dec}"
+
+
+def eur(x):
+    """Formato espanol con moneda: 1.234,56 EUR."""
+    return num_es(x) + " EUR"
 
 
 HTML = """<!DOCTYPE html>
