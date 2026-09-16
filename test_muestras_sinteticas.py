@@ -38,7 +38,7 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
 import contrato_datos
 import crear_muestras_sinteticas as m
 import nif_check
-from crear_factura_sintetica import nif_sintetico
+from crear_factura_sintetica import eur, nif_sintetico, num_es
 
 resultados = []
 saltadas = []
@@ -57,6 +57,53 @@ def _falla(fn, excepcion=Exception):
     except Exception:
         return False
     return False
+
+
+# ---------------------------------------------------------------------------
+# 0. El formateo de importes
+# ---------------------------------------------------------------------------
+# Primero de todo, y con motivo: un importe MALFORMADO en el documento contra
+# el que se mide el OCR no se lee como un fallo del documento, se lee como un
+# fallo del modelo. Es la peor clase de error que pueden tener estas muestras.
+#
+# Hubo uno real, dormido desde antes y despertado por la receta `con_retencion`
+# (16-09-2026): `num_es(-300.00)` devolvia `-.300,00`, porque la agrupacion de
+# miles contaba el signo menos como un digito mas.
+def pruebas_formateo():
+    casos = {
+        # El caso que fallaba, y sus vecinos de los dos lados.
+        -300.00: "-300,00", -100.00: "-100,00", -999.99: "-999,99",
+        -1000.00: "-1.000,00", -1234.50: "-1.234,50", -1.00: "-1,00",
+        # Positivos: lo de siempre, que no puede romperse al arreglar lo otro.
+        300.00: "300,00", 0.00: "0,00", 1234.50: "1.234,50",
+        1234567.89: "1.234.567,89", 1210.50: "1.210,50",
+        # Redondeo del dinero: HALF_UP, no el "mitad al par" de round().
+        0.005: "0,01", -0.005: "-0,01", 2.675: "2,68", 999.999: "1.000,00",
+        # Y un menos delante de un cero seria mentira.
+        -0.004: "0,00",
+    }
+    for valor, esperado in casos.items():
+        obtenido = num_es(valor)
+        comprobar(f"num_es({valor}) = {esperado!r}", obtenido == esperado,
+                  f"devolvio {obtenido!r}", "P0")
+
+    comprobar("eur() solo anade la moneda a num_es()",
+              eur(-300.00) == "-300,00 EUR" and eur(1420.00) == "1.420,00 EUR",
+              f"{eur(-300.00)!r} / {eur(1420.00)!r}", "P0")
+
+    # Y que ninguna receta imprima un importe con separador de miles pegado al
+    # signo: la forma exacta que tenia el defecto.
+    for receta in m.RECETAS:
+        c = m.calcular(receta)
+        importes = [c["base_total"], c["iva_total"], c["total"], c["pie_total"]]
+        if c["retencion"] is not None:
+            importes.append(-c["retencion"])
+        for t in c["tramos"]:
+            importes += [t["base"], t["cuota"]]
+        malformados = [f"{v} -> {num_es(v)}" for v in importes
+                       if num_es(v).startswith("-.") or num_es(v).startswith(".")]
+        comprobar(f"{receta['nombre']}: ningun importe sale malformado",
+                  not malformados, "; ".join(malformados), "P0")
 
 
 # ---------------------------------------------------------------------------
@@ -266,6 +313,7 @@ def main():
     print("=" * 72)
     print("MUESTRAS SINTETICAS — bateria")
     print("=" * 72)
+    pruebas_formateo()
     pruebas_letras()
     pruebas_nif()
     pruebas_recetas()

@@ -51,6 +51,7 @@ le pasa a la captura, con `--procedencia SINTETICO`.
 """
 import os
 import sys
+from decimal import Decimal, ROUND_HALF_UP
 
 if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -126,13 +127,44 @@ def num_es(x):
 
     Separado de `eur()` el 16-09-2026 porque en un cuadro de importes el simbolo
     va en la cabecera de la columna, no en cada celda. Tener las dos formas
-    evita que `crear_muestras_sinteticas.py` reescriba el mismo formateo."""
-    entero, dec = f"{x:.2f}".split(".")
-    miles = ""
-    while len(entero) > 3:
-        miles = "." + entero[-3:] + miles
-        entero = entero[:-3]
-    return f"{entero}{miles},{dec}"
+    evita que `crear_muestras_sinteticas.py` reescriba el mismo formateo.
+
+    ARREGLADO 16-09-2026 — UN NEGATIVO SALIA MAL. La version anterior partia
+    `f"{x:.2f}"` por el punto y agrupaba los miles contando LETRAS del trozo
+    entero. Con un negativo de tres cifras el signo contaba como una mas:
+    `-300.00` -> entero `"-300"` -> 4 caracteres -> metia separador ->
+    **`-.300,00`**. Estuvo dormido desde que se escribio porque hasta hoy nadie
+    habia formateado un importe negativo; la receta `con_retencion`, que imprime
+    la retencion de IRPF en negativo, fue la primera en despertarlo.
+
+    Y el dano era el peor posible para lo que estas muestras hacen: un importe
+    MALFORMADO en el documento contra el que se mide el OCR. Si el modelo
+    devolviera 0,3 o fallara, pareceria que no sabe leer -- cuando el que estaba
+    mal escrito era el papel. Una regla de medir torcida.
+
+    Ahora se construye desde CENTIMOS enteros: no hay coma flotante en el
+    camino, el signo se trata aparte y no puede contaminar la agrupacion, y
+    `-0,001` no sale como `-0,00` (un menos delante de un cero que es mentira).
+
+    Y el redondeo es HALF_UP explicito, no el `round()` de Python. `round()`
+    redondea la mitad AL PAR (`round(0.5)` da 0, no 1), que es correcto en
+    estadistica y NO es la convencion del dinero. Aqui no cambia ningun importe
+    de las recetas -- todas llegan ya cuadradas al centimo -- pero un formateador
+    de importes que redondea de una forma en la que nadie piensa es una trampa
+    esperando a un caso que si la pise."""
+    # `str(x)` y no `Decimal(x)`: construir un Decimal desde un float arrastra
+    # la basura binaria del float (0.1 se convierte en 0.1000000000000000055...)
+    # y el redondeo acabaria decidiendose sobre ruido.
+    centimos = int((Decimal(str(x)) * 100).quantize(Decimal("1"),
+                                                    rounding=ROUND_HALF_UP))
+    signo = "-" if centimos < 0 else ""
+    entero, dec = divmod(abs(centimos), 100)
+
+    texto, miles = str(entero), ""
+    while len(texto) > 3:
+        miles = "." + texto[-3:] + miles
+        texto = texto[:-3]
+    return f"{signo}{texto}{miles},{dec:02d}"
 
 
 def eur(x):
