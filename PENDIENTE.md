@@ -37,11 +37,13 @@
   │ la suya, la fusiona a master al terminar, y la borra. master es   │
   │ el único punto de encuentro.                                     │
   │                                                                   │
-  │ ⚠️ EL BORRADO LO TIENES QUE DAR TÚ. Desde una sesión Cloud no se  │
-  │ puede: el proxy de git deja pasar los push de commits pero        │
-  │ rechaza el refspec de borrado (comprobado 16-09-2026 con las dos  │
-  │ sintaxis y con reintentos). Es de un clic en GitHub, o desde tu   │
-  │ PC con el comando que te imprime `arranque.py`.                   │
+  │ ⚠️ EL BORRADO LO TIENES QUE DAR TÚ. Desde una sesión Cloud el     │
+  │ remoto responde **HTTP 403** al refspec de borrado, aunque acepte │
+  │ los push de commits. Es una denegación de autorización, no un     │
+  │ fallo de red: no se reintenta, se reporta (comprobado 16-09-2026  │
+  │ con las dos sintaxis, y con `recentRelayFailures` del proxy       │
+  │ vacío, o sea que no es el proxy quien corta). Es de un clic en    │
+  │ GitHub, o desde tu PC con el comando que imprime `arranque.py`.   │
   └───────────────────────────────────────────────────────────────────┘
 
   ╔═══════════════════════════════════════════════════════════════════╗

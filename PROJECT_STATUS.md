@@ -51,11 +51,16 @@ apuntar a una rama **que aún no está en GitHub**. Las dos se resuelven con
 la verdad del servidor.
 
 **Y una tercera, operativa, que conviene saber antes de planificar:** desde una
-sesión Cloud **no se puede borrar una rama del remoto**. El proxy de git deja
-pasar los `push` de commits —esta sesión empujó cuatro veces— pero rechaza el
-refspec de borrado, con las dos sintaxis (`--delete` y `:refs/heads/...`) y con
-reintentos: `send-pack: unexpected disconnect` seguido de un `Everything
-up-to-date` engañoso. No es un fallo transitorio, es política del entorno.
+sesión Cloud **no se puede borrar una rama del remoto**. El remoto acepta los
+`push` de commits —esta sesión empujó siete veces— y responde **HTTP 403** al
+refspec de borrado, con las dos sintaxis (`--delete` y `:refs/heads/...`).
+
+El síntoma engaña y conviene saberlo: git lo presenta como `send-pack:
+unexpected disconnect` seguido de un `Everything up-to-date`, que parece decir
+que no había nada que hacer. El 403 sólo aparece con la traza de curl. Y
+`recentRelayFailures` del proxy sale **vacío**, así que no es el proxy quien
+aborta: es una denegación de autorización del servicio de git. Su propio README
+dice que un 403 no se reintenta, se reporta.
 **El borrado de ramas es un paso manual**, de un clic en GitHub o de un comando
 desde el PC. Que la regla del 11-09 pida borrar la rama al terminar significa,
 en la práctica, que ese último paso lo cierra Diego.
