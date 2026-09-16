@@ -512,7 +512,17 @@ def check_estados_y_cobertura():
                              # escribirlo aparecio un defecto real y dormido
                              # (los campos anidados del prompt v2 no sobrevivian
                              # a la serializacion del CSV).
-                             ("ensayo_cadena_captura.py", "Cadena captura->CSV->motor: los campos anidados sobreviven")):
+                             ("ensayo_cadena_captura.py", "Cadena captura->CSV->motor: los campos anidados sobreviven"),
+                             # crear_muestras_sinteticas.py (16-09-2026): los
+                             # documentos contra los que se mide el OCR. Una
+                             # regla de medida torcida es peor que no tener
+                             # regla -- un fallo en la muestra se lee como "el
+                             # modelo no sabe leer" y se persigue al sitio
+                             # equivocado. La bateria sabotea el dibujo (texto
+                             # en blanco sobre blanco, el defecto que de verdad
+                             # ocurrio) y comprueba que el guard de tinta se
+                             # pone rojo en las tres recetas.
+                             ("test_muestras_sinteticas.py", "Muestras sinteticas: la regla de medir no esta torcida")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue
@@ -607,8 +617,13 @@ def check_dependencias():
         paquete = linea.split(">=")[0].split("#")[0].strip()
         if not paquete:
             continue
+        # El nombre del PAQUETE que se instala no siempre es el del MODULO que
+        # se importa. Pillow se instala como "Pillow" y se importa como "PIL":
+        # sin esta linea la auditoria intentaria `import Pillow`, fallaria, y
+        # declararia que falta una dependencia que SI esta instalada -- un aviso
+        # falso, que es tan malo como un verde falso porque ensena a ignorarlos.
         modulo = {"google-genai": "google.genai", "dbfread": "dbfread",
-                  "anthropic": "anthropic"}.get(paquete, paquete)
+                  "anthropic": "anthropic", "Pillow": "PIL"}.get(paquete, paquete)
         try:
             __import__(modulo)
         except ImportError:

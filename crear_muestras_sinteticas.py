@@ -103,15 +103,27 @@ from crear_factura_sintetica import eur, nif_sintetico, num_es
 if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
+#: Pillow es lo que dibuja. Si falta, este modulo NO se muere al importarse:
+#: un `sys.exit()` en la cabecera mata el proceso de quien lo importe -- que es
+#: justo el defecto que `audit_project.py` vigila con "Modulos importables:
+#: ninguno se sale al importarse". Se anota que no esta y se falla al usarlo,
+#: con un mensaje que dice que hacer.
 try:
     from PIL import Image, ImageDraw, ImageFilter, ImageFont
-except ImportError:
-    print("Falta Pillow, que es lo que dibuja las imagenes:")
-    print("    pip install Pillow")
-    print()
-    print("Sin ella este generador no puede hacer nada. No hay modo degradado")
-    print("ni 'casi': o dibuja, o no dibuja.")
-    sys.exit(1)
+    FALTA_PILLOW = None
+except ImportError as _e:
+    Image = ImageDraw = ImageFilter = ImageFont = None
+    FALTA_PILLOW = str(_e)
+
+
+def _exigir_pillow():
+    """Para con un mensaje util, en vez de reventar con un AttributeError."""
+    if FALTA_PILLOW is not None:
+        raise RuntimeError(
+            f"Falta Pillow, que es lo que dibuja las imagenes ({FALTA_PILLOW}).\n"
+            f"    pip install Pillow          (o pip install -r requirements.txt)\n"
+            f"Sin ella este generador no puede hacer nada: no hay modo "
+            f"degradado ni 'casi'. O dibuja, o no dibuja.")
 
 CARPETA = "muestras_sinteticas"
 
@@ -405,7 +417,23 @@ def fuente(tam, negrita=False):
         "de una del sistema a FUENTES / FUENTES_NEGRITA.")
 
 
-def _derecha(dib, x_dcha, y, texto, f, color=(17, 17, 17)):
+#: El negro del papel. Explicito y no por defecto: la tinta por defecto de
+#: ImageDraw sobre RGB es BLANCA (ink = -1), asi que un `d.text()` sin `fill`
+#: dibuja texto invisible sobre papel blanco. Paso de verdad el 16-09-2026 en
+#: la primera version de este fichero: el nombre del emisor y su NIF -- los dos
+#: CAMPOS_CRITICOS -- se dibujaron en blanco y la muestra salia sin emisor. No
+#: fallo nada: el fichero se escribio, el script devolvio 0 y la imagen pesaba
+#: lo normal. Solo se vio MIRANDOLA.
+NEGRO = (17, 17, 17)
+GRIS = (68, 68, 68)
+
+
+def _texto(dib, xy, texto, f, color=NEGRO):
+    """Escribe con color EXPLICITO siempre. Ver el comentario de NEGRO."""
+    dib.text(xy, texto, font=f, fill=color)
+
+
+def _derecha(dib, x_dcha, y, texto, f, color=NEGRO):
     """Escribe alineado a la derecha, que es como van los importes."""
     ancho = dib.textbbox((0, 0), texto, font=f)[2]
     dib.text((x_dcha - ancho, y), texto, font=f, fill=color)
@@ -413,24 +441,35 @@ def _derecha(dib, x_dcha, y, texto, f, color=(17, 17, 17)):
 
 def dibujar(receta, cifras):
     """La factura limpia, como saldria de una impresora."""
+    _exigir_pillow()
     nif = nif_sintetico(receta["nif_digitos"], receta["nif_letra"])
     img = Image.new("RGB", (ANCHO, ALTO), (255, 255, 255))
     d = ImageDraw.Draw(img)
     izq, dcha = 90, ANCHO - 90
 
+    #: Donde se ha escrito de verdad, anotado SOBRE LA MARCHA por el propio
+    #: dibujo. La primera version llevaba estas coordenadas escritas a mano y
+    #: no valia: al cambiar el numero de lineas de una receta, la banda se
+    #: corria y acababa cayendo encima de la raya horizontal del bloque de
+    #: totales -- con lo que la tinta de la RAYA daba por buena una etiqueta
+    #: invisible. Un guard al que le vale la tinta del vecino es un falso
+    #: verde. Derivadas del layout no pueden desincronizarse de el.
+    zonas = []
+
     # -- aviso, para que nadie confunda una muestra con un documento ---------
     d.rectangle([izq, 70, dcha, 150], fill=(255, 233, 233),
                 outline=(204, 0, 0), width=3)
-    d.text((izq + 18, 86), "DOCUMENTO FABRICADO PARA PRUEBAS", font=fuente(22, True),
-           fill=(153, 0, 0))
-    d.text((izq + 18, 116), "No corresponde a ninguna empresa ni operacion real.",
-           font=fuente(17), fill=(153, 0, 0))
+    _texto(d, (izq + 18, 86), "DOCUMENTO FABRICADO PARA PRUEBAS",
+           fuente(22, True), (153, 0, 0))
+    _texto(d, (izq + 18, 116), "No corresponde a ninguna empresa ni operacion real.",
+           fuente(17), (153, 0, 0))
 
     # -- cabecera ------------------------------------------------------------
     y = 200
-    d.text((izq, y), receta["emisor"], font=fuente(29, True))
-    d.text((izq, y + 44), f"NIF: {nif}", font=fuente(20))
-    d.text((izq, y + 76), receta["direccion"], font=fuente(18), fill=(51, 51, 51))
+    _texto(d, (izq, y), receta["emisor"], fuente(29, True))
+    _texto(d, (izq, y + 44), f"NIF: {nif}", fuente(20))
+    _texto(d, (izq, y + 76), receta["direccion"], fuente(18), (51, 51, 51))
+    zonas.append(("emisor y NIF de cabecera", izq, izq + 500, y, y + 70))
 
     _derecha(d, dcha, y, "FACTURA", fuente(26, True))
     _derecha(d, dcha, y + 44, f"Numero: {receta['num_documento']}", fuente(20))
@@ -442,26 +481,27 @@ def dibujar(receta, cifras):
     alto_fila = 48
     d.rectangle([izq, y, dcha, y + alto_fila], fill=(238, 238, 238),
                 outline=(120, 120, 120))
-    for etiqueta, x, alinea_dcha in (
-            ("Concepto", columnas[0] + 12, False),
-            ("Base imponible", columnas[2] - 12, True),
-            ("% IVA", columnas[3] - 12, True),
-            ("Cuota IVA", columnas[4] - 12, True)):
-        if alinea_dcha:
-            _derecha(d, x, y + 13, etiqueta, fuente(19, True))
-        else:
-            d.text((x, y + 13), etiqueta, font=fuente(19, True))
+    _texto(d, (columnas[0] + 12, y + 13), "Concepto", fuente(19, True))
+    for etiqueta, x in (("Base imponible", columnas[2] - 12),
+                        ("% IVA", columnas[3] - 12),
+                        ("Cuota IVA", columnas[4] - 12)):
+        _derecha(d, x, y + 13, etiqueta, fuente(19, True))
 
     y += alto_fila
+    y_primera_fila = y
     for t in cifras["tramos"]:
         d.rectangle([izq, y, dcha, y + alto_fila], outline=(150, 150, 150))
         for x in columnas[1:-1]:
             d.line([x, y, x, y + alto_fila], fill=(150, 150, 150))
-        d.text((columnas[0] + 12, y + 13), t["descripcion"], font=fuente(19))
+        _texto(d, (columnas[0] + 12, y + 13), t["descripcion"], fuente(19))
         _derecha(d, columnas[2] - 12, y + 13, num_es(t["base"]), fuente(19))
         _derecha(d, columnas[3] - 12, y + 13, f"{t['tipo']}%", fuente(19))
         _derecha(d, columnas[4] - 12, y + 13, num_es(t["cuota"]), fuente(19))
         y += alto_fila
+    # Solo la columna de Concepto, y por dentro de sus bordes: si la zona
+    # tocara las lineas del cuadro, esas lineas la darian por escrita.
+    zonas.append(("columna Concepto del cuadro", columnas[0] + 8,
+                  columnas[1] - 8, y_primera_fila + 6, y - 6))
 
     # -- bloque de totales ---------------------------------------------------
     y += 46
@@ -471,16 +511,22 @@ def dibujar(receta, cifras):
     if cifras["retencion"] is not None:
         filas.append((f"Retencion IRPF {receta['retencion_pct']}%",
                       -cifras["retencion"]))
+    y_primera_etiqueta = y
     for etiqueta, valor in filas:
-        d.text((x_etq, y), etiqueta, font=fuente(20))
+        _texto(d, (x_etq, y), etiqueta, fuente(20))
         _derecha(d, x_val, y, num_es(valor) + " EUR", fuente(20))
         y += 38
+    # Hasta x_etq+250: los importes van alineados a la derecha en x_val y
+    # quedan fuera. Y hasta `y - 10`, para no rozar la raya de abajo.
+    zonas.append(("etiquetas del bloque de totales", x_etq, x_etq + 250,
+                  y_primera_etiqueta, y - 10))
 
     y += 10
-    d.line([x_etq, y, x_val, y], fill=(17, 17, 17), width=3)
+    d.line([x_etq, y, x_val, y], fill=NEGRO, width=3)
     y += 14
-    d.text((x_etq, y), "TOTAL FACTURA", font=fuente(23, True))
+    _texto(d, (x_etq, y), "TOTAL FACTURA", fuente(23, True))
     _derecha(d, x_val, y, eur(cifras["total"]), fuente(23, True))
+    zonas.append(("etiqueta TOTAL FACTURA", x_etq, x_etq + 250, y, y + 30))
 
     # -- pie: AQUI esta el experimento --------------------------------------
     y_pie = ALTO - 300
@@ -490,19 +536,70 @@ def dibujar(receta, cifras):
     nif_pie = (f"{receta['nif_letra']}-{receta['nif_digitos']}-{nif[-1]}"
                if receta["nif_pie_con_guiones"] else nif)
     etiqueta_nif = "N.I.F./C.I.F." if receta["nif_pie_con_guiones"] else "NIF"
-    d.text((izq, y_pie), f"{receta['emisor']}  ·  {etiqueta_nif} {nif_pie}",
-           font=fuente(17), fill=(68, 68, 68))
-    d.text((izq, y_pie + 28), receta["direccion"], font=fuente(17),
-           fill=(68, 68, 68))
+    _texto(d, (izq, y_pie),
+           f"{receta['emisor']}  ·  {etiqueta_nif} {nif_pie}", fuente(17), GRIS)
+    _texto(d, (izq, y_pie + 28), receta["direccion"], fuente(17), GRIS)
 
     if receta["pie"] == PIE_LETRAS:
         linea_total = "SON: " + importe_a_letras(cifras["pie_total"])
     else:
         linea_total = "Total a pagar: " + eur(cifras["pie_total"])
-    d.text((izq, y_pie + 70), linea_total, font=fuente(19, True), fill=(34, 34, 34))
-    d.text((izq, y_pie + 104), "Forma de pago: transferencia",
-           font=fuente(17), fill=(68, 68, 68))
+    _texto(d, (izq, y_pie + 70), linea_total, fuente(19, True), (34, 34, 34))
+    _texto(d, (izq, y_pie + 104), "Forma de pago: transferencia",
+           fuente(17), GRIS)
+    # El pie es EL bloque que estas muestras existen para medir: si sale en
+    # blanco, la muestra no mide nada y ademas lo pareceria todo correcto.
+    zonas.append(("pie: emisor y NIF del margen", izq, izq + 900,
+                  y_pie, y_pie + 50))
+    zonas.append(("pie: linea del total", izq, izq + 900,
+                  y_pie + 66, y_pie + 96))
+
+    _comprobar_hay_tinta(img, receta, zonas)
     return img, nif, nif_pie
+
+
+#: Cuantos pixeles oscuros bastan para decir "aqui hay algo escrito". Se
+#: muestrea de 2 en 2, asi que una sola palabra pequena ya pasa de sobra; el
+#: umbral esta para que una raya fina o una mota no cuenten como texto.
+MINIMO_PIXELES_OSCUROS = 40
+
+
+def _comprobar_hay_tinta(img, receta, zonas):
+    """Que cada bloque que deberia llevar texto lleve pixeles oscuros de verdad.
+
+    Existe por un defecto real, encontrado el 16-09-2026 en este mismo fichero:
+    la tinta por defecto de Pillow sobre RGB es BLANCA, y la primera version
+    dibujo el emisor y su NIF invisibles. El script termino en 0, el PNG peso lo
+    normal y la unica forma de enterarse fue abrir la imagen. Eso es exactamente
+    el falso verde que este proyecto tiene prohibido dar -- un OK que significa
+    'no lo he comprobado'.
+
+    No comprueba QUE pone: eso es trabajo del OCR, y es justo lo que se quiere
+    medir. Comprueba que hay algo escrito, que es barato y caza la clase entera.
+
+    Las zonas llegan del propio `dibujar()`, derivadas del layout mientras
+    dibuja. Escritas a mano se desincronizaban en cuanto una receta cambiaba de
+    numero de lineas."""
+    px = img.load()
+    vacias = []
+    for nombre, x0, x1, y0, y1 in zonas:
+        oscuros = 0
+        for y in range(max(0, y0), min(ALTO, y1), 2):
+            for x in range(max(0, x0), min(ANCHO, x1), 2):
+                if sum(px[x, y]) < 400:
+                    oscuros += 1
+                    if oscuros > MINIMO_PIXELES_OSCUROS:
+                        break
+            if oscuros > MINIMO_PIXELES_OSCUROS:
+                break
+        if oscuros <= MINIMO_PIXELES_OSCUROS:
+            vacias.append(f"{nombre} ({oscuros} pixeles oscuros)")
+    if vacias:
+        raise AssertionError(
+            f"{receta['nombre']}: hay bloques SIN TEXTO VISIBLE en la imagen: "
+            + "; ".join(vacias) +
+            ". Lo mas probable es un `d.text()` sin `fill`: la tinta por "
+            "defecto de Pillow sobre RGB es BLANCA. Usa `_texto()`.")
 
 
 # ---------------------------------------------------------------------------
@@ -663,6 +760,7 @@ def _comprobar_contra_el_contrato(verdad):
 
 
 def main():
+    _exigir_pillow()
     _autocomprobar_letras()
 
     raiz = os.path.dirname(os.path.abspath(__file__))

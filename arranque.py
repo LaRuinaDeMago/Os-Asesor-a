@@ -47,6 +47,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 DEPENDENCIAS = {
     "dbfread": "leer los .dbf del corpus de ContaPlus (sesion LOCAL)",
     "pdfplumber": "leer los PDF de los modelos 303 presentados (sesion LOCAL)",
+    "PIL": "dibujar las muestras sinteticas (crear_muestras_sinteticas.py)",
     "anthropic": "captura por IA — BLOQUEADA sin DPA, ver .claude/rules/datos.md",
     "google.genai": "captura por IA — BLOQUEADA sin DPA, ver .claude/rules/datos.md",
 }
