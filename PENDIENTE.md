@@ -478,10 +478,33 @@
 
       [ ] C-bis · LO QUE QUEDÓ DECLARADO Y SIN CERRAR, para no darlo por
           hecho:
-            - Los **porcentajes de retención** que reconoce
-              `guard_retencion_vs_error` NO se han contrastado. El
-              artículo que los ampara sí; los números no. Y son lo que
-              más cambia de todo el fichero.
+            - [~] Los **porcentajes de retención** que reconoce
+              `guard_retencion_vs_error` — **CONTRASTADOS 15-09-2026
+              (sesión Cloud), 5 de 6 cerrados, 1 pendiente de Diego.**
+              `RETENCIONES_TIPICAS = [1, 2, 7, 15, 19, 21]`: el art. 74
+              (ya citado) solo respalda que EXISTA la retención, no fija
+              ningún número. Leídos los artículos que sí los fijan (texto
+              vigente, `RD 439/2007`): **15%** y **7%** (art. 95.1,
+              profesionales, general y inicio de actividad), **1%** y
+              **2%** (art. 95.4-6, agrícola/ganadera — engorde porcino y
+              avicultura al 1%, el resto al 2% — y estimación objetiva de
+              ciertos epígrafes al 1%), **19%** (art. 100, arrendamiento
+              urbano; art. 90, capital mobiliario general; art. 99,
+              premios). Los cinco números tienen artículo vigente que los
+              respalda para el periodo del corpus (2016-2026). Detalle
+              completo en la nota de `autoridad_guards.py` (guard
+              `guard_retencion_vs_error`).
+
+              **El 21% queda declarado, no retirado.** No aparece en
+              ninguno de esos artículos vigentes — el único precedente
+              encontrado es que la retención general de profesionales y de
+              capital mobiliario SÍ fue del 21% entre 2012 y 2014 (medida
+              antidéficit, derogada por la reforma de 2015), **fuera del
+              rango del corpus** (2016-2026). No se ha quitado de la lista
+              sin preguntar: **¿lo has visto de verdad en alguna factura
+              real del corpus, Diego?** Si no, se retira; si sí, se anota
+              por qué sigue viva (quitarlo a ojo sería el mismo error que
+              añadirlo a ojo).
             - El **RD 1514/2007 (PGC)** para el supuesto de inmovilizado
               de `guard_tipo_operacion_especial` sigue sin leerse: no
               tiene la misma estructura de articulado fiscal y merece su

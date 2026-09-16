@@ -227,10 +227,24 @@ AUTORIDADES = (
        "a74", "20070401",
        "CONFIRMADO el articulo el 15-09-2026: el art. 74 se titula 'Obligacion "
        "de practicar retenciones e ingresos a cuenta del IRPF' -- es el que "
-       "respalda que exista la retencion. AVISO que sigue abierto: los "
-       "PORCENTAJES concretos que el guard reconoce NO se han contrastado, y son "
-       "lo que mas cambia de todo este fichero. Verificado el fundamento, no "
-       "todavia los numeros.",
+       "respalda que exista la retencion. AMPLIADO 15-09-2026 (sesion Cloud): "
+       "los PORCENTAJES de RETENCIONES_TIPICAS = [1, 2, 7, 15, 19, 21] ya se "
+       "contrastaron uno a uno contra los articulos que de verdad fijan "
+       "importes (este art. 74 no fija ninguno). Leidos en el texto vigente: "
+       "art. 95.1 (profesionales: 15%, 7% inicio de actividad), art. 95.4-6 "
+       "(agricola/ganadera: 1% engorde porcino/avicultura, 2% el resto; "
+       "forestal 2%; estimacion objetiva de ciertos epigrafes 1%), art. 100 "
+       "(arrendamiento urbano: 19%), art. 90 (capital mobiliario general: "
+       "19%) y art. 99 (premios/ganancias patrimoniales: 19%). Los cinco "
+       "numeros [1, 2, 7, 15, 19] tienen articulo vigente que los respalda "
+       "para el periodo del corpus (2016-2026). "
+       "**El 21% NO aparece en ninguno de estos articulos vigentes** -- el "
+       "unico precedente encontrado es que la retencion general de "
+       "profesionales/capital mobiliario SI fue del 21% entre 2012 y 2014 "
+       "(medida antideficit, derogada por la reforma de 2015), fuera del "
+       "rango del corpus. No se ha quitado de la lista sin saber si Diego lo "
+       "ha visto de verdad en alguna factura del corpus (ver PENDIENTE.md "
+       "2.C-bis) -- quitarlo a ojo seria el mismo error que anadirlo a ojo.",
        norma_boe=RGLTO_IRPF),
     _v("guard_signo_efectivo", "RD 1619/2012 (Reglamento de facturacion), art. 15",
        "a15", "20180101",
