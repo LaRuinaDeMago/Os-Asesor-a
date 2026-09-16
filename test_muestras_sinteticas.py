@@ -208,6 +208,23 @@ ESPERADO = {
         # 2000 + 420 - 300. NO es base + IVA, y ese es el punto de la receta.
         "total": 2120.00, "pie_total": 2120.00,
     },
+    "inversion_sujeto_pasivo": {
+        # SIN tramos, y no por descuido: en este regimen el IVA es CERO y eso
+        # es lo correcto. El motor tiene una rama entera para el caso y exige
+        # `tramos_iva` vacia; un tramo al 0% lo sacaria de esa rama.
+        "tramos": (),
+        "base_total": 3500.00, "iva_total": 0.00, "retencion": None,
+        "recargo": None, "naturaleza": "INVERSION_SUJETO_PASIVO",
+        "total": 3500.00, "pie_total": 3500.00,
+    },
+    "recargo_equivalencia": {
+        "tramos": ((21, 1000.00, 210.00),),
+        "base_total": 1000.00, "iva_total": 210.00, "retencion": None,
+        # 5,2% de 1.000,00 al 21%, segun RECARGO_POR_TIPO del contrato.
+        "recargo": 52.00, "naturaleza": "SUJETA",
+        # base + IVA + RECARGO. Sin el recargo, una factura CORRECTA salia ROJO.
+        "total": 1262.00, "pie_total": 1262.00,
+    },
 }
 
 
@@ -229,9 +246,13 @@ def pruebas_recetas():
         c, e = m.calcular(receta), ESPERADO[nombre]
 
         for campo in ("base_total", "iva_total", "retencion", "total",
-                      "pie_total"):
-            comprobar(f"{nombre}: {campo} = {e[campo]}",
-                      c[campo] == e[campo], f"salio {c[campo]}", "P0")
+                      "pie_total", "recargo", "naturaleza"):
+            # `recargo` y `naturaleza` no estaban en las tres primeras recetas:
+            # si no se declaran, se exige el valor por defecto, que tambien es
+            # una afirmacion (no "lo que salga").
+            esperado = e.get(campo, None if campo == "recargo" else "SUJETA")
+            comprobar(f"{nombre}: {campo} = {esperado}",
+                      c[campo] == esperado, f"salio {c[campo]}", "P0")
 
         salieron = tuple((t["tipo"], t["base"], t["cuota"]) for t in c["tramos"])
         comprobar(f"{nombre}: los tramos de IVA son los declarados",
@@ -390,6 +411,9 @@ VEREDICTO_ESPERADO = {
     "con_retencion": ("AMBAR", None),
     # ROJO, y por el guard concreto: no vale que salga rojo por otra cosa.
     "doble_lectura_descuadre": ("ROJO", "doble_lectura_total"),
+    # Las dos que ejercitan guards que nunca habian visto un documento.
+    "inversion_sujeto_pasivo": ("AMBAR", None),
+    "recargo_equivalencia": ("AMBAR", None),
 }
 
 
@@ -442,6 +466,66 @@ def pruebas_motor():
                   round(verdad["base_total"] + verdad["iva_total"]
                         + verdad["irpf_retencion"], 2) == verdad["total_factura"],
                   severidad="P0")
+
+    # --- Las dos recetas que ejercitan guards nunca vistos sobre un documento
+    from motor_veredicto import evaluar_fila_v4 as _ev
+
+    for receta in m.RECETAS:
+        c = m.calcular(receta)
+        nif = nif_sintetico(receta["nif_digitos"], receta["nif_letra"])
+        verdad = m.verdad_conocida(receta, c, nif, m.nif_del_pie(receta, nif))
+        fila = {k: v for k, v in verdad.items() if not k.startswith("_")}
+        _v, _mot, guards = _ev(fila, set(), {}, {}, {}, {}, 2020, None, None)
+        nombre = receta["nombre"]
+
+        # La naturaleza va SIEMPRE en la verdad, tambien cuando es SUJETA: el
+        # prompt la pide siempre, asi que es un campo mas que medir.
+        comprobar(f"{nombre}: la verdad declara naturaleza_operacion",
+                  verdad.get("naturaleza_operacion") in contrato_datos.NATURALEZAS,
+                  f"vale {verdad.get('naturaleza_operacion')!r}", "P0")
+
+        if c["naturaleza"] in contrato_datos.SIN_IVA_REPERCUTIDO:
+            comprobar(f"{nombre}: sin IVA repercutido, tramos_iva va VACIA "
+                      f"(el motor tiene una rama para esto y la exige)",
+                      verdad["tramos_iva"] == [], severidad="P0")
+            comprobar(f"{nombre}: el motor reconoce el regimen",
+                      guards["naturaleza_operacion"][0] == "OK",
+                      str(guards["naturaleza_operacion"]), "P0")
+            comprobar(f"{nombre}: y no exige desglose que no debe haber",
+                      guards["aritmetica_base_tipo"][0] == "NO_APLICA",
+                      str(guards["aritmetica_base_tipo"]), "P0")
+
+        if c["recargo"] is not None:
+            comprobar(f"{nombre}: el recargo sale de RECARGO_POR_TIPO del "
+                      f"contrato, no de un numero escrito a mano",
+                      c["recargo"] == round(sum(
+                          t["base"] * contrato_datos.RECARGO_POR_TIPO[int(t["tipo"])] / 100.0
+                          for t in c["tramos"]), 2), severidad="P0")
+            comprobar(f"{nombre}: total = base + IVA + RECARGO",
+                      round(c["base_total"] + c["iva_total"] + c["recargo"], 2)
+                      == c["total"], severidad="P0")
+            comprobar(f"{nombre}: el motor da OK al recargo",
+                      guards["recargo_equivalencia"][0] == "OK",
+                      str(guards["recargo_equivalencia"]), "P0")
+            comprobar(f"{nombre}: y el cuadre total lo contempla",
+                      guards["cuadre_total"][0] == "OK",
+                      str(guards["cuadre_total"]), "P0")
+
+    # --- Sabotajes: una receta incoherente tiene que RECHAZARSE, no dibujarse
+    isp = next(r for r in m.RECETAS
+               if r.get("naturaleza") in contrato_datos.SIN_IVA_REPERCUTIDO)
+    con_iva = dict(isp)
+    con_iva["lineas"] = (("Linea imposible", 3500.00, 21),)
+    comprobar("una factura declarada sin IVA repercutido pero que repercute "
+              "IVA se rechaza (documento imposible)",
+              _falla(lambda: m.calcular(con_iva), AssertionError), severidad="P0")
+
+    sujeta_sin_tramos = dict(m.RECETAS[0])
+    sujeta_sin_tramos["lineas"] = (("Linea sin tipo", 100.00, None),)
+    comprobar("una declarada SUJETA pero sin ningun tramo se rechaza (si la "
+              "intencion era sin IVA, hay que declarar la naturaleza)",
+              _falla(lambda: m.calcular(sujeta_sin_tramos), AssertionError),
+              severidad="P0")
 
 
 def main():

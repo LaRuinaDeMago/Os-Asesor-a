@@ -98,6 +98,8 @@ import os
 import random
 import sys
 
+import contrato_datos
+
 from crear_factura_sintetica import eur, nif_sintetico, num_es
 
 if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
@@ -340,9 +342,75 @@ RECETAS = (
         "retencion_pct": 15,
         "pie": PIE_NORMAL,
         "nif_pie_con_guiones": False,
-        "mide": ("¿`irpf_retencion` llega con 300,00 y `total_factura` con "
+        "mide": ("¿`irpf_retencion` llega con -300,00 y `total_factura` con "
                  "2.120,00 -- que NO es base + IVA? Es la unica receta donde "
-                 "sumar de memoria da un numero distinto de leer."),
+                 "sumar de memoria da un numero distinto de leer. Y el signo "
+                 "va EN NEGATIVO: lo pide asi el prompt de captura."),
+    },
+    {
+        # POR QUE EXISTE, con caso real detras y no por completar la coleccion:
+        # el descuadre del 303 de SP_C_13 (PENDIENTE.md 1.A) se explico ENTERO
+        # por inversion del sujeto pasivo -- formacion facturada por un proveedor
+        # extranjero sin IVA. Es el unico de los nueve trimestres medidos que no
+        # cuadraba, y la explicacion fue esta.
+        #
+        # `guard_naturaleza_operacion` existe desde el 20-08-2026 y cerro un
+        # techo real: seis categorias de facturas LEGALES no podian llegar nunca
+        # a VERDE porque en ellas el IVA es CERO Y ESO ES LO CORRECTO. Pero ese
+        # guard nunca ha visto un documento: hasta hoy solo ha visto filas.
+        #
+        # Lo que se cambia respecto al caso real, y se dice: el emisor es
+        # espanol con CIF sintetico en vez de extranjero. Un proveedor
+        # extranjero no tiene CIF espanol, y `nif_digito_control` daria FALLO o
+        # NO_COMPROBADO por el NIF -- tapando justo lo que se quiere medir, que
+        # es si el modelo LEE la mencion de inversion del sujeto pasivo.
+        "nombre": "inversion_sujeto_pasivo",
+        "emisor": "CONSULTORIA Y FORMACION DE MUESTRA SL",
+        "nif_digitos": "3344556", "nif_letra": "B",
+        "direccion": "Ronda Supuesta 00, 00000 Ciudad Ejemplo",
+        "num_documento": "FC-2026/117",
+        "fecha": "21/05/2026",
+        # `tipo=None`: aporta base y NO genera tramo. El motor tiene una rama
+        # entera para esto y exige `tramos_iva` vacia.
+        "lineas": (("Formacion especializada impartida", 3500.00, None),),
+        "retencion_pct": None,
+        "naturaleza": "INVERSION_SUJETO_PASIVO",
+        #: La mencion legal que el modelo TIENE que leer para acertar la
+        #: naturaleza. Sin ella el documento seria indistinguible de una factura
+        #: a la que se le olvido el IVA -- que es exactamente la distincion que
+        #: el guard existe para poder hacer.
+        "mencion_legal": ("Operacion con INVERSION DEL SUJETO PASIVO conforme al "
+                          "art. 84.Uno.2º de la Ley 37/1992 del IVA."),
+        "pie": PIE_NORMAL,
+        "nif_pie_con_guiones": False,
+        "mide": ("¿`naturaleza_operacion` vuelve como INVERSION_SUJETO_PASIVO, "
+                 "leyendo la mencion legal del pie? Si vuelve SUJETA, el motor "
+                 "no puede distinguir 'sin IVA y bien' de 'se les olvido el "
+                 "IVA'. Y ¿viene `tramos_iva` VACIA, que es lo correcto aqui?"),
+    },
+    {
+        # POR QUE EXISTE: `guard_recargo_equivalencia` se anadio el 20-08-2026
+        # por un caso real -- el recargo es OBLIGATORIO para el comercio
+        # minorista persona fisica, y con 19 autonomos en cartera no es raro.
+        # Sin contemplarlo, una factura CORRECTA salia ROJO porque base+IVA no
+        # cuadraba con el total. Tampoco ha visto nunca un documento.
+        "nombre": "recargo_equivalencia",
+        "emisor": "MAYORISTA DE MUESTRA SA",
+        "nif_digitos": "4455667", "nif_letra": "A",
+        "direccion": "Poligono Figurado 00, 00000 Villa Ejemplo",
+        "num_documento": "2026-A-0912",
+        "fecha": "08/07/2026",
+        "lineas": (("Mercaderia para reventa", 1000.00, 21),),
+        "retencion_pct": None,
+        #: El importe NO se escribe: sale de RECARGO_POR_TIPO del contrato.
+        #: Al 21% le toca el 5,2%, o sea 52,00 sobre una base de 1.000,00.
+        "con_recargo_equivalencia": True,
+        "pie": PIE_NORMAL,
+        "nif_pie_con_guiones": False,
+        "mide": ("¿Llega `recargo_equivalencia` con 52,00, y `total_factura` "
+                 "con 1.262,00 -- que es base + IVA + RECARGO? Un modelo que "
+                 "no lea el recargo devolvera un total que no cuadra con lo que "
+                 "ha leido, y el motor lo cazara por el sitio equivocado."),
     },
 )
 
@@ -354,21 +422,50 @@ def calcular(receta):
     dice 1.000,00 al 21%, la cuota SALE de multiplicar, no de que alguien haya
     tecleado 210,00 al lado. Un documento cuya aritmetica no cuadre haria que
     el motor diera ROJO por el documento y no por lo que se quiere medir, y
-    costaria media sesion averiguarlo."""
-    tramos = []
-    for descripcion, base, tipo in receta["lineas"]:
-        cuota = round(base * tipo / 100, 2)
-        tramos.append({"descripcion": descripcion, "tipo": tipo,
-                       "base": round(base, 2), "cuota": cuota})
+    costaria media sesion averiguarlo.
 
-    base_total = round(sum(t["base"] for t in tramos), 2)
+    Una linea con `tipo=None` aporta base pero NO genera tramo de IVA. Es como
+    se escribe una factura sin IVA repercutido (inversion del sujeto pasivo,
+    exenta, intracomunitaria): el motor espera `tramos_iva` VACIA en ese caso
+    -- tiene una rama entera para eso, "no hay tramos que desglosar, es lo
+    correcto" -- asi que meter un tramo al 0% la sacaria de esa rama y mediria
+    otra cosa distinta de la que se quiere medir."""
+    tramos, filas, base_total = [], [], 0.0
+    for descripcion, base, tipo in receta["lineas"]:
+        base_total = round(base_total + base, 2)
+        if tipo is None:
+            # Aporta base y NO genera tramo. Se guarda para DIBUJARLA: en el
+            # papel la linea existe, lo que no existe es la columna de IVA.
+            filas.append({"descripcion": descripcion, "base": round(base, 2),
+                          "tipo": None, "cuota": None})
+            continue
+        cuota = round(base * tipo / 100, 2)
+        tramo = {"descripcion": descripcion, "tipo": tipo,
+                 "base": round(base, 2), "cuota": cuota}
+        tramos.append(tramo)
+        filas.append(tramo)
+
     iva_total = round(sum(t["cuota"] for t in tramos), 2)
 
     retencion = None
     if receta["retencion_pct"] is not None:
         retencion = round(base_total * receta["retencion_pct"] / 100, 2)
 
-    total = round(base_total + iva_total - (retencion or 0), 2)
+    # El recargo sale de la tabla del CONTRATO, no de una copia local: el
+    # porcentaje que le toca a cada tipo es el mismo dato con el que el motor va
+    # a comprobarlo, y tenerlo dos veces es la clase de duplicado que este
+    # proyecto ya ha pagado.
+    recargo = None
+    if receta.get("con_recargo_equivalencia"):
+        recargo = round(sum(
+            t["base"] * contrato_datos.RECARGO_POR_TIPO.get(int(t["tipo"]), 0) / 100.0
+            for t in tramos), 2)
+        if recargo == 0:
+            raise AssertionError(
+                f"{receta['nombre']}: pide recargo de equivalencia pero ningun "
+                f"tramo tiene recargo asociado en RECARGO_POR_TIPO.")
+
+    total = round(base_total + iva_total + (recargo or 0) - (retencion or 0), 2)
 
     # La comprobacion que hace que esto sea una receta y no una esperanza.
     recalculado = round(sum(round(t["base"] * t["tipo"] / 100, 2)
@@ -378,6 +475,24 @@ def calcular(receta):
             f"{receta['nombre']}: el IVA total no coincide con la suma de los "
             f"tramos ({recalculado} vs {iva_total})")
 
+    # Coherencia entre la naturaleza declarada y lo que el papel enseña. Una
+    # factura que dice "inversion del sujeto pasivo" y a la vez repercute IVA
+    # es un documento imposible, y mediria el absurdo en vez del modelo.
+    naturaleza = receta.get("naturaleza", "SUJETA")
+    if naturaleza not in contrato_datos.NATURALEZAS:
+        raise AssertionError(
+            f"{receta['nombre']}: naturaleza {naturaleza!r} no esta en "
+            f"{contrato_datos.NATURALEZAS}")
+    if naturaleza in contrato_datos.SIN_IVA_REPERCUTIDO and (tramos or iva_total):
+        raise AssertionError(
+            f"{receta['nombre']}: declarada {naturaleza} pero la factura "
+            f"repercute IVA ({iva_total}) o trae {len(tramos)} tramo(s). En ese "
+            f"regimen el IVA es CERO y eso es lo correcto.")
+    if naturaleza == "SUJETA" and not tramos:
+        raise AssertionError(
+            f"{receta['nombre']}: declarada SUJETA pero sin ningun tramo de IVA. "
+            f"Si la intencion era una factura sin IVA, declara la naturaleza.")
+
     pie_total = receta.get("pie_total", total)
     if receta["pie"] == PIE_DESCUADRE and pie_total == total:
         raise AssertionError(
@@ -385,8 +500,9 @@ def calcular(receta):
             f"el mismo importe que el cuadro. Seria exactamente el defecto de "
             f"diseno que esta receta existe para corregir.")
 
-    return {"tramos": tramos, "base_total": base_total, "iva_total": iva_total,
-            "retencion": retencion, "total": total, "pie_total": pie_total}
+    return {"tramos": tramos, "filas": filas, "base_total": base_total,
+            "iva_total": iva_total, "retencion": retencion, "recargo": recargo,
+            "total": total, "pie_total": pie_total, "naturaleza": naturaleza}
 
 
 # ---------------------------------------------------------------------------
@@ -426,6 +542,12 @@ def fuente(tam, negrita=False):
 #: lo normal. Solo se vio MIRANDOLA.
 NEGRO = (17, 17, 17)
 GRIS = (68, 68, 68)
+
+
+def _pct_es(x):
+    """`5.2` -> `5,2`, `0.5` -> `0,5`, `21` -> `21`. Con coma, como en Espana."""
+    texto = f"{x:g}".replace(".", ",")
+    return texto
 
 
 def _texto(dib, xy, texto, f, color=NEGRO):
@@ -507,14 +629,21 @@ def dibujar(receta, cifras):
 
     y += alto_fila
     y_primera_fila = y
-    for t in cifras["tramos"]:
+    for t in cifras["filas"]:
         d.rectangle([izq, y, dcha, y + alto_fila], outline=(150, 150, 150))
         for x in columnas[1:-1]:
             d.line([x, y, x, y + alto_fila], fill=(150, 150, 150))
         _texto(d, (columnas[0] + 12, y + 13), t["descripcion"], fuente(19))
         _derecha(d, columnas[2] - 12, y + 13, num_es(t["base"]), fuente(19))
-        _derecha(d, columnas[3] - 12, y + 13, f"{t['tipo']}%", fuente(19))
-        _derecha(d, columnas[4] - 12, y + 13, num_es(t["cuota"]), fuente(19))
+        # Sin tipo: en el papel va un guion, no un "0%". Un 0% seria un tramo al
+        # cero por ciento, que es OTRA cosa -- y sacaria al motor de la rama de
+        # "no hay tramos que desglosar, y es lo correcto".
+        if t["tipo"] is None:
+            _derecha(d, columnas[3] - 12, y + 13, "—", fuente(19))
+            _derecha(d, columnas[4] - 12, y + 13, "—", fuente(19))
+        else:
+            _derecha(d, columnas[3] - 12, y + 13, f"{t['tipo']}%", fuente(19))
+            _derecha(d, columnas[4] - 12, y + 13, num_es(t["cuota"]), fuente(19))
         y += alto_fila
     # Solo la columna de Concepto, y por dentro de sus bordes: si la zona
     # tocara las lineas del cuadro, esas lineas la darian por escrita.
@@ -526,6 +655,17 @@ def dibujar(receta, cifras):
     x_etq, x_val = dcha - 430, dcha
     filas = [("Base imponible total", cifras["base_total"]),
              ("Total IVA", cifras["iva_total"])]
+    if cifras["recargo"] is not None:
+        # El porcentaje que se IMPRIME sale del mismo sitio que el importe: la
+        # tabla del contrato. Escribirlo a mano seria poder equivocarse.
+        pct = contrato_datos.RECARGO_POR_TIPO.get(int(cifras["tramos"][0]["tipo"]))
+        # Con COMA decimal: en una factura espanola pone "5,2%", no "5.2%". El
+        # punto se colo en la primera version por escribir el float tal cual, y
+        # solo se vio mirando la imagen. No es cosmetica: el separador decimal
+        # es justo uno de los caracteres donde un OCR se equivoca, asi que una
+        # muestra con el separador ingles no mide lo que va a llegar.
+        filas.append((f"Recargo de equivalencia {_pct_es(pct)}%",
+                      cifras["recargo"]))
     if cifras["retencion"] is not None:
         filas.append((f"Retencion IRPF {receta['retencion_pct']}%",
                       -cifras["retencion"]))
@@ -556,6 +696,14 @@ def dibujar(receta, cifras):
     _texto(d, (izq, y_pie),
            f"{receta['emisor']}  ·  {etiqueta_nif} {nif_pie}", fuente(17), GRIS)
     _texto(d, (izq, y_pie + 28), receta["direccion"], fuente(17), GRIS)
+
+    if receta.get("mencion_legal"):
+        # Va ENCIMA de la raya del pie y en negrita: es la unica forma que tiene
+        # el modelo de saber que esta factura no es una a la que se le olvido el
+        # IVA. Si esto no se lee, la muestra no mide nada.
+        _texto(d, (izq, y_pie - 70), receta["mencion_legal"], fuente(18, True),
+               (34, 34, 34))
+        zonas.append(("mencion legal", izq, izq + 900, y_pie - 70, y_pie - 40))
 
     if receta["pie"] == PIE_LETRAS:
         linea_total = "SON: " + importe_a_letras(cifras["pie_total"])
@@ -726,7 +874,13 @@ def verdad_conocida(receta, cifras, nif, nif_pie):
         "nombre_margen": receta["emisor"],
         "tramos_iva": [{"tipo": t["tipo"], "base": t["base"], "cuota": t["cuota"]}
                        for t in cifras["tramos"]],
+        # SIEMPRE, tambien cuando es SUJETA. El prompt la pide siempre, asi que
+        # es un campo mas que comparar -- y que el modelo diga SUJETA en una
+        # factura normal tambien es una medicion, no un vacio.
+        "naturaleza_operacion": cifras["naturaleza"],
     }
+    if cifras["recargo"] is not None:
+        v["recargo_equivalencia"] = cifras["recargo"]
     if cifras["retencion"] is not None:
         # EN NEGATIVO, y no por gusto: es la convencion que el propio prompt de
         # captura le pide a la IA -- "retencion de IRPF si aparece, EN NEGATIVO

@@ -179,7 +179,24 @@ def comparar_tramos(esperado, obtenido):
     un vistazo: el tramo al 5% no tiene campo plano equivalente, asi que si no
     llega por aqui desaparece entero y los totales siguen cuadrando."""
     tramos_obt = contrato_datos.parse_estructura(obtenido)
-    if not isinstance(tramos_obt, (list, tuple)) or not tramos_obt:
+    obtenido_vacio = not isinstance(tramos_obt, (list, tuple)) or not tramos_obt
+
+    # VACIA CONTRA VACIA ES UNA COINCIDENCIA, no un "no vino". En una operacion
+    # sin IVA repercutido -- inversion del sujeto pasivo, exenta,
+    # intracomunitaria -- lo correcto es que NO haya desglose, y el prompt lo
+    # pide asi ("Lista vacia si no hay desglose"). Leerlo como "no vino" dejaria
+    # la muestra de ISP condenada a codigo 2 para siempre, por acertar.
+    if not esperado:
+        if obtenido_vacio:
+            forma = ("la captura devolvio la lista vacia"
+                     if isinstance(tramos_obt, (list, tuple))
+                     else "la captura no trajo el campo")
+            return COINCIDE, (f"sin desglose de IVA en los dos, que es lo "
+                              f"correcto en este regimen ({forma})")
+        return DIFIERE, (f"la verdad no declara tramos -- no deberia haber "
+                         f"desglose -- y la captura ha leido {len(tramos_obt)}")
+
+    if obtenido_vacio:
         return NO_VINO, "la captura no trajo tramos_iva (o no son una lista)"
 
     def clave(t):
@@ -332,7 +349,50 @@ def informar(verdad, captura, mostrar_valores):
     return resultados, hay_dif, hay_sin
 
 
-def contestar_preguntas(resultados):
+def _matices(campo, estado, verdad):
+    """Lo que una coincidencia NO demuestra en ESTA muestra concreta.
+
+    Sin esto el informe caia en su propio falso verde. Dos casos reales, vistos
+    al usarlo sobre las muestras nuevas:
+
+      · Contestaba "SI" a la pregunta del tramo al 5% sobre una muestra que NO
+        TIENE ningun tramo al 5%. Quien leyera el informe se llevaria la
+        impresion de que ese caso esta probado, y no lo esta.
+      · Daba por buena la lectura del pie en las muestras donde el pie y la
+        cabecera llevan EXACTAMENTE lo mismo. Ahi una coincidencia no distingue
+        haber leido de haber copiado -- que es justo el defecto de diseno por el
+        que existen estas muestras (PENDIENTE.md, Paso 1).
+    """
+    avisos = []
+    if campo == "tramos_iva":
+        tramos = verdad.get("tramos_iva") or []
+        if not tramos:
+            avisos.append("OJO: esta muestra NO lleva desglose de IVA a "
+                          "proposito, asi que la pregunta del 5% NO se contesta "
+                          "aqui. Lo que se comprueba es que no se invente uno.")
+        elif not any(int(t.get("tipo", -1)) == 5 for t in tramos):
+            avisos.append("OJO: esta muestra no lleva ningun tramo al 5%, asi "
+                          "que del 5% no dice nada. Usa `doble_lectura_letras`.")
+    if campo == "total_factura_2" and estado == COINCIDE:
+        if verdad.get("total_factura_2") == verdad.get("total_factura"):
+            avisos.append("OJO: en esta muestra el pie lleva el MISMO importe "
+                          "que el cuadro, asi que coincidir NO distingue haber "
+                          "leido de haber copiado. Quien contesta esto de "
+                          "verdad es `doble_lectura_descuadre`.")
+    if campo == "nif_margen":
+        if estado == SOLO_PUNTUACION:
+            avisos.append("OJO: coincide salvo puntuacion. En esta muestra la "
+                          "puntuacion ERA la medicion, asi que esto NO confirma "
+                          "que haya leido el pie.")
+        elif estado == COINCIDE and verdad.get("nif_margen") == verdad.get("nif"):
+            avisos.append("OJO: en esta muestra el NIF del pie se escribe IGUAL "
+                          "que el de la cabecera, asi que coincidir no prueba "
+                          "que lo haya leido del pie. Quien lo prueba es "
+                          "`doble_lectura_letras`, con guiones.")
+    return avisos
+
+
+def contestar_preguntas(resultados, verdad):
     """Las cuatro preguntas del Paso 1, contestadas con lo medido arriba."""
     por_campo = {n: (e, d) for n, e, d in resultados}
     print()
@@ -355,12 +415,24 @@ def contestar_preguntas(resultados):
         print(f"      {pregunta}")
         if detalle:
             print(f"      {detalle}")
-        # El matiz que hace util la pregunta del margen.
-        if campo == "nif_margen" and estado == SOLO_PUNTUACION:
-            print("      OJO: coincide salvo puntuacion. En esta muestra la")
-            print("      puntuacion ERA la medicion, asi que esto NO confirma")
-            print("      que haya leido el pie. Mira los dos valores a mano.")
+        for aviso in _matices(campo, estado, verdad):
+            for linea in _envolver(aviso, 64):
+                print(f"      {linea}")
         print()
+
+
+def _envolver(texto, ancho):
+    """Parte un texto en lineas de como mucho `ancho`, sin cortar palabras."""
+    lineas, actual = [], ""
+    for palabra in texto.split():
+        if actual and len(actual) + 1 + len(palabra) > ancho:
+            lineas.append(actual)
+            actual = palabra
+        else:
+            actual = f"{actual} {palabra}".strip()
+    if actual:
+        lineas.append(actual)
+    return lineas
 
 
 def veredicto_del_motor(captura, verdad):
@@ -443,7 +515,7 @@ def main(argv=None):
 
     resultados, hay_dif, hay_sin = informar(verdad, captura, sintetico)
     if sintetico:
-        contestar_preguntas(resultados)
+        contestar_preguntas(resultados, verdad)
 
     if not args.sin_motor:
         print("-" * 72)

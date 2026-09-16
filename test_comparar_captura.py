@@ -106,6 +106,36 @@ def pruebas_codigos():
         codigo, _salida = ejecutar(captura, verdad)
         comprobar(etiqueta, codigo == esperado, f"devolvio {codigo}", "P0")
 
+    # --- Las dos recetas que ejercitan guards nunca vistos sobre un documento
+    v_isp = verdad_de("inversion_sujeto_pasivo")
+    v_rec = verdad_de("recargo_equivalencia")
+
+    casos_nuevos = (
+        # VACIA CONTRA VACIA es una coincidencia. Si esto fallara, la muestra de
+        # ISP estaria condenada a codigo 2 para siempre por ACERTAR.
+        ("ISP leida bien, con tramos_iva vacia -> 0", v_isp,
+         captura_de(v_isp, tramos_iva=[]), 0),
+        ("ISP con el campo tramos_iva ausente del todo -> 0", v_isp,
+         captura_de(v_isp, tramos_iva=cmp.NO_VINO), 0),
+        # Si el modelo se INVENTA un desglose donde no debe haberlo, es una
+        # diferencia: en este regimen el IVA es cero y no hay tramos.
+        ("ISP con un tramo inventado al 21% -> 1", v_isp,
+         captura_de(v_isp, tramos_iva=[{"tipo": 21, "base": 3500.0,
+                                        "cuota": 735.0}]), 1),
+        # Y si no lee la mencion legal y dice SUJETA, el motor deja de poder
+        # distinguir "sin IVA y bien" de "se les olvido el IVA".
+        ("ISP leida como SUJETA (no leyo la mencion legal) -> 1", v_isp,
+         captura_de(v_isp, naturaleza_operacion="SUJETA"), 1),
+        ("recargo leido bien -> 0", v_rec, captura_de(v_rec), 0),
+        ("recargo NO leido (llega 0) -> 1", v_rec,
+         captura_de(v_rec, recargo_equivalencia=0), 1),
+        ("recargo con el campo ausente -> 2, no es un aprobado", v_rec,
+         captura_de(v_rec, recargo_equivalencia=cmp.NO_VINO), 2),
+    )
+    for etiqueta, verdad, captura, esperado in casos_nuevos:
+        codigo, _salida = ejecutar(captura, verdad)
+        comprobar(etiqueta, codigo == esperado, f"devolvio {codigo}", "P0")
+
     # Un importe distinto por UN CENTIMO es una diferencia, no un redondeo.
     codigo, _ = ejecutar(captura_de(v_desc,
                                     total_factura=v_desc["total_factura"] + 0.01),
@@ -251,6 +281,49 @@ def pruebas_busqueda_verdad():
               f"devolvio {ruta}")
 
 
+# ---------------------------------------------------------------------------
+# 6. Los matices: lo que una coincidencia NO demuestra en cada muestra
+# ---------------------------------------------------------------------------
+# El informe caia en su propio falso verde: contestaba "SI" a la pregunta del
+# tramo al 5% sobre una muestra sin ningun tramo al 5%, y daba por buena la
+# lectura del pie en muestras donde el pie y la cabecera llevan lo mismo -- donde
+# coincidir no distingue haber leido de haber copiado.
+#
+# Se comprueban las dos direcciones. Un aviso que sale SIEMPRE es tan inutil
+# como uno que no sale nunca: taparia el caso en que la muestra si demuestra.
+def pruebas_matices():
+    def informe(nombre_receta, **cambios):
+        v = verdad_de(nombre_receta)
+        _c, salida = ejecutar(captura_de(v, **cambios), v)
+        return salida
+
+    # --- donde el aviso DEBE salir
+    salida = informe("inversion_sujeto_pasivo", tramos_iva=[])
+    comprobar("ISP: avisa de que la pregunta del 5% no se contesta ahi",
+              "la pregunta del 5% NO se contesta" in salida, severidad="P0")
+    comprobar("ISP: avisa de que el pie lleva el MISMO importe que el cuadro",
+              "el pie lleva el MISMO importe" in salida, severidad="P0")
+    comprobar("ISP: avisa de que el NIF del pie se escribe igual que el de "
+              "cabecera", "se escribe IGUAL que el de" in salida, severidad="P0")
+
+    salida = informe("con_retencion")
+    comprobar("con_retencion: avisa de que no lleva ningun tramo al 5%",
+              "no lleva ningun tramo al 5%" in salida, severidad="P0")
+
+    # --- y donde NO debe salir, que es lo que le da valor
+    salida = informe("doble_lectura_descuadre")
+    comprobar("descuadre: NO avisa sobre total_factura_2 (ahi el pie SI lleva "
+              "otro importe, y la coincidencia si demuestra)",
+              "el pie lleva el MISMO importe" not in salida, severidad="P0")
+
+    salida = informe("doble_lectura_letras")
+    comprobar("letras: NO avisa sobre nif_margen (ahi el pie SI lleva otra "
+              "puntuacion, y la coincidencia si demuestra)",
+              "se escribe IGUAL que el de" not in salida, severidad="P0")
+    comprobar("letras: y tampoco avisa sobre el 5% (esa muestra SI lo lleva)",
+              "no lleva ningun tramo al 5%" not in salida, severidad="P0")
+
+
 def main():
     print("=" * 72)
     print("COMPARADOR CAPTURA vs VERDAD — bateria")
@@ -260,6 +333,7 @@ def main():
     pruebas_es_sintetico()
     pruebas_criterios()
     pruebas_busqueda_verdad()
+    pruebas_matices()
 
     fallan = [r for r in resultados if not r[1]]
     p0 = [r for r in fallan if r[3] == "P0"]

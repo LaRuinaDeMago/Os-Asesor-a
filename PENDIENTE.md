@@ -95,7 +95,7 @@
 
               python crear_muestras_sinteticas.py
 
-          Escribe `muestras_sinteticas/` (no se versiona) con tres
+          Escribe `muestras_sinteticas/` (no se versiona) con cinco
           recetas, cada una en versión limpia Y degradada, y un
           `_verdad.json` por receta con los NOMBRES DE CAMPO DEL
           CONTRATO — así la comparación es mecánica, no a ojo:
@@ -119,6 +119,35 @@
               Un modelo que suma de memoria en vez de leer falla ahí y
               sólo ahí. Ejercita `irpf_retencion`, que el contrato
               declara y ninguna muestra había usado nunca.
+            · `inversion_sujeto_pasivo` — base 3.500,00 **sin IVA** y
+              con la mención legal del art. 84.Uno.2º impresa. Mide si
+              el modelo LEE esa mención: si vuelve `SUJETA`, el motor
+              deja de poder distinguir *"sin IVA y bien"* de *"se les
+              olvidó el IVA"*. Y `tramos_iva` tiene que venir **vacía**
+              —el motor tiene una rama entera para eso—, así que también
+              mide que no se invente un desglose.
+              **Caso real detrás:** el descuadre del 303 de SP_C_13 (§1.A
+              de este fichero), el único de los nueve trimestres medidos
+              que no cuadraba, se explicó entero por ISP. Lo que cambia
+              respecto al caso real, y se dice: el emisor es español con
+              CIF sintético en vez de extranjero, porque un proveedor
+              extranjero no tiene CIF español y `nif_digito_control`
+              taparía lo que se quiere medir.
+            · `recargo_equivalencia` — base 1.000,00 + IVA 210,00 +
+              **recargo 5,2% = 52,00**, total 1.262,00 (que no es base +
+              IVA). Obligatorio para el comercio minorista persona
+              física, y con 19 autónomos en cartera no es raro: el guard
+              se añadió el 20-08 porque una factura **correcta** salía
+              ROJO sin contemplarlo. El importe del recargo no está
+              escrito en la receta — sale de `RECARGO_POR_TIPO` del
+              contrato, el mismo dato con el que el motor lo comprueba.
+
+          **Lo que estas dos añaden y no tenían las otras:** son los dos
+          únicos guards del motor que **existían y nunca habían visto un
+          documento**. Verificado: con la verdad conocida,
+          `naturaleza_operacion` da OK por la rama correcta (`NO_APLICA`
+          en los tramos, que es lo que toca) y `recargo_equivalencia` da
+          OK con 52,00 y el cuadre a 1.262,00.
 
           **El orden importa:** primero la `_limpia` de cada receta. Si
           la limpia ya falla, la degradada no añade información — el
