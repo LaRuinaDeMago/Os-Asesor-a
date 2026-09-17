@@ -7,7 +7,7 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
-## 17-09-2026 (sesión Local) — Las dos primeras facturas reales de punta a punta, CI completo, y ocho defectos reales por el camino
+## 17-09-2026 (sesión Local) — Dos facturas reales, CI completo, y quince defectos reales por el camino (dos auditorías externas)
 
 Sesión retomada con `master` divergido de origin (2 commits locales sin subir,
 14 en origin sin bajar) — herencia de la sesión Cloud del 16-09, que había
@@ -158,11 +158,132 @@ y algo externo a su propia lógica le impide avisar. Encontrarlas exigió
 reproducir contra un entorno limpio de verdad, no releer el código con más
 atención.
 
+**Estado al cerrar (primeras dos terceras partes de la sesión):**
+`test_motor_veredicto.py` 100%, `audit_project.py` código 0 con 39 suites,
+verificado además desde un clon limpio con dependencias frescas. CI en
+GitHub Actions verificado en verde contra el runner real, no solo en local.
+16 commits nuevos en `master`, todos empujados.
+
+### Tercera parte: una segunda auditoría externa, mucho más técnica — 4 P0 + 3 P1 reales, todos reproducidos
+
+Diego trajo una segunda auditoría externa, esta vez con acceso real al
+código (no solo a la documentación como la primera) y con hallazgos muy
+concretos y falsificables. Cada uno se verificó por ejecución antes de
+tocar nada — ninguno se aceptó de fe.
+
+**Los 4 P0, todos confirmados y arreglados:**
+
+1. **`naturaleza_operacion` ausente → `SUJETA` por defecto, y
+   `guard_naturaleza_operacion` no comprobaba la magnitud del IVA para esa
+   rama.** Reproducido: base=1000€, IVA=0€, sin `naturaleza_operacion` ni
+   `tramos_iva` → VERDE. Un IVA=0 implícito es compatible con seis
+   regímenes distintos (0% legítimo, EXENTA, NO_SUJETA, ISP,
+   INTRACOMUNITARIA, o un IVA olvidado). Arreglado exigiendo un tramo al 0%
+   explícito antes de dar OK.
+
+   **Tensión real con la Familia Q (21-08-2026):** esa prueba demostró con
+   aritmética exacta (Fraction, 400.000 mezclas) que sin desglose, solo 0%
+   y 21% son deducibles sin ambigüedad. Seguía siendo cierto
+   *aritméticamente* — pero 0% y 21% no son simétricos *semánticamente*:
+   21% implícito solo significa "venta normal"; 0% implícito es compatible
+   con los seis regímenes de arriba. Reescrita la expectativa de esa
+   familia para el caso 0%, documentando por qué diverge.
+
+2. **Un tramo de IVA podía declarar una cuota que no cuadraba con su propia
+   base × tipo**, y pasar si la SUMA total seguía cuadrando (un segundo
+   tramo podía compensar el error del primero). `guard_aritmetica_tramos`
+   nunca comprobaba cada tramo individualmente.
+
+3. **Tipos de IVA ilegales colados por truncamiento y tolerancia laxa:**
+   `int(21.9)` = 21 dejaba pasar un tipo que no existe en la ley española
+   como si fuera el 21% legal; y el guard semántico de producto (`aceite de
+   oliva` → 4%) usaba una tolerancia de 0,5 puntos porcentuales para tipos
+   que son enteros exactos por ley (dejaba pasar un 4,49% como "coincide").
+   Este guard sigue dormido en producción (`categoria_producto` no lo
+   produce ningún capturador todavía), así que el impacto inmediato es
+   bajo, pero se cerró de todas formas.
+
+4. **Un campo crítico AUSENTE (ni la clave) de `confianza_campos` pasaba
+   como si tuviera confianza alta** — `conf.get(campo, '')` da `''`, y el
+   chequeo `if nivel and ...` es falso para una cadena vacía, así que la
+   ausencia se contaba como "sin problema" en vez de "sin declarar".
+
+**3 P1 más, todos con caso reproducido:**
+
+- `reevaluar_tras_correccion()` no aceptaba `mapeo_cuenta_gasto` ni
+  `mapeo_cartera` en absoluto (TypeError al intentarlo) — una factura
+  corregida a mano se reevaluaría con el histórico de proveedores vacío.
+  Sin caso real todavía (ningún script de producción llama hoy a esta
+  función), pero el arreglo es barato.
+- `procesar_carpeta()` solo buscaba `.jpg`/`.jpeg`/`.png` — una carpeta
+  llena de PDF pasaba con "Encontradas 0 imágenes", silencioso, aunque
+  `leer_factura()` sabe leer PDF desde hace semanas.
+- Efecto en cadena real (no teórico): la semilla "0% (alimentación básica)"
+  de `barrido_falsos_verdes.py` usaba el mismo patrón que el arreglo 1
+  ahora exige declarar, y dejó de dar VERDE — actualizada con el tramo
+  declarado. Y de propina, el aviso de esa semilla reventaba con
+  `UnicodeEncodeError` (el mismo patrón de bug de encoding que el proyecto
+  ya cerró varias veces, colado en este fichero concreto).
+
+**Después de los 4 P0, una segunda ronda de la propia segunda opinión del
+auditor propuso probar COMBINACIONES**, no solo cada P0 aislado — un guard
+podría "tapar" el aviso de otro y el conjunto seguir dando VERDE. Probadas
+las tres más obvias (naturaleza+IVA0+confianza incompleta; tramo
+incorrecto+confianza ALTA en todo; tipo ilegal+naturaleza ausente+confianza
+incompleta): ninguna abre un agujero nuevo. Formalizadas como pruebas
+permanentes.
+
+**Un punto donde la segunda opinión se equivocaba, verificado antes de
+descartarlo:** proponía un test "aritmética correcta + cuenta desconocida →
+no VERDE". Comprobado por ejecución: un proveedor sin historial da
+`NO_APLICA` y **VERDE por diseño** — está documentado en el propio guard, y
+tiene sentido (exigir historial para automatizar a un proveedor nuevo
+condenaría a revisión manual permanente a todo cliente que estrena
+proveedor). Aplicar ese test tal cual habría roto un comportamiento
+correcto, no habría encontrado un bug.
+
+Cada uno de los 7 arreglos siguió la misma disciplina: reproducir el ataque
+en `test_adversarial.py` *antes* de tocar código, arreglar, confirmar
+`test_motor_veredicto.py` 100% y `audit_project.py` en verde después.
+`test_adversarial.py` subió de 118/119 a 129/129 a lo largo de la tarde.
+
+### Cuarta parte: `leer_ascii_completo()` — medido contra un caso real completo, y cerrado sin tocar código
+
+La segunda opinión del auditor refinó la propuesta original ("cambiar 0.0
+por None"): antes de tocar el lector, medir de verdad, y sobre todo cruzar
+el ASCII contra el `.dbf` de la MISMA contabilidad cuando exista — un dato
+corrupto puede decodificar como un número plausible pero incorrecto sin
+disparar ninguna excepción, así que contar `ValueError` no basta.
+
+Construido `diag_leer_ascii_completo.py` (diseño de tres roles, no toca
+`layout_diario_contaplus.py`, nunca imprime una fila) con las cuatro fases
+pedidas. Diego tenía justo el par ideal: un cliente real exportado dos
+veces el mismo día por ContaPlus, en ASCII y en Xbase.
+
+**Primer hallazgo, antes de llegar a la pregunta original:** comparar
+"línea i contra registro i" daba solo 13,1% de alineación — las dos
+exportaciones no vienen en el mismo orden. Arreglado ordenando los dos
+lados por `ASIEN` antes de comparar (con una comprobación de alineación
+aparte, porque ordenar no arregla un ASIEN con distinto número de líneas en
+cada fichero, solo un reordenamiento simple).
+
+**Con la alineación ya al 100%, el resultado fue limpio y concluyente:**
+sobre 1.857 líneas y 72.423 instancias de campos numéricos de un cliente
+real completo, **0 vacíos, 0 valores ilegibles, 0 discrepancias contra el
+`.dbf`.** El fallback a `0.0` nunca se disparó ni una sola vez. Es
+exactamente el escenario que la propia segunda opinión anticipó como
+posible antes de medir ("0 ValueError... en ese caso, cambiar el contrato
+del histórico entero no se justifica").
+
+**Decisión: no se toca `leer_ascii_completo()`.** Medido, no es un riesgo
+material para este cliente. Si algún día aparece un caso real que sí lo
+sea, aquí está la herramienta lista para volver a medir.
+
 **Estado al cerrar (sesión completa):** `test_motor_veredicto.py` 100%,
-`audit_project.py` código 0 con 39 suites, verificado además desde un clon
-limpio con dependencias frescas. CI en GitHub Actions verificado en verde
-contra el runner real, no solo en local. **16 commits nuevos en `master`,
-todos empujados.**
+`test_adversarial.py` 129/129, `audit_project.py` código 0 con 41 suites.
+CI en GitHub Actions verificado en verde contra el runner real. **28
+commits nuevos en `master`** (contados con `git log a02606e..HEAD`, sin
+incluir el de este mismo párrafo), todos empujados.
 
 ## 16-09-2026 (sesión Cloud, segunda) — Las muestras contra las que se mide, y un falso verde propio
 
