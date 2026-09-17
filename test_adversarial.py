@@ -296,6 +296,27 @@ v, _ = evaluar({**BASE_FILA, 'base_total': '100', 'iva_total': '21',
 comprobar("J", "naturaleza inventada -> ROJO, nunca pasa por la de por defecto",
           v == "ROJO", f"veredicto={v}", "ROJO", "P0")
 
+# P0-1, auditoria externa 17-09-2026, reproducido antes de arreglar: IVA=0,
+# SIN naturaleza_operacion y SIN ningun tramo_iva que declare un tipo al 0%.
+# "Ausente" se estaba leyendo como "SUJETA, regimen general, todo normal" --
+# la ausencia disfrazada de afirmacion, justo lo que la filosofia del
+# proyecto prohibe. Con datos reales tras esto podria ser una exenta sin
+# clasificar, una ISP, una intracomunitaria, o de verdad se olvidaron de
+# repercutir el IVA -- no se adivina cual.
+v, mot = evaluar({**BASE_FILA, 'base_total': '1000', 'iva_total': '0',
+                  'total_factura': '1000'})
+comprobar("J", "IVA=0 sin naturaleza NI tramo al 0% -> no puede ser VERDE "
+          "(la ausencia no es una afirmacion)",
+          v != "VERDE", f"veredicto={v} ({mot})", "AMBAR o ROJO, nunca VERDE", "P0")
+
+# Y el control positivo: el MISMO caso, pero con el tramo al 0% SI declarado
+# -- eso es evidencia real, no ausencia, y debe seguir pudiendo dar VERDE.
+v, mot = evaluar({**BASE_FILA, 'base_total': '1000', 'iva_total': '0',
+                  'total_factura': '1000',
+                  'tramos_iva': [{'tipo': 0, 'base': 1000, 'cuota': 0}]})
+comprobar("J", "IVA=0 CON tramo al 0% declarado explicitamente SIGUE dando VERDE",
+          v == "VERDE", f"veredicto={v} ({mot})", "VERDE", "P0")
+
 v, _ = evaluar({**BASE_FILA, 'base_total': '999', 'iva_total': '21', 'total_factura': '1020',
                 'tramos_iva': [{'tipo': 21, 'base': 100, 'cuota': 21}]})
 comprobar("J", "tramos que no suman la base total -> ROJO",
@@ -643,11 +664,29 @@ def _sin_desglose(base, iva, total):
 # Habria salido VERDE afirmando una composicion fiscal falsa — y el modelo 303
 # necesita las bases POR TIPO. La prueba caza el fallo que yo mismo introduje.
 for _b, _i, _t, _tipo in (('100', '21', '121', '21%'),
-                          ('1000', '210', '1210', '21%'),
-                          ('50', '0', '50', '0%')):
+                          ('1000', '210', '1210', '21%')):
     _v, _m2 = evaluar(_sin_desglose(_b, _i, _t))
     comprobar("Q", f"factura correcta al {_tipo} sin desglose llega a VERDE",
               _v == "VERDE", f"{_v}: {_m2[:60]}", "VERDE", "P1")
+
+# REFINADO 17-09-2026 (auditoria externa, P0-1): el 0% se saca de la lista de
+# arriba. La prueba matematica de mas abajo sigue siendo correcta -- ningun
+# reparto entre dos tipos legales distintos da 0% ni 21% salvo que TODA la
+# base este a ese unico tipo -- pero esa prueba solo demuestra ARITMETICA:
+# que el tipo implicito es 0%. No dice POR QUE. Y ahi 0% y 21% no son
+# simetricos: un 21% implicito solo significa "venta nacional normal, tipo
+# general" -- ningun regimen especial produce esa cifra. Un 0% implicito es
+# compatible con SEIS cosas distintas: un producto legitimamente al 0%,
+# EXENTA, NO_SUJETA, ISP, INTRACOMUNITARIA, o que se olvidaran de repercutir
+# el IVA -- y las primeras cinco llevan cuentas y casillas del 303 distintas
+# entre si. La aritmetica no puede elegir cual de las seis es; hace falta
+# naturaleza_operacion o un tramos_iva que declare el 0% explicitamente (ver
+# test de FAMILIA J, "IVA=0 sin naturaleza NI tramo al 0%"). Sin eso, AMBAR.
+_v, _m2 = evaluar(_sin_desglose('50', '0', '50'))
+comprobar("Q", "0% sin desglose Y sin naturaleza/tramo que lo declare -> "
+          "AMBAR, no VERDE (aritmeticamente es 0% seguro, pero no dice cual "
+          "de los 6 regimenes con IVA=0 es)",
+          _v != "VERDE", f"{_v}: {_m2[:60]}", "AMBAR", "P1")
 
 # Los tipos INTERMEDIOS no abren el VERDE aunque sean legales, justamente porque
 # se pueden fabricar mezclando. No es un error de la factura: es que sin el

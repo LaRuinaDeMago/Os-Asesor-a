@@ -225,6 +225,32 @@ def guard_naturaleza_operacion(canon):
             return "OK", f"operacion {nat}: IVA cero repercutido, que es lo correcto en este regimen"
         return "FALLO", f"operacion declarada {nat} pero la factura repercute IVA ({iva}): se contradicen"
 
+    # P0-1, auditoria externa 17-09-2026, reproducido antes de arreglar
+    # (test_adversarial.py, familia J): base=1000, iva=0, SIN naturaleza_
+    # operacion NI ningun tramo declarado al 0% llegaba a VERDE. La ausencia
+    # de clasificacion (que por diseño cae en SUJETA, arriba) se estaba
+    # leyendo como la AFIRMACION "operacion normal, todo correcto" -- y con
+    # IVA en cero eso no es lo mismo que silencio. Puede ser una exenta/ISP/
+    # intracomunitaria sin clasificar, un producto legitimo al 0%, o que de
+    # verdad se olvidara repercutir el IVA: no se adivina cual.
+    #
+    # La distincion frente a un 0% LEGITIMO: que la propia captura declare un
+    # tramo al 0% (canon.tramos(), que ya distingue MISSING de un tramo real
+    # -- ver su docstring). Un 0% inferido solo de que iva_total/base_total
+    # cuadre matematicamente (lo que ya hace, con razon, aritmetica_base_tipo
+    # para su propio proposito de cuadre interno) NO es evidencia de que la
+    # operacion sea de verdad de tipo 0%, exenta, ISP o intracomunitaria.
+    if iva is not None and abs(iva) < TOL:
+        tramos = canon.tramos()
+        declara_tramo_cero = any(abs(t['tipo']) < TOL for t in tramos)
+        if not declara_tramo_cero:
+            return ("NO_COMPROBADO",
+                    "IVA total es cero pero no hay naturaleza_operacion ni "
+                    "ningun tramo declarado al 0% que lo explique -- puede "
+                    "ser exenta/no sujeta/ISP/intracomunitaria sin "
+                    "clasificar, un producto legitimo al 0%, o que se "
+                    "olvidara repercutir el IVA")
+
     return "OK", "operacion sujeta a IVA por el regimen general"
 
 

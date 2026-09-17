@@ -44,6 +44,9 @@ Uso:  python3 barrido_falsos_verdes.py [--verboso]
 import itertools
 import sys
 
+if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 import motor_veredicto as mv
 
 TOL = 0.02
@@ -78,6 +81,14 @@ SEMILLAS = {
         'nif': NIF_A, 'proveedor': 'PROVEEDOR PILOTO SL',
         'nº_documento': 'FAC-2026-0119', 'fecha_expedicion': '2026-03-15',
         'base_total': '87.30', 'iva_total': '0.00', 'total_factura': '87.30',
+        # ANADIDO 17-09-2026 (arreglo P0-1, auditoria externa): sin este tramo
+        # declarado explicitamente, guard_naturaleza_operacion ya NO da VERDE
+        # con IVA=0 -- un 0% implicito sin mas explicacion es compatible con
+        # seis regimenes distintos (0% legitimo, EXENTA, NO_SUJETA, ISP,
+        # INTRACOMUNITARIA, o un IVA olvidado), y la aritmetica sola no dice
+        # cual. Declararlo aqui es lo mismo que tendria que declarar una
+        # captura real para que esta semilla siga siendo un VERDE de verdad.
+        'tramos_iva': [{'tipo': 0, 'base': 87.30, 'cuota': 0}],
         'verificacion': 'OK',
     },
     "dos tipos (21% y 10%) con desglose": {
