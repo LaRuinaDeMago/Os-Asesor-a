@@ -279,6 +279,24 @@ def guard_aritmetica_tramos(tramos, iva_total):
         return "NO_COMPROBADO", "ningun tramo de IVA declarado: no hay desglose con que contrastar el IVA total"
     if iva_total is None:
         return "NO_COMPROBADO", "iva_total sin dato utilizable"
+
+    # P0-2, auditoria externa 17-09-2026, reproducido antes de arreglar: esta
+    # funcion solo comprobaba que la SUMA de las cuotas declaradas cuadrara
+    # con iva_total -- nunca que CADA tramo cuadrara consigo mismo (cuota =
+    # base x tipo). Un tramo al 21% sobre 100 EUR con cuota declarada de 20
+    # (deberia ser 21) pasaba si algun otro tramo compensaba el error en la
+    # suma total, o directamente si era el unico tramo y el iva_total
+    # declarado tambien era 20 -- coherente en la suma, falso en si mismo.
+    incoherentes = []
+    for t in tramos:
+        esperada = round(t['base'] * t['tipo'] / 100.0, 2)
+        if abs(t['cuota'] - esperada) >= TOL:
+            incoherentes.append(
+                f"{t['tipo']:.0f}% sobre base {t['base']}: cuota deberia ser "
+                f"{esperada}, declara {t['cuota']}")
+    if incoherentes:
+        return "FALLO", "tramo(s) con cuota que no cuadra con su propia base x tipo: " + "; ".join(incoherentes)
+
     desconocidos = [t['tipo'] for t in tramos
                     if int(t['tipo']) not in contrato_datos.TIPOS_IVA_CONOCIDOS]
     calc = round(sum(t['cuota'] for t in tramos), 2)

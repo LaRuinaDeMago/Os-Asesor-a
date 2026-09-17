@@ -322,6 +322,32 @@ v, _ = evaluar({**BASE_FILA, 'base_total': '999', 'iva_total': '21', 'total_fact
 comprobar("J", "tramos que no suman la base total -> ROJO",
           v == "ROJO", f"veredicto={v}", "ROJO", "P0")
 
+# P0-2, auditoria externa 17-09-2026, reproducido antes de arreglar:
+# guard_aritmetica_tramos solo comprobaba que la SUMA de cuotas declaradas
+# cuadrara con iva_total -- nunca que CADA tramo cuadrara consigo mismo
+# (cuota = base x tipo). Un tramo al 21% sobre 100 EUR de base declara una
+# cuota de 20 (deberia ser 21): la suma total (20) coincide con el iva_total
+# declarado (20) porque solo hay un tramo, y el motor no lo veia.
+v, _ = evaluar({**BASE_FILA, 'base_total': '100', 'iva_total': '20', 'total_factura': '120',
+                'tramos_iva': [{'tipo': 21, 'base': 100, 'cuota': 20}]})
+comprobar("J", "un tramo con cuota que no cuadra con su propia base x tipo -> ROJO",
+          v == "ROJO", f"veredicto={v}", "ROJO", "P0")
+
+# Con DOS tramos, el mismo ataque: el segundo tramo compensa el error del
+# primero en la SUMA total, pero cada uno sigue siendo individualmente falso.
+v, _ = evaluar({**BASE_FILA, 'base_total': '200', 'iva_total': '31', 'total_factura': '231',
+                'tramos_iva': [{'tipo': 21, 'base': 100, 'cuota': 20},   # deberia ser 21
+                               {'tipo': 10, 'base': 100, 'cuota': 11}]}) # deberia ser 10
+comprobar("J", "dos tramos que se compensan en la suma pero son individualmente falsos -> ROJO",
+          v == "ROJO", f"veredicto={v}", "ROJO", "P0")
+
+# Control positivo: la misma forma, pero con la cuota correcta -- sigue
+# pudiendo dar VERDE. Sin este control, el ataque de arriba no probaria nada.
+v, _ = evaluar({**BASE_FILA, 'base_total': '100', 'iva_total': '21', 'total_factura': '121',
+                'tramos_iva': [{'tipo': 21, 'base': 100, 'cuota': 21}]})
+comprobar("J", "un tramo con la cuota correcta SIGUE pudiendo dar VERDE",
+          v == "VERDE", f"veredicto={v}", "VERDE", "P0")
+
 
 print("\n=== FAMILIA K — Los tres puntos del techo que dependian del prompt ===")
 # Cerrados el 20-08-2026. Los tres son NO_APLICA mientras la captura no emita
