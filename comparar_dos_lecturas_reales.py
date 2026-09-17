@@ -37,6 +37,7 @@ import csv
 import sys
 
 import comparar_captura_vs_verdad as cmp
+import contrato_datos
 
 if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -67,7 +68,22 @@ def comparar(filas1, filas2):
         for col in sorted(set(f1) | set(f2)):
             if col in CAMPOS_EXCLUIDOS:
                 continue
-            estado, _detalle = cmp.comparar_campo(col, f1.get(col), f2.get(col))
+            v1, v2 = f1.get(col), f2.get(col)
+            # BUG REAL, encontrado el 17-09-2026 con la primera factura real:
+            # comparar_tramos() (dentro de comparar_campo) da por hecho que su
+            # PRIMER argumento ya llega desempaquetado -- en su uso original
+            # (comparar_captura_vs_verdad.py) siempre es asi, porque viene de
+            # un JSON de verdad ya cargado, nunca de un CSV. Aqui los DOS
+            # lados vienen crudos del CSV (texto), asi que iterar sobre ese
+            # texto caracter a caracter no encuentra ningun tramo real -- y
+            # DOS LECTURAS IDENTICAS daban DIFIERE siempre. Reproducido antes
+            # de arreglar: `comparar_campo('tramos_iva', x, x)` con la MISMA
+            # cadena en los dos lados ya daba DIFIERE. Se desempaqueta aqui,
+            # en el unico sitio que sabe que los dos lados son crudos.
+            if col == "tramos_iva":
+                v1 = contrato_datos.parse_estructura(v1)
+                v2 = contrato_datos.parse_estructura(v2)
+            estado, _detalle = cmp.comparar_campo(col, v1, v2)
             resultados.append((i, col, estado))
     return resultados, None
 

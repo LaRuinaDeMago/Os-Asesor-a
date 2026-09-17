@@ -30,6 +30,8 @@ import os
 if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
 
+import json
+
 import comparar_dos_lecturas_reales as m
 import comparar_captura_vs_verdad as cmp
 
@@ -70,6 +72,35 @@ def pruebas_comparar():
     resultado, error = m.comparar([fila_e], [fila_f])
     comprobar("un campo ausente en la segunda lectura -> NO_VINO",
               error is None and resultado[0][2] == cmp.NO_VINO, severidad="P1")
+
+
+def pruebas_tramos_iva_crudos_de_csv():
+    """EL BUG REAL, encontrado el 17-09-2026 con la primera factura real de
+    verdad: `comparar_tramos()` (dentro de comparar_campo) da por hecho que
+    su lado 'esperado' ya llega desempaquetado -- cierto en su uso original
+    (contra una verdad JSON ya cargada), falso aqui, donde los DOS lados son
+    texto crudo salido de un csv.DictReader. Sin desempaquetar antes, iterar
+    sobre el texto caracter a caracter no encontraba ningun tramo real, y DOS
+    LECTURAS IDENTICAS daban DIFIERE siempre -- justo lo que le paso a Diego."""
+    raw = json.dumps([{"tipo": 21, "base": 100, "cuota": 21},
+                      {"tipo": 10, "base": 50, "cuota": 5}])
+    resultado, error = m.comparar([{"tramos_iva": raw}], [{"tramos_iva": raw}])
+    comprobar("MISMA cadena cruda de tramos_iva en los dos lados -> COINCIDE",
+              error is None and resultado == [(1, "tramos_iva", cmp.COINCIDE)],
+              detalle=repr(resultado), severidad="P0")
+
+    raw_incompleto = json.dumps([{"tipo": 21, "base": 100, "cuota": 21}])
+    resultado, error = m.comparar([{"tramos_iva": raw}],
+                                  [{"tramos_iva": raw_incompleto}])
+    comprobar("tramos_iva genuinamente distintos (falta un tramo) SIGUE "
+              "detectandose como DIFIERE tras el arreglo",
+              error is None and resultado == [(1, "tramos_iva", cmp.DIFIERE)],
+              detalle=repr(resultado), severidad="P0")
+
+    resultado, error = m.comparar([{"tramos_iva": ""}], [{"tramos_iva": ""}])
+    comprobar("las dos vacias (caso ISP, sin desglose de IVA) -> COINCIDE",
+              error is None and resultado == [(1, "tramos_iva", cmp.COINCIDE)],
+              detalle=repr(resultado), severidad="P0")
 
 
 def pruebas_recuento_distinto():
@@ -121,6 +152,7 @@ def main():
     print("COMPARADOR DE DOS LECTURAS REALES — bateria")
     print("=" * 72)
     pruebas_comparar()
+    pruebas_tramos_iva_crudos_de_csv()
     pruebas_recuento_distinto()
     pruebas_no_imprime_valores()
     pruebas_leer_csv_real()
