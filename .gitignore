@@ -17,6 +17,13 @@
 # Denylist local de apellidos reales (si Diego decide crear una) — nunca sube.
 .privacy_local_denylist.txt
 
+# Log de la tarea programada de vigilancia del BOE (vigilancia_boe.bat,
+# 17-09-2026). No lleva dato de cliente -- boe_normativa.py solo compara
+# texto legal publico -- pero es salida generada por una tarea de Windows,
+# no codigo fuente, y crece sin limite: no se versiona por eso, no por
+# privacidad.
+vigilancia_boe.log
+
 # config.json (orquestador.py), 19-09-2026: alta_cliente_anio y
 # ejercicio_tanda son datos operativos DE UN CLIENTE REAL concreto (no un
 # NIF, pero tampoco genericos: van ligados a que NIF se pase con
