@@ -362,6 +362,21 @@ def _leer_factura_claude(path_imagen, permiso, modelo="claude-sonnet-5"):
     return datos
 
 
+#: Extensiones que procesar_carpeta() reconoce como documento a capturar.
+#: CORREGIDO 17-09-2026 (auditoria externa): faltaba ".pdf" -- leer_factura()
+#: (via leer_factura_gemini/leer_factura_claude) ya sabe leer un PDF desde
+#: hace semanas, pero una carpeta llena de PDF pasaba con "Encontradas 0
+#: imagenes" y nadie se enteraba de que ninguno se habia procesado.
+EXTENSIONES_DOCUMENTO = (".jpg", ".jpeg", ".png", ".pdf")
+
+
+def listar_documentos(carpeta):
+    """Nombres de fichero de esa carpeta que procesar_carpeta() reconoce,
+    ordenados. Separada de procesar_carpeta() para poder probarla sin tocar
+    la puerta cloud ni llamar a ninguna API (ver test_captura_orquestador.py)."""
+    return sorted(f for f in os.listdir(carpeta) if f.lower().endswith(EXTENSIONES_DOCUMENTO))
+
+
 def procesar_carpeta(carpeta, path_salida, proveedor="gemini",
                      procedencia=None, confirmacion=None):
     """Lee todas las imagenes de una carpeta y escribe un CSV con los campos
@@ -372,8 +387,7 @@ def procesar_carpeta(carpeta, path_salida, proveedor="gemini",
     importe, ni el mensaje de una excepcion. Antes de hoy imprimia las cuatro
     cosas, y el CSV -- que si lleva todo eso -- se queda en el disco, que es
     donde debe estar."""
-    extensiones = (".jpg", ".jpeg", ".png")
-    archivos = sorted(f for f in os.listdir(carpeta) if f.lower().endswith(extensiones))
+    archivos = listar_documentos(carpeta)
     print(f"Encontradas {len(archivos)} imagenes - leyendo con {proveedor}")
 
     lote = puerta_cloud.abrir_lote(len(archivos), procedencia, proveedor,

@@ -555,7 +555,12 @@ def check_estados_y_cobertura():
                              # con las capturas reales de la primera factura.
                              # (El fichero no se llama test_gitignore_local.py a
                              # proposito: ese nombre lo atraparia el propio patron.)
-                             ("test_marcador_datos_reales.py", "Gitignore _LOCAL: protege el marcador lleve lo que lleve detras")):
+                             ("test_marcador_datos_reales.py", "Gitignore _LOCAL: protege el marcador lleve lo que lleve detras"),
+                             # test_captura_orquestador.py (17-09-2026, auditoria
+                             # externa): procesar_carpeta() no buscaba ".pdf" aunque
+                             # leer_factura() ya sabe leerlo -- una carpeta llena de
+                             # PDF pasaba con "Encontradas 0 imagenes", silencioso.
+                             ("test_captura_orquestador.py", "Captura: listar_documentos reconoce PDF, no solo imagenes")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue
