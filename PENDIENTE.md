@@ -1018,7 +1018,9 @@
 
       [ ] A · CRONOMETRAR 2-3 LOTES MÁS. Hoy existe **un solo lote**
           medido (30 facturas: ~3 min ordenar + ~4 min fotografiar +
-          ~18,5 min contabilizar ≈ 51 s/factura). Un parte de horas de
+          ~18,5 min contabilizar ≈ 51 s/factura) — **detalle completo,
+          desglose por sub-tarea y el mapeo a los guards del motor en
+          `FLUJO_TRABAJO_REAL.md`, no solo aquí.** Un parte de horas de
           una semana se descartó explícitamente: varía demasiado entre
           semanas, meses y trimestres para ser representativo.
           Lo sostenible es mirar el reloj en lotes que ya se iban a

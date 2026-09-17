@@ -38,6 +38,20 @@ No asumas el estado del proyecto por la conversación — confírmalo con los te
 **Jerarquía de verdad: Código → Tests → Git → PROJECT_STATUS.md.** Si la
 documentación y los tests no coinciden, mandan los tests.
 
+> **CORRECCIÓN 17-09-2026, con incidente real:** la misma regla de arriba
+> aplica a cualquier dato, medición o decisión de Diego, no solo al estado
+> del motor. Antes de pedirle que repita algo porque "debería estar ya
+> guardado" — o de asumir que no está —, se busca primero en todo el
+> repositorio (`grep`, no la memoria de la conversación). Incidente: se le
+> pidió a Diego que repitiera los tiempos cronometrados de un lote de 30
+> facturas (el dato que decide si el proyecto compensa económicamente)
+> cuando ya estaban, con más detalle del que él mismo recordaba, en
+> `FLUJO_TRABAJO_REAL.md` desde el 15-09-2026 — dos días antes. Un `grep`
+> de diez segundos lo habría encontrado. **"No está en esta conversación"
+> no es lo mismo que "no está guardado en el proyecto"**, y confundir las
+> dos cosas es exactamente el tipo de trabajo repetido que este fichero
+> existe para evitar.
+
 > `FLUJO_CONTINUO_PLAN_DEFINITIVO.md` se cita en este archivo y en
 > `.claude/rules/datos.md` como origen de varias reglas. **No está en el
 > repositorio y no puede estar**: contiene apellidos reales de clientes, vive
