@@ -919,6 +919,45 @@ def _importa_sdk_ia(arbol):
     return False
 
 
+#: Dominios reales de las dos APIs de IA que usa el proyecto. Ninguna otra
+#: parte legitima del codigo tiene motivo para nombrar estas cadenas.
+_DOMINIOS_API_IA = ("api.anthropic.com", "generativelanguage.googleapis.com")
+
+
+def _referencia_host_ia_cruda(arbol):
+    """ANADIDO 18-09-2026. `_importa_sdk_ia` e `_llamadas_api_ia` reconocen el
+    SDK oficial -- pero nada les impide reconocer solo eso. Una llamada HTTP
+    cruda (`requests.post("https://api.anthropic.com/v1/messages", ...)`),
+    sin `import anthropic` y sin un metodo llamado `create`/`generate_content`,
+    es COMPLETAMENTE invisible para las dos: el fichero entero ni siquiera
+    cuenta como "revisado". Confirmado por reproduccion, no supuesto.
+
+    Esto no sustituye a las otras dos comprobaciones ni intenta entender la
+    llamada -- mira si el DOMINIO real de una de las dos APIs aparece como
+    ARGUMENTO de una llamada (a `requests.post(...)`, `urlopen(...)`,
+    cualquiera), no en cualquier cadena del fichero. Es la misma logica que
+    ya se aplico a los .zip disfrazados de .DAT: una barrera que mira el
+    nombre del metodo es de conveniencia, la que mira el dato real (el host
+    al que se habla) es la de fondo.
+
+    Se exige que sea un ARGUMENTO de llamada, y no cualquier cadena, por un
+    motivo encontrado en la propia reproduccion de este fix (18-09-2026):
+    una version mas simple, que miraba cualquier ast.Constant del fichero,
+    se disparaba consigo misma -- `_DOMINIOS_API_IA`, la propia lista de
+    dominios, y el docstring de esta funcion, viven en `audit_project.py` y
+    contienen las cadenas literales. Un auditor que se acusa a si mismo para
+    siempre por su propia definicion no es mas riguroso, es un falso verde
+    con forma de falso positivo permanente."""
+    for n in ast.walk(arbol):
+        if not isinstance(n, ast.Call):
+            continue
+        for arg in list(n.args) + [kw.value for kw in n.keywords]:
+            if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+                if any(dominio in arg.value for dominio in _DOMINIOS_API_IA):
+                    return True
+    return False
+
+
 def check_salida_unica_cloud():
     """ANADIDO 16-09-2026. Ningun dato sale hacia una IA sin pasar por la puerta.
 
@@ -940,10 +979,20 @@ def check_salida_unica_cloud():
          nivel, sino de una invariante LOCAL y comprobable en la propia funcion
          que toca la API.
 
+    AMPLIADO 18-09-2026: una llamada HTTP cruda al mismo host de la API (sin
+    `import anthropic`/`google.genai` y sin un metodo reconocido) era
+    invisible para las dos comprobaciones anteriores -- confirmado por
+    reproduccion. `_referencia_host_ia_cruda()` anade una tercera senal, mas
+    basta a proposito: mira el DOMINIO real, no la forma del codigo que lo
+    usa. Si aparece en el fichero autorizado sin que ninguna llamada
+    reconocida la explique, no se da por buena en silencio -- se marca como
+    'sin verificar', porque un envio que el auditor no puede LOCALIZAR
+    tampoco puede confirmar que pide permiso.
+
     Probado con el defecto reintroducido a proposito (una llamada a
     generate_content en otro fichero, y la linea de exigir_permiso borrada): se
     pone rojo y dice fichero y linea."""
-    fuera, sin_permiso = [], []
+    fuera, sin_permiso, sin_verificar_crudo = [], [], []
     autorizado_ok = False
     revisados = 0
     for f in [str(p) for p in Path(".").rglob("*.py") if ".git" not in p.parts]:
@@ -952,7 +1001,8 @@ def check_salida_unica_cloud():
         except SyntaxError:
             continue                       # ya lo reporta check_sintaxis()
         llamadas = list(_llamadas_api_ia(arbol))
-        if not llamadas and not _importa_sdk_ia(arbol):
+        host_crudo = _referencia_host_ia_cruda(arbol)
+        if not llamadas and not _importa_sdk_ia(arbol) and not host_crudo:
             continue
         revisados += 1
         if os.path.basename(f) != SALIDA_CLOUD_AUTORIZADA:
@@ -974,6 +1024,8 @@ def check_salida_unica_cloud():
                        for n in ast.walk(fn))
             if not pide:
                 sin_permiso.append(f"{os.path.basename(f)}:{fn.name}:{envia[0].lineno}")
+        if host_crudo and not llamadas:
+            sin_verificar_crudo.append(os.path.basename(f))
 
     problemas = []
     if fuera:
@@ -982,6 +1034,9 @@ def check_salida_unica_cloud():
         problemas.append(f"{SALIDA_CLOUD_AUTORIZADA} no importa puerta_cloud")
     if sin_permiso:
         problemas.append(f"envian sin exigir_permiso: {', '.join(sorted(sin_permiso))}")
+    if sin_verificar_crudo:
+        problemas.append(f"nombran el host de una API de IA sin una llamada "
+                          f"reconocible (revisar a mano): {', '.join(sorted(sin_verificar_crudo))}")
     check("Salida a IA: una sola puerta, y pide permiso", not problemas,
           f"un unico punto de salida ({SALIDA_CLOUD_AUTORIZADA}), pasa por "
           f"puerta_cloud y ninguna funcion envia sin exigir permiso"

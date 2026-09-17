@@ -39,7 +39,7 @@ if sys.platform == "win32" and hasattr(sys.stdout, "reconfigure"):
 
 from audit_project import (
     _llamadas_api_ia, _es_messages_anthropic, _es_batches_anthropic,
-    _importa_sdk_ia,
+    _importa_sdk_ia, _referencia_host_ia_cruda,
 )
 
 FALLOS = []
@@ -155,6 +155,42 @@ check(resultado_control == [],
 
 
 # ---------------------------------------------------------------------------
+# FAMILIA C-bis -- el hueco cerrado el 18-09-2026: una llamada HTTP cruda al
+# mismo host de la API, sin SDK y sin metodo reconocido, era invisible del
+# todo (ni siquiera contaba el fichero como revisado)
+#
+# NOTA: las cadenas de ejemplo se montan con .join()/variables, nunca como
+# literal directo dentro de ast.parse(...) -- porque un literal directo AHI
+# es, para _referencia_host_ia_cruda, exactamente la misma forma que un
+# `requests.post("https://api.anthropic.com/...")` real, y este propio
+# fichero de test se acusaria a si mismo (el mismo fallo, encontrado en
+# audit_project.py, que motivo que la funcion exija que sea un ARGUMENTO DE
+# LLAMADA y no cualquier cadena -- ver su docstring).
+# ---------------------------------------------------------------------------
+
+_HOST_ANTHROPIC = "https://" + "api.anthropic.com" + "/v1/messages"
+_HOST_GEMINI = "https://" + "generativelanguage.googleapis.com" + "/v1/x"
+_HOST_AJENO = "https://otra-cosa.com/x"
+
+codigo_http_anthropic = "requests.post(URL, json={})".replace("URL", repr(_HOST_ANTHROPIC))
+codigo_http_gemini = "requests.post(URL, json={})".replace("URL", repr(_HOST_GEMINI))
+codigo_http_ajeno = "requests.post(URL)".replace("URL", repr(_HOST_AJENO))
+
+check(_referencia_host_ia_cruda(ast.parse(codigo_http_anthropic)),
+    "HTTP crudo al host real de Anthropic: detectado por el dominio, sin SDK ni metodo reconocido")
+
+check(_referencia_host_ia_cruda(ast.parse(codigo_http_gemini)),
+    "HTTP crudo al host real de Gemini: detectado igual")
+
+check(not _referencia_host_ia_cruda(ast.parse(codigo_http_ajeno)),
+      "Una URL que NO es ninguna de las dos APIs no dispara un falso positivo")
+
+check(not list(_llamadas_api_ia(ast.parse(codigo_http_anthropic))),
+    "El HTTP crudo, tal cual, sigue sin contar como 'llamada reconocida' -- "
+    "por eso hace falta la senal de host aparte, no basta con _llamadas_api_ia")
+
+
+# ---------------------------------------------------------------------------
 # FAMILIA D -- check_salida_unica_cloud() de principio a fin, sobre una copia
 # sintetica en disco (nunca sobre el repositorio real mientras se prueba)
 # ---------------------------------------------------------------------------
@@ -162,8 +198,9 @@ check(resultado_control == [],
 def ejecutar_auditoria_en(ficheros):
     """Escribe `ficheros` (dict nombre -> contenido) en un directorio temporal
     y ejecuta la MISMA logica que check_salida_unica_cloud(), devolviendo
-    (fuera, autorizado_ok, sin_permiso) en vez de imprimir -- para poder
-    comprobar el resultado sin depender de parsear el mensaje impreso."""
+    (fuera, autorizado_ok, sin_permiso, sin_verificar_crudo) en vez de
+    imprimir -- para poder comprobar el resultado sin depender de parsear el
+    mensaje impreso."""
     import audit_project as ap
     with tempfile.TemporaryDirectory() as tmp:
         cwd_previo = os.getcwd()
@@ -172,16 +209,15 @@ def ejecutar_auditoria_en(ficheros):
             for nombre, contenido in ficheros.items():
                 with open(nombre, "w", encoding="utf-8") as fh:
                     fh.write(contenido)
-            fuera, sin_permiso = [], []
+            fuera, sin_permiso, sin_verificar_crudo = [], [], []
             autorizado_ok = False
-            revisados = 0
             from pathlib import Path
             for f in [str(p) for p in Path(".").rglob("*.py")]:
                 arbol = ast.parse(open(f, encoding="utf-8").read())
                 llamadas = list(_llamadas_api_ia(arbol))
-                if not llamadas and not _importa_sdk_ia(arbol):
+                host_crudo = _referencia_host_ia_cruda(arbol)
+                if not llamadas and not _importa_sdk_ia(arbol) and not host_crudo:
                     continue
-                revisados += 1
                 if os.path.basename(f) != ap.SALIDA_CLOUD_AUTORIZADA:
                     fuera.append(os.path.basename(f))
                     continue
@@ -198,12 +234,14 @@ def ejecutar_auditoria_en(ficheros):
                                and n.func.attr == "exigir_permiso" for n in ast.walk(fn))
                     if not pide:
                         sin_permiso.append(f"{os.path.basename(f)}:{fn.name}")
-            return fuera, autorizado_ok, sin_permiso
+                if host_crudo and not llamadas:
+                    sin_verificar_crudo.append(os.path.basename(f))
+            return fuera, autorizado_ok, sin_permiso, sin_verificar_crudo
         finally:
             os.chdir(cwd_previo)
 
 
-fuera, autorizado_ok, sin_permiso = ejecutar_auditoria_en({
+fuera, autorizado_ok, sin_permiso, _ = ejecutar_auditoria_en({
     "captura_orquestador.py": CAPTURA_CON_FUNCION_SIN_PERMISO,
     "puerta_cloud.py": "def exigir_permiso(p, ruta): pass\n",
 })
@@ -213,14 +251,14 @@ check(sin_permiso == ["captura_orquestador.py:leer_algo_nuevo_sin_permiso"],
       f"Auditoria completa: localiza fichero y funcion exactos del envio sin "
       f"permiso (obtenido: {sin_permiso})")
 
-fuera2, _, _ = ejecutar_auditoria_en({
+fuera2, _, _, _ = ejecutar_auditoria_en({
     "otro_fichero.py": 'import anthropic\ndef f(c, x): return c.messages.stream(model="x", messages=[])\n',
 })
 check(fuera2 == ["otro_fichero.py"],
       "Auditoria completa: una llamada con metodo nuevo (.stream) en OTRO "
       "fichero (no el autorizado) tambien se marca como fuera de la puerta")
 
-fuera3, _, sin_permiso3 = ejecutar_auditoria_en({
+fuera3, _, sin_permiso3, _ = ejecutar_auditoria_en({
     "captura_orquestador.py": (
         "import puerta_cloud\n"
         "def leer(x):\n"
@@ -230,6 +268,31 @@ fuera3, _, sin_permiso3 = ejecutar_auditoria_en({
 check(fuera3 == [] and sin_permiso3 == [],
       "Auditoria completa: un fichero autorizado que no llama a ninguna IA "
       "no genera ningun falso positivo")
+
+fuera4, _, _, _ = ejecutar_auditoria_en({
+    "otro_fichero.py": (
+        'import requests\n'
+        'def f(path):\n'
+        '    return requests.post("https://api.anthropic.com/v1/messages", json={"path": path})\n'
+    ),
+})
+check(fuera4 == ["otro_fichero.py"],
+      "Auditoria completa: HTTP crudo al host de Anthropic en OTRO fichero "
+      "(reproduccion exacta del hueco cerrado 18-09-2026) se marca como fuera de la puerta")
+
+_, _, _, crudo5 = ejecutar_auditoria_en({
+    "captura_orquestador.py": (
+        'import requests\n'
+        'import puerta_cloud\n'
+        'def f(path):\n'
+        '    return requests.post("https://api.anthropic.com/v1/messages", json={"path": path})\n'
+    ),
+})
+check(crudo5 == ["captura_orquestador.py"],
+      "Auditoria completa: el MISMO HTTP crudo, esta vez DENTRO del fichero "
+      "autorizado, se marca como 'sin verificar' en vez de darse por bueno "
+      "en silencio (no hay una llamada reconocida a la que atarle el "
+      "requisito de exigir_permiso)")
 
 
 if FALLOS:
