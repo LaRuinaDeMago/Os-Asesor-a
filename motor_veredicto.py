@@ -1809,7 +1809,8 @@ def calcular_veredicto_v2(guards):
 
 def reevaluar_tras_correccion(fila_corregida, vistos_duplicado, historico_proveedor, formato_cache,
                                 secuencia_cache=None, maestro_proveedores=None, alta_cliente_anio=None,
-                                nif_cliente_titular=None, ejercicio_tanda=None, plazos_cache=None):
+                                nif_cliente_titular=None, ejercicio_tanda=None, plazos_cache=None,
+                                mapeo_cuenta_gasto=None, mapeo_cartera=None):
     """Flujo de reevaluacion AMBAR->VERDE: el asesor corrige un campo (a ciegas,
     sin ver la lectura original, para no anclarse a un valor posiblemente erroneo)
     y el caso se re-evalua desde cero contra TODOS los guards (16, evaluar_fila_v4)
@@ -1837,7 +1838,18 @@ def reevaluar_tras_correccion(fila_corregida, vistos_duplicado, historico_provee
     documento...) rompia siempre este flujo. Se descarta la clave de la propia
     factura antes de reevaluar: si de verdad coincide con OTRA factura distinta
     de la tanda, se sigue detectando (guard_anti_duplicado la vuelve a anadir
-    dentro de evaluar_fila_v4)."""
+    dentro de evaluar_fila_v4).
+
+    CORREGIDO 17-09-2026 (auditoria externa, P1): esta funcion no aceptaba
+    mapeo_cuenta_gasto ni mapeo_cartera en absoluto -- una factura corregida
+    a mano se reevaluaba con el historico de proveedores VACIO, aunque el
+    orquestador real tuviera cientos de asientos de ese proveedor.
+    guard_cuenta_gasto_coherente() y guard_patron_cartera() salian NO_APLICA
+    (ciegos) en la reevaluacion en vez de comparar de verdad contra el
+    historico que la primera pasada SI tenia disponible. No tiene caso real
+    todavia -- ningun script de produccion llama a esta funcion hoy -- pero
+    el arreglo es barato y evita que el bug espere agazapado a que alguien
+    construya ese flujo."""
     fila_corregida = dict(fila_corregida)
     fila_corregida['verificacion'] = 'OK'  # la correccion humana se trata como lectura directa de nuevo
     secuencia_cache = secuencia_cache or {}
@@ -1846,7 +1858,8 @@ def reevaluar_tras_correccion(fila_corregida, vistos_duplicado, historico_provee
     veredicto, motivo, guards = evaluar_fila_v4(
         fila_corregida, vistos_duplicado, historico_proveedor, formato_cache,
         secuencia_cache, maestro_proveedores, alta_cliente_anio,
-        nif_cliente_titular, ejercicio_tanda, plazos_cache)
+        nif_cliente_titular, ejercicio_tanda, plazos_cache,
+        mapeo_cuenta_gasto=mapeo_cuenta_gasto, mapeo_cartera=mapeo_cartera)
     if veredicto == "VERDE":
         return "VERDE (corregido)", motivo, guards
     return veredicto, motivo, guards

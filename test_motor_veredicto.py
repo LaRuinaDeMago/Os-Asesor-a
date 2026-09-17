@@ -255,6 +255,28 @@ check(guards_despues["anti_duplicado"][0] == "OK",
 check(v_despues == "VERDE (corregido)",
       f"y por tanto la factura SI llega a VERDE (corregido) (dio {v_despues}: {motivo_despues})")
 
+print("\n=== P1 (auditoria externa, 17-09-2026): reevaluar_tras_correccion ===")
+print("=== debe propagar mapeo_cuenta_gasto y mapeo_cartera, no reevaluar a ciegas ===")
+# Reproducido antes de arreglar: la funcion no aceptaba estos dos parametros
+# en absoluto -- una factura corregida a mano se reevaluaba con el historico
+# de proveedores VACIO, aunque el orquestador real tuviera 10 asientos de ese
+# proveedor. cuenta_gasto_coherente() salia NO_APLICA (ciego) en vez de
+# comparar de verdad contra el historico.
+_mapeo_gasto = {'400001': {'cuenta_gasto': '621000', 'grupo_pgc': 'Arrendamientos',
+                           'n_asientos': 10, 'confianza': 'ALTA'}}
+_fila_gasto = {
+    'fecha_expedicion': '2026-05-01', 'nº_documento': 'G-500', 'proveedor': 'PROVEEDOR PILOTO SL',
+    'nif': 'B12345678', 'base_21': '100.00', 'base_total': '100.00', 'iva_total': '21.00',
+    'total_factura': '121.00', 'verificacion': 'DUDA',
+    'cuenta_proveedor': '400001', 'cuenta_debe': '600000',   # grupo distinto al habitual (621)
+}
+_v, _m, _g = reevaluar_tras_correccion(
+    _fila_gasto, set(), {}, {}, {}, {}, 2020, None, None, {},
+    mapeo_cuenta_gasto=_mapeo_gasto)
+check(_g.get("cuenta_gasto_coherente", ("NO_APLICA",))[0] == "FALLO",
+      f"con el mapeo propagado, cuenta_gasto_coherente SI compara contra el "
+      f"historico real (dio {_g.get('cuenta_gasto_coherente')})")
+
 print("\n=== tipo_operacion_especial (guard nuevo, casos SINTETICOS - sin caso real todavia) ===")
 check(guard_tipo_operacion_especial('Fra C.382', '600000', '12345678Z')[0] == "NO_APLICA",
       "compra normal real (caso piloto) -> NO_APLICA, sin falso positivo")
