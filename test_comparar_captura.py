@@ -269,16 +269,40 @@ def pruebas_criterios():
 
 
 def pruebas_busqueda_verdad():
-    """Que NO elija 'el que mas se parezca'."""
+    """Que NO elija 'el que mas se parezca'.
+
+    BUG REAL, encontrado el 17-09-2026 al reproducir un clon limpio del
+    repositorio (CI, y cualquier maquina nueva): `buscar_verdad()` solo
+    encuentra un fichero que EXISTE en disco, y `muestras_sinteticas/` esta
+    en `.gitignore` -- nadie lo genera al clonar. La primera comprobacion de
+    esta funcion dependia de que ese fichero YA estuviera ahi de una sesion
+    anterior que hubiera corrido `crear_muestras_sinteticas.py` a mano; en un
+    clon limpio no esta, y la prueba fallaba con un `None` que parecia un bug
+    del comparador cuando en realidad era un fixture ausente. Arreglado
+    creando el fichero mínimo que hace falta en un directorio temporal, sin
+    depender de que nadie haya ejecutado nada antes."""
     comprobar("con un nombre desconocido no se inventa un fichero de verdad",
               cmp.buscar_verdad({}, "no_existe_esta_muestra.json") is None,
               severidad="P0")
-    ruta = cmp.buscar_verdad({"_imagen": "doble_lectura_letras_degradada.jpg"}, "-")
-    comprobar("encuentra la verdad de la degradada (comparte verdad con la "
-              "limpia, que es el experimento)",
-              ruta == os.path.join("muestras_sinteticas",
-                                   "doble_lectura_letras_verdad.json"),
-              f"devolvio {ruta}")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        os.makedirs(os.path.join(tmp, "muestras_sinteticas"), exist_ok=True)
+        ruta_verdad = os.path.join(tmp, "muestras_sinteticas",
+                                   "doble_lectura_letras_verdad.json")
+        with open(ruta_verdad, "w", encoding="utf-8") as f:
+            f.write("{}")
+        cwd_previo = os.getcwd()
+        try:
+            os.chdir(tmp)
+            ruta = cmp.buscar_verdad(
+                {"_imagen": "doble_lectura_letras_degradada.jpg"}, "-")
+        finally:
+            os.chdir(cwd_previo)
+        comprobar("encuentra la verdad de la degradada (comparte verdad con la "
+                  "limpia, que es el experimento)",
+                  ruta == os.path.join("muestras_sinteticas",
+                                       "doble_lectura_letras_verdad.json"),
+                  f"devolvio {ruta}")
 
 
 # ---------------------------------------------------------------------------
