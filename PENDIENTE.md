@@ -971,12 +971,38 @@
           este punto.
 
           **Y ahora vigila mucho más que cuando se escribió esto
-          (15-09-2026):** pasó de 2 artículos a **18**, porque las citas
+          (15-09-2026):** pasó de 2 artículos a **25 bloques** (citas +
+          anexos de modelos AEAT, ver punto 2.C-quater), porque las citas
           verificadas de `autoridad_guards.py` no las miraba nadie (ver
           punto 2.C). Eso cambia lo que está en juego: ya no es "avisa si
           cambia el art. 91", es **la única forma de que las 15 citas que
           respaldan los guards no caduquen en silencio.** Sigue siendo
           una tarea de Windows de cinco minutos.
+
+      ✅ **EL LANZADOR YA ESTÁ — 17-09-2026, sesión LOCAL.** `vigilancia_boe.bat`
+          llama a `boe_normativa.py --comprobar` y deja constancia con fecha en
+          `vigilancia_boe.log` (no versionado, no lleva dato de cliente — solo
+          texto legal público — pero es salida generada). Probado de verdad
+          contra la API real del BOE: 25 sin cambios, 0 CAMBIADOS, 0 no
+          comprobados, código de salida 0.
+
+          De paso, un defecto real encontrado al prepararlo: el código de
+          salida de `--comprobar` ignoraba un fallo de red total — con la API
+          caída, devolvía 0 (éxito) en vez de 1, indistinguible para una tarea
+          desatendida de "comprobado, sin cambios". Arreglado (`imprimir_
+          comprobacion()`, ahora testeable sin red) y probado con 4 casos
+          nuevos en `ensayo_boe_normativa.py`.
+
+          **Falta solo darla de alta — es tuyo, Diego, crear/cambiar tareas
+          programadas es una modificación del sistema.** Una sola línea (en
+          PowerShell, tal cual la usas):
+          ```
+          schtasks /create /tn "Vigilancia BOE - La Fabrica" /tr "\"C:\Users\SERVILAB\Downloads\Proyecto asesoria completo\vigilancia_boe.bat\"" /sc weekly /d MON /st 09:00
+          ```
+          Semanal, los lunes a las 9:00 — ajusta el día/hora a lo que te
+          convenga. Revisa `vigilancia_boe.log` de vez en cuando, o combínalo
+          con `schtasks /query /tn "Vigilancia BOE - La Fabrica"` para ver
+          cuándo corrió por última vez y con qué resultado.
 
   ═════════════════════════════════════════════════════════════════════
   3 · LO QUE NO ES CÓDIGO
