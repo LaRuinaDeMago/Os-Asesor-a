@@ -15,25 +15,40 @@
      la cabecera de este fichero dice que no puede pasar. -->
 
   ┌───────────────────────────────────────────────────────────────────┐
-  │ RAMAS — comprobado el 16-09-2026 (sesión Cloud)                   │
+  │ RAMAS — el estado ya NO se escribe aquí, se MIDE                  │
   │                                                                   │
-  │ Todo el trabajo del 16-09 está FUSIONADO en `master` y empujado.  │
-  │ Medido, no recordado: `claude/cierre-verificacion-exhaustiva-     │
-  │ w1otrt` y `origin/master` están a 0 commits en los dos sentidos.  │
-  │ Esa rama ya no contiene nada que master no tenga; se puede borrar │
-  │ cuando quieras, y no corre prisa:                                 │
-  │     git push origin --delete claude/cierre-verificacion-...       │
+  │ Aquí había un párrafo que empezaba por «Medido, no recordado» y   │
+  │ daba por vaciada una rama concreta. Era cierto el día que se      │
+  │ escribió —16-09-2026— y dejó de serlo ESE MISMO DÍA, en cuanto    │
+  │ master avanzó tres commits. Un texto que se presenta como         │
+  │ medición y en realidad se recita es la forma más cara de          │
+  │ equivocarse: se lee al empezar cada sesión y se cree. Es el mismo │
+  │ fallo que ya le pasó al párrafo de CLAUDE.md que citaba el tamaño │
+  │ de PROJECT_STATUS.md («140 KB» cuando ya iba por 257 KB).         │
   │                                                                   │
-  │ Lo que SÍ sigue vigente, y es permanente (CLAUDE.md, regla del    │
-  │ 11-09, con incidente real detrás): nunca compartir una rama larga │
-  │ entre el PC y la nube. Cada sesión crea la suya, la fusiona a     │
-  │ master al terminar, y la borra. master es el único punto de       │
-  │ encuentro.                                                        │
+  │ Desde el 16-09-2026 lo dice `arranque.py`, midiéndolo en el       │
+  │ momento: qué ramas hay en el remoto, cuáles no tienen nada que    │
+  │ master no tenga (y el comando exacto para borrarlas), y cuáles    │
+  │ llevan trabajo que master no ha visto.                            │
+  │                                                                   │
+  │ Lo que SÍ es permanente, y va escrito porque es una REGLA y no un │
+  │ estado (CLAUDE.md, 11-09-2026, con incidente real detrás): nunca  │
+  │ compartir una rama larga entre el PC y la nube. Cada sesión crea  │
+  │ la suya, la fusiona a master al terminar, y la borra. master es   │
+  │ el único punto de encuentro.                                     │
+  │                                                                   │
+  │ ⚠️ EL BORRADO LO TIENES QUE DAR TÚ. Desde una sesión Cloud el     │
+  │ remoto responde **HTTP 403** al refspec de borrado, aunque acepte │
+  │ los push de commits. Es una denegación de autorización, no un     │
+  │ fallo de red: no se reintenta, se reporta (comprobado 16-09-2026  │
+  │ con las dos sintaxis, y con `recentRelayFailures` del proxy       │
+  │ vacío, o sea que no es el proxy quien corta). Es de un clic en    │
+  │ GitHub, o desde tu PC con el comando que imprime `arranque.py`.   │
   └───────────────────────────────────────────────────────────────────┘
 
   ╔═══════════════════════════════════════════════════════════════════╗
-  ║ MAÑANA, SESIÓN LOCAL — EMPIEZA POR AQUÍ                           ║
-  ║ Escrito el 16-09-2026 al cerrar la sesión Cloud.                  ║
+  ║ SESIÓN LOCAL — EMPIEZA POR AQUÍ                                   ║
+  ║ Reescrito el 16-09-2026 al cerrar la SEGUNDA sesión Cloud.        ║
   ╚═══════════════════════════════════════════════════════════════════╝
 
       En el PC de la asesoría el intérprete es `python`, no `python3`,
@@ -43,19 +58,82 @@
 
         1) git checkout master && git pull
         2) pip install -r requirements.txt
-           Instala dbfread, pdfplumber, google-genai y anthropic.
+           Instala dbfread, pdfplumber, google-genai, anthropic y
+           **Pillow** (nueva el 16-09: dibuja las muestras sintéticas).
         3) sh scripts/install_hooks.sh      (los hooks NO se clonan)
         4) python audit_project.py
 
-        QUÉ ESPERAR EN EL PASO 4, y esto es nuevo: con las cuatro
-        dependencias instaladas, el aviso ⚠️ de dependencias desaparece
-        y la auditoría puede devolver **código 0 por primera vez**.
-        46 comprobaciones en verde. Si devuelve 1, eso manda sobre todo
-        lo demás y se mira antes de seguir.
+        QUÉ ESPERAR EN EL PASO 4: con las cinco dependencias
+        instaladas, el aviso ⚠️ de dependencias desaparece y la
+        auditoría puede devolver **código 0 por primera vez**. Son
+        **48 comprobaciones y 36 suites**. Si devuelve 1, eso manda
+        sobre todo lo demás y se mira antes de seguir.
 
         5) python modo_trabajo.py
            Te dice, medido, qué puedes hacer y qué falta encender. Si
            algo de lo de abajo no sale en verde ahí, empieza por eso.
+
+      ╭─────────────────────────────────────────────────────────────╮
+      │ LO PRIMERO QUE HAY QUE HACER, Y SON TRES COMANDOS           │
+      ╰─────────────────────────────────────────────────────────────╯
+
+        Todo lo que se podía construir sin datos reales ya está. Lo
+        que falta es **una medición**, y sólo se puede hacer aquí.
+
+          set GEMINI_API_KEY=...
+          set OS_ASESORIA_CLOUD=1
+          (NO pongas OS_ASESORIA_DATOS_REALES: estas muestras son
+           SINTÉTICAS y no lo necesitan. La puerta debe seguir
+           bloqueando lo real.)
+
+          python crear_muestras_sinteticas.py
+
+        Escribe `muestras_sinteticas/` con **cinco recetas × dos
+        versiones** (limpia y degradada) y un `_verdad.json` por
+        receta. Luego, **empezando por las `_limpia`**:
+
+          python captura_orquestador.py ^
+                 --imagen muestras_sinteticas/doble_lectura_descuadre_limpia.png ^
+                 --procedencia SINTETICO > captura.json
+          python comparar_captura_vs_verdad.py captura.json
+
+        El comparador encuentra el fichero de verdad solo, compara
+        campo a campo con el parser del propio contrato, **contesta
+        las cuatro preguntas del Paso 1 él solo**, y termina pasando lo
+        que el modelo leyó por el motor.
+
+        Códigos de salida, los tres de siempre:
+          `0` todo comprobado y coincidiendo
+          `1` hay una diferencia real
+          `2` nada discrepa pero **algún campo no vino** — y eso NO es
+              un aprobado
+
+        EL ORDEN IMPORTA, y no es una preferencia: primero la `_limpia`
+        de cada receta. Si la limpia ya falla, la degradada no añade
+        información — el problema no es la foto. Sólo cuando la limpia
+        acierta, la degradada mide de verdad cuánto aguanta, porque el
+        documento es EL MISMO y la única variable que cambia es la foto.
+
+        POR CUÁL EMPEZAR, si sólo vas a hacer una: por
+        `doble_lectura_descuadre`. Es la que contesta la pregunta que
+        lleva abierta desde el Paso 1 y la única que puede demostrar
+        que la doble lectura no es un espejo.
+
+        LO QUE YA SE SABE DE ANTEMANO, medido contra el motor con la
+        verdad conocida (si al pasar la IMAGEN sale otra cosa, señala a
+        la LECTURA, no al motor):
+
+          doble_lectura_descuadre  → ROJO, y por `doble_lectura_total`
+          doble_lectura_letras     → AMBAR
+          con_retencion            → AMBAR
+          inversion_sujeto_pasivo  → AMBAR
+          recargo_equivalencia     → AMBAR
+
+        Los AMBAR **no son un defecto**: la verdad conocida describe el
+        DOCUMENTO, y `verificacion` —la confianza que el modelo declara
+        sobre su propia lectura— no es una propiedad del papel. Al pasar
+        la imagen por Gemini ese campo sí vendrá, y entonces los AMBAR
+        deberían subir a VERDE. **Si no suben, eso sí es un hallazgo.**
 
       ── PASO 1 · EL ENSAYO EN VACÍO (haz esto ANTES que nada) ──────
 
@@ -74,8 +152,164 @@
         · `total_factura_2` y `nif_margen` **NO se pudieron comprobar**:
           en esta factura fabricada el pie lleva el mismo valor que el
           cuadro, así que copiar y leer dos veces son indistinguibles.
-          Sin cerrar — pendiente de una factura sintética con valores
-          DISTINTOS en cabecera y pie si se quiere una respuesta real.
+          ✅ **YA HAY CON QUÉ CONTESTARLO (16-09-2026, sesión Cloud).**
+          `crear_muestras_sinteticas.py` fabrica los documentos que
+          faltaban, como IMAGEN y con la verdad conocida al lado:
+
+              python crear_muestras_sinteticas.py
+
+          Escribe `muestras_sinteticas/` (no se versiona) con cinco
+          recetas, cada una en versión limpia Y degradada, y un
+          `_verdad.json` por receta con los NOMBRES DE CAMPO DEL
+          CONTRATO — así la comparación es mecánica, no a ojo:
+
+            · `doble_lectura_letras` — el pie lleva el total EN LETRAS
+              ("SON: MIL CUATROCIENTOS VEINTE EUROS") y el NIF con otra
+              puntuación, con guiones, frente al de la cabecera sin
+              ellos. Mismo valor, notación distinta: **no se puede
+              copiar del cuadro**. Si `nif_margen` vuelve con guiones,
+              se ha leído el pie de verdad. Y de paso mide algo que no
+              había medido nadie: si el modelo sabe leer un importe
+              escrito con letras, que es como lo imprime media
+              facturación española.
+            · `doble_lectura_descuadre` — el pie lleva OTRO importe
+              (1.120,00 frente a 1.210,00 del cuadro: dos dígitos
+              permutados, que es el error de tecleo real y no uno
+              inventado). Discriminación total para `total_factura_2`,
+              y **el motor debería ponerse ROJO** — el guard de doble
+              lectura nunca se ha visto disparar sobre un documento.
+            · `con_retencion` — IRPF al 15%: el total NO es base + IVA.
+              Un modelo que suma de memoria en vez de leer falla ahí y
+              sólo ahí. Ejercita `irpf_retencion`, que el contrato
+              declara y ninguna muestra había usado nunca.
+            · `inversion_sujeto_pasivo` — base 3.500,00 **sin IVA** y
+              con la mención legal del art. 84.Uno.2º impresa. Mide si
+              el modelo LEE esa mención: si vuelve `SUJETA`, el motor
+              deja de poder distinguir *"sin IVA y bien"* de *"se les
+              olvidó el IVA"*. Y `tramos_iva` tiene que venir **vacía**
+              —el motor tiene una rama entera para eso—, así que también
+              mide que no se invente un desglose.
+              **Caso real detrás:** el descuadre del 303 de SP_C_13 (§1.A
+              de este fichero), el único de los nueve trimestres medidos
+              que no cuadraba, se explicó entero por ISP. Lo que cambia
+              respecto al caso real, y se dice: el emisor es español con
+              CIF sintético en vez de extranjero, porque un proveedor
+              extranjero no tiene CIF español y `nif_digito_control`
+              taparía lo que se quiere medir.
+            · `recargo_equivalencia` — base 1.000,00 + IVA 210,00 +
+              **recargo 5,2% = 52,00**, total 1.262,00 (que no es base +
+              IVA). Obligatorio para el comercio minorista persona
+              física, y con 19 autónomos en cartera no es raro: el guard
+              se añadió el 20-08 porque una factura **correcta** salía
+              ROJO sin contemplarlo. El importe del recargo no está
+              escrito en la receta — sale de `RECARGO_POR_TIPO` del
+              contrato, el mismo dato con el que el motor lo comprueba.
+
+          **Lo que estas dos añaden y no tenían las otras:** son los dos
+          únicos guards del motor que **existían y nunca habían visto un
+          documento**. Verificado: con la verdad conocida,
+          `naturaleza_operacion` da OK por la rama correcta (`NO_APLICA`
+          en los tramos, que es lo que toca) y `recargo_equivalencia` da
+          OK con 52,00 y el cuadre a 1.262,00.
+
+          **El orden importa:** primero la `_limpia` de cada receta. Si
+          la limpia ya falla, la degradada no añade información — el
+          problema no es la foto. Sólo cuando la limpia acierta, la
+          degradada mide de verdad cuánto aguanta, porque el documento
+          es EL MISMO y la única variable que cambia es la foto.
+
+          **Límite declarado, para que nadie lo lea de más:** la
+          degradación simula giro, luz desigual, desenfoque, ruido y
+          JPEG, pero **NO la perspectiva** (el papel en ángulo, con los
+          márgenes en trapecio). Que la degradada pase no significa que
+          una foto en ángulo pase: eso no se ha medido.
+
+          **LO QUE EL MOTOR DICE DE CADA UNA — medido, no supuesto.** La
+          verdad conocida se ha pasado por `evaluar_fila_v4` de verdad.
+          Sabiéndolo de antemano, un veredicto distinto al pasar la
+          IMAGEN señala a la lectura, no al motor:
+
+            doble_lectura_descuadre  → **ROJO**, y por el guard correcto:
+                `doble_lectura_total: el total difiere entre las dos
+                ubicaciones leidas: 1210.0 vs 1120.0`. Primera vez que
+                ese guard se ve disparar sobre un documento.
+            doble_lectura_letras     → AMBAR
+            con_retencion            → AMBAR
+
+          Los dos AMBAR **no son un defecto**: la verdad conocida
+          describe el DOCUMENTO, y `verificacion` —la confianza que el
+          modelo declara sobre su propia lectura— no es una propiedad
+          del papel, la pone la captura. Sin ella el motor dice
+          NO_COMPROBADO y baja a AMBAR, que es lo que tiene que hacer.
+          Al pasar la IMAGEN por Gemini ese campo sí vendrá.
+
+          ⚠️ **Y un detalle de contrato que costó encontrar:**
+          `irpf_retencion` va **EN NEGATIVO**. Lo pide así el prompt de
+          `captura_orquestador.py` y `guard_cuadre_total` la SUMA
+          (base + IVA + irpf + recargo). Con el signo cambiado el
+          descuadre es de DOS VECES la retención: la primera versión de
+          esta muestra lo escribía en positivo y el motor daba
+          `total_calc=2720.0 decl=2120.0`. Si alguna vez ves ese patrón
+          —un descuadre que es justo el doble de la retención— es el
+          signo, no el motor.
+
+          **Hueco de cobertura que apareció por el camino — ✅ CERRADO
+          el mismo día.** `test_motor_veredicto.py` no tenía ningún caso
+          con retención distinta de 0: los tres llevaban
+          `irpf_retencion: '0'`, así que la rama de retención de
+          `guard_cuadre_total` no la ejercitaba nadie. Añadidas 6
+          pruebas (la suite pasa de 80 a 86, en verde antes y después):
+          con la retención en negativo cuadra; **con el signo cambiado
+          tiene que FALLAR** —si no, la prueba no estaría ejercitando la
+          rama, sólo pasando por delante—; y la factura entera sale
+          VERDE por el motor completo.
+
+          El detalle que ahorra tiempo si vuelve a pasar: el descuadre
+          del signo cambiado vale **2.720 = 2.120 + 2×300**. Un
+          descuadre que es exactamente el doble de la retención es la
+          firma del signo, no un error de lectura.
+
+          ─────────────────────────────────────────────────────────────
+          ✅ **Y LA COMPARACIÓN YA NO SE HACE A OJO (16-09-2026).**
+
+              python captura_orquestador.py --imagen <muestra> \
+                     --procedencia SINTETICO > captura.json
+              python comparar_captura_vs_verdad.py captura.json
+
+          Encuentra el `_verdad.json` solo, compara campo a campo con el
+          parser del propio contrato (`1.420,00` y `1420.0` son el mismo
+          dato), **contesta las cuatro preguntas del Paso 1 él solo**, y
+          termina pasando lo que el modelo leyó por el motor.
+
+          Códigos de salida, los tres de siempre: `0` todo comprobado y
+          coincidiendo · `1` hay una diferencia real · `2` nada discrepa
+          pero algún campo no vino — que **no es un aprobado**. Un "todo
+          bien" que significa "no vino casi nada" era el peor resultado
+          posible de comparar a ojo.
+
+          Dos decisiones suyas que conviene conocer antes de usarlo:
+
+            · **`nif_margen` NO se normaliza.** En la muestra de letras
+              la puntuación ES la medición: quitar los guiones dejaría
+              en verde justo el caso que se quiere cazar.
+            · **Lo que no esté declarado SINTETICO se trata como REAL** y
+              entonces no imprime ni un valor, ni el nombre de la
+              muestra, ni la ruta del fichero — sólo coincide / no
+              coincide / no vino. La medición se conserva entera; lo que
+              desaparece es el dato. No hay forma de desactivarlo.
+
+          ⚠️ **UN HALLAZGO QUE IMPORTA MÁS QUE LA HERRAMIENTA.** Al
+          simular una lectura en ESPEJO —el modelo copia el total del
+          cuadro en `total_factura_2` en vez de leer el pie— el motor
+          da **VERDE**. Y es correcto que lo dé: ve dos totales iguales.
+
+          Es decir: **el guard de doble lectura sólo vale si las dos
+          lecturas son independientes de verdad.** Si el modelo copia,
+          el guard no protege nada y además lo firma en verde. Eso no se
+          arregla en el motor —él no puede saber de dónde salió el
+          segundo número—: se arregla comprobándolo, y es exactamente lo
+          que mide `doble_lectura_descuadre`. Por eso esa muestra es la
+          más importante de las tres.
 
       **Y dos defectos reales encontrados en la primera ejecución contra
       la API de verdad — exactamente para eso servía este paso:**

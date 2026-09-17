@@ -7,6 +7,269 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 16-09-2026 (sesión Cloud, segunda) — Las muestras contra las que se mide, y un falso verde propio
+
+Sesión de retomada. Lo primero fue medir el estado, y dos cosas salieron
+distintas de lo que parecía.
+
+### 1. El trabajo de la sesión anterior se había perdido entero
+
+Una sesión Cloud anterior del mismo día generó `crear_muestras_sinteticas.py`
+(451 líneas), tres imágenes y un retoque de `nif_sintetico()`, y **no llegó a
+commitear nada**. El contenedor se recicló y se lo llevó todo: ni fichero en
+disco, ni stash, ni objeto colgante, ni rama en el remoto. Comprobado por las
+cuatro vías antes de darlo por perdido.
+
+**La lección, que no es sobre este fichero:** en una sesión Cloud lo que no
+está commiteado y empujado no existe. Esta sesión commitea antes de enseñar
+nada, y ese orden es el arreglo.
+
+### 2. Las ramas: lo que se leía al arrancar era un falso verde
+
+`PENDIENTE.md` abría con un bloque que empezaba por «**Medido, no recordado**»
+y daba `claude/cierre-verificacion-exhaustiva-w1otrt` por vaciada, a 0 commits
+en los dos sentidos de `origin/master`. Era cierto cuando se escribió —el mismo
+16-09— y **dejó de serlo ese mismo día**, en cuanto master avanzó tres commits.
+
+Un texto que se presenta como medición y en realidad se recita es la forma más
+cara de equivocarse: se lee al empezar cada sesión y se cree. Es exactamente el
+fallo que ya le había pasado al párrafo de `CLAUDE.md` que citaba el tamaño de
+este fichero («140 KB» cuando ya iba por 257 KB).
+
+**Cerrado midiéndolo:** `arranque.py` recorre ahora las ramas del remoto y dice,
+en el momento, cuáles no tienen nada que master no tenga —con el comando exacto
+para borrarlas— y cuáles llevan trabajo que master no ha visto. El bloque de
+`PENDIENTE.md` se queda sólo con la REGLA, que sí es permanente, y el ESTADO
+sale de la medición.
+
+De paso, dos artefactos del entorno Cloud que despistaban y quedan anotados por
+si vuelven a aparecer: el clon llega **superficial** (`.git/shallow`), así que
+`git merge-base` no encuentra ancestro común y `git branch -vv` publica un
+«ahead 72, behind 50» que no existe; y el ref `origin/<rama-de-la-sesión>` puede
+apuntar a una rama **que aún no está en GitHub**. Las dos se resuelven con
+`git fetch --unshallow --prune`, y hasta hacerlo lo que dice git local no es
+la verdad del servidor.
+
+**Y una tercera, operativa, que conviene saber antes de planificar:** desde una
+sesión Cloud **no se puede borrar una rama del remoto**. El remoto acepta los
+`push` de commits —esta sesión empujó siete veces— y responde **HTTP 403** al
+refspec de borrado, con las dos sintaxis (`--delete` y `:refs/heads/...`).
+
+El síntoma engaña y conviene saberlo: git lo presenta como `send-pack:
+unexpected disconnect` seguido de un `Everything up-to-date`, que parece decir
+que no había nada que hacer. El 403 sólo aparece con la traza de curl. Y
+`recentRelayFailures` del proxy sale **vacío**, así que no es el proxy quien
+aborta: es una denegación de autorización del servicio de git. Su propio README
+dice que un 403 no se reintenta, se reporta.
+**El borrado de ramas es un paso manual**, de un clic en GitHub o de un comando
+desde el PC. Que la regla del 11-09 pida borrar la rama al terminar significa,
+en la práctica, que ese último paso lo cierra Diego.
+
+### 3. Lo construido: `crear_muestras_sinteticas.py`
+
+El Paso 1 del 16-09 dejó dos preguntas sin contestar y lo declaró: `total_
+factura_2` y `nif_margen` no se pudieron comprobar porque **en la factura
+fabricada el pie llevaba el mismo valor que el cuadro**. Con eso, una lectura
+honrada y un copia-pega producen la misma salida: la doble lectura seguiría sin
+estar probada aunque saliera «bien».
+
+Eso no era un fallo del motor ni del modelo: era un fallo de diseño del
+DOCUMENTO. Tres recetas que sí se pueden distinguir, cada una como imagen limpia
+y degradada compartiendo verdad conocida —para que la diferencia entre las dos
+sea atribuible a la degradación y a nada más—:
+
+| Receta | Qué pregunta cierra |
+|---|---|
+| `doble_lectura_letras` | pie con el total EN LETRAS y el NIF con otra puntuación. Mismo valor, notación distinta: no se puede copiar del cuadro |
+| `doble_lectura_descuadre` | pie con OTRO importe (dos dígitos permutados). Discriminación total, y dispara el guard de doble lectura |
+| `con_retencion` | IRPF 15%: el total NO es base + IVA. Sumar de memoria y leer dan distinto |
+
+La verdad conocida se escribe con los **nombres de campo del contrato** y se
+pasa por `contrato_datos.canonizar()` antes de guardarla, así que un renombrado
+de campo salta ahí y no como un falso «el modelo no ha traído X».
+
+### 4. Y un defecto real en lo recién escrito, que sólo se vio MIRANDO
+
+La primera versión dibujaba el nombre del emisor y su NIF —los dos
+CAMPOS_CRITICOS—, la columna de Concepto y las etiquetas de totales **en
+blanco sobre papel blanco**: la tinta por defecto de `ImageDraw` sobre RGB es
+blanca (`ink = -1`), y un `d.text()` sin `fill` es invisible.
+
+**Cómo se presentaba es lo grave:** el script devolvía 0, el PNG pesaba lo
+normal y la verdad conocida decía lo correcto. Un documento sin emisor
+declarándose correcto habría hecho perseguir al modelo («no lee el NIF») por un
+fallo del dibujo.
+
+Cerrado con `_texto()` (color explícito obligatorio) y con
+`_comprobar_hay_tinta()`, que verifica que cada bloque que debería llevar texto
+lleva píxeles oscuros de verdad. **Las zonas las calcula el propio dibujo
+mientras dibuja**: escritas a mano no valían —al cambiar una receta de número de
+líneas la banda se corría y acababa sobre la raya del bloque de totales, con lo
+que la tinta de la RAYA daba por buena una etiqueta invisible. Un guard al que
+le vale la tinta del vecino es un falso verde.
+
+`test_muestras_sinteticas.py` reintroduce el defecto exacto y exige que el guard
+se ponga rojo en **todas** las recetas, y que al deshacerlo vuelvan a pasar.
+Cableada en `audit_project.py`. (El recuento de pruebas va en "Estado al
+cerrar", al final de esta entrada, y no aquí: escrito en mitad del relato
+quedaría congelado en la cifra de ese momento y contradiría al cierre de la
+misma entrada — que es lo que pasó, y es el mismo defecto que esta sesión
+corrigió en el bloque de RAMAS.)
+
+Dos arreglos menores por el camino: el módulo hacía `sys.exit(1)` en la cabecera
+si faltaba Pillow —lo que mata el proceso de quien lo importe, justo el defecto
+que el propio auditor vigila—, y `check_dependencias()` habría declarado que
+falta Pillow **aunque estuviera instalada**, porque se instala como `Pillow` y
+se importa como `PIL`. Un aviso falso enseña a ignorar los avisos.
+
+### 5. El repaso del repaso: cinco defectos en lo que ya se había dado por bueno
+
+Revisión minuciosa de lo escrito el mismo día. Salieron cinco cosas y **tres
+eran de esta misma sesión**. Todas de la misma familia: código que parecía
+comprobar algo y no comprobaba nada.
+
+| Qué | Por qué importaba |
+|---|---|
+| `num_es(-300,00)` devolvía **`-.300,00`** | El signo contaba como dígito en la agrupación de miles. Dormido desde antes (commit 6d1140c); la receta de retención fue la primera en formatear un negativo. Era un importe **malformado en el papel** contra el que se mide el OCR |
+| `arranque.py` descartaba el código de salida de `git` | Un `git log` que falla devuelve vacío → "0 commits" → "es un resto" → **proponía borrar una rama que no había podido medir**. La peor versión del falso verde: el paso que sugiere es irreversible |
+| Varias pruebas **no podían fallar** | Comprobaban que `calcular()` coincidiera consigo misma. Sustituidas por una tabla `ESPERADO` con los números escritos a mano. Comprobado saboteando una base: antes pasaba, ahora caen 5 pruebas P0 |
+| El formato del NIF del pie, duplicado | Si cambiaba en el dibujo, la batería seguiría validando el formato viejo. Extraído a `nif_del_pie()` |
+| **`irpf_retencion` con el signo cambiado** | Ver abajo |
+
+De paso, `num_es` pasa a redondear con **HALF_UP explícito** en vez del `round()`
+de Python, que redondea la mitad al par (`round(0.5)` da 0). No cambia ningún
+importe de las recetas, pero un formateador de dinero que redondea de una forma
+en la que nadie piensa es una trampa esperando al caso que sí la pise.
+
+### 6. La afirmación que estaba escrita sin medir
+
+En la documentación se escribió que *"el motor debería ponerse ROJO"* con la
+receta del descuadre, y no se había comprobado. Al medirlo:
+
+**Era cierta**, y ahora está verificada: `doble_lectura_total: el total difiere
+entre las dos ubicaciones leidas: 1210.0 vs 1120.0`. Primera vez en el proyecto
+que ese guard se ve disparar sobre un documento.
+
+**Pero `con_retencion` daba ROJO y no debía:** `total_calc=2720.0 decl=2120.0`.
+No era el motor. El prompt de captura pide la retención *"EN NEGATIVO si
+existe"* y `guard_cuadre_total` la SUMA; la verdad conocida la escribía en
+positivo, así que el descuadre era el doble de la retención. El daño habría sido
+del revés y peor: Gemini habría devuelto −300,00 **correctamente**, la verdad
+habría dicho 300,00, y se habría perseguido al modelo por un signo nuestro.
+
+Eso destapó un **hueco de cobertura del propio motor**: los tres casos de
+`test_motor_veredicto.py` llevaban `irpf_retencion: '0'`, así que la rama de
+retención de `guard_cuadre_total` no la ejercitaba nadie. Cerrado el mismo día:
+6 pruebas nuevas (80 → 86), incluida la que exige que **con el signo cambiado
+FALLE** —sin ella la prueba no ejercitaría la rama, sólo pasaría por delante—.
+Firma reconocible para la próxima vez: **un descuadre que es exactamente el
+doble de la retención es el signo, no un error de lectura.**
+
+### 7. `comparar_captura_vs_verdad.py` — la comparación deja de hacerse a ojo
+
+`PENDIENTE.md` decía, en el Paso 1: *"COMPARA campo a campo contra la verdad que
+imprimió"*. Quince campos, a ojo, con prisa. Era el paso del que depende todo el
+proyecto y el único sin herramienta. Comparar a ojo falla de tres formas
+silenciosas: dar por bueno `1.420,00` frente a `1420.50` de un vistazo; pasar
+por alto un campo que **no vino** (un campo ausente no llama la atención);
+y "corregir" mentalmente lo que el modelo devolvió, porque uno ya sabe qué
+debería poner.
+
+Ahora es un comando con código de salida (0 / 1 / 2, los tres de siempre), que
+lee cada campo con **el parser del propio contrato** —el mismo que usa el
+motor, así que no hay un segundo parser que pueda divergir—, contesta solo las
+cuatro preguntas del Paso 1, y termina pasando lo que el modelo leyó por el
+motor.
+
+Dos decisiones de diseño que son el fondo del asunto:
+
+- **`nif_margen` NO se normaliza.** En la muestra de letras la puntuación ES la
+  medición: normalizar los guiones destruiría el experimento y además lo dejaría
+  en verde.
+- **Lo que no esté declarado SINTETICO se trata como REAL** y entonces no
+  imprime ni un valor, ni el nombre de la muestra, ni la ruta del fichero. Misma
+  regla que `puerta_cloud.py`. Esa barrera tenía **dos fugas** que sólo
+  aparecieron al escribir la batería: seguía imprimiendo el nombre y la ruta, y
+  las dos las elige una persona y pueden llevar el nombre de un cliente.
+
+`test_comparar_captura.py`: 47 pruebas, que sabotean la barrera de dos formas
+—una `es_sintetico` optimista y un `nif_margen` normalizado— y exigen que se
+ponga roja las dos veces.
+
+**Y un hallazgo que importa más que la herramienta:** al simular una lectura en
+**espejo** (el modelo copia el total del cuadro en `total_factura_2` en vez de
+leer el pie) el motor da **VERDE**, y es correcto que lo dé: ve dos totales
+iguales. Es decir, **el guard de doble lectura sólo vale si las dos lecturas son
+independientes de verdad**. Si el modelo copia, el guard no protege nada y
+además lo firma en verde. No se arregla en el motor —no puede saber de dónde
+salió el segundo número—: se arregla comprobándolo, que es exactamente lo que
+mide `doble_lectura_descuadre`.
+
+### 8. Los dos guards que existían y nunca habían visto un documento
+
+`guard_naturaleza_operacion` y `guard_recargo_equivalencia` están en el motor
+desde el 20-08-2026, los dos cerraron un techo real, y hasta hoy **sólo habían
+visto filas**. Dos recetas más, cada una con caso real detrás:
+
+- **`inversion_sujeto_pasivo`** — base 3.500,00 sin IVA, con la mención del
+  art. 84.Uno.2º impresa. Mide si el modelo LEE esa mención: si vuelve `SUJETA`,
+  el motor deja de poder distinguir *"sin IVA y bien"* de *"se les olvidó el
+  IVA"*. Caso real: el descuadre del 303 de SP_C_13, el único de nueve
+  trimestres que no cuadraba, se explicó entero por ISP. Lo que se cambia y se
+  declara: emisor español con CIF sintético, porque uno extranjero no tiene CIF
+  español y `nif_digito_control` taparía lo que se mide.
+- **`recargo_equivalencia`** — base 1.000,00 + IVA 210,00 + recargo 5,2% =
+  52,00, total 1.262,00. El guard nació porque una factura **correcta** de un
+  minorista persona física salía ROJO sin contemplarlo.
+
+Pieza nueva que hizo falta: una línea con `tipo=None`, que aporta base y **no**
+genera tramo. El motor tiene una rama entera para las operaciones sin IVA
+repercutido y **exige `tramos_iva` vacía**; un tramo al 0% la sacaría de esa
+rama y mediría otra cosa. En el papel, guion en las columnas de IVA.
+
+El importe del recargo no se escribe: sale de `RECARGO_POR_TIPO` del contrato,
+el mismo dato con el que el motor lo comprueba.
+
+### 9. Tres defectos propios más, de la misma familia de siempre
+
+1. **El porcentaje del recargo se imprimía `5.2%`, con punto inglés.** En una
+   factura española pone `5,2%`. No es cosmética: el separador decimal es uno de
+   los caracteres donde un OCR se equivoca, así que la muestra no medía lo que
+   va a llegar. Sólo se vio mirando la imagen.
+
+2. **El informe del comparador caía en su propio falso verde.** Contestaba "SI"
+   a la pregunta del tramo al 5% sobre una muestra **sin ningún tramo al 5%**, y
+   daba por buena la lectura del pie en las muestras donde pie y cabecera llevan
+   lo mismo —donde coincidir no distingue haber leído de haber copiado, que es
+   el defecto de diseño por el que existen estas muestras—. Ahora cada respuesta
+   lleva, cuando toca, **lo que esa coincidencia NO demuestra** y qué muestra sí
+   lo demuestra. Probado en las dos direcciones: un aviso que sale siempre
+   taparía el caso en que la muestra sí demuestra algo.
+
+3. **`comparar_tramos` trataba una lista vacía como "no vino".** Con la receta
+   de ISP eso la habría condenado a código 2 para siempre **por acertar**.
+   Vacía contra vacía es una coincidencia; inventarse un desglose donde no debe
+   haberlo es una diferencia.
+
+Y un guard preventivo, por una fragilidad que se midió antes de que mordiera: la
+mención legal cabía por 44 px. Una más larga se habría salido del papel **sin
+que Pillow avise**, y la muestra habría salido con el texto cortado — el modelo
+"no sabría leerla" por un fallo del dibujo. Ahora no se dibuja lo que no cabe:
+se para y se dice.
+
+### Estado al cerrar
+
+`python audit_project.py` → **48 comprobaciones en verde, 0 en rojo, 36/36
+suites**. Código de salida 2, por el único ⚠️ de siempre en Cloud: dbfread,
+pdfplumber, anthropic y google-genai sin instalar, que es el entorno y no un
+defecto. `test_motor_veredicto.py` 86/86. `test_muestras_sinteticas.py` 175/175.
+`test_comparar_captura.py` 61/61. Cinco recetas sintéticas, cada una en versión
+limpia y degradada.
+
+El hook de privacidad se ganó el sueldo una vez: bloqueó un commit porque la
+primera versión de la batería del comparador llevaba literales con forma de NIF.
+Ahora se componen.
+
 ## 16-09-2026 (sesión Cloud) — La frontera de datos deja de ser una regla escrita y pasa a ser un mecanismo
 
 Punto 1 del orden acordado con Diego tras su propuesta de arquitectura

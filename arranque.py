@@ -47,6 +47,7 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 DEPENDENCIAS = {
     "dbfread": "leer los .dbf del corpus de ContaPlus (sesion LOCAL)",
     "pdfplumber": "leer los PDF de los modelos 303 presentados (sesion LOCAL)",
+    "PIL": "dibujar las muestras sinteticas (crear_muestras_sinteticas.py)",
     "anthropic": "captura por IA — BLOQUEADA sin DPA, ver .claude/rules/datos.md",
     "google.genai": "captura por IA — BLOQUEADA sin DPA, ver .claude/rules/datos.md",
 }
@@ -130,6 +131,80 @@ def main():
             print(f"  ⚠ y va {n_detras} commit(s) POR DETRAS: falta hacer pull.")
         if not n_delante and not n_detras:
             print("  master       : sincronizado, nada se queda atras")
+
+    # --- 2-bis. Las OTRAS ramas, medidas ahora ------------------------------
+    # ANADIDO 16-09-2026. Hasta hoy el estado de las ramas se leia de un parrafo
+    # escrito a mano en PENDIENTE.md que empezaba por "Medido, no recordado" y
+    # daba una rama por vaciada. Era cierto el dia que se escribio y dejo de
+    # serlo EL MISMO DIA, en cuanto master avanzo tres commits. Un texto que se
+    # presenta como medicion y se recita de memoria es la forma mas cara de
+    # equivocarse: se lee al principio de cada sesion y se cree.
+    #
+    # Asi que se mide. Es la misma regla de siempre en este proyecto -- y el
+    # mismo fallo que ya le paso al parrafo de CLAUDE.md que citaba el tamano de
+    # PROJECT_STATUS.md ("140 KB" cuando ya iba por 257 KB).
+    if hay_git and "origin/master" in ramas:
+        # Sin `origin/master` no hay contra que comparar, y decir "es un resto"
+        # sin haber podido medir seria proponer BORRAR trabajo. Por eso la
+        # condicion de arriba: si no esta, este bloque entero no se imprime.
+        codigo_refs, otras = git("for-each-ref", "--format=%(refname:short)",
+                                 "refs/remotes/origin")
+        sobrantes, con_trabajo, sin_medir = [], [], []
+        if codigo_refs != 0:
+            sin_medir.append(("(la lista de ramas del remoto)",
+                              "git for-each-ref fallo"))
+        for ref in (otras or "").splitlines():
+            ref = ref.strip()
+            # BUG REAL, encontrado el 19-09-2026 al fusionar: %(refname:short)
+            # de refs/remotes/origin/HEAD no siempre da "origin/HEAD" -- cuando
+            # el HEAD simbolico del remoto ya apunta a origin/master, git lo
+            # colapsa a secas en "origin" (sin barra), asi que el filtro de
+            # abajo no lo cazaba. "origin" pasaba el filtro, "git log
+            # origin/master..origin" media 0 commits propios (es un alias del
+            # mismo commit) y caia en "sobrantes" -> se intentaba imprimir
+            # `ref.split('/', 1)[1]`, que con "origin" no tiene segunda parte:
+            # IndexError, y ensayo_arranque.py lo detecto porque prueba contra
+            # UN REPOSITORIO REAL, no uno sintetico donde origin/HEAD no estaba
+            # configurado igual. Se excluye por "/" en vez de por sufijo: nunca
+            # hay una rama de trabajo real sin barra.
+            if not ref or "/" not in ref or ref.endswith("/HEAD") or ref == "origin/master":
+                continue
+            codigo, propios = git("log", "--oneline", f"origin/master..{ref}")
+            if codigo != 0:
+                # NO se clasifica. Un `git log` que falla devuelve vacio, y
+                # vacio aqui significaria "0 commits propios" -> "es un resto"
+                # -> "borrala". Es decir: proponer borrar una rama que no se ha
+                # podido medir. Misma regla que el motor -- lo que no se ha
+                # comprobado no es OK, y menos cuando el siguiente paso que se
+                # sugiere es irreversible.
+                sin_medir.append((ref, f"git log devolvio {codigo}"))
+                continue
+            n_propios = len(propios.splitlines()) if propios else 0
+            (con_trabajo if n_propios else sobrantes).append((ref, n_propios))
+
+        print()
+        if not (sobrantes or con_trabajo or sin_medir):
+            print("  otras ramas  : ninguna. Solo master, que es como debe estar.")
+        else:
+            print("  otras ramas en el remoto (medido ahora, no recordado):")
+        for ref, _ in sobrantes:
+            print(f"    · {ref}")
+            print("      no tiene NADA que master no tenga. Es un resto.")
+            print(f"      git push origin --delete {ref.split('/', 1)[1]}")
+            print("      (desde una sesion Cloud NO se puede: el remoto responde")
+            print("       403 al borrado aunque acepte los push. Es de un clic")
+            print("       en GitHub, o desde el PC.)")
+        for ref, n in con_trabajo:
+            print(f"    ⚠ {ref}")
+            print(f"      tiene {n} commit(s) que master NO tiene. Si esa rama")
+            print("      se queda ahi, ese trabajo no lo ve nadie.")
+        for ref, motivo in sin_medir:
+            print(f"    ⚠ {ref}: NO SE HA PODIDO MEDIR ({motivo}).")
+            print("      No se dice si sobra ni si lleva trabajo. Miralo a mano")
+            print("      antes de borrar nada.")
+        print("  Regla permanente (CLAUDE.md, 11-09-2026, con incidente real")
+        print("  detras): cada sesion crea su rama, la fusiona a master al")
+        print("  terminar y la borra. master es el unico punto de encuentro.")
 
     # --- 3. Barrera de privacidad ------------------------------------------
     seccion("3. Barrera de privacidad")

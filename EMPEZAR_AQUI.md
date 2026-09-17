@@ -96,8 +96,10 @@ plantilla dijo `39/39` cuando la suite ya iba por 65.
 
 > ⚠️ **El ⚠️ de dependencias no es un aprobado, y tampoco es un defecto.**
 > `anthropic` y `google-genai` no se pueden usar sin DPA, así que faltan a
-> propósito fuera de la sesión de captura real. `dbfread` y `pdfplumber` sí
-> hacen falta en el PC de la asesoría: `pip install -r requirements.txt`.
+> propósito fuera de la sesión de captura real. `dbfread`, `pdfplumber` y
+> **`Pillow`** (añadida el 16-09-2026: es la que dibuja las muestras sintéticas
+> con las que se mide el OCR) sí hacen falta en el PC de la asesoría:
+> `pip install -r requirements.txt`.
 >
 > **Por qué esto cambió:** hasta el 09-09-2026 una dependencia ausente salía
 > ❌, y este mismo documento describía la salida esperada **con dos ❌ dentro,

@@ -48,16 +48,6 @@ registro_cloud.jsonl
 factura_sintetica_*.*
 FRA SINTETICA*.*
 
-# muestras_sinteticas/ (crear_muestras_sinteticas.py, 19-09-2026): MISMO
-# motivo que arriba. Comprobado con el escaner antes de commitear, no
-# supuesto: bloqueo los .png/.jpg como binario no reconocido (correcto,
-# nunca puede verificar el contenido de una imagen) Y los .json por llevar
-# un NIF con digito de control valido -- indistinguible de uno real para
-# el escaner, aunque compuesto en ejecucion, nunca escrito como literal.
-# La receta (el .py) se versiona, igual que crear_factura_sintetica.py; su
-# salida se regenera con un comando, no se versiona.
-muestras_sinteticas/
-
 # Censo del despacho: la columna 'nombre' lleva razones sociales reales.
 censo_despacho_v8.csv
 
@@ -128,3 +118,12 @@ cruce_303_agregado.json
 # .claude/rules/datos.md, pero nunca sube. Anadido el 10-09-2026 tras
 # comprobar con fichero trampa que ni el escaner ni .gitignore lo paraban.
 FLUJO_CONTINUO_PLAN_DEFINITIVO.md
+
+# Muestras de crear_muestras_sinteticas.py (16-09-2026). Mismo criterio exacto
+# que factura_sintetica_*: el GENERADOR sube (no lleva ningún literal con forma
+# de NIF, los compone al ejecutarse llamando a nif_sintetico), su SALIDA no.
+# Las imágenes llevan un NIF con checksum válido dibujado encima, y el escáner
+# de privacidad —correctamente— no puede distinguir un NIF sintético de uno
+# real; menos aún dentro de un PNG, donde ni siquiera es texto. Se regeneran
+# con un comando, así que no hay nada que conservar.
+muestras_sinteticas/
