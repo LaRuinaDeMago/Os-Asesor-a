@@ -152,8 +152,10 @@ def pruebas_comparar_con_dbf():
         resultado, error = diag.comparar_con_dbf(path_ascii, path_dbf)
         comprobar("compara sin error cuando los recuentos coinciden",
                   error is None, detalle=str(error), severidad="P0")
-        n_reg, coincide, discrepancia, ascii_cero_dbf_no_cero, sin_campo = resultado
+        n_reg, frac_alineados, coincide, discrepancia, ascii_cero_dbf_no_cero, sin_campo = resultado
         comprobar("compara las 4 filas", n_reg == 4, detalle=str(n_reg), severidad="P0")
+        comprobar("ASIEN coincide en las 4 filas (1,2,3,4 en los dos ficheros) -> 100% alineado",
+                  frac_alineados == 1.0, detalle=str(frac_alineados), severidad="P0")
         comprobar("EL CASO GRAVE: BASEIMPO cuenta 2 (fila 2 vacia + fila 3 ilegible, "
                   "las dos con valor real distinto de cero en el DBF)",
                   ascii_cero_dbf_no_cero["BASEIMPO"] == 2,
@@ -164,6 +166,37 @@ def pruebas_comparar_con_dbf():
         comprobar("la fila 4 (vacio en los dos, legitimamente cero) NO se cuela en el caso grave",
                   ascii_cero_dbf_no_cero["BASEIMPO"] == 2,  # solo filas 2 y 3, no la 4
                   detalle=str(ascii_cero_dbf_no_cero["BASEIMPO"]), severidad="P0")
+
+
+def pruebas_desalineacion():
+    """EL HALLAZGO REAL del 17-09-2026: al ejecutar esto contra un par ASCII+DBF
+    real, aparecieron 6.864 discrepancias sobre 72.423 instancias (9,5%) --
+    demasiado para ser solo el fallback 0.0. Antes de sospechar de
+    leer_ascii_completo(), hay que descartar que las dos exportaciones
+    vengan en ORDEN DISTINTO: mismo recuento no es lo mismo que mismo orden,
+    y comparar 'linea i contra registro i' con los ordenes cambiados genera
+    exactamente este patron -- muchas discrepancias, concentradas, que no
+    son un fallo del lector sino del emparejamiento."""
+    with tempfile.TemporaryDirectory() as tmp:
+        path_ascii = os.path.join(tmp, "diario.txt")
+        path_dbf = os.path.join(tmp, "diario.dbf")
+        escribir_ascii(path_ascii, [
+            {"ASIEN": "1", "BASEIMPO": "100.00"},
+            {"ASIEN": "2", "BASEIMPO": "200.00"},
+            {"ASIEN": "3", "BASEIMPO": "300.00"},
+        ])
+        # Mismo recuento (3=3), pero el DBF trae el orden 2, 1, 3 -- no 1, 2, 3.
+        construir_dbf_con_filas(path_dbf, CAMPOS, [
+            {"ASIEN": 2, "BASEIMPO": 200.00},
+            {"ASIEN": 1, "BASEIMPO": 100.00},
+            {"ASIEN": 3, "BASEIMPO": 300.00},
+        ])
+        resultado, error = diag.comparar_con_dbf(path_ascii, path_dbf)
+        n_reg, frac_alineados, coincide, discrepancia, _grave, _sin = resultado
+        comprobar("EL AVISO: con las 2 primeras filas en orden distinto, "
+                  "frac_alineados baja de 1.0 (aqui a 1/3) -- detecta el "
+                  "desorden en vez de reportar discrepancias falsas sin avisar",
+                  frac_alineados < 0.5, detalle=str(frac_alineados), severidad="P0")
 
 
 def pruebas_recuento_distinto():
@@ -183,6 +216,7 @@ def main():
     print("=" * 72)
     pruebas_clasificar_ascii()
     pruebas_comparar_con_dbf()
+    pruebas_desalineacion()
     pruebas_recuento_distinto()
 
     fallan = [r for r in resultados if not r[1]]

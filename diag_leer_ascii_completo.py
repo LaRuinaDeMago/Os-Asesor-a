@@ -145,6 +145,27 @@ def comparar_con_dbf(path_ascii, path_dbf):
     # adivina.
     ALIAS_DBF = {}
 
+    # COMPROBACION DE ALINEACION, anadida el 17-09-2026 tras la primera
+    # medicion real: comparar "linea i del ASCII" contra "registro i del DBF"
+    # solo tiene sentido si las dos exportaciones traen el MISMO orden.
+    # Mismo recuento de lineas no prueba mismo orden. Se verifica con ASIEN
+    # (el numero de asiento, que deberia identificar la misma fila en las
+    # dos exportaciones si van alineadas) ANTES de fiarse de ninguna otra
+    # comparacion -- si ASIEN no coincide casi siempre, todo lo demas que
+    # este script diga sobre otros campos es ruido de desalineacion, no un
+    # hallazgo real sobre el fallback 0.0.
+    alineados = 0
+    for linea, reg_dbf in zip(lineas, registros_dbf):
+        crudo = decodificar_linea(linea)
+        try:
+            asien_ascii = float(crudo["ASIEN"].strip() or "nan")
+            asien_dbf = float(reg_dbf.get("ASIEN")) if reg_dbf.get("ASIEN") is not None else float("nan")
+        except (ValueError, TypeError):
+            continue
+        if asien_ascii == asien_dbf:
+            alineados += 1
+    frac_alineados = alineados / len(lineas) if lineas else 0.0
+
     coincide = {n: 0 for n, *_ in CAMPOS_NUMERICOS}
     discrepancia = {n: 0 for n, *_ in CAMPOS_NUMERICOS}
     # El caso mas grave: ASCII dio 0.0 (vacio o ilegible) pero el DBF tiene
@@ -172,8 +193,8 @@ def comparar_con_dbf(path_ascii, path_dbf):
             else:
                 discrepancia[nombre] += 1
 
-    return (len(lineas), coincide, discrepancia, ascii_cero_dbf_no_cero,
-            campo_no_en_dbf), None
+    return (len(lineas), frac_alineados, coincide, discrepancia,
+            ascii_cero_dbf_no_cero, campo_no_en_dbf), None
 
 
 def main():
@@ -214,11 +235,26 @@ def main():
         if error:
             print(f"\nNO COMPARADO: {error}")
         else:
-            n_reg, coincide, discrepancia, ascii_cero_dbf_no_cero, sin_campo = resultado
-            total_grave = sum(ascii_cero_dbf_no_cero.values())
+            n_reg, frac_alineados, coincide, discrepancia, ascii_cero_dbf_no_cero, sin_campo = resultado
             print(f"\n{n_reg} registros comparados por posicion.")
+
+            print(f"\nCOMPROBACION DE ALINEACION (mirar ESTO primero): de los "
+                  f"{n_reg} registros, el numero de ASIEN coincide en la misma "
+                  f"posicion en un {frac_alineados:.1%} de los casos.")
+            if frac_alineados < 0.95:
+                print("  AVISO SERIO: por debajo del 95%, todo lo que sigue no es")
+                print("  fiable -- lo mas probable es que las dos exportaciones NO")
+                print("  vengan en el mismo orden, y comparar 'linea i contra i'")
+                print("  esta emparejando asientos que no son el mismo. Los")
+                print("  numeros de mas abajo pueden ser ruido de desalineacion,")
+                print("  no un hallazgo real sobre el fallback 0.0.")
+            else:
+                print("  Alineacion confirmada: las comparaciones de abajo emparejan")
+                print("  el mismo asiento en los dos ficheros.")
+
             if sin_campo:
-                print(f"Campos que el DBF no trae con ese nombre (no comparados): {sorted(sin_campo)}")
+                print(f"\nCampos que el DBF no trae con ese nombre (no comparados): {sorted(sin_campo)}")
+            total_grave = sum(ascii_cero_dbf_no_cero.values())
             print(f"\nEL CASO GRAVE -- ASCII dio 0.0 (vacio o ilegible) pero el DBF "
                   f"tiene un valor real distinto de cero: {total_grave}")
             if total_grave:
