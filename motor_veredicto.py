@@ -306,8 +306,15 @@ def guard_aritmetica_tramos(tramos, iva_total):
     if incoherentes:
         return "FALLO", "tramo(s) con cuota que no cuadra con su propia base x tipo: " + "; ".join(incoherentes)
 
+    # P0-3a, auditoria externa 17-09-2026, reproducido antes de arreglar:
+    # `int(t['tipo'])` truncaba 21.9 a 21 y lo colaba como tipo "conocido" --
+    # un tipo de IVA que no existe en la ley espanola (los tipos legales son
+    # enteros exactos: 0/4/5/10/21) pasaba desapercibido si la cuota era
+    # internamente coherente con el (lo que P0-2 ya exige). Comparacion
+    # exacta con tolerancia de representacion numerica (TOL), nunca int().
     desconocidos = [t['tipo'] for t in tramos
-                    if int(t['tipo']) not in contrato_datos.TIPOS_IVA_CONOCIDOS]
+                    if not any(abs(t['tipo'] - conocido) < TOL
+                               for conocido in contrato_datos.TIPOS_IVA_CONOCIDOS)]
     calc = round(sum(t['cuota'] for t in tramos), 2)
     if abs(calc - iva_total) >= TOL:
         detalle = ", ".join(f"{t['tipo']:.0f}%={t['base']}" for t in tramos)
@@ -1159,7 +1166,13 @@ def guard_tipo_producto_iva_semantico(categoria_producto, tipo_declarado):
     tipo = contrato_datos.parse_numero(tipo_declarado)
     if not tipo.utilizable:
         return "NO_COMPROBADO", f"categoria '{categoria_producto}' declarada pero sin tipo de IVA legible con que contrastarla"
-    if abs(tipo.valor - esperado) < 0.5:
+    # P0-3b, auditoria externa 17-09-2026, reproducido antes de arreglar: la
+    # tolerancia era 0,5 PUNTOS PORCENTUALES -- para tipos que son enteros
+    # exactos por ley (4%, 10%, 21%...), eso dejaba pasar un 4,49% como si
+    # fuera el 4% legal. La unica tolerancia que corresponde aqui es la de
+    # representacion numerica del propio TOL del motor, no medio punto de
+    # margen fiscal que no existe en la norma.
+    if abs(tipo.valor - esperado) < TOL:
         return "OK", f"{categoria_producto} -> {esperado}% segun tabla oficial IVA 2026, coincide"
     return "FALLO", f"{categoria_producto} deberia ser {esperado}% segun tabla oficial, se aplico {tipo.valor}%"
 

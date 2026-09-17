@@ -348,6 +348,37 @@ v, _ = evaluar({**BASE_FILA, 'base_total': '100', 'iva_total': '21', 'total_fact
 comprobar("J", "un tramo con la cuota correcta SIGUE pudiendo dar VERDE",
           v == "VERDE", f"veredicto={v}", "VERDE", "P0")
 
+# P0-3a, auditoria externa 17-09-2026, reproducido antes de arreglar: un tipo
+# de IVA que NO EXISTE en la ley espanola (21,9%, no es 21% ni ningun otro
+# tipo legal) pasaba como "conocido" porque el codigo hacia int(t['tipo'])
+# antes de comprobarlo contra la tabla -- int(21.9) = 21, que SI esta en la
+# tabla. Con la cuota internamente coherente (21.9% de 100 = 21.9, ya lo
+# exige P0-2), el tramo entero pasaba desapercibido.
+v, _ = evaluar({**BASE_FILA, 'base_total': '100', 'iva_total': '21.9', 'total_factura': '121.9',
+                'tramos_iva': [{'tipo': 21.9, 'base': 100, 'cuota': 21.9}]})
+comprobar("J", "tipo de IVA 21,9% (no existe en la ley) no se cuela truncado a 21 -> no VERDE",
+          v != "VERDE", f"veredicto={v}", "NO_COMPROBADO/AMBAR", "P0")
+
+# P0-3b, auditoria externa 17-09-2026, reproducido antes de arreglar:
+# guard_tipo_producto_iva_semantico comparaba el tipo declarado contra el
+# esperado con `abs(tipo - esperado) < 0.5` -- una tolerancia de MEDIO PUNTO
+# para tipos que son enteros exactos por ley (4%, 10%, 21%...). Un 4,49%
+# declarado para "aceite de oliva" (deberia ser exactamente 4%) pasaba como
+# "coincide". No es redondeo de representacion numerica: es un tipo que no
+# existe, disfrazado de correcto.
+v, mot = evaluar({**BASE_FILA, 'base_total': '100', 'iva_total': '4.49', 'total_factura': '104.49',
+                  'categoria_producto': 'aceite de oliva', 'tipo_iva_declarado': '4.49'})
+comprobar("J", "4,49% declarado para un producto al 4% legal -> ROJO, no 'coincide'",
+          v == "ROJO", f"veredicto={v} ({mot[:80]})", "ROJO", "P0")
+
+# Control positivo del guard EN SI (no del veredicto completo -- sin
+# tramos_iva declarado, ni un 4% exacto llega a VERDE por otro motivo, que
+# no es lo que se prueba aqui: si el guard semantico sigue aceptando el
+# tipo legal de verdad, aislado de si el resto de la factura tiene desglose).
+_est, _ = m.guard_tipo_producto_iva_semantico('aceite de oliva', '4')
+comprobar("J", "el guard semantico SIGUE aceptando el 4% exacto (no se ha vuelto mas estricto de la cuenta)",
+          _est == "OK", f"estado={_est}", "OK", "P0")
+
 
 print("\n=== FAMILIA K — Los tres puntos del techo que dependian del prompt ===")
 # Cerrados el 20-08-2026. Los tres son NO_APLICA mientras la captura no emita
