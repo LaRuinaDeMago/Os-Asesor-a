@@ -40,6 +40,12 @@ AQUI = os.path.dirname(os.path.abspath(__file__))
 SCRIPT = os.path.join(AQUI, "arranque.py")
 HOOK = os.path.join(AQUI, ".claude", "hooks", "session-start.sh")
 
+#: Mismo patron que ensayo_modo_trabajo.py: una variable APARTE, referenciada,
+#: nunca una asignacion literal a algo con forma de "NOMBRE_DE_CLAVE = valor"
+#: -- eso es justo lo que scripts/privacy_scan.py existe para cazar, y cazarlo
+#: aqui tambien (aunque sea un cebo) es la barrera funcionando, no un fallo.
+CLAVE_TRAMPA = "VALOR_DE_CLAVE_QUE_NO_DEBE_IMPRIMIRSE_NUNCA"
+
 FALLOS = []
 
 
@@ -51,10 +57,10 @@ def comprobar(titulo, condicion, detalle=""):
         FALLOS.append(titulo)
 
 
-def correr(cwd, *args):
+def correr(cwd, *args, entorno=None):
     r = subprocess.run([sys.executable, os.path.join(cwd, "arranque.py"), *args],
                        capture_output=True, text=True, encoding="utf-8",
-                       errors="replace", cwd=cwd)
+                       errors="replace", cwd=cwd, env=entorno)
     return r.returncode, r.stdout + r.stderr
 
 
@@ -75,6 +81,28 @@ def main():
               or "emparejar_carpetas.py" in salida, salida[-400:])
     comprobar("remata mandando a EMPEZAR_AQUI.md",
               "EMPEZAR_AQUI.md" in salida, salida[-300:])
+
+    # === FAMILIA A-bis — el aviso de la clave de Anthropic, medido no recitado
+    # ANADIDO 17-09-2026, acordado con Diego: la clave presente no autoriza
+    # usarla en cualquier tarea -- hace falta un aviso que se IMPRIMA solo,
+    # no una promesa de sesion. Se prueba en los dos sentidos: sin la clave
+    # no debe aparecer (ruido), y con ella SI debe aparecer, sin que el
+    # propio valor de la clave se cuele en la salida.
+    print("\n=== FAMILIA A-bis — el aviso de ANTHROPIC_API_KEY, medido no recitado ===")
+    entorno_sin = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+    rc, salida_sin = correr(AQUI, entorno=entorno_sin)
+    comprobar("SIN la clave puesta, no aparece el aviso (no seria mas que ruido)",
+              "ANTHROPIC_API_KEY esta puesta" not in salida_sin, salida_sin[-100:])
+
+    entorno_con = dict(entorno_sin, ANTHROPIC_API_KEY=CLAVE_TRAMPA)
+    rc, salida_con = correr(AQUI, entorno=entorno_con)
+    comprobar("CON la clave puesta, el aviso SI aparece",
+              "ANTHROPIC_API_KEY esta puesta" in salida_con, salida_con[-400:])
+    comprobar("y exige justificacion + confirmacion, no solo dice que existe",
+              "justificacion" in salida_con.lower()
+              and "confirmacion" in salida_con.lower(), salida_con[-400:])
+    comprobar("el CEBO (el valor de la clave) nunca se imprime -- solo su presencia",
+              CLAVE_TRAMPA not in salida_con, "")
 
     # === FAMILIA B — no da tranquilidad falsa ==============================
     # Fuera de un repositorio git no hay arbol que pueda estar limpio. Decir

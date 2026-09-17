@@ -280,6 +280,19 @@ def main():
         ve_original = cap["sesion_local"] and cap["clave_anthropic"]
         print(f"  Claude puede ver el documento original: "
               f"{'SI, si hay DPA' if ve_original else 'NO'}")
+        if cap["clave_anthropic"]:
+            # ANADIDO 17-09-2026, acordado explicitamente con Diego: la clave
+            # presente NO es permiso para usarla en cualquier tarea que
+            # aparezca. Igual que OS_ASESORIA_DATOS_REALES no autoriza un lote
+            # por si sola (hace falta el recuento exacto cada vez), esta llave
+            # tampoco autoriza una tarea por si sola -- hace falta justificar
+            # (semantica, no estructurada: ver .claude/rules/datos.md) y que
+            # Diego lo confirme, tarea por tarea, no una vez para siempre.
+            print("  ⚠ ANTHROPIC_API_KEY esta puesta: eso NO autoriza usarla en")
+            print("    cualquier tarea. Cada uso necesita justificacion explicita")
+            print("    (¿el modelo necesita VER el dato, o basta con que lo CUENTE")
+            print("    un script?) y confirmacion de Diego, tarea por tarea -- ver")
+            print("    .claude/rules/datos.md, 'PRECISION 17-09-2026'.")
         listas = [t.nombre for t in modo_trabajo.TAREAS
                   if all(cap.get(n) for n in t.necesita)]
         print(f"  tareas posibles AHORA MISMO: {len(listas)} de {len(modo_trabajo.TAREAS)}")
