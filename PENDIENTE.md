@@ -47,388 +47,65 @@
   └───────────────────────────────────────────────────────────────────┘
 
   ╔═══════════════════════════════════════════════════════════════════╗
-  ║ SESIÓN LOCAL — EMPIEZA POR AQUÍ                                   ║
-  ║ Reescrito el 16-09-2026 al cerrar la SEGUNDA sesión Cloud.        ║
+  ║ PRÓXIMA SESIÓN LOCAL — EMPIEZA POR AQUÍ                           ║
+  ║ Reescrito el 17-09-2026 al cerrar la sesión Local de ese día.     ║
+  ║ El bloque anterior (Pasos 1-3, del 16-09) ya está TODO cerrado -- ║
+  ║ detalle completo en PROJECT_STATUS.md, no repetido aquí.          ║
   ╚═══════════════════════════════════════════════════════════════════╝
 
       En el PC de la asesoría el intérprete es `python`, no `python3`,
       y las variables se ponen con `set VAR=1`, no con `export`.
 
-      ── PREPARACIÓN (una vez, ~5 minutos) ──────────────────────────
+      ── PREPARACIÓN (si es un PC/clon nuevo; si sigues en el mismo, sáltalo) ──
 
         1) git checkout master && git pull
         2) pip install -r requirements.txt
-           Instala dbfread, pdfplumber, google-genai, anthropic y
-           **Pillow** (nueva el 16-09: dibuja las muestras sintéticas).
         3) sh scripts/install_hooks.sh      (los hooks NO se clonan)
         4) python audit_project.py
 
-        QUÉ ESPERAR EN EL PASO 4: con las cinco dependencias
-        instaladas, el aviso ⚠️ de dependencias desaparece y la
-        auditoría puede devolver **código 0 por primera vez**. Son
-        **48 comprobaciones y 36 suites**. Si devuelve 1, eso manda
+        QUÉ ESPERAR: código 0, 41 suites. Si devuelve 1, eso manda
         sobre todo lo demás y se mira antes de seguir.
 
-        5) python modo_trabajo.py
-           Te dice, medido, qué puedes hacer y qué falta encender. Si
-           algo de lo de abajo no sale en verde ahí, empieza por eso.
+      ── DÓNDE SE QUEDÓ TODO, en una frase ──────────────────────────
 
-      ╭─────────────────────────────────────────────────────────────╮
-      │ LO PRIMERO QUE HAY QUE HACER, Y SON TRES COMANDOS           │
-      ╰─────────────────────────────────────────────────────────────╯
+        Dos facturas reales de punta a punta (VERDE las dos, estabilidad
+        de lectura comprobada), CI corriendo solo en cada push, y quince
+        defectos reales encontrados y arreglados en el motor y sus
+        herramientas — ocho de un repaso propio, siete de una segunda
+        auditoría externa con acceso al código. Nada de esto es un
+        "pendiente": está cerrado, comiteado y en `master`. Detalle
+        completo, con cada caso reproducido, en PROJECT_STATUS.md,
+        entrada del 17-09-2026 (la más larga del fichero — se busca por
+        fecha, no se lee entera).
 
-        Todo lo que se podía construir sin datos reales ya está. Lo
-        que falta es **una medición**, y sólo se puede hacer aquí.
+      ── LO SIGUIENTE, según "EL ORDEN" de más abajo ─────────────────
 
-          set GEMINI_API_KEY=...
-          set OS_ASESORIA_CLOUD=1
-          (NO pongas OS_ASESORIA_DATOS_REALES: estas muestras son
-           SINTÉTICAS y no lo necesitan. La puerta debe seguir
-           bloqueando lo real.)
+        El paso 2 de "EL ORDEN" (una factura real de punta a punta) está
+        cerrado. Lo que sigue es el paso 3: **2-3 lotes cronometrados
+        más** — Diego ya aportó el primero con detalle completo
+        (`FLUJO_TRABAJO_REAL.md`, y punto 4.A de este fichero), y
+        mencionó tener ya en el PC varios lotes reales de ~30 fotos de
+        distintos clientes, listos para usar.
 
-          python crear_muestras_sinteticas.py
+        **Antes de lanzarte a un lote grande, sigue "Puerta 1 antes que
+        Puerta 2":** un cliente/lote cada vez, con cuidado, confirmando
+        el recuento exacto de fotos antes de cada `--confirmo-envio`. El
+        modo LOTE (`--confirmo-envio N` con N>1) todavía no se ha probado
+        contra datos reales — las dos facturas de ayer fueron cada una su
+        propia carpeta de una sola foto.
 
-        Escribe `muestras_sinteticas/` con **cinco recetas × dos
-        versiones** (limpia y degradada) y un `_verdad.json` por
-        receta. Luego, **empezando por las `_limpia`**:
-
-          python captura_orquestador.py ^
-                 --imagen muestras_sinteticas/doble_lectura_descuadre_limpia.png ^
-                 --procedencia SINTETICO > captura.json
-          python comparar_captura_vs_verdad.py captura.json
-
-        El comparador encuentra el fichero de verdad solo, compara
-        campo a campo con el parser del propio contrato, **contesta
-        las cuatro preguntas del Paso 1 él solo**, y termina pasando lo
-        que el modelo leyó por el motor.
-
-        Códigos de salida, los tres de siempre:
-          `0` todo comprobado y coincidiendo
-          `1` hay una diferencia real
-          `2` nada discrepa pero **algún campo no vino** — y eso NO es
-              un aprobado
-
-        EL ORDEN IMPORTA, y no es una preferencia: primero la `_limpia`
-        de cada receta. Si la limpia ya falla, la degradada no añade
-        información — el problema no es la foto. Sólo cuando la limpia
-        acierta, la degradada mide de verdad cuánto aguanta, porque el
-        documento es EL MISMO y la única variable que cambia es la foto.
-
-        POR CUÁL EMPEZAR, si sólo vas a hacer una: por
-        `doble_lectura_descuadre`. Es la que contesta la pregunta que
-        lleva abierta desde el Paso 1 y la única que puede demostrar
-        que la doble lectura no es un espejo.
-
-        LO QUE YA SE SABE DE ANTEMANO, medido contra el motor con la
-        verdad conocida (si al pasar la IMAGEN sale otra cosa, señala a
-        la LECTURA, no al motor):
-
-          doble_lectura_descuadre  → ROJO, y por `doble_lectura_total`
-          doble_lectura_letras     → AMBAR
-          con_retencion            → AMBAR
-          inversion_sujeto_pasivo  → AMBAR
-          recargo_equivalencia     → AMBAR
-
-        Los AMBAR **no son un defecto**: la verdad conocida describe el
-        DOCUMENTO, y `verificacion` —la confianza que el modelo declara
-        sobre su propia lectura— no es una propiedad del papel. Al pasar
-        la imagen por Gemini ese campo sí vendrá, y entonces los AMBAR
-        deberían subir a VERDE. **Si no suben, eso sí es un hallazgo.**
-
-      ── PASO 1 · EL ENSAYO EN VACÍO (haz esto ANTES que nada) ──────
-
-      ✅ **HECHO Y CERRADO — 16-09-2026, sesión LOCAL.** Ejecutado de
-      verdad, no en seco: clave de Gemini con facturación activa (nivel
-      "Paid" confirmado en AI Studio, no la capa gratis), factura
-      fabricada con `crear_factura_sintetica.py`, guardada como PDF
-      ("FRA SINTETICA 1.pdf") y pasada por `captura_orquestador.py
-      --procedencia SINTETICO` contra la API real.
-
-      **Las cuatro preguntas de (d), contestadas:**
-        · `tramos_iva` llegó con los DOS tramos, 21% y 5% — **confirmado
-          contra la API real**, no solo contra el ensayo sintético. El
-          arreglo del 16-09 (campos anidados) sobrevive de punta a punta.
-        · El número salió `A26/7.612`, con barra y punto — correcto.
-        · `total_factura_2` y `nif_margen` **NO se pudieron comprobar**:
-          en esta factura fabricada el pie lleva el mismo valor que el
-          cuadro, así que copiar y leer dos veces son indistinguibles.
-          ✅ **YA HAY CON QUÉ CONTESTARLO (16-09-2026, sesión Cloud).**
-          `crear_muestras_sinteticas.py` fabrica los documentos que
-          faltaban, como IMAGEN y con la verdad conocida al lado:
-
-              python crear_muestras_sinteticas.py
-
-          Escribe `muestras_sinteticas/` (no se versiona) con cinco
-          recetas, cada una en versión limpia Y degradada, y un
-          `_verdad.json` por receta con los NOMBRES DE CAMPO DEL
-          CONTRATO — así la comparación es mecánica, no a ojo:
-
-            · `doble_lectura_letras` — el pie lleva el total EN LETRAS
-              ("SON: MIL CUATROCIENTOS VEINTE EUROS") y el NIF con otra
-              puntuación, con guiones, frente al de la cabecera sin
-              ellos. Mismo valor, notación distinta: **no se puede
-              copiar del cuadro**. Si `nif_margen` vuelve con guiones,
-              se ha leído el pie de verdad. Y de paso mide algo que no
-              había medido nadie: si el modelo sabe leer un importe
-              escrito con letras, que es como lo imprime media
-              facturación española.
-            · `doble_lectura_descuadre` — el pie lleva OTRO importe
-              (1.120,00 frente a 1.210,00 del cuadro: dos dígitos
-              permutados, que es el error de tecleo real y no uno
-              inventado). Discriminación total para `total_factura_2`,
-              y **el motor debería ponerse ROJO** — el guard de doble
-              lectura nunca se ha visto disparar sobre un documento.
-            · `con_retencion` — IRPF al 15%: el total NO es base + IVA.
-              Un modelo que suma de memoria en vez de leer falla ahí y
-              sólo ahí. Ejercita `irpf_retencion`, que el contrato
-              declara y ninguna muestra había usado nunca.
-            · `inversion_sujeto_pasivo` — base 3.500,00 **sin IVA** y
-              con la mención legal del art. 84.Uno.2º impresa. Mide si
-              el modelo LEE esa mención: si vuelve `SUJETA`, el motor
-              deja de poder distinguir *"sin IVA y bien"* de *"se les
-              olvidó el IVA"*. Y `tramos_iva` tiene que venir **vacía**
-              —el motor tiene una rama entera para eso—, así que también
-              mide que no se invente un desglose.
-              **Caso real detrás:** el descuadre del 303 de SP_C_13 (§1.A
-              de este fichero), el único de los nueve trimestres medidos
-              que no cuadraba, se explicó entero por ISP. Lo que cambia
-              respecto al caso real, y se dice: el emisor es español con
-              CIF sintético en vez de extranjero, porque un proveedor
-              extranjero no tiene CIF español y `nif_digito_control`
-              taparía lo que se quiere medir.
-            · `recargo_equivalencia` — base 1.000,00 + IVA 210,00 +
-              **recargo 5,2% = 52,00**, total 1.262,00 (que no es base +
-              IVA). Obligatorio para el comercio minorista persona
-              física, y con 19 autónomos en cartera no es raro: el guard
-              se añadió el 20-08 porque una factura **correcta** salía
-              ROJO sin contemplarlo. El importe del recargo no está
-              escrito en la receta — sale de `RECARGO_POR_TIPO` del
-              contrato, el mismo dato con el que el motor lo comprueba.
-
-          **Lo que estas dos añaden y no tenían las otras:** son los dos
-          únicos guards del motor que **existían y nunca habían visto un
-          documento**. Verificado: con la verdad conocida,
-          `naturaleza_operacion` da OK por la rama correcta (`NO_APLICA`
-          en los tramos, que es lo que toca) y `recargo_equivalencia` da
-          OK con 52,00 y el cuadre a 1.262,00.
-
-          **El orden importa:** primero la `_limpia` de cada receta. Si
-          la limpia ya falla, la degradada no añade información — el
-          problema no es la foto. Sólo cuando la limpia acierta, la
-          degradada mide de verdad cuánto aguanta, porque el documento
-          es EL MISMO y la única variable que cambia es la foto.
-
-          **Límite declarado, para que nadie lo lea de más:** la
-          degradación simula giro, luz desigual, desenfoque, ruido y
-          JPEG, pero **NO la perspectiva** (el papel en ángulo, con los
-          márgenes en trapecio). Que la degradada pase no significa que
-          una foto en ángulo pase: eso no se ha medido.
-
-          **LO QUE EL MOTOR DICE DE CADA UNA — medido, no supuesto.** La
-          verdad conocida se ha pasado por `evaluar_fila_v4` de verdad.
-          Sabiéndolo de antemano, un veredicto distinto al pasar la
-          IMAGEN señala a la lectura, no al motor:
-
-            doble_lectura_descuadre  → **ROJO**, y por el guard correcto:
-                `doble_lectura_total: el total difiere entre las dos
-                ubicaciones leidas: 1210.0 vs 1120.0`. Primera vez que
-                ese guard se ve disparar sobre un documento.
-            doble_lectura_letras     → AMBAR
-            con_retencion            → AMBAR
-
-          Los dos AMBAR **no son un defecto**: la verdad conocida
-          describe el DOCUMENTO, y `verificacion` —la confianza que el
-          modelo declara sobre su propia lectura— no es una propiedad
-          del papel, la pone la captura. Sin ella el motor dice
-          NO_COMPROBADO y baja a AMBAR, que es lo que tiene que hacer.
-          Al pasar la IMAGEN por Gemini ese campo sí vendrá.
-
-          ⚠️ **Y un detalle de contrato que costó encontrar:**
-          `irpf_retencion` va **EN NEGATIVO**. Lo pide así el prompt de
-          `captura_orquestador.py` y `guard_cuadre_total` la SUMA
-          (base + IVA + irpf + recargo). Con el signo cambiado el
-          descuadre es de DOS VECES la retención: la primera versión de
-          esta muestra lo escribía en positivo y el motor daba
-          `total_calc=2720.0 decl=2120.0`. Si alguna vez ves ese patrón
-          —un descuadre que es justo el doble de la retención— es el
-          signo, no el motor.
-
-          **Hueco de cobertura que apareció por el camino — ✅ CERRADO
-          el mismo día.** `test_motor_veredicto.py` no tenía ningún caso
-          con retención distinta de 0: los tres llevaban
-          `irpf_retencion: '0'`, así que la rama de retención de
-          `guard_cuadre_total` no la ejercitaba nadie. Añadidas 6
-          pruebas (la suite pasa de 80 a 86, en verde antes y después):
-          con la retención en negativo cuadra; **con el signo cambiado
-          tiene que FALLAR** —si no, la prueba no estaría ejercitando la
-          rama, sólo pasando por delante—; y la factura entera sale
-          VERDE por el motor completo.
-
-          El detalle que ahorra tiempo si vuelve a pasar: el descuadre
-          del signo cambiado vale **2.720 = 2.120 + 2×300**. Un
-          descuadre que es exactamente el doble de la retención es la
-          firma del signo, no un error de lectura.
-
-          ─────────────────────────────────────────────────────────────
-          ✅ **Y LA COMPARACIÓN YA NO SE HACE A OJO (16-09-2026).**
-
-              python captura_orquestador.py --imagen <muestra> \
-                     --procedencia SINTETICO > captura.json
-              python comparar_captura_vs_verdad.py captura.json
-
-          Encuentra el `_verdad.json` solo, compara campo a campo con el
-          parser del propio contrato (`1.420,00` y `1420.0` son el mismo
-          dato), **contesta las cuatro preguntas del Paso 1 él solo**, y
-          termina pasando lo que el modelo leyó por el motor.
-
-          Códigos de salida, los tres de siempre: `0` todo comprobado y
-          coincidiendo · `1` hay una diferencia real · `2` nada discrepa
-          pero algún campo no vino — que **no es un aprobado**. Un "todo
-          bien" que significa "no vino casi nada" era el peor resultado
-          posible de comparar a ojo.
-
-          Dos decisiones suyas que conviene conocer antes de usarlo:
-
-            · **`nif_margen` NO se normaliza.** En la muestra de letras
-              la puntuación ES la medición: quitar los guiones dejaría
-              en verde justo el caso que se quiere cazar.
-            · **Lo que no esté declarado SINTETICO se trata como REAL** y
-              entonces no imprime ni un valor, ni el nombre de la
-              muestra, ni la ruta del fichero — sólo coincide / no
-              coincide / no vino. La medición se conserva entera; lo que
-              desaparece es el dato. No hay forma de desactivarlo.
-
-          ⚠️ **UN HALLAZGO QUE IMPORTA MÁS QUE LA HERRAMIENTA.** Al
-          simular una lectura en ESPEJO —el modelo copia el total del
-          cuadro en `total_factura_2` en vez de leer el pie— el motor
-          da **VERDE**. Y es correcto que lo dé: ve dos totales iguales.
-
-          Es decir: **el guard de doble lectura sólo vale si las dos
-          lecturas son independientes de verdad.** Si el modelo copia,
-          el guard no protege nada y además lo firma en verde. Eso no se
-          arregla en el motor —él no puede saber de dónde salió el
-          segundo número—: se arregla comprobándolo, y es exactamente lo
-          que mide `doble_lectura_descuadre`. Por eso esa muestra es la
-          más importante de las tres.
-
-      **Y dos defectos reales encontrados en la primera ejecución contra
-      la API de verdad — exactamente para eso servía este paso:**
-        1. El PDF se enviaba etiquetado como `image/jpeg` (el mapa de
-           `mime_type` en `leer_factura_gemini()` y `_leer_factura_claude()`
-           no tenía `.pdf` y caía en un "por defecto" silencioso). Gemini
-           lo rechazaba con "Unable to process input image". Arreglado en
-           los dos sitios: extensión no reconocida ahora lanza error, no
-           adivina. `audit_project.py` en 0 antes y después.
-        2. `puerta_cloud.Lote.anotar_resultado()` existía desde el 16-09
-           pero nadie la llamaba — el registro salía con tokens/coste en
-           `null` a pesar de que el mecanismo estaba listo. Enganchado en
-           `leer_factura()`, el punto único; confirmado con tokens reales:
-           **1.562 entrada / 453 salida** por una factura. Con la tarifa
-           pública de `gemini-3.1-flash-lite` (no verificada de forma
-           oficial, solo orientativa): del orden de 0,001 $/factura.
-
-      Punto (e) cumplido con dato real, no estimado: mira
-      `registro_cloud.jsonl`, línea `"tipo": "RESULTADO"`.
-
-      **Es lo mejor que puedes hacer, y no necesita DPA.** Pasa
-      una factura FABRICADA por la cadena entera con Gemini de verdad.
-      Valida la clave, el SDK, el prompt, la puerta, el registro de
-      coste y el motor — con cero exposición legal. Cuando después
-      llegue la factura real, el único dato nuevo será el dato.
-
-        a) Activa facturación en Gemini y pon la clave:
-               set GEMINI_API_KEY=...
-               set OS_ASESORIA_CLOUD=1
-           (NO pongas OS_ASESORIA_DATOS_REALES: no hace falta, y la
-            puerta debe seguir bloqueando lo real hasta el paso 2)
-
-        b) python crear_factura_sintetica.py
-           Genera `factura_sintetica_01.html` e imprime la VERDAD
-           CONOCIDA de ese documento. Ábrelo en el navegador y guárdalo
-           como PDF o hazle una captura de pantalla.
-
-        c) python captura_orquestador.py --imagen <la captura> \
-               --procedencia SINTETICO
-
-        d) COMPARA campo a campo contra la verdad que imprimió (b).
-           Las cuatro preguntas que hay que contestar están ahí, y la
-           primera es la que más importa:
-
-             · ¿Viene `tramos_iva` con los DOS tramos, incluido el 5%?
-               El 5% no tiene campo plano equivalente: si no llega por
-               ahí, se pierde entero. Es el defecto que se encontró y
-               arregló el 16-09 — esto lo prueba contra un modelo real.
-             · ¿`total_factura_2` trae el total del PIE o ha copiado el
-               del cuadro? Si lo copia, la doble lectura es un espejo.
-             · ¿`nif_margen` trae el NIF del pie?
-             · ¿El número sale como `A26/7.612`, con barra y punto?
-
-        e) Mira `registro_cloud.jsonl`: ahí está el primer coste real
-           medido del proyecto. €/documento deja de ser una estimación.
-
-        SI FALLA LA LLAMADA, dónde mirar primero (declarado el 16-09
-        porque desde Cloud no se pudo ejecutar: ni SDK ni clave):
-          · Error de MODELO no encontrado → `gemini-3.1-flash-lite` se
-            verificó vigente contra la documentación oficial el 16-09,
-            pero los modelos se retiran. Es lo primero que caduca.
-          · Error de FORMA de la petición → la llamada usa
-            `types.Part.from_bytes(...)`, que es la forma documentada del
-            SDK. Si tu versión de `google-genai` fuera antigua y no lo
-            tuviera: `pip install -U google-genai`.
-          · La puerta bloquea → `python puerta_cloud.py` dice por qué en
-            una línea, y `python modo_trabajo.py` qué falta encender.
-
-      ── PASO 2 · LA DECISIÓN DEL DPA ───────────────────────────────
-
-      Son DOS decisiones, no una (ver punto 1 de EL ORDEN):
-        [X] Google/Gemini con facturación activa — **HECHA 16-09-2026.**
-          Tarjeta vinculada, prepago de 5 € completado, AI Studio confirma
-          "Se activó el nivel pagado de la API de Gemini". Verificado
-          contra los Términos Adicionales oficiales (`ai.google.dev/
-          gemini-api/terms`, no un resumen de terceros): con cuenta de
-          facturación activa, TODO el uso —incluido lo gratuito— cuenta
-          como "Paid Service" a efectos de dato, y en Paid Service "Google
-          doesn't use your prompts [...] to improve our products". El
-          crédito de bienvenida de 300 $ NO cubre este cargo (excluido
-          explícitamente para la API de Gemini/AI Studio); los 5 € los pagó
-          la tarjeta. Google entra como SEGUNDO encargado del tratamiento,
-          con su propio marco contractual — sigue sin resolver la base
-          legal, informar a los clientes ni el secreto profesional, que
-          siguen siendo del despacho (`.claude/rules/datos.md`).
-        [ ] Anthropic, y SÓLO si algún día quieres la ruta 4 (que yo vea
-          el documento original). Para el flujo normal no hace falta.
-
-      ── PASO 3 · UNA FACTURA REAL, UNA SOLA ────────────────────────
-
-      ✅ **HECHO Y CERRADO — 17-09-2026, sesión LOCAL. Con DOS facturas, no
-      solo una.** La primera (config.json bien puesto, NIF real de Diego)
-      dio VERDE — el ÁMBAR inicial era solo por faltar alta_cliente_anio/
-      ejercicio_tanda, tal como el propio orquestador.py ya avisaba. Antes
-      de darla por cerrada se comprobó la ESTABILIDAD (pasar la misma foto
-      dos veces por Gemini): 19/19 campos comparables coinciden entre las
-      dos lecturas — construido `comparar_dos_lecturas_reales.py` para
-      medirlo sin imprimir un valor, y por el camino se encontraron y
-      arreglaron DOS bugs reales en esa misma herramienta (detalle completo
-      en PROJECT_STATUS.md, entrada del 17-09). La segunda factura (mismo
-      cliente, documento distinto) también dio VERDE.
-
-      **Lo que queda para llegar hasta "asiento en ContaPlus" de verdad**
-      (PENDIENTE dice "Foto → motor → asiento", y hoy se llegó a "Foto →
-      motor → veredicto"): generar el xDiario con `--diario`/`--subcuentas`
-      reales. Es un paso más grande y no se ha hecho todavía.
-
-      La confirmación es el RECUENTO EXACTO, no un "sí". Si no coincide
-      con los documentos encontrados, la puerta bloquea.
-
-      ── LO QUE NO HAY QUE HACER MAÑANA ─────────────────────────────
+      ── LO QUE NO HAY QUE HACER TODAVÍA ─────────────────────────────
 
         · No construir el router ni presupuestos ni reintentos: sus
-          constantes se miden con las primeras facturas (§5).
+          constantes se miden con lotes reales, no antes (§5).
         · No construir `proyeccion_minima.py` hasta tener el primer CSV
-          real delante (§5.A-bis).
-        · No procesar un lote grande antes de que UNA factura haya ido
-          de punta a punta. Es "Puerta 1 antes que Puerta 2", la regla
-          que este proyecto ya ha violado cuatro veces.
+          real de un LOTE delante, no solo de una factura suelta (§5.A-bis).
+        · No tocar `leer_ascii_completo()`: medido contra un cliente real
+          completo el 17-09 (`diag_leer_ascii_completo.py`), cero impacto
+          encontrado. Cerrado, no pendiente.
+        · Antes de pedirle a Diego un dato "que debería estar guardado":
+          buscar primero en todo el repositorio (`CLAUDE.md`, corrección
+          del 17-09-2026 — hay un incidente real detrás).
 
   ═════════════════════════════════════════════════════════════════════
   EL ORDEN — por dónde seguir, y por qué en ese orden
