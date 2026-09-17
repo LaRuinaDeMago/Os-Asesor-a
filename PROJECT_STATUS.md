@@ -7,7 +7,7 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
-## 17-09-2026 (sesión Local) — Las dos primeras facturas reales de punta a punta, y cuatro defectos reales por el camino
+## 17-09-2026 (sesión Local) — Las dos primeras facturas reales de punta a punta, CI completo, y ocho defectos reales por el camino
 
 Sesión retomada con `master` divergido de origin (2 commits locales sin subir,
 14 en origin sin bajar) — herencia de la sesión Cloud del 16-09, que había
@@ -94,10 +94,75 @@ ampliado se atrapaba a sí mismo en el nombre del primer fichero de test
 (`test_gitignore_local.py` contiene `_local`) — renombrado a
 `test_marcador_datos_reales.py`.
 
-**Estado al cerrar:** `test_motor_veredicto.py` 100%, `audit_project.py`
-código 0 con **39 suites** (subiendo desde 36 al empezar la sesión).
-Escáner de privacidad sobre todo lo comiteado: sin hallazgos. 6 commits
-nuevos en `master`, todos empujados.
+**Estado al cerrar (primera mitad de la sesión):** `test_motor_veredicto.py`
+100%, `audit_project.py` código 0 con **39 suites** (subiendo desde 36 al
+empezar la sesión). Escáner de privacidad sobre todo lo comiteado: sin
+hallazgos. 6 commits nuevos en `master`, todos empujados.
+
+### Segunda mitad: el punto 2.D (vigilancia BOE), la revisión completa, y CI de verdad
+
+**Vigilancia del BOE, cerrada y dada de alta.** `vigilancia_boe.bat` +
+`boe_normativa.py --comprobar` (25 bloques) + tarea de Windows semanal,
+registrada con `Register-ScheduledTask` (el `schtasks` con comillas anidadas
+falla en PowerShell — corta la ruta por el primer espacio; los cmdlets
+nativos lo evitan). Confirmada en estado `Ready`. Por el camino, un séptimo
+defecto real: el código de salida de `--comprobar` ignoraba un fallo de red
+total (devolvía 0, éxito, con la API caída) — arreglado y probado sin red
+(`imprimir_comprobacion()`, extraída de `main()` para poder probarla).
+
+**Un repaso pedido explícitamente ("¿falta algo, sobra algo?") encontró dos
+defectos más, los dos en capas que nadie había verificado hasta hoy:**
+
+1. **`.github/workflows/privacidad.yml` llevaba 3+ semanas apagado en los
+   push directos.** Disparaba en `push: branches: [main]`, y este
+   repositorio no ha tenido nunca una rama `main` — todo vive en `master`.
+   Confirmado contra el historial real de GitHub Actions (API, no memoria):
+   **12 ejecuciones en total, las 12 de pull requests del 25-08-2026, cero
+   por push desde entonces.** Los 12 commits de esta misma sesión, y todo lo
+   comiteado directo a master desde el 25-08, nunca pasó por CI. Arreglo de
+   una línea (`branches: [master]`), confirmado con un push real:
+   `push master completed success`.
+
+2. **Se añadió `auditoria.yml`: `python audit_project.py` (39 suites,
+   motor incluido) en cada push/PR**, no solo el escáner de privacidad —
+   sin red, sin ningún dato real, solo `pip install -r requirements.txt` y
+   el comando de siempre. La primera ejecución en GitHub **falló**, y en
+   local daba todo verde: el octavo defecto real del día, y el más
+   instructivo.
+
+   **Reproducido de verdad antes de tocar nada** (clon limpio del
+   repositorio en un directorio aparte + dependencias instaladas desde cero
+   + `audit_project.py`, sin depender de nada que ya estuviera en el PC de
+   esta sesión): `test_comparar_captura.py::pruebas_busqueda_verdad()`
+   esperaba que `muestras_sinteticas/doble_lectura_letras_verdad.json`
+   **ya existiera en disco**. Esa carpeta está en `.gitignore` a propósito
+   (lleva un NIF sintético dibujado en una imagen) — nadie la genera al
+   clonar, solo persiste si una sesión anterior corrió
+   `crear_muestras_sinteticas.py` a mano en ese mismo directorio. La prueba
+   pasaba en cualquier PC que ya la hubiera generado alguna vez (por eso
+   nunca se había visto) y fallaría en CUALQUIER clon nuevo: Cloud, CI, o el
+   PC de la asesoría tras un `git clone` limpio.
+
+   Arreglado sin depender de nada externo: el fichero mínimo que la prueba
+   necesita se crea en un directorio temporal (`tempfile` + `chdir`,
+   restaurado en `finally`). Verificado con el mismo clon limpio: 0 fallos
+   antes de subirlo, y confirmado después contra el runner real de GitHub
+   (commit `7427968`, `completed success`) — no solo localmente.
+
+**Por qué esto responde a "¿falta algo, sobra algo?" mejor que cualquier
+opinión:** las tres capas que fallaban (CI apagado, código de salida que no
+distingue "no comprobado" de "éxito", una prueba con una dependencia
+ambiental oculta) son variaciones del mismo patrón que este proyecto ya
+lleva meses cazando en el motor — un auditor que existe, está bien escrito,
+y algo externo a su propia lógica le impide avisar. Encontrarlas exigió
+reproducir contra un entorno limpio de verdad, no releer el código con más
+atención.
+
+**Estado al cerrar (sesión completa):** `test_motor_veredicto.py` 100%,
+`audit_project.py` código 0 con 39 suites, verificado además desde un clon
+limpio con dependencias frescas. CI en GitHub Actions verificado en verde
+contra el runner real, no solo en local. **16 commits nuevos en `master`,
+todos empujados.**
 
 ## 16-09-2026 (sesión Cloud, segunda) — Las muestras contra las que se mide, y un falso verde propio
 
