@@ -169,23 +169,28 @@ def pruebas_comparar_con_dbf():
 
 
 def pruebas_desalineacion():
-    """EL HALLAZGO REAL del 17-09-2026: al ejecutar esto contra un par ASCII+DBF
-    real, aparecieron 6.864 discrepancias sobre 72.423 instancias (9,5%) --
-    demasiado para ser solo el fallback 0.0. Antes de sospechar de
-    leer_ascii_completo(), hay que descartar que las dos exportaciones
-    vengan en ORDEN DISTINTO: mismo recuento no es lo mismo que mismo orden,
-    y comparar 'linea i contra registro i' con los ordenes cambiados genera
-    exactamente este patron -- muchas discrepancias, concentradas, que no
-    son un fallo del lector sino del emparejamiento."""
+    """EL HALLAZGO REAL del 17-09-2026: contra el primer par ASCII+DBF real,
+    la comparacion por posicion daba solo 13,1% de alineacion -- las dos
+    exportaciones no vienen en el mismo orden. Arreglado ordenando los dos
+    lados por ASIEN antes de comparar. Dos casos distintos:
+
+    1. Simple reordenamiento (mismo ASIEN, distinta posicion en el fichero):
+       el arreglo lo soluciona solo -- despues de ordenar, alineacion 100%.
+    2. Un ASIEN con distinto NUMERO DE LINEAS en cada fichero (un asiento con
+       2 apuntes en uno y 3 en el otro): ordenar no lo arregla, porque no es
+       un problema de orden, es un problema de CONTENIDO -- y el aviso debe
+       seguir saltando en este caso."""
     with tempfile.TemporaryDirectory() as tmp:
-        path_ascii = os.path.join(tmp, "diario.txt")
-        path_dbf = os.path.join(tmp, "diario.dbf")
+        # Caso 1: simple reordenamiento -- el ASCII trae 1,2,3 y el DBF trae
+        # el mismo contenido en el orden 2,1,3. Tras ordenar por ASIEN, los
+        # dos deberian alinear al 100%.
+        path_ascii = os.path.join(tmp, "reorden.txt")
+        path_dbf = os.path.join(tmp, "reorden.dbf")
         escribir_ascii(path_ascii, [
             {"ASIEN": "1", "BASEIMPO": "100.00"},
             {"ASIEN": "2", "BASEIMPO": "200.00"},
             {"ASIEN": "3", "BASEIMPO": "300.00"},
         ])
-        # Mismo recuento (3=3), pero el DBF trae el orden 2, 1, 3 -- no 1, 2, 3.
         construir_dbf_con_filas(path_dbf, CAMPOS, [
             {"ASIEN": 2, "BASEIMPO": 200.00},
             {"ASIEN": 1, "BASEIMPO": 100.00},
@@ -193,10 +198,31 @@ def pruebas_desalineacion():
         ])
         resultado, error = diag.comparar_con_dbf(path_ascii, path_dbf)
         n_reg, frac_alineados, coincide, discrepancia, _grave, _sin = resultado
-        comprobar("EL AVISO: con las 2 primeras filas en orden distinto, "
-                  "frac_alineados baja de 1.0 (aqui a 1/3) -- detecta el "
-                  "desorden en vez de reportar discrepancias falsas sin avisar",
-                  frac_alineados < 0.5, detalle=str(frac_alineados), severidad="P0")
+        comprobar("EL ARREGLO: mismo contenido, orden distinto -> ordenar por "
+                  "ASIEN realinea al 100% (ya no es un falso aviso de desorden)",
+                  frac_alineados == 1.0, detalle=str(frac_alineados), severidad="P0")
+        comprobar("y con la alineacion arreglada, BASEIMPO SI coincide en las 3 "
+                  "(100=100, 200=200, 300=300), nada de discrepancias falsas",
+                  coincide["BASEIMPO"] == 3 and discrepancia["BASEIMPO"] == 0,
+                  detalle=f"coincide={coincide['BASEIMPO']} discrepancia={discrepancia['BASEIMPO']}",
+                  severidad="P0")
+
+        # Caso 2: un ASIEN con distinto numero de lineas en cada lado -- esto
+        # SI sigue siendo un desajuste real que ordenar no arregla.
+        path_ascii2 = os.path.join(tmp, "desajuste.txt")
+        path_dbf2 = os.path.join(tmp, "desajuste.dbf")
+        escribir_ascii(path_ascii2, [
+            {"ASIEN": "1"}, {"ASIEN": "1"}, {"ASIEN": "1"}, {"ASIEN": "2"},
+        ])
+        construir_dbf_con_filas(path_dbf2, CAMPOS, [
+            {"ASIEN": 1}, {"ASIEN": 2}, {"ASIEN": 2}, {"ASIEN": 2},
+        ])
+        resultado2, _ = diag.comparar_con_dbf(path_ascii2, path_dbf2)
+        _, frac_alineados2, *_ = resultado2
+        comprobar("EL AVISO SIGUE FUNCIONANDO: un ASIEN con distinto numero de "
+                  "lineas en cada lado no se arregla ordenando -- sigue por "
+                  "debajo de 1.0",
+                  frac_alineados2 < 0.95, detalle=str(frac_alineados2), severidad="P0")
 
 
 def pruebas_recuento_distinto():

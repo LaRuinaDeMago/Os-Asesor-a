@@ -117,13 +117,34 @@ def _valor_ascii_hoy(crudo, nombre):
         return 0.0
 
 
+def _asien_de(valor_crudo_o_dbf, es_dbf):
+    """ASIEN como float, o None si no se puede leer. Mismo criterio en los
+    dos lados para poder ordenar por el mismo valor."""
+    try:
+        if es_dbf:
+            return float(valor_crudo_o_dbf) if valor_crudo_o_dbf is not None else None
+        v = valor_crudo_o_dbf.strip()
+        return float(v) if v else None
+    except (TypeError, ValueError):
+        return None
+
+
 def comparar_con_dbf(path_ascii, path_dbf):
-    """FASE 4. Compara, POR POSICION (mismo indice de registro en los dos
-    ficheros), el valor que el ASCII da HOY (con su fallback a 0.0) contra el
-    valor real del DBF. Asume que los dos son exportaciones de la MISMA
-    contabilidad y por tanto tienen el mismo orden -- si el recuento de
-    registros no coincide, lo declara y no compara nada (no empareja a
-    ciegas)."""
+    """FASE 4. Compara el valor que el ASCII da HOY (con su fallback a 0.0)
+    contra el valor real del DBF.
+
+    CORREGIDO 17-09-2026, tras la primera medicion real: comparar "linea i
+    del ASCII" contra "registro i del DBF" solo vale si las dos
+    exportaciones traen el MISMO orden, y NO lo traen -- medido con el
+    primer par real, la comprobacion de alineacion daba 13,1%. Mismo
+    recuento de lineas no prueba mismo orden.
+
+    Arreglado ordenando los dos lados por ASIEN (orden estable: dentro de un
+    mismo ASIEN, que puede tener varias lineas -- debe/haber de distintas
+    subcuentas -- se conserva el orden en que cada fichero ya las traia) ANTES
+    de comparar por posicion. Si el recuento de registros no coincide, o si
+    algun ASIEN no se puede leer en alguno de los dos lados, se declara y no
+    se compara nada (no empareja a ciegas)."""
     from dbfread import DBF
 
     with open(path_ascii, "rb") as f:
@@ -138,33 +159,33 @@ def comparar_con_dbf(path_ascii, path_dbf):
     if len(lineas) != len(registros_dbf):
         return None, (f"recuento distinto: {len(lineas)} lineas en el ASCII, "
                       f"{len(registros_dbf)} registros en el DBF -- no se "
-                      f"puede emparejar por posicion con seguridad")
+                      f"puede emparejar con seguridad")
 
     # campo_ascii -> nombre del campo en el DBF, cuando no coinciden
     # literalmente. Si tu DBF usa otros nombres, ajusta este mapeo -- no se
     # adivina.
     ALIAS_DBF = {}
 
-    # COMPROBACION DE ALINEACION, anadida el 17-09-2026 tras la primera
-    # medicion real: comparar "linea i del ASCII" contra "registro i del DBF"
-    # solo tiene sentido si las dos exportaciones traen el MISMO orden.
-    # Mismo recuento de lineas no prueba mismo orden. Se verifica con ASIEN
-    # (el numero de asiento, que deberia identificar la misma fila en las
-    # dos exportaciones si van alineadas) ANTES de fiarse de ninguna otra
-    # comparacion -- si ASIEN no coincide casi siempre, todo lo demas que
-    # este script diga sobre otros campos es ruido de desalineacion, no un
-    # hallazgo real sobre el fallback 0.0.
-    alineados = 0
-    for linea, reg_dbf in zip(lineas, registros_dbf):
-        crudo = decodificar_linea(linea)
-        try:
-            asien_ascii = float(crudo["ASIEN"].strip() or "nan")
-            asien_dbf = float(reg_dbf.get("ASIEN")) if reg_dbf.get("ASIEN") is not None else float("nan")
-        except (ValueError, TypeError):
-            continue
-        if asien_ascii == asien_dbf:
-            alineados += 1
-    frac_alineados = alineados / len(lineas) if lineas else 0.0
+    crudos = [decodificar_linea(l) for l in lineas]
+    asien_ascii = [_asien_de(c["ASIEN"], es_dbf=False) for c in crudos]
+    asien_dbf = [_asien_de(r.get("ASIEN"), es_dbf=True) for r in registros_dbf]
+    if any(a is None for a in asien_ascii) or any(a is None for a in asien_dbf):
+        return None, "ASIEN no se pudo leer en algun registro de alguno de los dos lados -- no se ordena a ciegas"
+
+    orden_ascii = sorted(range(len(crudos)), key=lambda i: asien_ascii[i])
+    orden_dbf = sorted(range(len(registros_dbf)), key=lambda i: asien_dbf[i])
+    crudos = [crudos[i] for i in orden_ascii]
+    asien_ascii = [asien_ascii[i] for i in orden_ascii]
+    registros_dbf = [registros_dbf[i] for i in orden_dbf]
+    asien_dbf = [asien_dbf[i] for i in orden_dbf]
+
+    # COMPROBACION DE ALINEACION: incluso ya ordenados los dos por ASIEN,
+    # esto puede seguir bajo si algun ASIEN aparece un numero de veces
+    # distinto en cada fichero (una linea de mas o de menos dentro de un
+    # asiento) -- el orden estable no arregla eso. Se mira ANTES de fiarse
+    # de ninguna otra comparacion.
+    alineados = sum(1 for a, b in zip(asien_ascii, asien_dbf) if a == b)
+    frac_alineados = alineados / len(crudos) if crudos else 0.0
 
     coincide = {n: 0 for n, *_ in CAMPOS_NUMERICOS}
     discrepancia = {n: 0 for n, *_ in CAMPOS_NUMERICOS}
@@ -173,8 +194,7 @@ def comparar_con_dbf(path_ascii, path_dbf):
     ascii_cero_dbf_no_cero = {n: 0 for n, *_ in CAMPOS_NUMERICOS}
     campo_no_en_dbf = set()
 
-    for linea, reg_dbf in zip(lineas, registros_dbf):
-        crudo = decodificar_linea(linea)
+    for crudo, reg_dbf in zip(crudos, registros_dbf):
         for nombre, _a, _t, _d in CAMPOS_NUMERICOS:
             campo_dbf = ALIAS_DBF.get(nombre, nombre)
             if campo_dbf not in reg_dbf:
@@ -193,7 +213,7 @@ def comparar_con_dbf(path_ascii, path_dbf):
             else:
                 discrepancia[nombre] += 1
 
-    return (len(lineas), frac_alineados, coincide, discrepancia,
+    return (len(crudos), frac_alineados, coincide, discrepancia,
             ascii_cero_dbf_no_cero, campo_no_en_dbf), None
 
 
