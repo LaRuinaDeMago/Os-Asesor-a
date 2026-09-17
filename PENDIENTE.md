@@ -951,58 +951,36 @@
               `cebo_nie`); suite 30/30 → **31/31**. Escáner ejecutado sobre
               todo el repositorio tras el cambio: sin hallazgos.
 
-      [ ] D · **Vigilancia automática, ya montada, PENDIENTE DE DECIDIR
-          EL MECANISMO (15-09-2026).** El comando en sí funciona:
-                  python boe_normativa.py --comprobar
-          Descarga del BOE los artículos registrados y avisa si alguno ha
-          cambiado desde que se leyó. No interpreta el cambio, solo lo
-          detecta.
-          **Lo que quedó a medias:** se iba a montar como agente
-          programado en la nube (`/schedule`), y se paró a tiempo, antes
-          de crear nada, al ver que no encaja — ese mecanismo clona el
-          repositorio entero y lanza una sesión de Claude Code completa
-          en la nube cada mes, para un comando que no necesita ninguna
-          inteligencia (el script ya compara de forma determinista) y sin
-          ningún conector (Slack/email) para avisarte de verdad; te
-          tocaría acordarte de mirar `claude.ai/code/routines`.
-          **Lo que sí encaja:** una tarea programada de **Windows, local,
-          en tu propio PC** — sin nube, sin agente de IA, Windows la
-          ejecuta sola. Queda por montar la próxima vez que se retome
-          este punto.
+      [X] D · **Vigilancia automática — HECHA Y DADA DE ALTA, 17-09-2026,
+          sesión LOCAL.** Abierta el 15-09 como "PENDIENTE DE DECIDIR EL
+          MECANISMO": se descartó montarla como agente en la nube
+          (`/schedule` clona el repo entero y lanza una sesión de Claude
+          Code completa para un comando que ya compara de forma
+          determinista, sin conector para avisar de verdad) y se decidió
+          una tarea programada de **Windows, local, en el propio PC**.
 
-          **Y ahora vigila mucho más que cuando se escribió esto
-          (15-09-2026):** pasó de 2 artículos a **25 bloques** (citas +
-          anexos de modelos AEAT, ver punto 2.C-quater), porque las citas
-          verificadas de `autoridad_guards.py` no las miraba nadie (ver
-          punto 2.C). Eso cambia lo que está en juego: ya no es "avisa si
-          cambia el art. 91", es **la única forma de que las 15 citas que
-          respaldan los guards no caduquen en silencio.** Sigue siendo
-          una tarea de Windows de cinco minutos.
+          `python boe_normativa.py --comprobar` (el comando de siempre,
+          vigila ahora **25 bloques**: citas de `autoridad_guards.py` +
+          anexos de modelos AEAT, ver 2.C/2.C-quater — subió desde 2 cuando
+          se escribió este punto) + `vigilancia_boe.bat` (el lanzador,
+          deja constancia con fecha en `vigilancia_boe.log`, no
+          versionado) + la tarea de Windows **"Vigilancia BOE - La
+          Fabrica"**, dada de alta con `Register-ScheduledTask`
+          (`schtasks` con comillas anidadas falla en PowerShell — cortaba
+          la ruta por el primer espacio; los cmdlets nativos lo evitan),
+          semanal, lunes 9:00, **confirmada en estado `Ready`.**
 
-      ✅ **EL LANZADOR YA ESTÁ — 17-09-2026, sesión LOCAL.** `vigilancia_boe.bat`
-          llama a `boe_normativa.py --comprobar` y deja constancia con fecha en
-          `vigilancia_boe.log` (no versionado, no lleva dato de cliente — solo
-          texto legal público — pero es salida generada). Probado de verdad
-          contra la API real del BOE: 25 sin cambios, 0 CAMBIADOS, 0 no
-          comprobados, código de salida 0.
+          De paso, un defecto real encontrado al prepararlo, no solo
+          teórico: el código de salida de `--comprobar` ignoraba un fallo
+          de red total — con la API caída, devolvía 0 (éxito) en vez de 1,
+          indistinguible para una tarea desatendida de "comprobado, sin
+          cambios". Arreglado (`imprimir_comprobacion()`, extraída de
+          `main()` para poder probar el código de salida sin red) y
+          probado con 4 casos nuevos en `ensayo_boe_normativa.py`.
 
-          De paso, un defecto real encontrado al prepararlo: el código de
-          salida de `--comprobar` ignoraba un fallo de red total — con la API
-          caída, devolvía 0 (éxito) en vez de 1, indistinguible para una tarea
-          desatendida de "comprobado, sin cambios". Arreglado (`imprimir_
-          comprobacion()`, ahora testeable sin red) y probado con 4 casos
-          nuevos en `ensayo_boe_normativa.py`.
-
-          **Falta solo darla de alta — es tuyo, Diego, crear/cambiar tareas
-          programadas es una modificación del sistema.** Una sola línea (en
-          PowerShell, tal cual la usas):
-          ```
-          schtasks /create /tn "Vigilancia BOE - La Fabrica" /tr "\"C:\Users\SERVILAB\Downloads\Proyecto asesoria completo\vigilancia_boe.bat\"" /sc weekly /d MON /st 09:00
-          ```
-          Semanal, los lunes a las 9:00 — ajusta el día/hora a lo que te
-          convenga. Revisa `vigilancia_boe.log` de vez en cuando, o combínalo
-          con `schtasks /query /tn "Vigilancia BOE - La Fabrica"` para ver
-          cuándo corrió por última vez y con qué resultado.
+          Revisar `vigilancia_boe.log` de vez en cuando, o
+          `Get-ScheduledTaskInfo -TaskName "Vigilancia BOE - La Fabrica"`
+          para ver cuándo corrió por última vez.
 
   ═════════════════════════════════════════════════════════════════════
   3 · LO QUE NO ES CÓDIGO
