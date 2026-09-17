@@ -870,3 +870,13 @@
       · Vender datos de clientes en cualquier forma: LÍNEA ROJA, descartado
         y no aplazado (.claude/rules/datos.md).
       · Auto-fix de pull requests en este repositorio.
+      · Cambiar de canal Pro→API de Anthropic sin justificación explícita
+        y confirmación de Diego, tarea por tarea — igual que
+        `OS_ASESORIA_DATOS_REALES` no autoriza un lote por sí solo (hace
+        falta el recuento exacto cada vez), `ANTHROPIC_API_KEY` puesta
+        tampoco autoriza ninguna tarea por sí sola. Acordado 17-09-2026,
+        con el mismo argumento que ya usa `.claude/rules/datos.md`: una
+        promesa de sesión no basta, tiene que quedar escrita donde se
+        audite. `arranque.py` ya lo imprime solo si la clave está puesta
+        (`ensayo_arranque.py`, FAMILIA A-bis) — no depende de que nadie
+        se acuerde de proponerlo.
