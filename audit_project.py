@@ -560,7 +560,13 @@ def check_estados_y_cobertura():
                              # externa): procesar_carpeta() no buscaba ".pdf" aunque
                              # leer_factura() ya sabe leerlo -- una carpeta llena de
                              # PDF pasaba con "Encontradas 0 imagenes", silencioso.
-                             ("test_captura_orquestador.py", "Captura: listar_documentos reconoce PDF, no solo imagenes")):
+                             ("test_captura_orquestador.py", "Captura: listar_documentos reconoce PDF, no solo imagenes"),
+                             # test_diag_leer_ascii_completo.py (17-09-2026): el
+                             # diagnostico (no un parche) del fallback 0.0 de
+                             # leer_ascii_completo(), pedido por la segunda opinion
+                             # del auditor externo -- medir antes de cambiar nada
+                             # en un lector que alimenta el historico real completo.
+                             ("test_diag_leer_ascii_completo.py", "Diagnostico ASCII/DBF: distingue vacio de ilegible, sin tocar el lector real")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue
