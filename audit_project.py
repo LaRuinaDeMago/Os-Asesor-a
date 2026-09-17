@@ -532,7 +532,15 @@ def check_estados_y_cobertura():
                              # se imprime ni un valor, ni un nombre, ni una ruta.
                              # La bateria la sabotea de dos formas y exige que se
                              # ponga roja las dos veces.
-                             ("test_comparar_captura.py", "Comparador captura/verdad: mide, y no filtra")):
+                             ("test_comparar_captura.py", "Comparador captura/verdad: mide, y no filtra"),
+                             # comparar_dos_lecturas_reales.py (17-09-2026): compara
+                             # DOS lecturas reales entre si (misma foto, dos llamadas
+                             # a Gemini). A diferencia del anterior, aqui NINGUNA de
+                             # las dos entradas puede ser sintetica -- no hay "es_
+                             # sintetico" que autorice imprimir nada. La bateria
+                             # planta un senuelo en un campo que DIFIERE a proposito
+                             # y exige que nunca llegue a la salida.
+                             ("test_comparar_dos_lecturas.py", "Comparador de dos lecturas reales: nunca imprime un valor")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue
