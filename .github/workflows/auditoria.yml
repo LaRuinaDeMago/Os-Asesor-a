@@ -1,0 +1,35 @@
+name: Auditoria completa
+
+# 17-09-2026. `python audit_project.py` ya corre las 39 suites del
+# repositorio (motor, adversarial, guards, privacidad, puerta cloud...) en
+# un solo comando, sin red y sin tocar ningun dato real -- lo dice su propio
+# docstring en boe_normativa.py: "audit_project.py tiene que correr sin red,
+# rapido y determinista". Hasta hoy eso solo se ejecutaba si alguien se
+# acordaba de lanzarlo a mano tras un push. Mismo motivo que
+# vigilancia_boe.bat: lo que no depende de que alguien se acuerde, no se
+# olvida.
+#
+# NO instala anthropic/google-genai con clave real ni las llama -- solo se
+# importan para comprobar que estan instaladas (ver check_dependencias en
+# audit_project.py). Ninguna API se contacta desde este workflow.
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+jobs:
+  auditoria:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: python audit_project.py (39 suites, motor incluido)
+        run: python audit_project.py
