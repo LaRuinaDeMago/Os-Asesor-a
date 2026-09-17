@@ -547,7 +547,15 @@ def check_estados_y_cobertura():
                              # importe entre dos lecturas REALMENTE identicas, por
                              # descarte en vez de comprobarlo. Esta bateria fija ese
                              # caso como regresion.
-                             ("test_diag_tramos_dos_lecturas.py", "Diagnostico de tramos: no inventa una diferencia que no existe")):
+                             ("test_diag_tramos_dos_lecturas.py", "Diagnostico de tramos: no inventa una diferencia que no existe"),
+                             # test_marcador_datos_reales.py (17-09-2026): el patron
+                             # *_LOCAL.* solo protegia si el marcador iba justo
+                             # antes de la extension -- mismo agujero que el
+                             # .DAT, esta vez en el propio .gitignore. Encontrado
+                             # con las capturas reales de la primera factura.
+                             # (El fichero no se llama test_gitignore_local.py a
+                             # proposito: ese nombre lo atraparia el propio patron.)
+                             ("test_marcador_datos_reales.py", "Gitignore _LOCAL: protege el marcador lleve lo que lleve detras")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue

@@ -56,8 +56,17 @@ censo_despacho_v8.csv
 # Patrón por extensión LIBRE a propósito: el 12-08-2026 el inventario salió en
 # .csv y el patrón de entonces (*_LOCAL.json) no lo cubría. La convención es el
 # sufijo _LOCAL, no el formato.
-*_LOCAL.*
-*_local.*
+#
+# CORREGIDO 17-09-2026: `*_LOCAL.*` solo protegia si "_LOCAL" iba JUSTO antes
+# de la extension. `facturas_reales_LOCAL_run2.csv` y `..._factura2.csv`
+# (primera factura real de punta a punta, comprobado dos veces por Gemini)
+# llevan algo DESPUES de "_LOCAL" y por tanto ese patron no los reconocia --
+# aparecian como "sin seguimiento" en vez de ignorados. Mismo tipo de agujero
+# que el `.DAT` (decidir por FORMA en vez de por lo que el nombre declara).
+# `*_LOCAL*` (sin punto obligatorio detras) los cubre a todos, lleven lo que
+# lleven despues del marcador.
+*_LOCAL*
+*_local*
 fase0_debug_local.json
 fase0_pares_inconsistentes.csv
 
