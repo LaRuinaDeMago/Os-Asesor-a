@@ -400,9 +400,22 @@
 
       ── PASO 3 · UNA FACTURA REAL, UNA SOLA ────────────────────────
 
-        set OS_ASESORIA_DATOS_REALES=1
-        python captura_orquestador.py --imagen factura.jpg \
-            --procedencia REAL --confirmo-envio 1
+      ✅ **HECHO Y CERRADO — 17-09-2026, sesión LOCAL. Con DOS facturas, no
+      solo una.** La primera (config.json bien puesto, NIF real de Diego)
+      dio VERDE — el ÁMBAR inicial era solo por faltar alta_cliente_anio/
+      ejercicio_tanda, tal como el propio orquestador.py ya avisaba. Antes
+      de darla por cerrada se comprobó la ESTABILIDAD (pasar la misma foto
+      dos veces por Gemini): 19/19 campos comparables coinciden entre las
+      dos lecturas — construido `comparar_dos_lecturas_reales.py` para
+      medirlo sin imprimir un valor, y por el camino se encontraron y
+      arreglaron DOS bugs reales en esa misma herramienta (detalle completo
+      en PROJECT_STATUS.md, entrada del 17-09). La segunda factura (mismo
+      cliente, documento distinto) también dio VERDE.
+
+      **Lo que queda para llegar hasta "asiento en ContaPlus" de verdad**
+      (PENDIENTE dice "Foto → motor → asiento", y hoy se llegó a "Foto →
+      motor → veredicto"): generar el xDiario con `--diario`/`--subcuentas`
+      reales. Es un paso más grande y no se ha hecho todavía.
 
       La confirmación es el RECUENTO EXACTO, no un "sí". Si no coincide
       con los documentos encontrados, la puerta bloquea.

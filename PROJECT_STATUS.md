@@ -7,6 +7,98 @@ Este archivo se actualiza cada vez que algo cambia de verdad. Si algo aquí no
 coincide con lo que demuestran los tests o el código, mandan los tests, no este
 texto. Jerarquía de verdad: Código → Tests → Git → este archivo.
 
+## 17-09-2026 (sesión Local) — Las dos primeras facturas reales de punta a punta, y cuatro defectos reales por el camino
+
+Sesión retomada con `master` divergido de origin (2 commits locales sin subir,
+14 en origin sin bajar) — herencia de la sesión Cloud del 16-09, que había
+completado y depurado en remoto el mismo trabajo que un intento local anterior
+había dejado a medias sin pushear. Fusionado tomando la versión de origin
+donde era un superconjunto estricto de la local (tenía ya corregidos los bugs
+de tinta blanca invisible y desbordamiento de mención legal que el borrador
+local no tenía); conservados los dos ficheros que solo existían en local
+(`medir_estructura_capturas.py`, `config.json.example`).
+
+**La auditoría obligatoria tras la fusión encontró dos defectos reales, no
+solo huecos:** `arranque.py` reventaba con `IndexError` al listar ramas del
+remoto (el HEAD simbólico de origin da `refname:short = "origin"` sin barra,
+y el filtro solo excluía el sufijo `/HEAD`); y `muestras_sinteticas/` tenía
+salida obsoleta del borrador descartado, con nombres que ya no genera el
+script vigente. Los dos arreglados, `audit_project.py` código 1 en bruto tras
+la fusión → 0 tras los arreglos. De paso, medida y borrada una rama huérfana
+más (`claude/magical-davinci-1wp1x4`) que nadie había registrado, además de
+la ya conocida `claude/cierre-verificacion-exhaustiva-w1otrt` — las dos con
+0 commits que master no tuviera. `master` vuelve a ser el único punto de
+encuentro.
+
+### Primera factura real de punta a punta — Paso 1 confirmado
+
+Con `config.json` bien puesto (tras corregir dos veces la confusión entre
+`config.json` y `config.json.example` — la plantilla no debe llevar valores
+reales nunca, ni siquiera un año suelto) y el NIF real del cliente escrito
+por Diego, la primera factura real dio **VERDE**. El ÁMBAR inicial era solo
+por falta de `alta_cliente_anio`/`ejercicio_tanda` en la configuración, tal
+como el propio `orquestador.py` ya avisaba antes de procesar nada.
+
+### Paso 2 — ¿lee Gemini lo mismo la misma foto dos veces? Sí, y se encontraron dos bugs propios comprobándolo
+
+Construido `comparar_dos_lecturas_reales.py` (reutiliza `comparar_campo()` de
+`comparar_captura_vs_verdad.py`, nunca imprime un valor real). Primera pasada:
+18/22 campos coincidían, pero `tramos_iva` daba DIFIERE — y Diego, mirando los
+dos CSV a mano, dijo que le parecían iguales. Tenía razón: **bug real en la
+herramienta**, no en la lectura. `comparar_tramos()` asume que su primer
+argumento ya llega desempaquetado (cierto en su uso original, contra una
+verdad JSON ya cargada; falso aquí, donde los dos lados son texto crudo de
+CSV) — iterar sobre la cadena carácter a carácter no encontraba ningún tramo
+real, así que DOS LECTURAS IDÉNTICAS daban DIFIERE siempre. Reproducido antes
+de tocar nada (`comparar_campo('tramos_iva', x, x)` con la misma cadena en
+los dos lados ya daba DIFIERE) y arreglado desempaquetando en el propio script
+antes de comparar.
+
+Escrito también `diag_tramos_dos_lecturas.py` (distingue si un DIFIERE de
+tramos_iva es de recuento, de tipo de IVA, o de importe, sin imprimir base ni
+cuota) — y al probarlo a mano con datos inventados apareció un **segundo
+bug real**: con dos lecturas de verdad idénticas, afirmaba igual una
+diferencia de importe, por descarte en vez de comprobar. Arreglado
+reutilizando `comparar_tramos()` para la comprobación final.
+
+Y un tercer refinamiento, no un bug pero sí una ambigüedad real: un `NO_VINO`
+no distinguía "las dos lecturas coinciden en no traer el campo" (benigno) de
+"la primera lo traía y la segunda lo perdió" (justo la inestabilidad que la
+herramienta existe para encontrar). Añadida una nota por caso
+(`AUSENTE_EN_LAS_DOS` / `SEGUNDA_LO_PERDIO` / `PRIMERA_LO_PERDIO`), sin
+imprimir ningún valor.
+
+**Resultado final, con las tres herramientas ya corregidas: los 19 campos
+comparables coinciden entre las dos lecturas de Gemini.** Los 3 restantes
+(`nif_margen`, `nombre_margen`, `total_factura_2`) están ausentes en las DOS
+lecturas por igual — esta factura concreta no lleva ese pie repetido, no es
+un fallo de lectura.
+
+### Paso 3 — segunda factura real (mismo cliente): también VERDE
+
+Dos facturas reales de punta a punta, dos veredictos limpios. El Paso 3 tal
+como lo define `PENDIENTE.md` ("Foto → motor → veredicto") queda cerrado con
+dos casos, no uno. Queda para otro día llegar hasta "asiento en ContaPlus"
+(el xDiario, con `--diario`/`--subcuentas` reales).
+
+### Un cuarto defecto real, en `.gitignore`
+
+Al ir a guardar el trabajo, `facturas_reales_LOCAL_run2.csv` y
+`facturas_reales_LOCAL_factura2.csv` aparecían como "sin seguimiento" en
+`git status` en vez de ignorados. El patrón `*_LOCAL.*` solo protegía si el
+marcador iba justo antes del punto de la extensión — mismo tipo de agujero
+que el `.DAT` del 19-08 (decidir por una forma concreta del nombre en vez de
+por lo que declara). Corregido a `*_LOCAL*`/`*_local*` (sin punto
+obligatorio detrás). Efecto colateral real al escribir la prueba: el patrón
+ampliado se atrapaba a sí mismo en el nombre del primer fichero de test
+(`test_gitignore_local.py` contiene `_local`) — renombrado a
+`test_marcador_datos_reales.py`.
+
+**Estado al cerrar:** `test_motor_veredicto.py` 100%, `audit_project.py`
+código 0 con **39 suites** (subiendo desde 36 al empezar la sesión).
+Escáner de privacidad sobre todo lo comiteado: sin hallazgos. 6 commits
+nuevos en `master`, todos empujados.
+
 ## 16-09-2026 (sesión Cloud, segunda) — Las muestras contra las que se mide, y un falso verde propio
 
 Sesión de retomada. Lo primero fue medir el estado, y dos cosas salieron
