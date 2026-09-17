@@ -152,21 +152,41 @@ def main():
             if getattr(a, "bloque_boe", "") and getattr(a, "huella_boe", "")
         ] + list(ma.MODELOS)
         iguales, cambiados, fallidos = comprobar(registros)
-        print(f"Comprobados contra el BOE: {len(iguales)} sin cambios, "
-              f"{len(cambiados)} CAMBIADOS, {len(fallidos)} no comprobados")
-        for clave, antes, ahora, norma_mod, h in cambiados:
-            print(f"\n  ⚠ {clave}")
-            print(f"    vigencia guardada: {antes}   vigencia actual: {ahora}")
-            print(f"    modificado por: {norma_mod}")
-            print(f"    huella nueva: {h}")
-            print("    -> hay que LEER el articulo y decidir. El programa no")
-            print("       interpreta el cambio, solo lo detecta.")
-        for clave, motivo in fallidos:
-            print(f"  · {clave}: no comprobado ({motivo})")
-        return 1 if cambiados else 0
+        return imprimir_comprobacion(iguales, cambiados, fallidos)
 
     ap.print_help()
     return 0
+
+
+def imprimir_comprobacion(iguales, cambiados, fallidos):
+    """Toda la impresion de `--comprobar`, separada de main() para poder
+    probar el CODIGO DE SALIDA con datos fabricados, sin red (ver
+    ensayo_boe_normativa.py). Devuelve el codigo de salida.
+
+    ARREGLADO 17-09-2026 (encontrado al preparar la tarea programada, sin que
+    nadie lo hubiera pedido): devolvia `1 if cambiados else 0`, ignorando
+    `fallidos` por completo. Un fallo de red total -- API caida, cambio de
+    formato, lo que sea -- da 0 comprobados, 0 cambiados, TODOS fallidos, y
+    ese codigo devolvia 0: exito. Para una persona mirando la pantalla el
+    mensaje "0 CAMBIADOS, 25 no comprobados" ya avisa; para una tarea
+    programada desatendida que solo mira el codigo de salida, esto es
+    indistinguible de "comprobado, no ha cambiado nada" -- el falso verde
+    exacto que el resto del proyecto (el motor, `audit_project.py`, la
+    puerta cloud) tiene prohibido. `ensayo_boe_normativa.py` probaba
+    `comprobar()` a fondo pero nunca el codigo de salida de `main()` --
+    hueco real, no solo teorico."""
+    print(f"Comprobados contra el BOE: {len(iguales)} sin cambios, "
+          f"{len(cambiados)} CAMBIADOS, {len(fallidos)} no comprobados")
+    for clave, antes, ahora, norma_mod, h in cambiados:
+        print(f"\n  ⚠ {clave}")
+        print(f"    vigencia guardada: {antes}   vigencia actual: {ahora}")
+        print(f"    modificado por: {norma_mod}")
+        print(f"    huella nueva: {h}")
+        print("    -> hay que LEER el articulo y decidir. El programa no")
+        print("       interpreta el cambio, solo lo detecta.")
+    for clave, motivo in fallidos:
+        print(f"  · {clave}: no comprobado ({motivo})")
+    return 1 if (cambiados or fallidos) else 0
 
 
 if __name__ == "__main__":

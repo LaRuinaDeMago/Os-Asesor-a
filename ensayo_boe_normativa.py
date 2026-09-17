@@ -150,6 +150,26 @@ def main():
     comprobar("y se reporta solo el TIPO de excepcion, nunca su mensaje",
               fallidos[0][1] == "OSError", str(fallidos[0]))
 
+    # EL BUG REAL, encontrado el 17-09-2026 al preparar la tarea programada:
+    # `main()` devolvia `1 if cambiados else 0`, ignorando `fallidos` del
+    # todo. Con la red totalmente caida (todo fallido, nada comprobado), eso
+    # devolvia 0 -- exito -- indistinguible para una tarea desatendida de
+    # "comprobado, sin cambios". Se prueba `imprimir_comprobacion()` (la
+    # funcion que decide el codigo), sin tocar la red.
+    print()
+    print("--- codigo de salida de --comprobar (sin red) ---")
+    comprobar("solo iguales -> codigo 0",
+              bn.imprimir_comprobacion(["a91"], [], []) == 0)
+    comprobar("algo cambiado -> codigo 1",
+              bn.imprimir_comprobacion([], [("a91", "20200101", "20260101",
+                                             "norma", "hash")], []) == 1)
+    comprobar("EL BUG: todo fallido (red caida), nada cambiado -> DEBE ser "
+              "codigo 1, no 0 -- 'no comprobado' no es un exito",
+              bn.imprimir_comprobacion([], [], [("a91", "OSError")]) == 1)
+    comprobar("cambiados Y fallidos a la vez -> sigue siendo codigo 1",
+              bn.imprimir_comprobacion([], [("a91", "1", "2", "n", "h")],
+                                       [("a13", "OSError")]) == 1)
+
     print()
     if FALLOS:
         print(f"FALLAN {len(FALLOS)} comprobaciones:")
