@@ -168,6 +168,28 @@ Regla práctica para saber en qué lado estás:
 > ¿El modelo necesita **ver** el dato para producir el resultado, o le basta con
 > **contarlo** un script? Si necesita verlo → DPA. Si basta contarlo → tres roles.
 
+## PRECISIÓN 17-09-2026 — avisar ANTES, no solo contestar si Diego pregunta
+
+Acordado explícitamente con Diego, en paralelo a cómo ya se decidió lo de
+Google/Gemini para el OCR (evaluado entre los dos, contratado solo cuando
+compensaba de verdad — nunca activado por defecto ni dado por hecho):
+
+**En cuanto una tarea concreta parezca resolverse mejor usando la API de
+Anthropic (con DPA) que con el diseño de tres roles, Claude lo dice
+explícitamente en el momento, antes de que Diego tenga que preguntarlo.**
+Nunca se propone como un hecho consumado, nunca se usa "porque ya se
+podría", y la decisión de si compensa y si encaja con el proyecto se toma
+entre los dos — igual que con cualquier otra puerta de datos reales de este
+fichero.
+
+Esto no cambia ninguna regla ya escrita aquí arriba — el diseño de tres
+roles sigue siendo mejor que la API para todo lo que un script pueda
+contar, aunque haya DPA contratado (ver la sección de arriba). Lo que
+añade es la parte proactiva: no esperar a que Diego pregunte "¿esto
+necesitaría la API?" — decirlo en cuanto aparezca una tarea que de verdad
+la necesite (el modelo tiene que **ver** el dato, no solo **contarlo** —
+la regla práctica de justo arriba es la que decide cuál es cuál).
+
 ## ⚠️ Lo que el DPA SÍ resuelve y lo que NO (precisión 20-08-2026)
 
 Conviene fijarlo antes de contratarlo, porque es fácil leerlo como "con el DPA ya
