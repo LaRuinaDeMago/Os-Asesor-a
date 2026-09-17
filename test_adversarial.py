@@ -379,6 +379,34 @@ _est, _ = m.guard_tipo_producto_iva_semantico('aceite de oliva', '4')
 comprobar("J", "el guard semantico SIGUE aceptando el 4% exacto (no se ha vuelto mas estricto de la cuenta)",
           _est == "OK", f"estado={_est}", "OK", "P0")
 
+# COMBINACIONES, sugeridas por segunda opinion del auditor externo (17-09-2026):
+# arreglar cada P0 por separado no demuestra que la COMBINACION de varias
+# debilidades a la vez no abra un agujero nuevo -- un guard podria "tapar" el
+# aviso de otro y el conjunto seguir dando VERDE. Las tres mas obvias:
+v, mot = evaluar({**BASE_FILA, 'base_total': '1000', 'iva_total': '0', 'total_factura': '1000',
+                     'confianza_campos': {'nif': 'ALTA', 'fecha_expedicion': 'ALTA',
+                                          'nº_documento': 'ALTA', 'base_total': 'ALTA',
+                                          'iva_total': 'ALTA'}})  # falta total_factura
+comprobar("J", "COMBO: naturaleza ausente + IVA=0 + confianza incompleta -> sigue sin ser VERDE",
+          v != "VERDE", f"veredicto={v} ({mot[:60]})", "AMBAR/ROJO", "P0")
+
+v, mot = evaluar({**BASE_FILA, 'base_total': '100', 'iva_total': '20', 'total_factura': '120',
+                     'tramos_iva': [{'tipo': 21, 'base': 100, 'cuota': 20}],
+                     'confianza_campos': {c: 'ALTA' for c in
+                                          ('nif', 'fecha_expedicion', 'nº_documento',
+                                           'base_total', 'iva_total', 'total_factura')}})
+comprobar("J", "COMBO: tramo con cuota incorrecta + confianza ALTA declarada en TODO -> sigue ROJO "
+          "(la confianza autodeclarada no puede tapar un error aritmetico)",
+          v == "ROJO", f"veredicto={v} ({mot[:60]})", "ROJO", "P0")
+
+v, mot = evaluar({**BASE_FILA, 'base_total': '100', 'iva_total': '21.9', 'total_factura': '121.9',
+                     'tramos_iva': [{'tipo': 21.9, 'base': 100, 'cuota': 21.9}],
+                     'confianza_campos': {'nif': 'ALTA', 'fecha_expedicion': 'ALTA',
+                                          'nº_documento': 'ALTA', 'base_total': 'ALTA',
+                                          'iva_total': 'ALTA'}})  # falta total_factura
+comprobar("J", "COMBO: tipo 21,9% invalido + naturaleza ausente + confianza incompleta -> sigue sin ser VERDE",
+          v != "VERDE", f"veredicto={v} ({mot[:60]})", "AMBAR/ROJO", "P0")
+
 
 print("\n=== FAMILIA K — Los tres puntos del techo que dependian del prompt ===")
 # Cerrados el 20-08-2026. Los tres son NO_APLICA mientras la captura no emita
