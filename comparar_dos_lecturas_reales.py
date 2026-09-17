@@ -54,11 +54,40 @@ def leer_csv(ruta):
         return list(csv.DictReader(f))
 
 
+def _vacio(v):
+    """Solo un booleano -- si hay contenido o no, nunca cual."""
+    return v is None or not str(v).strip()
+
+
+#: Para un NO_VINO, DE QUE LADO falta el dato importa: "las dos lecturas
+#: coinciden en no traerlo" no es lo mismo que "la primera lo traia y la
+#: segunda lo perdio" -- esto ultimo es justo la inestabilidad que este
+#: script existe para encontrar, y antes de esta nota las dos se veian
+#: identicas bajo la misma etiqueta NO_VINO. Ningun valor entra aqui, solo
+#: de que lado falta.
+AUSENTE_EN_LAS_DOS = "ausente en las dos lecturas (no es inestabilidad)"
+SEGUNDA_LO_PERDIO = "la 1ª lectura lo traia, la 2ª no -- SI es inestabilidad"
+PRIMERA_LO_PERDIO = "la 2ª lectura lo traia, la 1ª no -- SI es inestabilidad"
+
+
+def _nota_no_vino(v1, v2):
+    v1_vacio, v2_vacio = _vacio(v1), _vacio(v2)
+    if v1_vacio and v2_vacio:
+        return AUSENTE_EN_LAS_DOS
+    if v2_vacio:
+        return SEGUNDA_LO_PERDIO
+    if v1_vacio:
+        return PRIMERA_LO_PERDIO
+    return ""
+
+
 def comparar(filas1, filas2):
     """Compara fila a fila (por POSICION, no por contenido -- ver docstring
     del modulo sobre por que eso exige el mismo orden de captura) y campo a
     campo. Devuelve (resultados, error): si error no es None, resultados es
-    None y no se ha comparado nada."""
+    None y no se ha comparado nada. Cada resultado es (fila, campo, estado,
+    nota) -- nota solo se rellena para NO_VINO (ver _nota_no_vino) y para el
+    resto va vacia."""
     if len(filas1) != len(filas2):
         return None, (f"recuento distinto: {len(filas1)} factura(s) en el "
                       f"primer fichero, {len(filas2)} en el segundo -- no se "
@@ -81,10 +110,13 @@ def comparar(filas1, filas2):
             # cadena en los dos lados ya daba DIFIERE. Se desempaqueta aqui,
             # en el unico sitio que sabe que los dos lados son crudos.
             if col == "tramos_iva":
-                v1 = contrato_datos.parse_estructura(v1)
-                v2 = contrato_datos.parse_estructura(v2)
-            estado, _detalle = cmp.comparar_campo(col, v1, v2)
-            resultados.append((i, col, estado))
+                v1p = contrato_datos.parse_estructura(v1)
+                v2p = contrato_datos.parse_estructura(v2)
+            else:
+                v1p, v2p = v1, v2
+            estado, _detalle = cmp.comparar_campo(col, v1p, v2p)
+            nota = _nota_no_vino(v1, v2) if estado == cmp.NO_VINO else ""
+            resultados.append((i, col, estado, nota))
     return resultados, None
 
 
@@ -95,8 +127,8 @@ def imprimir_resultados(resultados, n_filas):
           f"solo el nombre del campo y el resultado, nunca el valor.\n")
 
     por_estado = {}
-    for fila_i, col, estado in resultados:
-        por_estado.setdefault(estado, []).append((fila_i, col))
+    for fila_i, col, estado, nota in resultados:
+        por_estado.setdefault(estado, []).append((fila_i, col, nota))
 
     orden = (cmp.DIFIERE, cmp.NO_VINO, cmp.SOLO_PUNTUACION, cmp.COINCIDE)
     for estado in orden:
@@ -104,19 +136,31 @@ def imprimir_resultados(resultados, n_filas):
         if not items:
             continue
         print(f"{estado} ({len(items)}):")
-        for fila_i, col in items:
+        for fila_i, col, nota in items:
             etiqueta = f"fila {fila_i}: {col}" if n_filas > 1 else col
+            if nota:
+                etiqueta += f"  [{nota}]"
             print(f"  {etiqueta}")
         print()
 
-    if por_estado.get(cmp.DIFIERE) or por_estado.get(cmp.NO_VINO):
+    # Solo un NO_VINO donde una lectura tenia el dato y la otra lo perdio
+    # cuenta como inestabilidad real. Las dos vacias no es un problema -- es
+    # que el documento no trae ese campo, y las dos lecturas coinciden en eso.
+    inestable = bool(por_estado.get(cmp.DIFIERE)) or any(
+        nota in (SEGUNDA_LO_PERDIO, PRIMERA_LO_PERDIO)
+        for _, _, nota in por_estado.get(cmp.NO_VINO, []))
+
+    if inestable:
         print("Hay diferencias entre las dos lecturas -- justo lo que este "
               "script existe para encontrar. No es necesariamente un "
               "problema (algunos campos, como la puntuacion de un texto, "
               "pueden variar sin que la factura este mal leida), pero "
               "conviene mirarlos uno a uno en tu propio CSV.")
     else:
-        print("Las dos lecturas coinciden en todos los campos comparados.")
+        print("Las dos lecturas coinciden en todo lo que se puede comparar. "
+              "Los campos NO_VINO, si los hay, estan ausentes en las DOS "
+              "lecturas por igual -- no es inestabilidad, es que el "
+              "documento no trae ese dato.")
 
 
 def main():

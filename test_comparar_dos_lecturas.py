@@ -56,10 +56,10 @@ def pruebas_comparar():
     comprobar("mismo importe escrito distinto -> COINCIDE (mismo criterio "
               "que comparar_campo)",
               error is None and
-              [e for _, c, e in resultado if c == "total_factura"] == [cmp.COINCIDE],
+              [e for _, c, e, _ in resultado if c == "total_factura"] == [cmp.COINCIDE],
               severidad="P0")
     comprobar("_coste NO se compara -- es de la LLAMADA, no de la LECTURA",
-              not any(c == "_coste" for _, c, _ in resultado), severidad="P0")
+              not any(c == "_coste" for _, c, _, _ in resultado), severidad="P0")
 
     fila_c = {"total_factura": "1.420,00"}
     fila_d = {"total_factura": "1.720,00"}
@@ -72,6 +72,10 @@ def pruebas_comparar():
     resultado, error = m.comparar([fila_e], [fila_f])
     comprobar("un campo ausente en la segunda lectura -> NO_VINO",
               error is None and resultado[0][2] == cmp.NO_VINO, severidad="P1")
+    comprobar("y la nota dice que fue la 2ª la que lo perdio (inestabilidad "
+              "real, no las dos vacias)",
+              error is None and resultado[0][3] == m.SEGUNDA_LO_PERDIO,
+              detalle=repr(resultado), severidad="P0")
 
 
 def pruebas_tramos_iva_crudos_de_csv():
@@ -86,7 +90,7 @@ def pruebas_tramos_iva_crudos_de_csv():
                       {"tipo": 10, "base": 50, "cuota": 5}])
     resultado, error = m.comparar([{"tramos_iva": raw}], [{"tramos_iva": raw}])
     comprobar("MISMA cadena cruda de tramos_iva en los dos lados -> COINCIDE",
-              error is None and resultado == [(1, "tramos_iva", cmp.COINCIDE)],
+              error is None and resultado == [(1, "tramos_iva", cmp.COINCIDE, "")],
               detalle=repr(resultado), severidad="P0")
 
     raw_incompleto = json.dumps([{"tipo": 21, "base": 100, "cuota": 21}])
@@ -94,12 +98,12 @@ def pruebas_tramos_iva_crudos_de_csv():
                                   [{"tramos_iva": raw_incompleto}])
     comprobar("tramos_iva genuinamente distintos (falta un tramo) SIGUE "
               "detectandose como DIFIERE tras el arreglo",
-              error is None and resultado == [(1, "tramos_iva", cmp.DIFIERE)],
+              error is None and resultado == [(1, "tramos_iva", cmp.DIFIERE, "")],
               detalle=repr(resultado), severidad="P0")
 
     resultado, error = m.comparar([{"tramos_iva": ""}], [{"tramos_iva": ""}])
     comprobar("las dos vacias (caso ISP, sin desglose de IVA) -> COINCIDE",
-              error is None and resultado == [(1, "tramos_iva", cmp.COINCIDE)],
+              error is None and resultado == [(1, "tramos_iva", cmp.COINCIDE, "")],
               detalle=repr(resultado), severidad="P0")
 
 
@@ -134,6 +138,42 @@ def pruebas_no_imprime_valores():
               "proveedor" in salida, severidad="P0")
 
 
+def pruebas_nota_no_vino():
+    """EL HALLAZGO del 17-09-2026 al cerrar el Paso 2: un NO_VINO donde las
+    DOS lecturas coinciden en no traer el campo no es lo mismo que uno donde
+    una lo traia y la otra lo perdio -- eso ultimo SI es la inestabilidad que
+    esta herramienta existe para encontrar, y antes de esta nota las dos
+    quedaban bajo la misma etiqueta."""
+    resultado, _ = m.comparar([{"nombre_margen": ""}], [{"nombre_margen": ""}])
+    comprobar("las dos vacias -> nota AUSENTE_EN_LAS_DOS",
+              resultado[0][3] == m.AUSENTE_EN_LAS_DOS,
+              detalle=repr(resultado), severidad="P0")
+
+    resultado, _ = m.comparar([{"nombre_margen": "algo"}], [{"nombre_margen": ""}])
+    comprobar("la 1ª lo traia y la 2ª no -> nota SEGUNDA_LO_PERDIO",
+              resultado[0][3] == m.SEGUNDA_LO_PERDIO,
+              detalle=repr(resultado), severidad="P0")
+
+    # El cierre del informe: solo cuenta como "hay diferencias" si hay un
+    # DIFIERE de verdad, o un NO_VINO que sea inestabilidad real -- nunca
+    # por un campo ausente en las dos lecturas por igual.
+    resultado, _ = m.comparar([{"nombre_margen": ""}], [{"nombre_margen": ""}])
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        m.imprimir_resultados(resultado, 1)
+    comprobar("ausente en las dos -> el cierre NO dice 'hay diferencias'",
+              "coinciden en todo" in buf.getvalue(), detalle=buf.getvalue(),
+              severidad="P0")
+
+    resultado, _ = m.comparar([{"nombre_margen": "algo"}], [{"nombre_margen": ""}])
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        m.imprimir_resultados(resultado, 1)
+    comprobar("la 2ª lo perdio -> el cierre SI dice 'hay diferencias'",
+              "Hay diferencias" in buf.getvalue(), detalle=buf.getvalue(),
+              severidad="P0")
+
+
 def pruebas_leer_csv_real():
     """leer_csv() de verdad, con un fichero temporal -- que el CSV se lea
     igual que orquestador.py lee facturas.csv (mismo encoding)."""
@@ -155,6 +195,7 @@ def main():
     pruebas_tramos_iva_crudos_de_csv()
     pruebas_recuento_distinto()
     pruebas_no_imprime_valores()
+    pruebas_nota_no_vino()
     pruebas_leer_csv_real()
 
     fallan = [r for r in resultados if not r[1]]
