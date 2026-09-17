@@ -379,6 +379,18 @@ v, _ = evaluar({**BUENA_K, 'confianza_campos': {
 comprobar("K", "confianza por campo: todos los criticos altos -> VERDE",
           v == "VERDE", f"veredicto={v}", "VERDE", "P1")
 
+# P0-4, auditoria externa 17-09-2026, reproducido antes de arreglar: un campo
+# critico AUSENTE del dict de confianza_campos (ni siquiera la clave) pasaba
+# como si tuviera confianza alta -- conf.get(campo, '') devuelve '', y
+# `if nivel and nivel not in (...)` es False para una cadena vacia, asi que
+# el campo ausente ni se contaba como flojo. Si `confianza_campos` esta
+# presente, tiene que cubrir TODOS los criticos o no se puede confiar en el.
+v, _ = evaluar({**BUENA_K, 'confianza_campos': {
+    'nif': 'ALTA', 'fecha_expedicion': 'ALTA', 'nº_documento': 'ALTA',
+    'base_total': 'ALTA', 'iva_total': 'ALTA'}})   # falta total_factura del todo
+comprobar("K", "confianza por campo: un critico NI SIQUIERA DECLARADO -> no VERDE",
+          v != "VERDE", f"veredicto={v}", "AMBAR (no NO_APLICA)", "P0")
+
 # 3 — TRIANGULACION DE IDENTIDAD. El peor error posible: un NIF mal leido que da
 # checksum valido Y resulta ser el de OTRO proveedor real. No hay nada
 # aritmetico que falle, asi que ningun guard de calculo lo puede ver.

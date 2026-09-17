@@ -99,11 +99,20 @@ def guard_confianza_por_campo(canon):
     if not isinstance(conf, dict) or not conf:
         return "NO_APLICA", "la captura no declara confianza por campo; manda la confianza global"
 
+    # P0-4, auditoria externa 17-09-2026, reproducido antes de arreglar: un
+    # campo critico AUSENTE del dict (ni siquiera la clave) pasaba como si
+    # tuviera confianza alta -- conf.get(campo, '') da '', y `if nivel and
+    # ...` es False para una cadena vacia, asi que el campo ausente no se
+    # contaba como flojo. Si la captura declara confianza_campos, tiene que
+    # cubrir TODOS los criticos o no se puede confiar en el dict entero.
     flojos = []
     for campo in contrato_datos.CAMPOS_CRITICOS:
+        if campo not in conf:
+            flojos.append(f"{campo}=AUSENTE")
+            continue
         nivel = str(conf.get(campo, '')).strip().upper()
-        if nivel and nivel not in ("ALTA", "OK"):
-            flojos.append(f"{campo}={nivel}")
+        if nivel not in ("ALTA", "OK"):
+            flojos.append(f"{campo}={nivel or 'VACIO'}")
     if flojos:
         return "NO_COMPROBADO", f"campos criticos con confianza insuficiente: {', '.join(flojos)}"
     return "OK", "todos los campos criticos declarados con confianza alta"
