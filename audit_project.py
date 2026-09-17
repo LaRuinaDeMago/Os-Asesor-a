@@ -566,7 +566,18 @@ def check_estados_y_cobertura():
                              # leer_ascii_completo(), pedido por la segunda opinion
                              # del auditor externo -- medir antes de cambiar nada
                              # en un lector que alimenta el historico real completo.
-                             ("test_diag_leer_ascii_completo.py", "Diagnostico ASCII/DBF: distingue vacio de ilegible, sin tocar el lector real")):
+                             ("test_diag_leer_ascii_completo.py", "Diagnostico ASCII/DBF: distingue vacio de ilegible, sin tocar el lector real"),
+                             # test_salida_unica_cloud.py (17-09-2026): el propio
+                             # auditor de la puerta a la IA no tenia NI UNA
+                             # prueba permanente pese a su docstring. Ademas
+                             # encontro y cerro un hueco real: _llamadas_api_ia()
+                             # solo reconocia generate_content/messages.create,
+                             # y varios metodos reales de los SDK instalados
+                             # (messages.stream, count_tokens, etc.) pasaban
+                             # invisibles -- incluso DENTRO del fichero
+                             # autorizado, saltandose la comprobacion de
+                             # exigir_permiso.
+                             ("test_salida_unica_cloud.py", "Puerta a la IA: check_salida_unica_cloud reconoce los metodos reales de los SDK instalados")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue
@@ -828,21 +839,69 @@ def check_salida_al_importar():
 SALIDA_CLOUD_AUTORIZADA = "captura_orquestador.py"
 
 
+#: Metodos de Gemini que envian contenido al modelo. Reconocidos SOLO por el
+#: nombre del atributo (igual que ya hacia generate_content), a proposito:
+#: son nombres especificos de un SDK de IA, y el riesgo de que otro objeto
+#: cualquiera tenga un metodo llamado igual es bajo comparado con el riesgo de
+#: no detectar un envio real. Verificado 17-09-2026 contra el SDK instalado
+#: (google.genai.models.Models) -- generate_content era el unico reconocido,
+#: y estos cuatro se quedaban fuera sin que nada avisara.
+_METODOS_GEMINI = {
+    "generate_content", "generate_content_stream",
+    "embed_content", "count_tokens",
+}
+
+#: Metodos de `<algo>.messages.<metodo>(...)` de Anthropic. Aqui SI se exige
+#: que cuelguen de un atributo llamado "messages", porque "create", "stream"
+#: o "parse" sueltos son nombres demasiado genericos (los tiene medio SDK de
+#: Python que existe). Verificado 17-09-2026 contra el SDK instalado
+#: (anthropic.resources.Messages) -- create era el unico reconocido, y estos
+#: tres se quedaban fuera.
+_METODOS_ANTHROPIC_MESSAGES = {"create", "stream", "count_tokens", "parse"}
+
+
+def _es_messages_anthropic(func):
+    return (isinstance(func, ast.Attribute)
+            and func.attr in _METODOS_ANTHROPIC_MESSAGES
+            and isinstance(func.value, ast.Attribute)
+            and func.value.attr == "messages")
+
+
+def _es_batches_anthropic(func):
+    """`<algo>.messages.batches.create(...)` -- el envio en lote de Anthropic."""
+    return (isinstance(func, ast.Attribute)
+            and func.attr == "create"
+            and isinstance(func.value, ast.Attribute)
+            and func.value.attr == "batches"
+            and isinstance(func.value.value, ast.Attribute)
+            and func.value.value.attr == "messages")
+
+
 def _llamadas_api_ia(nodo):
     """Nodos Call que son una llamada a una API de IA, por AST y no por texto.
 
     Por AST a proposito (leccion de check_cableado, 21-08-2026): un auditor que
     mira la FORMA acusa a inocentes en cuanto alguien reformatea una linea, y
     ademas se traga cualquier variante que no imagino. Aqui se reconoce la
-    LLAMADA, escrita como se escriba."""
+    LLAMADA, escrita como se escriba.
+
+    AMPLIADO 17-09-2026: el conjunto original (generate_content, messages.create)
+    era el UNICO reconocido, y dejaba fuera metodos reales de los dos SDK
+    instalados (generate_content_stream, count_tokens, embed_content de
+    Gemini; stream, count_tokens, parse, messages.batches.create de
+    Anthropic) -- confirmado con introspeccion directa de los paquetes
+    instalados, no adivinado. El hueco no era teorico: una funcion nueva
+    dentro del propio fichero autorizado que usara `cliente.messages.stream`
+    en vez de `.create` pasaba invisible para `check_salida_unica_cloud`,
+    incluida la comprobacion de que llama a `exigir_permiso` -- porque esa
+    comprobacion solo mira las funciones que esta lista marca como "envian
+    algo". Ver test_salida_unica_cloud.py para la reproduccion exacta."""
     for n in ast.walk(nodo):
         if not (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)):
             continue
-        if n.func.attr == "generate_content":          # Gemini
+        if n.func.attr in _METODOS_GEMINI:
             yield n
-        elif (n.func.attr == "create"                   # Anthropic
-              and isinstance(n.func.value, ast.Attribute)
-              and n.func.value.attr == "messages"):
+        elif _es_messages_anthropic(n.func) or _es_batches_anthropic(n.func):
             yield n
 
 
