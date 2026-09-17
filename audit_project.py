@@ -540,7 +540,14 @@ def check_estados_y_cobertura():
                              # sintetico" que autorice imprimir nada. La bateria
                              # planta un senuelo en un campo que DIFIERE a proposito
                              # y exige que nunca llegue a la salida.
-                             ("test_comparar_dos_lecturas.py", "Comparador de dos lecturas reales: nunca imprime un valor")):
+                             ("test_comparar_dos_lecturas.py", "Comparador de dos lecturas reales: nunca imprime un valor"),
+                             # diag_tramos_dos_lecturas.py (17-09-2026): al probarlo
+                             # a mano con datos inventados aparecio un defecto real
+                             # en la primera version -- afirmaba una diferencia de
+                             # importe entre dos lecturas REALMENTE identicas, por
+                             # descarte en vez de comprobarlo. Esta bateria fija ese
+                             # caso como regresion.
+                             ("test_diag_tramos_dos_lecturas.py", "Diagnostico de tramos: no inventa una diferencia que no existe")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue
