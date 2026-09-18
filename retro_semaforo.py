@@ -526,6 +526,15 @@ def reconstruir_compra(lineas):
     # si total_factura (suma de todas ellas) se duplica cuando hay mas de una,
     # sin exponer nada mas que un recuento.
     fila["_n_lineas_acreedor"] = len(acree)
+    # DIAGNOSTICO (18-09-2026, segunda vuelta): descartado que sean pagares/
+    # efectos comerciales (Diego confirma que practicamente no se usan 401/411
+    # en su cartera). La pregunta que queda: las lineas acreedoras de mas,
+    # ¿son la MISMA subcuenta repetida (bug de lectura/duplicado) o
+    # subcuentas DISTINTAS (el asiento agrupa varios proveedores/facturas y
+    # este reconstructor lo trata como una sola)? Se guarda el RECUENTO de
+    # subcuentas distintas, nunca la subcuenta en si.
+    fila["_n_subctas_acreedor_distintas"] = len({l[10] for l in acree})
+    fila["_prefijos_acreedor"] = ",".join(sorted({l[0] for l in acree}))
     return fila
 
 
@@ -788,6 +797,13 @@ def main():
     # lineas acreedoras SOLO para los casos con esa firma -- un recuento, no
     # un dato de negocio.
     n_lineas_acreedor_en_121 = Counter()
+    # SEGUNDA VUELTA (18-09-2026): Diego descarta pagares/efectos comerciales
+    # (401/411 casi no se usan en su cartera). Queda por ver si las 3 lineas
+    # acreedoras son la MISMA subcuenta repetida (bug de lectura/duplicado en
+    # este script) o subcuentas DISTINTAS (el asiento agrupa varios
+    # proveedores/facturas y el reconstructor lo trata como una sola). Clave
+    # es texto, nunca un NIF ni una subcuenta real -- solo la FORMA.
+    subctas_acreedor_en_121 = Counter()
     detalle_local = []
     nifs_pool = []
     parar = False
@@ -1096,6 +1112,11 @@ def main():
                                     retencion_fallo_pct_sin_retencion[valor_pct] += 1
                                     if -125 <= valor_pct <= -117:
                                         n_lineas_acreedor_en_121[fila.get("_n_lineas_acreedor", 0)] += 1
+                                        n_subctas = fila.get("_n_subctas_acreedor_distintas", 0)
+                                        etiqueta_subctas = ("misma subcuenta repetida" if n_subctas == 1
+                                                            else f"{n_subctas} subcuentas distintas")
+                                        prefijos = fila.get("_prefijos_acreedor", "")
+                                        subctas_acreedor_en_121[f"{etiqueta_subctas} | prefijos={prefijos}"] += 1
                         if v == "AMBAR":
                             # Las causas se sacan del MOTIVO, no de la lista de
                             # guards no benignos. Parece lo mismo y no lo es: hay
@@ -1317,6 +1338,15 @@ def main():
             print(f"    {n} linea(s) acreedora(s)   {c:>6,} casos  ({pct(c, total_121)}%)")
         print("    Si casi todos tienen 2+ lineas, total_factura las suma TODAS")
         print("    y se duplica -- confirmaria el mecanismo exacto del defecto.")
+
+    if subctas_acreedor_en_121:
+        total_sub = sum(subctas_acreedor_en_121.values())
+        print()
+        print(f"SUBCUENTAS ACREEDORAS en los {total_sub:,} casos con la firma -121% "
+              f"(misma subcuenta repetida = bug de lectura; distintas = el asiento "
+              f"agrupa mas de un proveedor/factura):")
+        for etiqueta, c in subctas_acreedor_en_121.most_common():
+            print(f"    {etiqueta:<55} {c:>6,} casos  ({pct(c, total_sub)}%)")
 
     if args.inyectar:
         total_iny = sum(det_veredictos.values())
