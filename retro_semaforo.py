@@ -535,6 +535,16 @@ def reconstruir_compra(lineas):
     # subcuentas distintas, nunca la subcuenta en si.
     fila["_n_subctas_acreedor_distintas"] = len({l[10] for l in acree})
     fila["_prefijos_acreedor"] = ",".join(sorted({l[0] for l in acree}))
+    # DIAGNOSTICO (18-09-2026, tercera vuelta): confirmado 400+401 en el
+    # 99,7% de los casos con la firma -121%. Hipotesis concreta: el ASIEN se
+    # reutiliza entre EJERCICIOS distintos dentro del mismo Diario.dbf (ya
+    # visto con la identidad de cliente, ver clave_cliente()/commit 55e6e11),
+    # y `grupos[int(ASIEN)]` (mas abajo en este fichero) junta lineas de dos
+    # años sin relacion bajo el mismo numero de asiento. Se guarda solo si
+    # las fechas de TODAS las lineas del asiento comparten año -- nunca la
+    # fecha en si.
+    anios = {l[6][:4] for l in lineas if l[6] and len(l[6]) >= 4}
+    fila["_mismo_anio_todas_lineas"] = len(anios) <= 1
     return fila
 
 
@@ -1116,7 +1126,11 @@ def main():
                                         etiqueta_subctas = ("misma subcuenta repetida" if n_subctas == 1
                                                             else f"{n_subctas} subcuentas distintas")
                                         prefijos = fila.get("_prefijos_acreedor", "")
-                                        subctas_acreedor_en_121[f"{etiqueta_subctas} | prefijos={prefijos}"] += 1
+                                        mismo_anio = fila.get("_mismo_anio_todas_lineas", None)
+                                        etiqueta_anio = ("mismo ejercicio" if mismo_anio
+                                                         else "EJERCICIOS DISTINTOS mezclados")
+                                        subctas_acreedor_en_121[
+                                            f"{etiqueta_subctas} | prefijos={prefijos} | {etiqueta_anio}"] += 1
                         if v == "AMBAR":
                             # Las causas se sacan del MOTIVO, no de la lista de
                             # guards no benignos. Parece lo mismo y no lo es: hay
