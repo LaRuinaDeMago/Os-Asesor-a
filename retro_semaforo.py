@@ -520,6 +520,12 @@ def reconstruir_compra(lineas):
     # Estos asientos NO vienen de una captura por IA: vienen del diario ya
     # contabilizado. Se declara OK porque no hubo lectura ambigua de por medio.
     fila["verificacion"] = "OK"
+    # DIAGNOSTICO, no dato de negocio (18-09-2026): cuantas lineas acreedoras
+    # (400/401/410/411) tiene ESTE asiento. El motor nunca lo lee -- ningun
+    # nombre de campo del contrato empieza por "_" -- pero permite comprobar
+    # si total_factura (suma de todas ellas) se duplica cuando hay mas de una,
+    # sin exponer nada mas que un recuento.
+    fila["_n_lineas_acreedor"] = len(acree)
     return fila
 
 
@@ -775,6 +781,13 @@ def main():
     # un importe ni un NIF: seguro de imprimir.
     _RE_PCT_RETENCION = re.compile(r"\(([-\d.]+)%\)")
     retencion_fallo_pct_sin_retencion = Counter()
+    # Si el -121% resulta dominante (ver comentario de mas arriba: implica
+    # total_factura = 2*(base+iva) para IVA al 21%), la sospecha inmediata es
+    # que el asiento tiene MAS DE UNA linea acreedora (400/401/410/411) y
+    # total_factura las suma todas quedando duplicado. Se cuenta el numero de
+    # lineas acreedoras SOLO para los casos con esa firma -- un recuento, no
+    # un dato de negocio.
+    n_lineas_acreedor_en_121 = Counter()
     detalle_local = []
     nifs_pool = []
     parar = False
@@ -1079,7 +1092,10 @@ def main():
                             if estado_rt == "FALLO" and not fila.get("irpf_retencion"):
                                 m = _RE_PCT_RETENCION.search(motivo_rt or "")
                                 if m:
-                                    retencion_fallo_pct_sin_retencion[round(float(m.group(1)))] += 1
+                                    valor_pct = round(float(m.group(1)))
+                                    retencion_fallo_pct_sin_retencion[valor_pct] += 1
+                                    if -125 <= valor_pct <= -117:
+                                        n_lineas_acreedor_en_121[fila.get("_n_lineas_acreedor", 0)] += 1
                         if v == "AMBAR":
                             # Las causas se sacan del MOTIVO, no de la lista de
                             # guards no benignos. Parece lo mismo y no lo es: hay
@@ -1291,6 +1307,16 @@ def main():
         print("    Si unos pocos valores concentran casi todo, hay una firma")
         print("    numerica detras (p.ej. un campo leido de la fuente equivocada)")
         print("    y no son errores de contabilizacion dispersos.")
+
+    if n_lineas_acreedor_en_121:
+        total_121 = sum(n_lineas_acreedor_en_121.values())
+        print()
+        print(f"LINEAS ACREEDORAS (400/401/410/411) en los {total_121:,} casos con "
+              f"la firma -121%:")
+        for n, c in sorted(n_lineas_acreedor_en_121.items()):
+            print(f"    {n} linea(s) acreedora(s)   {c:>6,} casos  ({pct(c, total_121)}%)")
+        print("    Si casi todos tienen 2+ lineas, total_factura las suma TODAS")
+        print("    y se duplica -- confirmaria el mecanismo exacto del defecto.")
 
     if args.inyectar:
         total_iny = sum(det_veredictos.values())
