@@ -24,6 +24,11 @@
 # privacidad.
 vigilancia_boe.log
 
+# Log de cierre_sesion.py (18-09-2026): igual que vigilancia_boe.log --
+# nunca lleva un valor de clave, solo su nombre y si seguia puesta al
+# cerrar, pero es salida generada, no codigo, y crece sin limite.
+cierre_sesion.log
+
 # config.json (orquestador.py), 19-09-2026: alta_cliente_anio y
 # ejercicio_tanda son datos operativos DE UN CLIENTE REAL concreto (no un
 # NIF, pero tampoco genericos: van ligados a que NIF se pase con

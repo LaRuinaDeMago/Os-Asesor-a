@@ -577,7 +577,14 @@ def check_estados_y_cobertura():
                              # invisibles -- incluso DENTRO del fichero
                              # autorizado, saltandose la comprobacion de
                              # exigir_permiso.
-                             ("test_salida_unica_cloud.py", "Puerta a la IA: check_salida_unica_cloud reconoce los metodos reales de los SDK instalados")):
+                             ("test_salida_unica_cloud.py", "Puerta a la IA: check_salida_unica_cloud reconoce los metodos reales de los SDK instalados"),
+                             # test_cierre_sesion.py (18-09-2026): arranque.py
+                             # ya avisaba si una clave de IA estaba puesta al
+                             # EMPEZAR; no habia el mismo aviso al TERMINAR,
+                             # asi que una clave activada para una tarea
+                             # concreta podia seguir puesta sin que nada lo
+                             # senalara.
+                             ("test_cierre_sesion.py", "Cierre de sesion: avisa y deja constancia si una clave de IA sigue puesta")):
         if not os.path.exists(script):
             check(etiqueta, False, f"{script} no encontrado")
             continue
