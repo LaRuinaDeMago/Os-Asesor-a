@@ -33,11 +33,13 @@ from motor_veredicto import (
     guard_secuencia_documental_proveedor, guard_importe_atipico,
     guard_nif_casa_historico, guard_cuenta_gasto_coherente,
     guard_tipo_producto_iva_semantico, guard_tipo_operacion_especial,
+    guard_patron_cartera, construir_mapeo_cartera, nombre_cuenta_pgc,
     evaluar_fila_v4, calcular_veredicto_v4,
     construir_mapeo_cuenta_gasto, aprender_cuenta_gasto, reevaluar_tras_correccion,
     actualizar_caches_historicas, actualizar_mapeo_cuenta_gasto,
 )
 from nif_check import valida_nif
+import contrato_datos
 
 FALLOS = []
 
@@ -178,6 +180,76 @@ check(antes[0] == "NO_APLICA" and despues[0] == "OK", "Ciclo de aprendizaje comp
 # decide una vez, la siguiente factura a otra cuenta se frena. Antes no podia.
 check(guard_cuenta_gasto_coherente("410099", mapeo2, "600000")[0] == "FALLO",
       "Lo confirmado por el asesor SI frena la siguiente factura que se desvia")
+
+print("\n=== nombre_cuenta_pgc: el cuadro oficial completo, no una copia a mano ===")
+# ANADIDO 18-09-2026 (PENDIENTE.md 4.C). Hasta hoy PGC_CUADRO_CUENTAS.json (645
+# cuentas, extraidas y verificadas el 28-07-2026) no tenia NINGUN consumidor en
+# el codigo -- vivia en el repositorio sin que nada lo leyera. Estas pruebas
+# comprueban la funcion que lo convierte en tabla consultable.
+check(nombre_cuenta_pgc("628000") == "Suministros",
+      "Subcuenta de detalle (628000) cae al grupo oficial de 3 digitos (628)")
+check(nombre_cuenta_pgc("6300") == "Impuesto corriente",
+      "Codigo de 4 digitos exacto en el cuadro oficial se usa tal cual, sin acortar de mas")
+check(nombre_cuenta_pgc("400015") == "Proveedores (euros)",
+      "Subcuenta de proveedor concreto usa el prefijo MAS ESPECIFICO que exista "
+      "(4000, no el 400 mas corto) -- el cuadro oficial SI distingue proveedores "
+      "en euros de moneda extranjera a ese nivel")
+check(nombre_cuenta_pgc("888888") == "grupo no catalogado",
+      "Un codigo cuyo grupo (88) no existe en NINGUN prefijo del cuadro oficial "
+      "-> declarado, no inventado (99 si existe en el cuadro real y por eso no "
+      "sirve como ejemplo de 'no catalogado')")
+check(nombre_cuenta_pgc("") == "grupo no catalogado",
+      "Codigo vacio no revienta, se declara sin catalogar")
+check(nombre_cuenta_pgc(None) == "grupo no catalogado",
+      "None no revienta (defensivo: algun mapeo antiguo podria no traer el campo)")
+
+print("\n=== guard_patron_cartera: la evidencia de TODA la cartera, sin cobertura directa hasta hoy ===")
+# ANADIDO 18-09-2026. guard_patron_cartera existe desde el 20-08-2026 y esta
+# cableado en evaluar_fila_v4, pero no tenia NI UNA llamada directa en esta
+# suite -- cobertura_guards.py lo veia pasar por NO_COMPROBADO dentro de la
+# bateria completa, pero ningun test aislaba su logica (los casos "sin NIF",
+# "proveedor sin antecedentes", "cartera con evidencia" nunca se comprobaron
+# uno a uno).
+_canon_sin_nif = contrato_datos.canonizar({})
+_canon_con_nif = contrato_datos.canonizar({'nif': 'B99999999'})
+
+check(guard_patron_cartera(_canon_con_nif, {}, None)[0] == "NO_APLICA",
+      "Sin mapeo de cartera cargado -> NO_APLICA, nunca OK por omision")
+check(guard_patron_cartera(_canon_sin_nif, {'B99999999': {}}, None)[0] == "NO_APLICA",
+      "Sin NIF en la factura no hay con que consultar la cartera -> NO_APLICA")
+
+_cartera_test = {'B99999999': {'cuenta_gasto': '628000', 'n_clientes': 18,
+                                'n_asientos': 42, 'concordancia': 0.96,
+                                'cuentas_alternativas': ['629000']}}
+check(guard_patron_cartera(_canon_con_nif, {'OTRO_NIF': {}}, None)[0] == "NO_COMPROBADO",
+      "Proveedor sin antecedentes en NINGUN cliente de la cartera -> NO_COMPROBADO, no NO_APLICA")
+
+_estado, _motivo = guard_patron_cartera(_canon_con_nif, _cartera_test, None)
+check(_estado == "NO_COMPROBADO",
+      "Con evidencia de cartera, sigue siendo NO_COMPROBADO -- una hipotesis nunca es un hecho fiscal")
+check("628000 (Suministros)" in _motivo,
+      f"El mensaje nombra la cuenta propuesta con el PGC, no solo el codigo desnudo (obtenido: {_motivo})")
+check("629000 (Otros servicios)" in _motivo,
+      f"Las alternativas TAMBIEN llevan su nombre PGC (obtenido: {_motivo})")
+check("18 cliente" in _motivo and "96%" in _motivo,
+      f"La evidencia (n_clientes, concordancia) sigue presente en el mensaje (obtenido: {_motivo})")
+
+print("\n=== construir_mapeo_cartera: agrega por NIF, con nombre PGC ya resuelto ===")
+_diarios_cartera = {
+    'cliente_piloto_1': [
+        {'ASIEN': 1, 'TERNIF': 'B99999999', 'SUBCTA': '410001'},
+        {'ASIEN': 1, 'TERNIF': 'B99999999', 'SUBCTA': '628000'},
+    ],
+    'cliente_piloto_2': [
+        {'ASIEN': 5, 'TERNIF': 'B99999999', 'SUBCTA': '410009'},
+        {'ASIEN': 5, 'TERNIF': 'B99999999', 'SUBCTA': '628000'},
+    ],
+}
+_mapeo_cartera_real = construir_mapeo_cartera(_diarios_cartera)
+check(_mapeo_cartera_real.get('B99999999', {}).get('cuenta_gasto') == '628000',
+      "construir_mapeo_cartera detecta la cuenta mas usada, viendo dos clientes distintos")
+check(_mapeo_cartera_real.get('B99999999', {}).get('n_clientes') == 2,
+      "La fuerza de la senal esta en n_clientes (2), no solo en n_asientos")
 
 print("\n=== IVA semantico (tabla oficial 2026) ===")
 check(guard_tipo_producto_iva_semantico("aceite de oliva", 4)[0] == "OK", "Aceite oliva 4% correcto")

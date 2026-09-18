@@ -726,45 +726,44 @@
           **No es una tarea con fecha** — se hace la próxima vez que
           toque un lote, sin agendar nada aparte.
 
-      [ ] B · EL "ALBARÁN VALORADO" — pregunta para Diego, y **bloquea
-          construir nada**. La regla "si dice ALBARÁN y no dice FACTURA,
-          es un albarán" se probó con seis casos inventados y distingue
-          bien lo normal. El caso que no cierra es el albarán que SÍ
-          lleva precios y a veces hace de factura informal: diría
-          "albarán" en el título y podría tener que tratarse como
-          factura real.
-          **¿Pasa eso con tus clientes, y con qué frecuencia?** Hasta
-          que eso se conteste no se añade el guard — regla de CLAUDE.md:
-          ningún guard sin un caso real que lo pida, y este lo tiene a
-          medias.
+      [X] B · EL "ALBARÁN VALORADO" — CERRADO 18-09-2026, sin guard nuevo.
+          Preguntado directamente a Diego: las facturas SÍ pueden mencionar
+          la palabra "albarán" (referenciando su número), pero los
+          albaranes rara vez mencionan "factura" — la regla actual ya
+          distingue bien ese caso. Y el caso que de verdad preocupaba (un
+          albarán con precios que hace de factura informal) **no le pasa
+          con sus clientes actuales**; si algún día pasara, se aclararía
+          entonces. Sin caso real, no se toca el guard — regla de
+          CLAUDE.md. Decidido, no pendiente.
 
-      [ ] C · EL PGC, PERO COMO TABLA QUE UN GUARD CONSULTA — NO como
-          fuente que vigilar. Decidido así el 15-09-2026, contestando a
-          la pregunta de Diego de si conviene meter el Plan General
-          Contable "como reforzamiento del motor".
+      [X] C · EL PGC, PERO COMO TABLA QUE UN GUARD CONSULTA — CERRADO
+          18-09-2026, a petición de Diego ("como veas tú que sea lo más
+          óptimo"). Decidido el orden el 15-09: primero que un guard
+          proponga la cuenta con evidencia cuando no hay histórico, y
+          SOLO ENTONCES traer el cuadro de cuentas como consumidor real.
 
-          Comprobado que el articulado del RD 1514/2007 se lee bien
-          (`BOE-A-2007-19884`). **Pero registrarlo como texto a vigilar
-          no rendiría:** el PGC casi no cambia, y su articulado no es lo
-          que hace falta. Lo valioso es el **cuadro de cuentas** (Parte
-          quinta, en anexos), y eso no es una fuente: es una tabla.
+          Al ponerse a construirlo se descubrió que la primera mitad **ya
+          existía**: `guard_patron_cartera` (añadido 20-08-2026) ya
+          proponía una cuenta con evidencia de toda la cartera cuando un
+          proveedor era nuevo para un cliente concreto — solo que sin
+          nombre legible, solo el código desnudo (p.ej. "628000"). Y el
+          cuadro completo (645 cuentas, extraídas y verificadas el
+          28-07-2026 en `PGC_CUADRO_CUENTAS.json`) llevaba desde entonces
+          en el repositorio **sin que ningún código lo leyera nunca** —
+          exactamente el "sin consumidor" que este punto describía.
 
-          **El caso real que lo pide, y lo dijo Diego describiendo su
-          propio flujo:** *"con proveedores conocidos es casi intuitivo
-          por la experiencia; con uno nuevo o un gasto atípico, no"* —
-          unos 2 minutos cada vez que aparece uno nuevo.
-
-          `guard_cuenta_gasto_coherente` ya aprende de TU histórico qué
-          cuenta usas con cada proveedor, y para los habituales eso es
-          **mejor** que el PGC porque captura tu criterio real. Lo que no
-          puede es proponer nada cuando el proveedor es NUEVO — que es
-          justo donde se pierde el tiempo.
-
-          **El orden correcto:** primero convertir ese guard de "te avisa
-          si te desvías" a "te propone la cuenta cuando no hay
-          histórico"; el cuadro de cuentas entra entonces, con un
-          consumidor real. Registrarlo antes sería una fuente más en el
-          inventario que ningún guard mira.
+          Cerrado con `nombre_cuenta_pgc()` (`motor_veredicto.py`):
+          traduce cualquier código de cuenta al nombre oficial del PGC,
+          probando el código completo y prefijos cada vez más cortos
+          (628000 → 62800 → … → 62), porque el cuadro oficial cataloga
+          grupos (2-4 dígitos), no las subcuentas de detalle que cada
+          despacho añade. Sustituye al `GRUPOS_PGC` de ~20 grupos escrito
+          a mano (dos copias de la misma tabla oficial se habrían acabado
+          desincronizando). `guard_patron_cartera` ahora dice "628000
+          (Suministros)", no solo "628000" — el minuto que Diego describió
+          perder con cada proveedor nuevo. 8 checks nuevos en
+          `test_motor_veredicto.py`, incluida la primera cobertura directa
+          que `guard_patron_cartera` tenía desde que existe.
 
   ═════════════════════════════════════════════════════════════════════
   5 · LA CAPA DE ORQUESTACIÓN (el "router") — DECIDIDO EL ORDEN, NO EL DISEÑO

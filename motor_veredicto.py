@@ -10,6 +10,9 @@ nunca OK por omision. Esto es lo que se me olvido aplicar manualmente esta noche
 
 from nif_check import valida_nif
 from datetime import date
+import functools
+import json
+import os
 import re
 import contrato_datos
 # NOTA: 'import statistics' se quito el 28-07-2026 - 0 usos reales en todo el
@@ -789,27 +792,45 @@ def guard_vencimiento_coherente(fecha_emision_str, fecha_vencimiento_str, plazos
     return "OK", f"plazo de {dias} dias coherente con el habitual ({media:.0f})"
 
 
-GRUPOS_PGC = {
-    # Grupo 4 - Acreedores y deudores por operaciones comerciales (oficial, BOE - PGC 2007/2021)
-    '400': 'Proveedores', '410': 'Acreedores por prestaciones de servicios',
-    '430': 'Clientes', '470': 'Hacienda Pública, deudora por diversos conceptos',
-    '472': 'Hacienda Pública, IVA soportado',
-    '475': 'Hacienda Pública, acreedora por conceptos fiscales',
-    '4751': 'Hacienda Pública, acreedora por retenciones practicadas',
-    # Grupo 6 - Compras y gastos (subgrupo 62 Servicios exteriores, oficial)
-    '600': 'Compras de mercaderías', '621': 'Arrendamientos y cánones',
-    '622': 'Reparaciones y conservación', '623': 'Servicios de profesionales independientes',
-    '624': 'Transportes', '625': 'Primas de seguros', '626': 'Servicios bancarios y similares',
-    '627': 'Publicidad, propaganda y relaciones públicas', '628': 'Suministros',
-    '629': 'Otros servicios',
-    # Grupo 7 - Ventas e ingresos (oficial) - para diferenciar ventas de compras
-    '700': 'Ventas de mercaderías', '705': 'Prestaciones de servicios',
-}
-# Fuente: PLAN_GENERAL_DE_CONTABILIDAD_accesible.pdf (BOE), 645 cuentas extraidas y
-# verificadas el 28-07-2026. Cuadro completo disponible en PGC_CUADRO_CUENTAS.json -
-# este dict aqui solo trae los grupos relevantes para facturas de compra/venta,
-# no los 645 codigos completos (esos viven en el JSON, no hace falta cargarlos
-# todos en memoria para cada factura).
+@functools.lru_cache(maxsize=1)
+def _cuadro_pgc_completo():
+    """Carga PGC_CUADRO_CUENTAS.json una sola vez por proceso (cacheado -- no relee
+    el fichero en cada factura). 645 codigos extraidos y verificados el 28-07-2026
+    contra PLAN_GENERAL_DE_CONTABILIDAD_accesible.pdf (BOE). Si el fichero no esta
+    (p.ej. un checkout parcial), no revienta: devuelve {} y nombre_cuenta_pgc cae
+    a su fallback -- la misma regla de siempre: lo que no se puede comprobar no
+    se disimula como un OK."""
+    ruta = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'PGC_CUADRO_CUENTAS.json')
+    if not os.path.exists(ruta):
+        return {}
+    with open(ruta, encoding='utf-8') as f:
+        return json.load(f)
+
+
+def nombre_cuenta_pgc(codigo):
+    """Nombre oficial del PGC para `codigo` (una subcuenta de ContaPlus, p.ej.
+    628000), probando el codigo completo y prefijos cada vez mas cortos
+    (628000 -> 62800 -> ... -> 62), porque el cuadro oficial cataloga grupos y
+    subgrupos (2 a 4 digitos), no las subcuentas de detalle que cada despacho
+    anade encima.
+
+    ANADIDO 18-09-2026 (PENDIENTE.md, punto 4.C, a peticion de Diego: "las
+    funciones del PGC, como veas tu que sea lo mas optimo"). Hasta hoy existia
+    un `GRUPOS_PGC` con ~20 grupos copiados a mano; las otras 625 cuentas del
+    cuadro oficial, ya extraidas y verificadas el 28-07-2026 en
+    PGC_CUADRO_CUENTAS.json, no tenian ningun consumidor -- vivian en el
+    repositorio sin que nada las leyera. Esta funcion es ese consumidor, y
+    reemplaza el dict a mano: dos fuentes de la misma tabla oficial habrian
+    acabado desincronizadas tarde o temprano, que es justo el tipo de deriva
+    que este proyecto ya ha pagado antes (ej. el recuento de suites en
+    PENDIENTE.md)."""
+    codigo = str(codigo or '').strip()
+    tabla = _cuadro_pgc_completo()
+    for largo in range(len(codigo), 1, -1):
+        nombre = tabla.get(codigo[:largo])
+        if nombre:
+            return nombre
+    return 'grupo no catalogado'
 
 
 def construir_mapeo_cartera(diarios_por_cliente):
@@ -888,13 +909,23 @@ def guard_patron_cartera(canon, mapeo_cartera, mapeo_cliente):
 
     Lo que hace es TRAER LA EVIDENCIA para que el asesor decida con ella delante
     en vez de a ciegas. Convierte "proveedor desconocido, decide tu" en
-    "proveedor nuevo para este cliente, pero en la cartera va a 628000 en 18
-    clientes distintos con un 96% de concordancia; decide tu".
+    "proveedor nuevo para este cliente, pero en la cartera va a 628000
+    (Suministros) en 18 clientes distintos con un 96% de concordancia;
+    decide tu".
 
     Es exactamente el nivel 2 de `DISENO_APRENDIZAJE.md` §4: razonar CON el
     asesor, no por el. Y por eso presenta tambien las cuentas alternativas: si
     solo se ensena la evidencia que apoya la respuesta mas probable, es una
     recomendacion disfrazada de dato (§4.2).
+
+    AMPLIADO 18-09-2026 (PENDIENTE.md 4.C): el mensaje ahora nombra cada cuenta
+    con `nombre_cuenta_pgc()`, no solo el codigo desnudo -- "628000
+    (Suministros)" en vez de "628000". Es el paso que 4.C describia como "el
+    cuadro de cuentas entra, con un consumidor real": este guard ya proponia
+    la cuenta con evidencia desde el 20-08; lo que faltaba era decirle al
+    asesor QUE ES esa cuenta sin que tenga que consultar el PGC aparte,
+    que es exactamente el minuto perdido con cada proveedor nuevo o atipico
+    que Diego describio.
     """
     if not mapeo_cartera:
         return "NO_APLICA", "sin patron de cartera cargado"
@@ -906,11 +937,13 @@ def guard_patron_cartera(canon, mapeo_cartera, mapeo_cliente):
         return "NO_COMPROBADO", "proveedor sin antecedentes en NINGUN cliente de la cartera"
 
     alt = hit.get('cuentas_alternativas') or []
-    texto_alt = f"; tambien se ha usado {', '.join(alt)}" if alt else "; sin alternativas en el historico"
+    texto_alt = (f"; tambien se ha usado {', '.join(f'{c} ({nombre_cuenta_pgc(c)})' for c in alt)}"
+                 if alt else "; sin alternativas en el historico")
     return "NO_COMPROBADO", (
-        f"la cartera dice {hit['cuenta_gasto']} en {hit['n_clientes']} cliente(s) "
-        f"distinto(s), {hit['n_asientos']} asiento(s), concordancia "
-        f"{hit['concordancia']:.0%}{texto_alt}. Es una hipotesis, no un hecho: decide tu")
+        f"la cartera dice {hit['cuenta_gasto']} ({nombre_cuenta_pgc(hit['cuenta_gasto'])}) "
+        f"en {hit['n_clientes']} cliente(s) distinto(s), {hit['n_asientos']} asiento(s), "
+        f"concordancia {hit['concordancia']:.0%}{texto_alt}. "
+        f"Es una hipotesis, no un hecho: decide tu")
 
 
 def construir_mapeo_cuenta_gasto(diario_recs):
@@ -953,7 +986,7 @@ def construir_mapeo_cuenta_gasto(diario_recs):
         n_esta = gastos[cuenta_mas_usada]
         mapeo[prov] = {
             'cuenta_gasto': cuenta_mas_usada,
-            'grupo_pgc': GRUPOS_PGC.get(cuenta_mas_usada[:3], 'grupo no catalogado'),
+            'grupo_pgc': nombre_cuenta_pgc(cuenta_mas_usada),
             'confianza': 'ALTA' if n_esta == n_total else f'MEDIA ({n_esta}/{n_total} asientos)',
             # ANADIDO 21-08-2026: 'ALTA' significaba "unanime", y unanime sobre UN
             # solo asiento no es historico, es una anecdota. Sin este contador el
@@ -993,7 +1026,7 @@ def actualizar_mapeo_cuenta_gasto(mapeo_cuenta_gasto, fila):
     n_total = sum(conteo.values())
     n_esta = conteo[cuenta_mas_usada]
     entry['cuenta_gasto'] = cuenta_mas_usada
-    entry['grupo_pgc'] = GRUPOS_PGC.get(cuenta_mas_usada[:3], 'grupo no catalogado')
+    entry['grupo_pgc'] = nombre_cuenta_pgc(cuenta_mas_usada)
     entry['confianza'] = 'ALTA' if n_esta == n_total else f'MEDIA ({n_esta}/{n_total} asientos)'
     entry['n_asientos'] = n_total
     entry['n_esta'] = n_esta
@@ -1046,7 +1079,7 @@ def guard_cuenta_gasto_coherente(cuenta_proveedor, mapeo_cuenta_gasto,
         return ("NO_APLICA", f"cuenta {propuesta} distinta de la habitual {habitual}, "
                              f"pero el historico son solo {n} asiento(s): insuficiente "
                              f"para llamarlo patron")
-    return ("FALLO", f"cuenta {propuesta} ({GRUPOS_PGC.get(propuesta[:3], 'grupo no catalogado')}) "
+    return ("FALLO", f"cuenta {propuesta} ({nombre_cuenta_pgc(propuesta)}) "
                      f"no casa con la habitual de este proveedor: {habitual} "
                      f"({entry.get('grupo_pgc')}), {n} asientos, confianza {entry.get('confianza')}")
 
@@ -1073,7 +1106,7 @@ def aprender_cuenta_gasto(mapeo_cuenta_gasto, cuenta_proveedor, cuenta_gasto_con
     import datetime
     mapeo_cuenta_gasto[cuenta_proveedor] = {
         'cuenta_gasto': cuenta_gasto_confirmada,
-        'grupo_pgc': GRUPOS_PGC.get(cuenta_gasto_confirmada[:3], 'grupo no catalogado'),
+        'grupo_pgc': nombre_cuenta_pgc(cuenta_gasto_confirmada),
         'confianza': 'CONFIRMADA_ASESOR',
         'revisado_por': revisado_por or 'no especificado',
         'fecha_revision': datetime.datetime.now().isoformat(timespec='seconds'),
