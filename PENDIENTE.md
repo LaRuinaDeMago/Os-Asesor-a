@@ -63,8 +63,12 @@
         3) sh scripts/install_hooks.sh      (los hooks NO se clonan)
         4) python audit_project.py
 
-        QUÉ ESPERAR: código 0, 41 suites. Si devuelve 1, eso manda
-        sobre todo lo demás y se mira antes de seguir.
+        QUÉ ESPERAR: código 0 (el número de suites crece con cada sesión
+        que añade una prueba nueva -- no se fija aquí un recuento exacto a
+        propósito, por la misma razón que ya le pasó al párrafo de
+        CLAUDE.md sobre el tamaño de PROJECT_STATUS.md: un número escrito
+        envejece y se cree). Si devuelve 1, eso manda sobre todo lo demás
+        y se mira antes de seguir.
 
       ── DÓNDE SE QUEDÓ TODO, en una frase ──────────────────────────
 
@@ -106,6 +110,21 @@
         · Antes de pedirle a Diego un dato "que debería estar guardado":
           buscar primero en todo el repositorio (`CLAUDE.md`, corrección
           del 17-09-2026 — hay un incidente real detrás).
+
+      ── PENDIENTE MENOR, encontrado 18-09-2026 (aviso externo, verificado) ──
+
+        · `modo_trabajo.py` comprueba SOLO si `GEMINI_API_KEY` está puesta,
+          nunca si el proyecto de Google Cloud al que está ligada sigue en
+          "Paid Services" (facturación activa). Si esa clave se regenerase o
+          el proyecto por defecto cambiara sin darse cuenta, se podría pasar
+          en silencio a la capa gratuita — que entrena con los datos, justo
+          lo que la vía de pago existe para evitar (`.claude/rules/datos.md`).
+          No construido hoy: exigiría credenciales de facturación y el SDK
+          `google-cloud-billing` (nueva dependencia e infraestructura, no un
+          fix a algo que ya existe — a diferencia de las tres correcciones a
+          `check_salida_unica_cloud` de esta misma sesión). Mientras tanto,
+          revisión MANUAL periódica en la consola de Google Cloud (Facturación
+          → proyecto vinculado), no automática.
 
   ═════════════════════════════════════════════════════════════════════
   EL ORDEN — por dónde seguir, y por qué en ese orden
