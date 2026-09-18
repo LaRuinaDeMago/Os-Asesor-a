@@ -559,6 +559,43 @@ def inyectar(fila, rng, nifs_pool):
     return f, tipo
 
 
+#: Tipos de IVA que SI tienen un campo plano equivalente (base_4/base_10/base_21)
+#: y por tanto ya se evaluaban correctamente incluso antes de que existiera
+#: tramos_iva. El 0% se incluye porque tiene su propio camino en el motor
+#: (guard_naturaleza_operacion), no uno plano, pero tampoco es "no estandar"
+#: en el sentido de este diagnostico -- se ve a diario.
+_TIPOS_IVA_ESTANDAR = (0, 4, 10, 21)
+
+
+def _bucket_estructural(fila):
+    """Clasifica un asiento reconstruido por la FORMA de sus tramos de IVA,
+    nunca por su contenido -- para poder imprimirlo directo por consola sin
+    ningun riesgo de identificar nada.
+
+    ANADIDO 18-09-2026, ver el comentario de mas arriba sobre el aumento de
+    ROJO. Los buckets estan pensados para responder una pregunta concreta:
+    ¿el aumento de cuadre_total/retencion_vs_error=FALLO esta concentrado en
+    facturas con un tipo de IVA que NO tiene campo plano equivalente
+    (5%, 7,5%, etc.) o con varios tramos a la vez -- el caso que hasta el
+    16-09 dependia de tramos_iva sobreviviendo intacto -- o esta repartido
+    por igual en todo tipo de factura (lo que apuntaria a otra causa)?"""
+    tramos = fila.get("tramos_iva") or []
+    tipos = {int(t.get("tipo", -1)) for t in tramos}
+    if not tramos:
+        bucket_tramos = "sin_tramos"
+    elif len(tramos) == 1:
+        (tipo_unico,) = tipos
+        bucket_tramos = ("1_tramo_estandar" if tipo_unico in _TIPOS_IVA_ESTANDAR
+                          else "1_tramo_NO_estandar")
+    elif tipos <= set(_TIPOS_IVA_ESTANDAR):
+        bucket_tramos = "multi_tramo_todos_estandar"
+    else:
+        bucket_tramos = "multi_tramo_con_NO_estandar"
+    tiene_retencion = bool(fila.get("irpf_retencion"))
+    tiene_recargo = bool(fila.get("recargo_equivalencia"))
+    return f"{bucket_tramos} | retencion={tiene_retencion} | recargo={tiene_recargo}"
+
+
 # --------------------------------------------------------------------------
 def main():
     ap = argparse.ArgumentParser()
@@ -720,6 +757,16 @@ def main():
     # Solo se rellena si se pide -- guarda la carpeta REAL, nunca se imprime
     # por consola ni entra en el JSON agregado (ver informe de mas abajo).
     detalle_cuenta_gasto = {} if args.detalle_cuenta_gasto else None
+    # ANADIDO 18-09-2026: el ROJO subio de 3,03% (28-08) a mas del 5% en esta
+    # ejecucion, y cuadre_total + retencion_vs_error explican casi todo el
+    # aumento. Descartado por git log que se tocara ninguno de los dos guards,
+    # o contrato_datos.py, desde el 28-08 -- asi que la pregunta es si el
+    # aumento esta CONCENTRADO en un patron estructural concreto (tramos no
+    # estandar, retencion, recargo) o disperso. Solo cuenta buckets
+    # estructurales, nunca un NIF, importe ni nombre -- seguro de imprimir
+    # directo por consola, sin fichero _LOCAL.
+    cuadre_total_por_bucket = defaultdict(Counter)
+    retencion_por_bucket = defaultdict(Counter)
     detalle_local = []
     nifs_pool = []
     parar = False
@@ -1015,6 +1062,12 @@ def main():
                                 entry_dcg["n_evaluado"] += 1
                                 if estado_cgc == "FALLO":
                                     entry_dcg["n_fallos"] += 1
+                        estado_ct = guards.get("cuadre_total", (None, None))[0]
+                        if estado_ct in ("OK", "FALLO"):
+                            cuadre_total_por_bucket[_bucket_estructural(fila)][estado_ct] += 1
+                        estado_rt = guards.get("retencion_vs_error", (None, None))[0]
+                        if estado_rt in ("OK", "FALLO"):
+                            retencion_por_bucket[_bucket_estructural(fila)][estado_rt] += 1
                         if v == "AMBAR":
                             # Las causas se sacan del MOTIVO, no de la lista de
                             # guards no benignos. Parece lo mismo y no lo es: hay
@@ -1192,6 +1245,28 @@ def main():
         print("    el 47% sintetico del 21-08. >=70% = el mapeo casi nunca acierta")
         print("    con ESE proveedor -- si hay muchos aqui, no es negocio mixto,")
         print("    es que 'habitual' no se esta estabilizando para el.")
+
+    def _imprimir_desglose_por_bucket(titulo, por_bucket):
+        total_evaluado = sum(sum(c.values()) for c in por_bucket.values())
+        total_fallo = sum(c.get("FALLO", 0) for c in por_bucket.values())
+        if not total_evaluado:
+            return
+        print()
+        print(f"DESGLOSE ESTRUCTURAL de {titulo} ({total_fallo:,} FALLO de "
+              f"{total_evaluado:,} evaluados, tasa global {pct(total_fallo, total_evaluado)}%):")
+        for bucket, c in sorted(por_bucket.items(), key=lambda kv: -sum(kv[1].values())):
+            n_eval = sum(c.values())
+            n_fallo = c.get("FALLO", 0)
+            print(f"    {bucket:<70} {n_fallo:>6,}/{n_eval:<6,}  tasa {pct(n_fallo, n_eval)}%")
+
+    # ANADIDO 18-09-2026: ver el comentario donde se acumulan estos dos
+    # contadores, mas arriba en este mismo fichero. Si la tasa de FALLO es
+    # claramente mas alta en "1_tramo_NO_estandar" o "multi_tramo_..." que en
+    # "1_tramo_estandar", el aumento de ROJO viene de facturas con un tipo de
+    # IVA que antes se evaluaba mal (o no se evaluaba). Si la tasa es pareja
+    # en todos los buckets, la causa esta en otro sitio y no en los tramos.
+    _imprimir_desglose_por_bucket("cuadre_total=FALLO", cuadre_total_por_bucket)
+    _imprimir_desglose_por_bucket("retencion_vs_error=FALLO", retencion_por_bucket)
 
     if args.inyectar:
         total_iny = sum(det_veredictos.values())
