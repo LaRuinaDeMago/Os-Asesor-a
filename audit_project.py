@@ -1011,19 +1011,37 @@ def check_salida_unica_cloud():
         autorizado_ok = any(
             isinstance(n, (ast.Import, ast.ImportFrom))
             and "puerta_cloud" in ast.dump(n) for n in ast.walk(arbol))
-        # La invariante local: la funcion que envia, pide permiso.
+        # La invariante local: la funcion que envia, pide permiso -- y lo pide
+        # ANTES de enviar. Lo segundo, ANADIDO 18-09-2026: antes solo se
+        # comprobaba que la llamada existiera EN ALGUN PUNTO de la funcion.
+        # Reproducido el hueco: una funcion que envia primero y pide permiso
+        # despues (o en una rama que no llega a ejecutarse antes del envio)
+        # pasaba como correcta. Comparar el numero de linea es una heuristica
+        # de codigo lineal -- no sigue ramas ni bucles -- pero es exactamente
+        # la forma real de las funciones de captura_orquestador.py, y detecta
+        # el error de escribir los pasos en el orden equivocado, que es el
+        # deslic real, no una construccion de laboratorio. NO intenta
+        # verificar que el permiso pedido sea del MISMO documento que se
+        # envia -- eso necesitaria seguir de que variable sale cada dato, y
+        # el riesgo de acusar a codigo inocente (la propia leccion de
+        # check_cableado, 21-08-2026) supera hoy el beneficio sin un caso
+        # real que lo pida.
         for fn in ast.walk(arbol):
             if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 continue
             envia = list(_llamadas_api_ia(fn))
             if not envia:
                 continue
-            pide = any(isinstance(n, ast.Call)
-                       and isinstance(n.func, ast.Attribute)
-                       and n.func.attr == "exigir_permiso"
-                       for n in ast.walk(fn))
-            if not pide:
+            permisos = [n.lineno for n in ast.walk(fn)
+                        if isinstance(n, ast.Call)
+                        and isinstance(n.func, ast.Attribute)
+                        and n.func.attr == "exigir_permiso"]
+            if not permisos:
                 sin_permiso.append(f"{os.path.basename(f)}:{fn.name}:{envia[0].lineno}")
+            elif min(permisos) > min(n.lineno for n in envia):
+                sin_permiso.append(
+                    f"{os.path.basename(f)}:{fn.name}:{envia[0].lineno} "
+                    f"(exigir_permiso en la linea {min(permisos)}, DESPUES del envio)")
         if host_crudo and not llamadas:
             sin_verificar_crudo.append(os.path.basename(f))
 

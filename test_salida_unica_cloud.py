@@ -128,9 +128,9 @@ def funciones_sin_permiso(codigo):
         envia = list(_llamadas_api_ia(fn))
         if not envia:
             continue
-        pide = any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-                   and n.func.attr == "exigir_permiso" for n in ast.walk(fn))
-        if not pide:
+        permisos = [n.lineno for n in ast.walk(fn) if isinstance(n, ast.Call)
+                    and isinstance(n.func, ast.Attribute) and n.func.attr == "exigir_permiso"]
+        if not permisos or min(permisos) > min(n.lineno for n in envia):
             sin_permiso.append(fn.name)
     return sin_permiso
 
@@ -152,6 +152,38 @@ def leer_factura_ok(cliente, path, lote):
 check(resultado_control == [],
       "Control positivo: la MISMA llamada (.messages.stream) con exigir_permiso "
       "presente no se marca como problema")
+
+
+# ---------------------------------------------------------------------------
+# FAMILIA C-ter -- el hueco cerrado el 18-09-2026: exigir_permiso() se
+# comprobaba SOLO por presencia en la funcion, nunca por ORDEN. Una funcion
+# que envia primero y pide permiso despues pasaba como correcta.
+# ---------------------------------------------------------------------------
+
+resultado_orden_mal = funciones_sin_permiso('''
+import puerta_cloud
+
+def leer_mal_orden(cliente, path, lote):
+    resultado = cliente.messages.create(model="x", messages=[{"content": path}])
+    permiso = lote.consumir(path)
+    puerta_cloud.exigir_permiso(permiso, path)
+    return resultado
+''')
+check(resultado_orden_mal == ["leer_mal_orden"],
+      f"Funcion que envia ANTES de pedir permiso se detecta, aunque "
+      f"exigir_permiso este presente en la funcion (obtenido: {resultado_orden_mal})")
+
+resultado_orden_bien = funciones_sin_permiso('''
+import puerta_cloud
+
+def leer_bien(cliente, path, lote):
+    permiso = lote.consumir(path)
+    puerta_cloud.exigir_permiso(permiso, path)
+    return cliente.messages.create(model="x", messages=[{"content": path}])
+''')
+check(resultado_orden_bien == [],
+      "Control positivo: el mismo envio, con exigir_permiso ANTES (el orden "
+      "real de captura_orquestador.py), no se marca como problema")
 
 
 # ---------------------------------------------------------------------------
@@ -197,10 +229,13 @@ check(not list(_llamadas_api_ia(ast.parse(codigo_http_anthropic))),
 
 def ejecutar_auditoria_en(ficheros):
     """Escribe `ficheros` (dict nombre -> contenido) en un directorio temporal
-    y ejecuta la MISMA logica que check_salida_unica_cloud(), devolviendo
-    (fuera, autorizado_ok, sin_permiso, sin_verificar_crudo) en vez de
-    imprimir -- para poder comprobar el resultado sin depender de parsear el
-    mensaje impreso."""
+    y llama a la funcion REAL check_salida_unica_cloud() -- no una copia
+    paralela de su logica. Una copia mantenida a mano se desincroniza cada
+    vez que la funcion real cambia (pasó tres veces mientras se escribia
+    esta suite: el metodo nuevo, el host crudo, el orden de exigir_permiso
+    fueron cada uno un fix a la funcion real que esta copia no habria
+    reflejado). Devuelve (ok, detalle) leyendo el RESULTADO global que deja
+    check(), en vez de imprimir."""
     import audit_project as ap
     with tempfile.TemporaryDirectory() as tmp:
         cwd_previo = os.getcwd()
@@ -209,78 +244,51 @@ def ejecutar_auditoria_en(ficheros):
             for nombre, contenido in ficheros.items():
                 with open(nombre, "w", encoding="utf-8") as fh:
                     fh.write(contenido)
-            fuera, sin_permiso, sin_verificar_crudo = [], [], []
-            autorizado_ok = False
-            from pathlib import Path
-            for f in [str(p) for p in Path(".").rglob("*.py")]:
-                arbol = ast.parse(open(f, encoding="utf-8").read())
-                llamadas = list(_llamadas_api_ia(arbol))
-                host_crudo = _referencia_host_ia_cruda(arbol)
-                if not llamadas and not _importa_sdk_ia(arbol) and not host_crudo:
-                    continue
-                if os.path.basename(f) != ap.SALIDA_CLOUD_AUTORIZADA:
-                    fuera.append(os.path.basename(f))
-                    continue
-                autorizado_ok = any(
-                    isinstance(n, (ast.Import, ast.ImportFrom))
-                    and "puerta_cloud" in ast.dump(n) for n in ast.walk(arbol))
-                for fn in ast.walk(arbol):
-                    if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)):
-                        continue
-                    envia = list(_llamadas_api_ia(fn))
-                    if not envia:
-                        continue
-                    pide = any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
-                               and n.func.attr == "exigir_permiso" for n in ast.walk(fn))
-                    if not pide:
-                        sin_permiso.append(f"{os.path.basename(f)}:{fn.name}")
-                if host_crudo and not llamadas:
-                    sin_verificar_crudo.append(os.path.basename(f))
-            return fuera, autorizado_ok, sin_permiso, sin_verificar_crudo
+            ap.check_salida_unica_cloud()
+            resultado = ap.RESULTADO["checks"]["Salida a IA: una sola puerta, y pide permiso"]
+            return resultado["ok"], resultado["detalle"]
         finally:
             os.chdir(cwd_previo)
 
 
-fuera, autorizado_ok, sin_permiso, _ = ejecutar_auditoria_en({
+ok1, detalle1 = ejecutar_auditoria_en({
     "captura_orquestador.py": CAPTURA_CON_FUNCION_SIN_PERMISO,
     "puerta_cloud.py": "def exigir_permiso(p, ruta): pass\n",
 })
-check(fuera == [], "Auditoria completa: el fichero autorizado no se marca como 'fuera'")
-check(autorizado_ok, "Auditoria completa: detecta que importa puerta_cloud")
-check(sin_permiso == ["captura_orquestador.py:leer_algo_nuevo_sin_permiso"],
+check(not ok1 and "leer_algo_nuevo_sin_permiso" in detalle1,
       f"Auditoria completa: localiza fichero y funcion exactos del envio sin "
-      f"permiso (obtenido: {sin_permiso})")
+      f"permiso (obtenido: {detalle1})")
 
-fuera2, _, _, _ = ejecutar_auditoria_en({
+ok2, detalle2 = ejecutar_auditoria_en({
     "otro_fichero.py": 'import anthropic\ndef f(c, x): return c.messages.stream(model="x", messages=[])\n',
 })
-check(fuera2 == ["otro_fichero.py"],
-      "Auditoria completa: una llamada con metodo nuevo (.stream) en OTRO "
-      "fichero (no el autorizado) tambien se marca como fuera de la puerta")
+check(not ok2 and "otro_fichero.py" in detalle2,
+      f"Auditoria completa: una llamada con metodo nuevo (.stream) en OTRO "
+      f"fichero (no el autorizado) tambien se marca como fuera de la puerta (obtenido: {detalle2})")
 
-fuera3, _, sin_permiso3, _ = ejecutar_auditoria_en({
+ok3, detalle3 = ejecutar_auditoria_en({
     "captura_orquestador.py": (
         "import puerta_cloud\n"
         "def leer(x):\n"
         "    return 'nada de IA aqui, solo texto'\n"
     ),
 })
-check(fuera3 == [] and sin_permiso3 == [],
-      "Auditoria completa: un fichero autorizado que no llama a ninguna IA "
-      "no genera ningun falso positivo")
+check(ok3,
+      f"Auditoria completa: un fichero autorizado que no llama a ninguna IA "
+      f"no genera ningun falso positivo (obtenido: {detalle3})")
 
-fuera4, _, _, _ = ejecutar_auditoria_en({
+ok4, detalle4 = ejecutar_auditoria_en({
     "otro_fichero.py": (
         'import requests\n'
         'def f(path):\n'
         '    return requests.post("https://api.anthropic.com/v1/messages", json={"path": path})\n'
     ),
 })
-check(fuera4 == ["otro_fichero.py"],
-      "Auditoria completa: HTTP crudo al host de Anthropic en OTRO fichero "
-      "(reproduccion exacta del hueco cerrado 18-09-2026) se marca como fuera de la puerta")
+check(not ok4 and "otro_fichero.py" in detalle4,
+      f"Auditoria completa: HTTP crudo al host de Anthropic en OTRO fichero "
+      f"(reproduccion exacta del hueco cerrado 18-09-2026) se marca como fuera de la puerta (obtenido: {detalle4})")
 
-_, _, _, crudo5 = ejecutar_auditoria_en({
+ok5, detalle5 = ejecutar_auditoria_en({
     "captura_orquestador.py": (
         'import requests\n'
         'import puerta_cloud\n'
@@ -288,11 +296,37 @@ _, _, _, crudo5 = ejecutar_auditoria_en({
         '    return requests.post("https://api.anthropic.com/v1/messages", json={"path": path})\n'
     ),
 })
-check(crudo5 == ["captura_orquestador.py"],
-      "Auditoria completa: el MISMO HTTP crudo, esta vez DENTRO del fichero "
-      "autorizado, se marca como 'sin verificar' en vez de darse por bueno "
-      "en silencio (no hay una llamada reconocida a la que atarle el "
-      "requisito de exigir_permiso)")
+check(not ok5 and "captura_orquestador.py" in detalle5,
+      f"Auditoria completa: el MISMO HTTP crudo, esta vez DENTRO del fichero "
+      f"autorizado, se marca como 'sin verificar' en vez de darse por bueno "
+      f"en silencio (obtenido: {detalle5})")
+
+ok6, detalle6 = ejecutar_auditoria_en({
+    "captura_orquestador.py": (
+        "import puerta_cloud\n"
+        "def leer_mal_orden(cliente, path, lote):\n"
+        "    resultado = cliente.messages.create(model='x', messages=[{'content': path}])\n"
+        "    permiso = lote.consumir(path)\n"
+        "    puerta_cloud.exigir_permiso(permiso, path)\n"
+        "    return resultado\n"
+    ),
+})
+check(not ok6 and "leer_mal_orden" in detalle6,
+      f"Auditoria completa: funcion que envia antes de pedir permiso (orden "
+      f"invertido) se detecta aunque exigir_permiso este presente (obtenido: {detalle6})")
+
+ok7, detalle7 = ejecutar_auditoria_en({
+    "captura_orquestador.py": (
+        "import puerta_cloud\n"
+        "def leer_bien(cliente, path, lote):\n"
+        "    permiso = lote.consumir(path)\n"
+        "    puerta_cloud.exigir_permiso(permiso, path)\n"
+        "    return cliente.messages.create(model='x', messages=[{'content': path}])\n"
+    ),
+})
+check(ok7,
+      f"Auditoria completa, control positivo: el mismo envio con "
+      f"exigir_permiso ANTES no genera ningun falso positivo (obtenido: {detalle7})")
 
 
 if FALLOS:
