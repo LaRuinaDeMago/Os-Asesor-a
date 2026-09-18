@@ -66,6 +66,7 @@ import hashlib
 import json
 import os
 import random
+import re
 import struct
 import sys
 import zipfile
@@ -767,6 +768,13 @@ def main():
     # directo por consola, sin fichero _LOCAL.
     cuadre_total_por_bucket = defaultdict(Counter)
     retencion_por_bucket = defaultdict(Counter)
+    # El PORCENTAJE de descuadre ya lo calcula guard_retencion_vs_error() y lo
+    # deja en su propio mensaje ("diferencia de X (Y%) no corresponde...") --
+    # se extrae de ahi con una regex, sin tocar motor_veredicto.py ni exponer
+    # nada que no sea ya publico en el motivo del guard. Es un ratio, nunca
+    # un importe ni un NIF: seguro de imprimir.
+    _RE_PCT_RETENCION = re.compile(r"\(([-\d.]+)%\)")
+    retencion_fallo_pct_sin_retencion = Counter()
     detalle_local = []
     nifs_pool = []
     parar = False
@@ -1065,9 +1073,13 @@ def main():
                         estado_ct = guards.get("cuadre_total", (None, None))[0]
                         if estado_ct in ("OK", "FALLO"):
                             cuadre_total_por_bucket[_bucket_estructural(fila)][estado_ct] += 1
-                        estado_rt = guards.get("retencion_vs_error", (None, None))[0]
+                        estado_rt, motivo_rt = guards.get("retencion_vs_error", (None, ""))
                         if estado_rt in ("OK", "FALLO"):
                             retencion_por_bucket[_bucket_estructural(fila)][estado_rt] += 1
+                            if estado_rt == "FALLO" and not fila.get("irpf_retencion"):
+                                m = _RE_PCT_RETENCION.search(motivo_rt or "")
+                                if m:
+                                    retencion_fallo_pct_sin_retencion[round(float(m.group(1)))] += 1
                         if v == "AMBAR":
                             # Las causas se sacan del MOTIVO, no de la lista de
                             # guards no benignos. Parece lo mismo y no lo es: hay
@@ -1267,6 +1279,18 @@ def main():
     # en todos los buckets, la causa esta en otro sitio y no en los tramos.
     _imprimir_desglose_por_bucket("cuadre_total=FALLO", cuadre_total_por_bucket)
     _imprimir_desglose_por_bucket("retencion_vs_error=FALLO", retencion_por_bucket)
+
+    if retencion_fallo_pct_sin_retencion:
+        total_pct = sum(retencion_fallo_pct_sin_retencion.values())
+        print()
+        print(f"PORCENTAJE DE DESCUADRE en retencion_vs_error=FALLO sin retencion "
+              f"declarada ({total_pct:,} casos, los {min(10, len(retencion_fallo_pct_sin_retencion))} "
+              f"valores redondeados mas comunes):")
+        for valor, n in retencion_fallo_pct_sin_retencion.most_common(10):
+            print(f"    {valor:>6}%   {n:>6,} casos  ({pct(n, total_pct)}%)")
+        print("    Si unos pocos valores concentran casi todo, hay una firma")
+        print("    numerica detras (p.ej. un campo leido de la fuente equivocada)")
+        print("    y no son errores de contabilizacion dispersos.")
 
     if args.inyectar:
         total_iny = sum(det_veredictos.values())
